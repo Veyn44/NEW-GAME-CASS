@@ -146,7 +146,9 @@ export class SystemRegistry {
     if (!publicApi || (typeof publicApi !== "object" && typeof publicApi !== "function")) {
       throw new RegistryError("INVALID_SERVICE_API", `Public API for "${serviceId}" must be an object or function.`, { serviceId });
     }
-    const api = typeof publicApi === "function" ? publicApi : Object.freeze({ ...publicApi });
+    // Preserve class-instance prototypes: Core services such as Logger expose
+    // their methods on the prototype and may keep mutable state in private fields.
+    const api = typeof publicApi === "function" ? publicApi : Object.freeze(publicApi);
     this.#services.set(serviceId, api);
     return api;
   }
