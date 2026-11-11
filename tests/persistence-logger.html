@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#10151b">
+  <title>CASSANDRA3 — Persistence & Logger Tests</title>
+  <style>
+    :root{color-scheme:dark;font-family:ui-sans-serif,system-ui;background:#0c1117;color:#e8edf2}
+    *{box-sizing:border-box}body{margin:0;padding:28px;background:radial-gradient(ellipse at 50% 0%,#1b2833 0,#0c1117 60%)}
+    main{max-width:900px;margin:auto}h1{font-size:22px}.meta{color:#91a5b0;font-size:13px}
+    .summary{padding:14px 16px;border:1px solid #344752;border-radius:8px;margin:20px 0;background:#111b22}
+    ol{padding:0;list-style:none;display:grid;gap:8px}li{padding:12px 14px;border:1px solid #344752;border-radius:6px;background:#121d24}
+    li.pass{border-left:4px solid #5ca982}li.fail{border-left:4px solid #d8786d}
+    .state{font-weight:700;margin-right:8px}.pass .state{color:#8ed0a9}.fail .state{color:#f08e83}
+    .error{color:#f0a39a;font:12px ui-monospace,monospace;margin-top:7px;white-space:pre-wrap}
+    button{background:#263541;border:1px solid #405463;border-radius:5px;color:#e8edf2;padding:9px 13px;cursor:pointer}
+  </style>
+</head>
+<body>
+  <main>
+    <div class="meta">CASSANDRA3 / CORE ARCHITECTURE</div>
+    <h1>Persistence & Logger</h1>
+    <p class="meta">Izolované asynchronní testy logování a kontraktu ukládání/obnovy. Bez herních systémů.</p>
+    <button id="run">Run tests again</button>
+    <section class="summary" id="summary" aria-live="polite">Running tests…</section>
+    <ol id="results"></ol>
+  </main>
+  <script type="module">
+    import { runPersistenceLoggerTests } from "./persistence-logger.test.js";
+    const summary = document.querySelector("#summary");
+    const list = document.querySelector("#results");
+    async function run() {
+      summary.textContent = "Running tests…";
+      const results = await runPersistenceLoggerTests();
+      const passed = results.filter((result) => result.passed).length;
+      summary.textContent = `${passed}/${results.length} tests passed`;
+      list.replaceChildren();
+      for (const result of results) {
+        const item = document.createElement("li");
+        item.className = result.passed ? "pass" : "fail";
+        const title = document.createElement("div");
+        const state = document.createElement("span");
+        state.className = "state";
+        state.textContent = result.passed ? "PASS" : "FAIL";
+        title.append(state, document.createTextNode(result.name));
+        item.append(title);
+        if (result.error) {
+          const error = document.createElement("div");
+          error.className = "error";
+          error.textContent = result.error;
+          item.append(error);
+        }
+        list.append(item);
+      }
+    }
+    document.querySelector("#run").addEventListener("click", run);
+    run();
+  </script>
+</body>
+</html>
