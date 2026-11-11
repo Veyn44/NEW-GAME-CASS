@@ -203,7 +203,11 @@ export class Persistence {
           snapshots
         };
         const validated = deepFreeze(cloneSerializable(saveData));
-        await this.#adapter.writeAtomic(slotId, validated);
+        try {
+          await this.#adapter.writeAtomic(slotId, validated);
+        } catch (error) {
+          throw new PersistenceError("SAVE_FAILED", `Atomic write failed for slot "${slotId}".`, { slotId, cause: error });
+        }
         this.#log("info", "Campaign save committed.", { slotId, campaignId, kind, participantCount: Object.keys(snapshots).length });
         return validated.metadata;
       } catch (error) {
