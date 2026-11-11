@@ -187,7 +187,7 @@ export function createCoreAssembly({
               error.code = "UNSAFE_BOUNDARY";
               throw error;
             }
-            if (events.pendingCount !== 0) {
+            if (events.isDelivering || events.pendingCount !== 0) {
               const error = new Error("Persistence operation attempted while Event Bus delivery is pending.");
               error.code = "UNSAFE_BOUNDARY";
               throw error;
