@@ -82,8 +82,7 @@ function freezeWorld(raw) {
     status: raw.status,
     dimensions: Object.freeze({ width: raw.dimensions.width, height: raw.dimensions.height }),
     coordinateSystem: raw.coordinateSystem,
-    locationId: raw.locationId ?? null,
-    encounterId: raw.encounterId ?? null
+    metadata: clonePlain(raw.metadata ?? {}, "world.metadata")
   });
 }
 
@@ -108,8 +107,7 @@ function validateWorld(raw, index) {
     worldId, type, status: raw.status,
     dimensions: { width, height },
     coordinateSystem: raw.coordinateSystem,
-    locationId: raw.locationId ?? null,
-    encounterId: raw.encounterId ?? null
+    metadata: clonePlain(raw.metadata ?? {}, `worlds[${index}].metadata`)
   });
 }
 
@@ -137,8 +135,7 @@ export class WorldRegistry {
     type,
     dimensions,
     coordinateSystem = "world-units",
-    locationId = null,
-    encounterId = null
+    metadata = {}
   } = {}) {
     const worldType = assertType(type);
     const id = worldId === null ? this.#newWorldId() : assertId(worldId);
@@ -159,7 +156,7 @@ export class WorldRegistry {
     const world = freezeWorld({
       worldId: id, type: worldType, status: "inactive",
       dimensions: { width, height }, coordinateSystem,
-      locationId, encounterId
+      metadata: clonePlain(metadata, "world.metadata")
     });
     this.#worlds.set(id, world);
     return world;
@@ -257,8 +254,7 @@ export class WorldRegistry {
         status: world.status,
         dimensions: { width: world.dimensions.width, height: world.dimensions.height },
         coordinateSystem: world.coordinateSystem,
-        locationId: world.locationId,
-        encounterId: world.encounterId
+        metadata: world.metadata
       })))
     });
   }
