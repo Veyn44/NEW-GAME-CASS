@@ -1,4 +1,5 @@
 import { createCoreAssembly } from "./fixtures/create-demo-assembly.js";
+import { createCoreAssembly as createEngineCoreAssembly } from "../src/core/core-assembly.js";
 
 const tests = [];
 function test(name, run) { tests.push({ name, run }); }
@@ -13,6 +14,13 @@ async function rejects(run, code) {
   }
   throw new Error("Expected operation to reject.");
 }
+
+test("Core Assembly requires an explicit persistence adapter", async () => {
+  let error = null;
+  try { createEngineCoreAssembly(); } catch (caught) { error = caught; }
+  assert(error instanceof TypeError, "Core Assembly silently selected an in-memory persistence adapter.");
+  assert(error.message.includes("saveAdapter"), "Missing adapter error should explain the required contract.");
+});
 
 test("bootstrap publishes every declared Core service", async () => {
   const runtime = createCoreAssembly();
