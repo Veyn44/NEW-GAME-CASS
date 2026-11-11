@@ -10,10 +10,10 @@ export class GameClockError extends Error {
 }
 
 /**
- * Authoritative strategic clock for Cassandra.
+ * Authoritative strategic clock for the host application.
  *
- * One strategic day (86,400 strategic seconds) lasts 720 real seconds at
- * 1x. The clock does not own a calendar, frame loop, timer, or encounter clock.
+ * Strategic time conversion is configurable by the host application. The
+ * clock does not own a calendar, frame loop, wall timer, or domain clock.
  * SimulationScheduler commits time only after a complete fixed simulation step.
  */
 export class GameClock {
