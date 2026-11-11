@@ -10,11 +10,11 @@ The Core is the domain-neutral runtime foundation for host applications. Cassand
 - `core-assembly.js` — composes the reusable infrastructure services and accepts host systems/tasks.
 - `logger.js` — bounded structured diagnostics; logging never owns game state.
 - `event-bus.js` — synchronous ordered event delivery with retained pending events and explicit recovery after a drain limit.
-- `game-clock.js` — authoritative strategic clock and pause/speed state.
+- `game-clock.js` — configurable simulation clock and pause/speed state.
 - `simulation-scheduler.js` — deterministic fixed-step execution, speed-snapshotted backlog and bounded catch-up.
 - `entity-registry.js` — persistent entity identity and metadata, independent of domain behavior and world placement.
 - `world-registry.js` — registration and activation of playable worlds.
-- `world-context.js` — exclusive entity placement and atomic transfer between world/encounter scopes.
+- `world-context.js` — exclusive entity placement and atomic transfer between world and storage locations.
 - `persistence.js` — adapter-neutral atomic save contract and transactional participant restore.
 
 ## Composition contract
@@ -38,4 +38,4 @@ A simulation task declares `systemId` matching a host system and a synchronous `
 
 ## Ownership boundaries
 
-Entity Registry owns identity. Domain systems own domain state. World Registry owns world definitions/activation. World Context owns entity placement. Core does not generate galaxies, maps, expeditions, scans, Cassandra sections, pawns or game-specific rules.
+Entity Registry owns identity. Domain systems own domain state. World Registry owns world definitions/activation. World Context owns entity placement. Core does not generate galaxies, maps, expeditions, scans, host-specific entities or game rules.
