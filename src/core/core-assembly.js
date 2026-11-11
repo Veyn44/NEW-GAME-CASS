@@ -140,11 +140,16 @@ export function createCoreAssembly({
             {
               systemId: "core.scheduler",
               update({ deltaSeconds, tick }) {
-                events.publish({
-                  type: "core.simulation-step",
-                  source: "core.scheduler",
-                  payload: { tick, deltaSeconds }
-                });
+                insideSimulationStep = true;
+                try {
+                  events.publish({
+                    type: "core.simulation-step",
+                    source: "core.scheduler",
+                    payload: { tick, deltaSeconds }
+                  });
+                } finally {
+                  insideSimulationStep = false;
+                }
               }
             }
           ],
