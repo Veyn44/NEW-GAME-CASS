@@ -80,16 +80,16 @@ export async function runPersistenceLoggerTests() {
     const adapter = new MemorySaveAdapter();
     let boundaryCalls = 0;
     const persistence = new Persistence({
-      adapter, gameVersion: "1.2.3",
+      adapter, applicationVersion: "1.2.3",
       runAtSafeBoundary: async (operation) => { boundaryCalls += 1; return operation(); }
     });
     persistence.registerParticipant({ id: "core.clock", schemaVersion: 1, captureSnapshot: () => ({ seconds: 42 }), prepareRestore: () => ({ commit() {}, rollback() {} }) });
-    const metadata = await persistence.save("slot-1", { campaignId: "campaign-a", seed: 1234 });
+    const metadata = await persistence.save("slot-1", { stateId: "campaign-a", seed: 1234 });
     equal(boundaryCalls, 1, "Boundary must wrap save");
-    equal(metadata.campaignId, "campaign-a", "Campaign metadata");
+    equal(metadata.stateId, "campaign-a", "State metadata");
     const saved = await adapter.read("slot-1");
     equal(saved.snapshots["core.clock"].seconds, 42, "Stored snapshot");
-    equal(saved.metadata.gameVersion, "1.2.3", "Game version");
+    equal(saved.metadata.applicationVersion, "1.2.3", "Game version");
     equal(saved.metadata.seed, 1234, "Generic application seed");
   });
 
@@ -127,7 +127,7 @@ export async function runPersistenceLoggerTests() {
     const participant = new StatefulParticipant();
     const writer = new Persistence({ adapter, runAtSafeBoundary: (operation) => operation() });
     writer.registerParticipant(participant);
-    await writer.save("class-slot", { campaignId: "class-campaign" });
+    await writer.save("class-slot", { stateId: "class-campaign" });
     const readerParticipant = new StatefulParticipant(0);
     const reader = new Persistence({ adapter, runAtSafeBoundary: (operation) => operation() });
     reader.registerParticipant(readerParticipant);
@@ -140,7 +140,7 @@ export async function runPersistenceLoggerTests() {
     const adapter = { async read() { return null; }, async writeAtomic() { writes += 1; } };
     const persistence = new Persistence({ adapter, runAtSafeBoundary: (operation) => operation() });
     persistence.registerParticipant({ id: "core.required", schemaVersion: 1, captureSnapshot: () => undefined, prepareRestore: () => ({ commit() {}, rollback() {} }) });
-    await expectCode(() => persistence.save("slot", { campaignId: "c" }), "MISSING_SNAPSHOT");
+    await expectCode(() => persistence.save("slot", { stateId: "c" }), "MISSING_SNAPSHOT");
     equal(writes, 0, "No partial save write");
   });
 
@@ -149,7 +149,7 @@ export async function runPersistenceLoggerTests() {
     const persistence = new Persistence({ adapter: memory, runAtSafeBoundary: (operation) => operation() });
     let value = 1;
     persistence.registerParticipant({ id: "core.state", schemaVersion: 1, captureSnapshot: () => ({ value }), prepareRestore: () => ({ commit() {}, rollback() {} }) });
-    await persistence.save("slot", { campaignId: "c" });
+    await persistence.save("slot", { stateId: "c" });
     value = 2;
     const failingAdapter = {
       read: (id) => memory.read(id),
@@ -157,7 +157,7 @@ export async function runPersistenceLoggerTests() {
     };
     const failing = new Persistence({ adapter: failingAdapter, runAtSafeBoundary: (operation) => operation() });
     failing.registerParticipant({ id: "core.state", schemaVersion: 1, captureSnapshot: () => ({ value }), prepareRestore: () => ({ commit() {}, rollback() {} }) });
-    await expectCode(() => failing.save("slot", { campaignId: "c" }), "SAVE_FAILED");
+    await expectCode(() => failing.save("slot", { stateId: "c" }), "SAVE_FAILED");
     equal((await memory.read("slot")).snapshots["core.state"].value, 1, "Previous save remains intact");
   });
 
@@ -166,7 +166,7 @@ export async function runPersistenceLoggerTests() {
     const writer = new Persistence({ adapter, runAtSafeBoundary: (operation) => operation() });
     writer.registerParticipant({ id: "core.a", schemaVersion: 1, captureSnapshot: () => ({ n: 1 }), prepareRestore: () => ({ commit() {}, rollback() {} }) });
     writer.registerParticipant({ id: "core.b", schemaVersion: 1, captureSnapshot: () => ({ n: 2 }), prepareRestore: () => ({ commit() {}, rollback() {} }) });
-    await writer.save("slot", { campaignId: "c" });
+    await writer.save("slot", { stateId: "c" });
     let committed = 0;
     const reader = new Persistence({ adapter, runAtSafeBoundary: (operation) => operation() });
     reader.registerParticipant({ id: "core.a", schemaVersion: 1, captureSnapshot: () => ({}), prepareRestore: () => ({ commit() { committed++; }, rollback() {} }) });
@@ -179,7 +179,7 @@ export async function runPersistenceLoggerTests() {
     const adapter = new MemorySaveAdapter();
     const writer = new Persistence({ adapter, runAtSafeBoundary: (operation) => operation() });
     for (const id of ["core.a", "core.b"]) writer.registerParticipant({ id, schemaVersion: 1, captureSnapshot: () => ({ ok: true }), prepareRestore: () => ({ commit() {}, rollback() {} }) });
-    await writer.save("slot", { campaignId: "c" });
+    await writer.save("slot", { stateId: "c" });
     const calls = [];
     const reader = new Persistence({ adapter, runAtSafeBoundary: (operation) => operation() });
     reader.registerParticipant({ id: "core.a", schemaVersion: 1, captureSnapshot: () => ({}), prepareRestore: () => ({ commit() { calls.push("commit-a"); }, rollback() { calls.push("rollback-a"); } }) });
@@ -188,22 +188,22 @@ export async function runPersistenceLoggerTests() {
     equal(calls.join(","), "commit-a,commit-b,rollback-b,rollback-a", "Rollback order");
   });
 
-  await test("Persistence rejects incompatible campaign format and campaign identity", async () => {
+  await test("Persistence rejects incompatible save format and state identity", async () => {
     const adapter = new MemorySaveAdapter();
     const writer = new Persistence({ adapter, runAtSafeBoundary: (operation) => operation() });
     writer.registerParticipant({ id: "core.state", schemaVersion: 1, captureSnapshot: () => ({}), prepareRestore: () => ({ commit() {}, rollback() {} }) });
-    await writer.save("slot", { campaignId: "campaign-a" });
-    const reader = new Persistence({ adapter, campaignFormatVersion: 2, runAtSafeBoundary: (operation) => operation() });
+    await writer.save("slot", { stateId: "campaign-a" });
+    const reader = new Persistence({ adapter, formatVersion: 2, runAtSafeBoundary: (operation) => operation() });
     reader.registerParticipant({ id: "core.state", schemaVersion: 1, captureSnapshot: () => ({}), prepareRestore: () => ({ commit() {}, rollback() {} }) });
     await expectCode(() => reader.load("slot"), "INCOMPATIBLE_SAVE_FORMAT");
-    await expectCode(() => writer.load("slot", { campaignId: "campaign-b" }), "CAMPAIGN_MISMATCH");
+    await expectCode(() => writer.load("slot", { stateId: "campaign-b" }), "STATE_MISMATCH");
   });
 
   await test("Persistence migrates participant schema before restore preparation", async () => {
     const adapter = new MemorySaveAdapter();
     const writer = new Persistence({ adapter, runAtSafeBoundary: (operation) => operation() });
     writer.registerParticipant({ id: "core.data", schemaVersion: 1, captureSnapshot: () => ({ old: 5 }), prepareRestore: () => ({ commit() {}, rollback() {} }) });
-    await writer.save("slot", { campaignId: "c" });
+    await writer.save("slot", { stateId: "c" });
     let received;
     const reader = new Persistence({ adapter, runAtSafeBoundary: (operation) => operation() });
     reader.registerParticipant({
@@ -221,29 +221,29 @@ export async function runPersistenceLoggerTests() {
     });
     const persistence = new Persistence({ adapter: new MemorySaveAdapter(), runAtSafeBoundary: (operation) => operation() });
     persistence.registerParticipant({ id: "core.hostile", schemaVersion: 1, captureSnapshot: () => hostile, prepareRestore: () => ({ commit() {}, rollback() {} }) });
-    await expectCode(() => persistence.save("slot", { campaignId: "c" }), "INVALID_SNAPSHOT_DATA");
+    await expectCode(() => persistence.save("slot", { stateId: "c" }), "INVALID_SNAPSHOT_DATA");
     const hostileDescriptor = new Proxy({}, {
       ownKeys() { return ["hidden"]; },
       getOwnPropertyDescriptor() { throw new Error("descriptor inspection denied"); }
     });
     const second = new Persistence({ adapter: new MemorySaveAdapter(), runAtSafeBoundary: (operation) => operation() });
     second.registerParticipant({ id: "core.hostile", schemaVersion: 1, captureSnapshot: () => hostileDescriptor, prepareRestore: () => ({ commit() {}, rollback() {} }) });
-    await expectCode(() => second.save("slot", { campaignId: "c" }), "INVALID_SNAPSHOT_DATA");
+    await expectCode(() => second.save("slot", { stateId: "c" }), "INVALID_SNAPSHOT_DATA");
   });
 
   await test("Persistence refuses unsafe slot IDs and invalid snapshot data", async () => {
     const persistence = new Persistence({ adapter: new MemorySaveAdapter(), runAtSafeBoundary: (operation) => operation() });
-    await expectCode(() => persistence.save("../slot", { campaignId: "c" }), "INVALID_SLOT_ID");
+    await expectCode(() => persistence.save("../slot", { stateId: "c" }), "INVALID_SLOT_ID");
     const circular = {}; circular.self = circular;
     persistence.registerParticipant({ id: "core.bad", schemaVersion: 1, captureSnapshot: () => circular, prepareRestore: () => ({ commit() {}, rollback() {} }) });
-    await expectCode(() => persistence.save("slot", { campaignId: "c" }), "INVALID_SNAPSHOT_DATA");
+    await expectCode(() => persistence.save("slot", { stateId: "c" }), "INVALID_SNAPSHOT_DATA");
   });
 
   await test("Persistence invokes Logger without allowing diagnostic failure to escape", async () => {
     const logger = { error() { throw new Error("logger broken"); }, info() { throw new Error("logger broken"); } };
     const persistence = new Persistence({ adapter: new MemorySaveAdapter(), runAtSafeBoundary: (operation) => operation(), logger });
     persistence.registerParticipant({ id: "core.state", schemaVersion: 1, captureSnapshot: () => ({ ok: true }), prepareRestore: () => ({ commit() {}, rollback() {} }) });
-    await persistence.save("slot", { campaignId: "c" });
+    await persistence.save("slot", { stateId: "c" });
     assert(true, "Persistence should complete despite logger failure.");
   });
 
