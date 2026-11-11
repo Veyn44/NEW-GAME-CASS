@@ -19,7 +19,7 @@ function assertId(value, label) {
 }
 
 function safeDescriptor(value, key, path) {
-  try { return safeDescriptor(value, key, path); }
+  try { return Object.getOwnPropertyDescriptor(value, key); }
   catch {
     throw new PersistenceError("INVALID_SNAPSHOT_DATA", `${path} property could not be inspected safely.`);
   }
