@@ -172,7 +172,7 @@ export class Persistence {
     return Object.freeze([...this.#participants.keys()].sort());
   }
 
-  async save(slotId, { campaignId, galaxySeed, kind = "manual" } = {}) {
+  async save(slotId, { campaignId, seed = null, kind = "manual" } = {}) {
     assertSlotId(slotId);
     if (typeof campaignId !== "string" || !campaignId.trim()) {
       throw new PersistenceError("INVALID_CAMPAIGN_ID", "campaignId is required for a save.");
@@ -208,7 +208,7 @@ export class Persistence {
         const saveData = {
           metadata: {
             campaignId,
-            galaxySeed: galaxySeed ?? null,
+            seed,
             gameVersion: this.#gameVersion,
             campaignFormatVersion: this.#campaignFormatVersion,
             createdAt: new Date().toISOString(),
