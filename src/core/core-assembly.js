@@ -130,6 +130,11 @@ export function createCoreAssembly({
             ...simulationTasks.map((task) => ({
               ...task,
               update(step) {
+                if (events.isFaulted) {
+                  const error = new Error("Event Bus is faulted; simulation cannot continue.");
+                  error.code = "EVENT_BUS_FAULTED";
+                  throw error;
+                }
                 insideSimulationStep = true;
                 try {
                   const result = task.update({ ...step, context });
