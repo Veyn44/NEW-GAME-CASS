@@ -68,11 +68,12 @@ test("failed transfer preserves the original placement", () => {
   throwsCode(() => context.moveEntity("entity:pawn", { type: "world", worldId: "world:missing", position: { x: 2, y: 2 } }), "UNKNOWN_WORLD");
   equal(context.getPlacement("entity:pawn").worldId, "world:cassandra");
 });
-test("encounter entities may only be placed in their own encounter", () => {
+test("world placement does not impose host-specific scope or world-type rules", () => {
   const { entities, context } = setup();
   entities.registerEncounter({ encounterId: "encounter:a", localId: "enemy-1", kind: "enemy" });
   context.placeEntity("encounter:encounter:a:enemy-1", "world:encounter-a", { x: 2, y: 2 });
-  throwsCode(() => context.moveEntity("encounter:encounter:a:enemy-1", { type: "world", worldId: "world:encounter-b", position: { x: 2, y: 2 } }), "ENCOUNTER_SCOPE_MISMATCH");
+  const moved = context.moveEntity("encounter:encounter:a:enemy-1", { type: "world", worldId: "world:encounter-b", position: { x: 2, y: 2 } });
+  equal(moved.current.worldId, "world:encounter-b");
 });
 test("stored entity cannot be placed in a world before activation", () => {
   const { entities, context } = setup();
