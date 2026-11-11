@@ -37,20 +37,20 @@ test("duplicate IDs and tombstoned IDs cannot be reused", () => {
   equal(registry.get(item.id).status, "removed");
 });
 
-test("encounter IDs are namespaced and locally sequenced", () => {
+test("scoped IDs are namespaced and locally sequenced", () => {
   const registry = makeRegistry();
-  const a = registry.registerEncounter({ encounterId: "enc-1", kind: "enemy" });
-  const b = registry.registerEncounter({ encounterId: "enc-1", kind: "enemy" });
-  const c = registry.registerEncounter({ encounterId: "enc-2", kind: "enemy" });
-  equal(a.id, "encounter:enc-1:1");
-  equal(b.id, "encounter:enc-1:2");
-  equal(c.id, "encounter:enc-2:1");
+  const a = registry.registerScoped({ scopeId: "enc-1", kind: "enemy" });
+  const b = registry.registerScoped({ scopeId: "enc-1", kind: "enemy" });
+  const c = registry.registerScoped({ scopeId: "enc-2", kind: "enemy" });
+  equal(a.id, "scope:enc-1:1");
+  equal(b.id, "scope:enc-1:2");
+  equal(c.id, "scope:enc-2:1");
 });
 
-test("encounter-local IDs are stable when explicitly supplied", () => {
+test("scoped-local IDs are stable when explicitly supplied", () => {
   const registry = makeRegistry();
-  const entity = registry.registerEncounter({ encounterId: "run-7", localId: "boss", kind: "enemy" });
-  equal(entity.id, "encounter:run-7:boss");
+  const entity = registry.registerScoped({ scopeId: "run-7", localId: "boss", kind: "enemy" });
+  equal(entity.id, "scope:run-7:boss");
 });
 
 test("entity records and metadata are immutable defensive copies", () => {
@@ -75,25 +75,25 @@ test("invalid kinds and identifiers are rejected", () => {
   const registry = makeRegistry();
   throwsCode(() => registry.registerPersistent({ id: "../bad", kind: "pawn" }), "INVALID_ENTITY_ID");
   throwsCode(() => registry.registerPersistent({ id: "pawn:1", kind: "Pawn" }), "INVALID_ENTITY_KIND");
-  const valid = registry.registerEncounter({ encounterId: "e", localId: "x", kind: "enemy" });
-  equal(valid.id, "encounter:e:x");
+  const valid = registry.registerScoped({ scopeId: "e", localId: "x", kind: "enemy" });
+  equal(valid.id, "scope:e:x");
 });
 
-test("Entity Store only accepts active encounter entities", () => {
+test("Entity Store only accepts active scoped entities", () => {
   const registry = makeRegistry();
   const persistent = registry.registerPersistent({ id: "pawn:1", kind: "pawn" });
   throwsCode(() => registry.store(persistent.id), "ENTITY_NOT_STORABLE");
-  const enemy = registry.registerEncounter({ encounterId: "e-1", kind: "specimen" });
+  const enemy = registry.registerScoped({ scopeId: "e-1", kind: "specimen" });
   const stored = registry.store(enemy.id);
   equal(stored.status, "stored");
   equal(stored.scope, "persistent");
-  equal(stored.encounterId, null);
-  equal(stored.originEncounterId, "e-1");
+  equal(stored.scopeId, null);
+  equal(stored.originScopeId, "e-1");
 });
 
 test("stored entities can be activated without changing identity", () => {
   const registry = makeRegistry();
-  const original = registry.registerEncounter({ encounterId: "e-2", kind: "specimen" });
+  const original = registry.registerScoped({ scopeId: "e-2", kind: "specimen" });
   registry.store(original.id);
   const active = registry.activateStored(original.id);
   equal(active.id, original.id);
@@ -113,7 +113,7 @@ test("list filters are deterministic", () => {
   const registry = makeRegistry();
   registry.registerPersistent({ id: "pawn:b", kind: "pawn" });
   registry.registerPersistent({ id: "pawn:a", kind: "pawn" });
-  registry.registerEncounter({ encounterId: "e", kind: "enemy" });
+  registry.registerScoped({ scopeId: "e", kind: "enemy" });
   const result = registry.list({ kind: "pawn" });
   equal(result.length, 2);
   equal(result[0].id, "pawn:a");
@@ -122,7 +122,7 @@ test("list filters are deterministic", () => {
 test("snapshot captures identity metadata and all lifecycle tombstones", () => {
   const registry = makeRegistry();
   const pawn = registry.registerPersistent({ id: "pawn:1", kind: "pawn" });
-  const enemy = registry.registerEncounter({ encounterId: "e-1", kind: "enemy" });
+  const enemy = registry.registerScoped({ scopeId: "e-1", kind: "enemy" });
   registry.store(enemy.id);
   registry.remove(pawn.id);
   const snapshot = registry.captureSnapshot();
@@ -167,8 +167,8 @@ test("invalid snapshots and duplicate snapshot IDs are rejected", () => {
   const registry = makeRegistry();
   throwsCode(() => registry.prepareRestore({ version: 99, entities: [] }), "INVALID_SNAPSHOT");
   throwsCode(() => registry.prepareRestore({ version: 1, entities: [
-    { id: "same:1", kind: "pawn", scope: "persistent", encounterId: null, status: "active", metadata: {} },
-    { id: "same:1", kind: "pawn", scope: "persistent", encounterId: null, status: "active", metadata: {} }
+    { id: "same:1", kind: "pawn", scope: "persistent", scopeId: null, status: "active", metadata: {} },
+    { id: "same:1", kind: "pawn", scope: "persistent", scopeId: null, status: "active", metadata: {} }
   ] }), "DUPLICATE_ENTITY_ID");
 });
 
@@ -182,14 +182,14 @@ test("Persistence participant conforms to the coordinator contract", async () =>
   assert(typeof tx.commit === "function" && typeof tx.rollback === "function");
 });
 
-test("encounter sequence resumes from restored records", () => {
+test("scoped sequence resumes from restored records", () => {
   const registry = makeRegistry();
-  registry.registerEncounter({ encounterId: "resume", kind: "enemy" });
+  registry.registerScoped({ scopeId: "resume", kind: "enemy" });
   const snapshot = registry.captureSnapshot();
   const restored = makeRegistry();
   restored.prepareRestore(snapshot).commit();
-  const next = restored.registerEncounter({ encounterId: "resume", kind: "enemy" });
-  equal(next.id, "encounter:resume:2");
+  const next = restored.registerScoped({ scopeId: "resume", kind: "enemy" });
+  equal(next.id, "scope:resume:2");
 });
 
 export async function runEntityRegistryTests() {
