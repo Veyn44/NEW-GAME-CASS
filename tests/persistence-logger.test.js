@@ -200,6 +200,15 @@ export async function runPersistenceLoggerTests() {
     equal(received, 6, "Migrated snapshot");
   });
 
+  await test("Persistence normalizes hostile proxy inspection failures", async () => {
+    const hostile = new Proxy({}, {
+      getPrototypeOf() { throw new Error("proxy inspection denied"); }
+    });
+    const persistence = new Persistence({ adapter: new MemorySaveAdapter(), runAtSafeBoundary: (operation) => operation() });
+    persistence.registerParticipant({ id: "core.hostile", schemaVersion: 1, captureSnapshot: () => hostile, prepareRestore: () => ({ commit() {}, rollback() {} }) });
+    await expectCode(() => persistence.save("slot", { campaignId: "c" }), "INVALID_SNAPSHOT_DATA");
+  });
+
   await test("Persistence refuses unsafe slot IDs and invalid snapshot data", async () => {
     const persistence = new Persistence({ adapter: new MemorySaveAdapter(), runAtSafeBoundary: (operation) => operation() });
     await expectCode(() => persistence.save("../slot", { campaignId: "c" }), "INVALID_SLOT_ID");
