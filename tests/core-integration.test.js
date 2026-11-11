@@ -347,6 +347,28 @@ test("asynchronous demo update is rejected before publishing a successful simula
   await runtime.destroy();
 });
 
+test("an externally faulted Event Bus stops host simulation before the next update", async () => {
+  let updates = 0;
+  const runtime = createCoreAssembly({
+    hostSystems: [{ id: "game.probe", provides: ["game.probe-api"], initialize() { return { "game.probe-api": {} }; } }],
+    simulationTasks: [{ systemId: "game.probe", update() { updates += 1; } }]
+  });
+  const context = await runtime.start();
+  const events = context.getService("core.event-bus");
+  const scheduler = context.getService("core.scheduler");
+  events.subscribe("core.async-host-event", "game.probe", () => Promise.resolve());
+  let eventError;
+  try { events.publish({ type: "core.async-host-event", source: "game.probe", payload: {} }); }
+  catch (error) { eventError = error; }
+  assert(eventError?.code === "ASYNC_HANDLER_NOT_SUPPORTED");
+  let stepError;
+  try { scheduler.advance(0.05); } catch (error) { stepError = error; }
+  assert(stepError?.code === "SIMULATION_STEP_FAILED", "Scheduler did not fault after Event Bus failure.");
+  equal(updates, 0, "Host simulation ran after Event Bus had faulted.");
+  assert(scheduler.snapshot.faulted, "Scheduler should be faulted.");
+  await runtime.destroy();
+});
+
 test("Persistence remains blocked after an asynchronous Event Bus handler faults the bus", async () => {
   const runtime = createCoreAssembly();
   const context = await runtime.start();
