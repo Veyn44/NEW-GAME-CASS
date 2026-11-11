@@ -125,6 +125,7 @@ export class EventBus {
   #draining = false;
   #maxEventsPerDrain;
   #blocked = false;
+  #faulted = false;
 
   constructor({ sources, logger = null, maxEventsPerDrain = 1000 } = {}) {
     if (!Array.isArray(sources) || sources.length === 0) {
@@ -155,6 +156,10 @@ export class EventBus {
 
   get isDelivering() {
     return this.#draining;
+  }
+
+  get isFaulted() {
+    return this.#faulted;
   }
 
   subscribe(type, systemId, handler) {
@@ -192,6 +197,9 @@ export class EventBus {
   }
 
   publish({ type, version = 1, source, payload = {} } = {}) {
+    if (this.#faulted) {
+      throw new EventBusError("EVENT_BUS_FAULTED", "Event Bus is faulted by an unsupported asynchronous handler; rebuild the runtime.", { pending: this.#queue.length });
+    }
     if (this.#blocked) {
       throw new EventBusError("EVENT_BUS_BLOCKED", "Event delivery is paused after reaching its drain limit; resolve the event chain and call drainPending().", { pending: this.#queue.length });
     }
@@ -230,6 +238,7 @@ export class EventBus {
   }
 
   drainPending() {
+    if (this.#faulted) throw new EventBusError("EVENT_BUS_FAULTED", "A faulted Event Bus cannot resume delivery; rebuild the runtime.");
     if (this.#draining) throw new EventBusError("REENTRANT_DRAIN", "Pending events cannot be drained from inside an active delivery.");
     if (!this.#blocked && this.#queue.length === 0) return 0;
     this.#blocked = false;
@@ -259,8 +268,20 @@ export class EventBus {
         const recipients = [...(this.#subscriptions.get(event.type) ?? [])];
         for (const recipient of recipients) {
           try {
-            recipient.handler(event);
+            const result = recipient.handler(event);
+            if (result && typeof result.then === "function") {
+              Promise.resolve(result).catch(() => {});
+              this.#faulted = true;
+              const error = new EventBusError(
+                "ASYNC_HANDLER_NOT_SUPPORTED",
+                "Event handlers must complete synchronously; the Event Bus has been faulted and the runtime must be rebuilt.",
+                { type: event.type, eventId: event.id, source: event.source, subscriber: recipient.systemId }
+              );
+              this.#logError(error, { type: event.type, eventId: event.id, source: event.source, subscriber: recipient.systemId });
+              throw error;
+            }
           } catch (error) {
+            if (error?.code === "ASYNC_HANDLER_NOT_SUPPORTED") throw error;
             this.#logError(error, { type: event.type, eventId: event.id, source: event.source, subscriber: recipient.systemId });
           }
         }
