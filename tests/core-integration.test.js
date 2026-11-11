@@ -276,7 +276,7 @@ test("Persistence rejects saves inside updates and Event Bus handlers but permit
   await runtime.destroy();
 });
 
-async function runAll() {
+export async function runCoreIntegrationTests() {
   let passed = 0;
   const lines = [];
   for (const item of tests) {
@@ -285,12 +285,12 @@ async function runAll() {
   }
   lines.push(`RESULT ${passed}/${tests.length} passed`);
   if (typeof document !== "undefined") document.querySelector("#results").textContent = lines.join("\n");
-  if (passed !== tests.length) throw new Error(`Core integration tests failed: ${passed}/${tests.length}`);
-  return { passed, total: tests.length };
+  return tests.map((item, index) => ({ name: item.name, passed: lines[index].startsWith("PASS "), error: lines[index].startsWith("FAIL ") ? lines[index].slice(lines[index].indexOf(": ") + 2) : null }));
 }
 if (typeof document !== "undefined") {
-  document.querySelector("#run")?.addEventListener("click", runAll);
+  document.querySelector("#run")?.addEventListener("click", async () => {
+    const results = await runCoreIntegrationTests();
+    document.querySelector("#results").textContent = results.map((item) => `${item.passed ? "PASS" : "FAIL"} ${item.name}${item.error ? `: ${item.error}` : ""}`).join("\\n");
+  });
   document.querySelector("#results").textContent = "Ready. Press Run tests.";
-} else {
-  runAll().then((result) => console.log(`RESULT ${result.passed}/${result.total} passed`));
 }
