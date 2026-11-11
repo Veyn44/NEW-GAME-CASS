@@ -47,6 +47,18 @@ test("scoped IDs are namespaced and locally sequenced", () => {
   equal(c.id, "scope:enc-2:1");
 });
 
+test("explicit numeric scoped IDs advance the automatic sequence", () => {
+  const registry = new EntityRegistry();
+  registry.registerScoped({ scopeId: "sequence", localId: "4", kind: "enemy" });
+  equal(registry.registerScoped({ scopeId: "sequence", kind: "enemy" }).id, "scope:sequence:5");
+});
+
+test("failed scoped registration does not consume an automatic ID", () => {
+  const registry = new EntityRegistry();
+  throwsCode(() => registry.registerScoped({ scopeId: "sequence", kind: "InvalidKind" }), "INVALID_ENTITY_KIND");
+  equal(registry.registerScoped({ scopeId: "sequence", kind: "enemy" }).id, "scope:sequence:1");
+});
+
 test("scoped-local IDs are stable when explicitly supplied", () => {
   const registry = makeRegistry();
   const entity = registry.registerScoped({ scopeId: "run-7", localId: "boss", kind: "enemy" });
