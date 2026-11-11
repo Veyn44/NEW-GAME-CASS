@@ -95,7 +95,7 @@ export class WorldContext {
     assertId(entityId, "Entity ID");
     const current = this.#placements.get(entityId);
     if (!current || current.type !== "world") {
-      throw new WorldContextError("ENTITY_NOT_IN_WORLD", "Only an entity currently placed in a map world can be transferred to the Entity Store.", { entityId });
+      throw new WorldContextError("ENTITY_NOT_IN_WORLD", "Only an entity currently placed in a world can be transferred to the persistent storage.", { entityId });
     }
     const stableStoreId = assertId(storeId, "Store ID");
     const entity = this.#requireActiveEntity(entityId);
@@ -117,7 +117,7 @@ export class WorldContext {
     }
     const entity = this.#requireActiveEntity(entityId);
     if (entity.status !== "stored") {
-      throw new WorldContextError("ENTITY_NOT_STORED", "Only an entity in stored lifecycle state can be placed in the Entity Store.", { entityId, status: entity.status });
+      throw new WorldContextError("ENTITY_NOT_STORED", "Only an entity in stored lifecycle state can be placed in the persistent storage.", { entityId, status: entity.status });
     }
     const placement = freezePlacement({ entityId, type: "store", storeId: assertId(storeId, "Store ID") });
     this.#placements.set(entityId, placement);
@@ -148,7 +148,7 @@ export class WorldContext {
       const storeId = assertId(target.storeId, "Store ID");
       const entity = this.#requireActiveEntity(entityId);
       if (entity.status !== "stored") {
-        throw new WorldContextError("ENTITY_NOT_STORED", "Only an entity in stored lifecycle state can be placed in the Entity Store.", { entityId, status: entity.status });
+        throw new WorldContextError("ENTITY_NOT_STORED", "Only an entity in stored lifecycle state can be placed in the persistent storage.", { entityId, status: entity.status });
       }
       return freezePlacement({ entityId, type: "store", storeId });
     }
