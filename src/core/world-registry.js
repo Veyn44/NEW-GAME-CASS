@@ -19,11 +19,8 @@ function assertId(value, label = "World ID") {
 }
 
 function assertType(value) {
-  if (typeof value !== "string" || !WORLD_TYPE_PATTERN.test(value) || value === "galaxy" || value === "galaxy-data-context") {
-    throw new WorldRegistryError("INVALID_WORLD_TYPE", "World type must be a stable map-world type; galaxy data contexts are not playable worlds.", { value });
-  }
-  if (value !== "cassandra" && value !== "encounter") {
-    throw new WorldRegistryError("UNSUPPORTED_WORLD_TYPE", "The first World Registry version supports cassandra and encounter map worlds.", { value });
+  if (typeof value !== "string" || !WORLD_TYPE_PATTERN.test(value)) {
+    throw new WorldRegistryError("INVALID_WORLD_TYPE", "World type must be a stable lowercase domain ID.", { value });
   }
   return value;
 }
@@ -85,8 +82,8 @@ function freezeWorld(raw) {
     status: raw.status,
     dimensions: Object.freeze({ width: raw.dimensions.width, height: raw.dimensions.height }),
     coordinateSystem: raw.coordinateSystem,
-    locationId: raw.locationId,
-    encounterId: raw.encounterId
+    locationId: raw.locationId ?? null,
+    encounterId: raw.encounterId ?? null
   });
 }
 
@@ -106,13 +103,6 @@ function validateWorld(raw, index) {
   }
   if (typeof raw.coordinateSystem !== "string" || raw.coordinateSystem.length < 1 || raw.coordinateSystem.length > 80) {
     throw new WorldRegistryError("INVALID_SNAPSHOT", `World "${worldId}" requires a coordinateSystem label.`, { worldId });
-  }
-  if (type === "cassandra" && (raw.locationId !== null || raw.encounterId !== null)) {
-    throw new WorldRegistryError("INVALID_SNAPSHOT", "Cassandra world cannot have encounter or asteroid location references.", { worldId });
-  }
-  if (type === "encounter") {
-    assertId(raw.locationId, "Location ID");
-    assertId(raw.encounterId, "Encounter ID");
   }
   if (raw.status === "closed" && type !== "encounter") {
     throw new WorldRegistryError("INVALID_SNAPSHOT", "Only encounter worlds may be closed.", { worldId });
@@ -168,13 +158,6 @@ export class WorldRegistry {
     }
     if (typeof coordinateSystem !== "string" || coordinateSystem.length < 1 || coordinateSystem.length > 80) {
       throw new WorldRegistryError("INVALID_COORDINATE_SYSTEM", "coordinateSystem must be a non-empty label of at most 80 characters.");
-    }
-    if (worldType === "cassandra" && (locationId !== null || encounterId !== null)) {
-      throw new WorldRegistryError("INVALID_WORLD_REFERENCES", "Cassandra world cannot have encounter or asteroid location references.", { worldId: id });
-    }
-    if (worldType === "encounter") {
-      assertId(locationId, "Location ID");
-      assertId(encounterId, "Encounter ID");
     }
     const world = freezeWorld({
       worldId: id, type: worldType, status: "inactive",
