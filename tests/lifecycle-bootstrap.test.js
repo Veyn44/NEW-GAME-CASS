@@ -109,6 +109,18 @@ export async function runLifecycleBootstrapTests() {
     await expectCode(() => extra.start(), "BOOTSTRAP_FAILED");
   });
 
+  await test("publishes a provider's complete service API set atomically", async () => {
+    let partialServiceVisibleDuringCleanup = null;
+    const bootstrap = new SystemBootstrap({ systems: [{
+      id: "provider",
+      provides: ["one.api", "two.api"],
+      initialize() { return { "one.api": {}, "two.api": null }; },
+      destroy(context) { partialServiceVisibleDuringCleanup = context.hasService("one.api"); }
+    }] });
+    await expectCode(() => bootstrap.start(), "BOOTSTRAP_FAILED");
+    assert(partialServiceVisibleDuringCleanup === false, "A partial service set was published before validation completed.");
+  });
+
   await test("supports optional pause and resume hooks in deterministic order", async () => {
     const events = [];
     const bootstrap = new SystemBootstrap({ systems: [
