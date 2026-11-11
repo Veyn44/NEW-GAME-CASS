@@ -195,6 +195,7 @@ export async function runPersistenceLoggerTests() {
         campaignId: "campaign:legacy",
         campaignFormatVersion: 1,
         gameVersion: "0.1.0",
+        galaxySeed: 1234,
         createdAt: "2026-01-01T00:00:00.000Z",
         kind: "manual"
       },
@@ -206,6 +207,7 @@ export async function runPersistenceLoggerTests() {
     equal(metadata.stateId, "campaign:legacy");
     equal(metadata.formatVersion, 1);
     equal(metadata.applicationVersion, "0.1.0");
+    equal(metadata.seed, 1234);
     assert(!Object.hasOwn(metadata, "campaignId"), "Legacy campaign metadata leaked through normalized API.");
   });
 
