@@ -347,6 +347,20 @@ test("asynchronous demo update is rejected before publishing a successful simula
   await runtime.destroy();
 });
 
+test("Persistence remains blocked after an asynchronous Event Bus handler faults the bus", async () => {
+  const runtime = createCoreAssembly();
+  const context = await runtime.start();
+  const events = context.getService("core.event-bus");
+  const persistence = context.getService("core.persistence");
+  events.subscribe("core.async-handler-probe", "core.scheduler", () => Promise.resolve());
+  let eventError = null;
+  try { events.publish({ type: "core.async-handler-probe", source: "core.scheduler", payload: {} }); }
+  catch (error) { eventError = error; }
+  assert(eventError?.code === "ASYNC_HANDLER_NOT_SUPPORTED", "Async event handler was not rejected.");
+  await rejects(() => persistence.save("faulted-event-bus", { campaignId: "campaign:event-fault" }), "UNSAFE_BOUNDARY");
+  await runtime.destroy();
+});
+
 test("Persistence rejects saves inside updates and Event Bus handlers but permits a save after delivery", async () => {
   let updateSave;
   const runtime = createCoreAssembly({
