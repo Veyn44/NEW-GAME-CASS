@@ -122,11 +122,11 @@ test("persistence round-trip restores entity identity and placement", async () =
   const placements = context.getService("core.world-context");
   const persistence = context.getService("core.persistence");
   const id = "entity:integration-pawn";
-  await persistence.save("integration-slot", { campaignId: "campaign:integration" });
+  await persistence.save("integration-slot", { stateId: "campaign:integration" });
   placements.removePlacement(id);
   entities.remove(id);
   worlds.deactivateWorld("world:cassandra");
-  await persistence.load("integration-slot", { campaignId: "campaign:integration" });
+  await persistence.load("integration-slot", { stateId: "campaign:integration" });
   assert(entities.has(id));
   equal(placements.getPlacement(id).worldId, "world:cassandra");
   equal(worlds.activeWorldId, "world:cassandra");
@@ -146,10 +146,10 @@ test("save failure leaves the previous valid save intact", async () => {
   const runtime = createCoreAssembly({ saveAdapter: adapter });
   const context = await runtime.start();
   const persistence = context.getService("core.persistence");
-  await persistence.save("atomic-slot", { campaignId: "campaign:atomic" });
+  await persistence.save("atomic-slot", { stateId: "campaign:atomic" });
   const previous = adapter.slot;
   failWrite = true;
-  await rejects(() => persistence.save("atomic-slot", { campaignId: "campaign:atomic" }));
+  await rejects(() => persistence.save("atomic-slot", { stateId: "campaign:atomic" }));
   equal(adapter.slot, previous, "Previous save was replaced after failed write");
   await runtime.destroy();
 });
@@ -159,9 +159,9 @@ test("restore transaction stages worlds before validating entity placements", as
   const context = await runtime.start();
   const persistence = context.getService("core.persistence");
   const worlds = context.getService("core.world-registry");
-  await persistence.save("restore-slot", { campaignId: "campaign:restore" });
+  await persistence.save("restore-slot", { stateId: "campaign:restore" });
   worlds.prepareRestore({ version: 2, activeWorldId: null, worlds: [] }).commit();
-  await persistence.load("restore-slot", { campaignId: "campaign:restore" });
+  await persistence.load("restore-slot", { stateId: "campaign:restore" });
   assert(worlds.get("world:cassandra"), "Saved world was not restored before placement validation.");
   assert(context.getService("core.entity-registry").has("entity:integration-pawn"));
   equal(context.getService("core.world-context").getPlacement("entity:integration-pawn").worldId, "world:cassandra");
@@ -177,7 +177,7 @@ test("Persistence migrates version-one entity and world snapshots during a real 
   const runtime = createCoreAssembly({ saveAdapter: adapter });
   const context = await runtime.start();
   const persistence = context.getService("core.persistence");
-  await persistence.save("legacy-slot", { campaignId: "campaign:legacy" });
+  await persistence.save("legacy-slot", { stateId: "campaign:legacy" });
 
   const saved = adapter.slot;
   const entitySnapshot = saved.snapshots["core.entity-registry"];
@@ -208,7 +208,7 @@ test("Persistence migrates version-one entity and world snapshots during a real 
     }
   };
 
-  await persistence.load("legacy-slot", { campaignId: "campaign:legacy" });
+  await persistence.load("legacy-slot", { stateId: "campaign:legacy" });
   const entities = context.getService("core.entity-registry");
   const worlds = context.getService("core.world-registry");
   equal(entities.get("encounter:legacy:1").scope, "scoped");
@@ -274,11 +274,11 @@ test("failed restore commit rolls back earlier Core participants", async () => {
       rollback() { rollbackCalled = true; }
     })
   });
-  await persistence.save("rollback-slot", { campaignId: "campaign:rollback" });
+  await persistence.save("rollback-slot", { stateId: "campaign:rollback" });
   placements.moveEntity("entity:integration-pawn", {
     type: "world", worldId: "world:cassandra", position: { x: 40, y: 41 }
   });
-  await rejects(() => persistence.load("rollback-slot", { campaignId: "campaign:rollback" }));
+  await rejects(() => persistence.load("rollback-slot", { stateId: "campaign:rollback" }));
   assert(rollbackCalled, "Failing participant did not receive rollback");
   equal(placements.getPlacement("entity:integration-pawn").position.x, 40);
   equal(placements.getPlacement("entity:integration-pawn").position.y, 41);
@@ -357,7 +357,7 @@ test("Persistence remains blocked after an asynchronous Event Bus handler faults
   try { events.publish({ type: "core.async-handler-probe", source: "core.scheduler", payload: {} }); }
   catch (error) { eventError = error; }
   assert(eventError?.code === "ASYNC_HANDLER_NOT_SUPPORTED", "Async event handler was not rejected.");
-  await rejects(() => persistence.save("faulted-event-bus", { campaignId: "campaign:event-fault" }), "UNSAFE_BOUNDARY");
+  await rejects(() => persistence.save("faulted-event-bus", { stateId: "campaign:event-fault" }), "UNSAFE_BOUNDARY");
   await runtime.destroy();
 });
 
@@ -365,7 +365,7 @@ test("Persistence rejects saves inside updates and Event Bus handlers but permit
   let updateSave;
   const runtime = createCoreAssembly({
     demoSystem: {
-      update() { updateSave = runtimeContext.getService("core.persistence").save("inside-update", { campaignId: "campaign:boundary" }); }
+      update() { updateSave = runtimeContext.getService("core.persistence").save("inside-update", { stateId: "campaign:boundary" }); }
     }
   });
   let runtimeContext;
@@ -381,14 +381,14 @@ test("Persistence rejects saves inside updates and Event Bus handlers but permit
 
   let handlerSave;
   const unsubscribe = events.subscribe("core.integration-boundary-probe", "core.scheduler", () => {
-    handlerSave = persistence.save("inside-handler", { campaignId: "campaign:boundary" });
+    handlerSave = persistence.save("inside-handler", { stateId: "campaign:boundary" });
   });
   events.publish({ type: "core.integration-boundary-probe", source: "core.demo-system", payload: {} });
   unsubscribe();
   const handlerError = await rejects(() => handlerSave, "UNSAFE_BOUNDARY");
   assert(handlerError.message.includes("Event Bus delivery"));
 
-  await persistence.save("after-boundary", { campaignId: "campaign:boundary" });
+  await persistence.save("after-boundary", { stateId: "campaign:boundary" });
   await runtime.destroy();
 });
 
