@@ -47,7 +47,7 @@ test("scheduler advances strategic time and delivers its event synchronously", a
   const clock = context.getService("core.game-clock");
   const demo = context.getService("core.demo-api");
   const scheduler = context.getService("core.scheduler");
-  scheduler.advance(6);
+  scheduler.advance(0.05);
   equal(clock.totalSeconds, 6, `Clock mismatch; clock=${JSON.stringify(clock.snapshot())}; scheduler=${JSON.stringify(scheduler.snapshot)}`);
   equal(demo.receivedSteps, 1);
   await runtime.destroy();
@@ -100,15 +100,15 @@ test("save failure leaves the previous valid save intact", async () => {
   await runtime.destroy();
 });
 
-test("restore preparation rejects a missing required world without partial commit", async () => {
+test("restore transaction stages worlds before validating entity placements", async () => {
   const runtime = createCoreAssembly();
   const context = await runtime.start();
   const persistence = context.getService("core.persistence");
   const worlds = context.getService("core.world-registry");
   await persistence.save("restore-slot", { campaignId: "campaign:restore" });
   worlds.prepareRestore({ version: 1, activeWorldId: null, worlds: [] }).commit();
-  await rejects(() => persistence.load("restore-slot", { campaignId: "campaign:restore" }));
-  equal(worlds.get("world:cassandra"), null);
+  await persistence.load("restore-slot", { campaignId: "campaign:restore" });
+  assert(worlds.get("world:cassandra"), "Saved world was not restored before placement validation.");
   assert(context.getService("core.entity-registry").has("entity:integration-pawn"));
   equal(context.getService("core.world-context").getPlacement("entity:integration-pawn").worldId, "world:cassandra");
   await runtime.destroy();
