@@ -27,10 +27,10 @@ for (const [name, run] of suites) {
   const suiteFailed = results.length - suitePassed;
   passed += suitePassed;
   failed += suiteFailed;
-  console.log(`\\n${name}: ${suitePassed}/${results.length}`);
+  console.log(`\n${name}: ${suitePassed}/${results.length}`);
   for (const item of results.filter((entry) => !entry.passed)) {
     console.error(`FAIL ${item.name}: ${item.error ?? "unknown failure"}`);
   }
 }
-console.log(`\\nCORE TEST RESULT: ${passed}/${passed + failed} passed; ${failed} failed`);
+console.log(`\nCORE TEST RESULT: ${passed}/${passed + failed} passed; ${failed} failed`);
 if (failed > 0) process.exitCode = 1;
