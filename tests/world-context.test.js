@@ -81,7 +81,7 @@ test("stored entity cannot be placed in a world before activation", () => {
   entities.store("scope:scope:a:body");
   throwsCode(() => context.placeEntity("scope:scope:a:body", "world:cassandra", { x: 2, y: 2 }), "ENTITY_STORED");
 });
-test("transfers an scoped entity from a world into Entity Store without changing its ID", () => {
+test("transfers a scoped entity from a world into Entity Store without changing its ID", () => {
   const { entities, context } = setup();
   entities.registerScoped({ scopeId: "scope:a", localId: "body", kind: "pawn" });
   context.placeEntity("scope:scope:a:body", "world:scoped-a", { x: 4, y: 5 });
