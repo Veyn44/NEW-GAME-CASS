@@ -19,7 +19,7 @@ The Core is the domain-neutral runtime foundation for host applications. Cassand
 
 ## Composition contract
 
-Create the runtime with `createCoreAssembly({ hostSystems, simulationTasks, eventSources, saveAdapter, ... })`.
+Create the runtime with `createCoreAssembly({ hostSystems, simulationTasks, eventSources, saveAdapter, ... })`. A durable adapter implementing `read()` and `writeAtomic()` is mandatory; Core never silently falls back to volatile in-memory saves.
 
 A host system declares `id`, `provides`, and `requires`, then publishes exactly the service APIs it declared from `initialize(context)`. It may implement lifecycle hooks. Host systems are passed to the central Bootstrap; imports do not register systems.
 
@@ -35,7 +35,7 @@ A simulation task declares `systemId` matching a host system and a synchronous `
 - Scaled simulation time uses the configurable Game Clock. Pause reasons are independent and composable.
 - Entity Registry and World Registry provide explicit version-one to version-two snapshot migrations for the generalized scope and metadata contracts.
 - Persistence calls are rejected immediately when invoked inside a simulation step, during pending Event Bus delivery, or while Scheduler is faulted. There is no deferred safe-boundary queue.
-- Persistence uses `read` and `writeAtomic` adapters and participant prepare/commit/rollback. `MemorySaveAdapter` is a test/development adapter, not durable production storage.
+- Persistence uses `read` and `writeAtomic` adapters and participant prepare/commit/rollback. `MemorySaveAdapter` is a test/development adapter, not durable production storage; the test fixture supplies it explicitly.
 
 ## Ownership boundaries
 
