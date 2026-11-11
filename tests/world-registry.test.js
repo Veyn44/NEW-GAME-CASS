@@ -22,7 +22,7 @@ function addCassandra(registry, worldId = "world:cassandra") {
 }
 function addEncounter(registry, encounterId = "encounter:alpha", locationId = "asteroid:alpha") {
   return registry.registerWorld({
-    type: "encounter", encounterId, locationId,
+    type: "encounter", metadata: { scopeId: encounterId, locationId },
     dimensions: { width: 96, height: 80 }, coordinateSystem: "tile-grid"
   });
 }
@@ -48,15 +48,14 @@ test("host-specific world references are optional and do not constrain Core", ()
   const registry = makeRegistry();
   const world = registry.registerWorld({ type: "encounter", dimensions: { width: 10, height: 10 } });
   equal(world.type, "encounter");
-  equal(world.encounterId, null);
-  equal(world.locationId, null);
+  equal(world.metadata.scopeId, undefined);
 });
 
 test("encounter world retains its asteroid location and encounter identity", () => {
   const registry = makeRegistry();
   const world = addEncounter(registry, "encounter:visit-2", "asteroid:sector-4");
-  equal(world.encounterId, "encounter:visit-2");
-  equal(world.locationId, "asteroid:sector-4");
+  equal(world.metadata.scopeId, "encounter:visit-2");
+  equal(world.metadata.locationId, "asteroid:sector-4");
 });
 
 test("revisiting one location can register a distinct encounter world", () => {
@@ -64,7 +63,7 @@ test("revisiting one location can register a distinct encounter world", () => {
   const first = addEncounter(registry, "encounter:visit-1", "asteroid:same");
   const second = addEncounter(registry, "encounter:visit-2", "asteroid:same");
   assert(first.worldId !== second.worldId);
-  equal(first.locationId, second.locationId);
+  equal(first.metadata.locationId, second.metadata.locationId);
 });
 
 test("rejects duplicate world IDs", () => {
@@ -78,8 +77,7 @@ test("closed world IDs remain reserved", () => {
   const world = addEncounter(registry);
   registry.closeWorld(world.worldId);
   throwsCode(() => registry.registerWorld({
-    worldId: world.worldId, type: "encounter", encounterId: "encounter:again",
-    locationId: "asteroid:again", dimensions: { width: 10, height: 10 }
+    worldId: world.worldId, type: "encounter", metadata: { scopeId: "encounter:again", locationId: "asteroid:again" }, dimensions: { width: 10, height: 10 }
   }), "DUPLICATE_WORLD_ID");
 });
 
@@ -228,7 +226,7 @@ test("snapshot rejects accessors without invoking them", () => {
 
 test("snapshot rejects multiple active worlds and inconsistent activeWorldId", () => {
   const registry = makeRegistry();
-  const a = { worldId: "world:a", type: "cassandra", status: "active", dimensions: { width: 10, height: 10 }, coordinateSystem: "world-units", locationId: null, encounterId: null };
+  const a = { worldId: "world:a", type: "cassandra", status: "active", dimensions: { width: 10, height: 10 }, coordinateSystem: "world-units", metadata: {} };
   const b = { ...a, worldId: "world:b" };
   throwsCode(() => registry.prepareRestore({ version: 1, activeWorldId: "world:a", worlds: [a, b] }), "MULTIPLE_ACTIVE_WORLDS");
   throwsCode(() => registry.prepareRestore({ version: 1, activeWorldId: "world:missing", worlds: [{ ...a, status: "inactive" }] }), "INVALID_ACTIVE_WORLD");
