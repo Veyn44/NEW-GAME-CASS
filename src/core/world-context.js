@@ -99,8 +99,8 @@ export class WorldContext {
     }
     const stableStoreId = assertId(storeId, "Store ID");
     const entity = this.#requireActiveEntity(entityId);
-    if (entity.scope !== "encounter" || entity.status !== "active") {
-      throw new WorldContextError("ENTITY_NOT_STORABLE", "Only an active encounter entity can be transferred to the Entity Store.", { entityId, scope: entity.scope, status: entity.status });
+    if (entity.scope !== "scoped" || entity.status !== "active") {
+      throw new WorldContextError("ENTITY_NOT_STORABLE", "Only an active scoped entity can be transferred to persistent storage.", { entityId, scope: entity.scope, status: entity.status });
     }
     // EntityRegistry.store is the only mutating operation and runs after all validation.
     // The following placement replacement cannot fail, so both registries change in one synchronous operation.
