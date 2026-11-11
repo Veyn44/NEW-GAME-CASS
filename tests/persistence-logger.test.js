@@ -92,6 +92,33 @@ export async function runPersistenceLoggerTests() {
     equal(saved.metadata.gameVersion, "1.2.3", "Game version");
   });
 
+  await test("Persistence preserves class participant methods and private state", async () => {
+    const adapter = new MemorySaveAdapter();
+    class StatefulParticipant {
+      #value = 7;
+      id = "core.class-state";
+      schemaVersion = 1;
+      captureSnapshot() { return { value: this.#value }; }
+      prepareRestore(snapshot) {
+        const previous = this.#value;
+        return {
+          commit: () => { this.#value = snapshot.value; },
+          rollback: () => { this.#value = previous; }
+        };
+      }
+      get value() { return this.#value; }
+    }
+    const participant = new StatefulParticipant();
+    const writer = new Persistence({ adapter, runAtSafeBoundary: (operation) => operation() });
+    writer.registerParticipant(participant);
+    await writer.save("class-slot", { campaignId: "class-campaign" });
+    const readerParticipant = new StatefulParticipant();
+    const reader = new Persistence({ adapter, runAtSafeBoundary: (operation) => operation() });
+    reader.registerParticipant(readerParticipant);
+    await reader.load("class-slot");
+    equal(readerParticipant.value, 7, "Class participant private state was not restored");
+  });
+
   await test("Persistence rejects missing required snapshots without writing", async () => {
     let writes = 0;
     const adapter = { async read() { return null; }, async writeAtomic() { writes += 1; } };
