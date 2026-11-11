@@ -237,7 +237,7 @@ test("Persistence participant follows the coordinator contract", () => {
   addCassandra(registry);
   const participant = registry.createPersistenceParticipant();
   equal(participant.id, "core.world-registry");
-  equal(participant.schemaVersion, 1);
+  equal(participant.schemaVersion, 2);
   equal(participant.required, true);
   assert(participant.validateSnapshot(registry.captureSnapshot()));
   const tx = participant.prepareRestore(registry.captureSnapshot());
