@@ -20,7 +20,7 @@ The Core is the domain-neutral runtime foundation for host applications. Cassand
 
 ## Host configuration
 
-`createCoreAssembly` requires an explicit persistence adapter with `read(slotId)` and `writeAtomic(slotId, data)`. It does not choose an in-memory adapter implicitly. The host may configure `dayLengthRealSeconds`, `strategicSecondsPerDay`, `initialSpeed`, `minimumSpeed`, `maximumSpeed`, `fixedStepSeconds` and `maxStepsPerFrame`. The Core defaults are neutral; Cassandra's 12-minute day and 0.25×–3× speed range belong to its host fixture.
+`createCoreAssembly` requires an explicit persistence adapter with `read(slotId)` and `writeAtomic(slotId, data)`. It does not choose an in-memory adapter implicitly; the host is responsible for supplying durable storage in production. The host may configure `dayLengthRealSeconds`, `strategicSecondsPerDay`, `initialSpeed`, `minimumSpeed`, `maximumSpeed`, `fixedStepSeconds` and `maxStepsPerFrame`. The Core defaults are neutral; Cassandra's 12-minute day and 0.25×–3× speed range belong to its host fixture.
 
 ## Entity and world contracts
 
