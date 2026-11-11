@@ -95,7 +95,8 @@ export async function runPersistenceLoggerTests() {
   await test("Persistence preserves class participant methods and private state", async () => {
     const adapter = new MemorySaveAdapter();
     class StatefulParticipant {
-      #value = 7;
+      #value;
+      constructor(value = 7) { this.#value = value; }
       id = "core.class-state";
       schemaVersion = 1;
       captureSnapshot() { return { value: this.#value }; }
@@ -112,7 +113,7 @@ export async function runPersistenceLoggerTests() {
     const writer = new Persistence({ adapter, runAtSafeBoundary: (operation) => operation() });
     writer.registerParticipant(participant);
     await writer.save("class-slot", { campaignId: "class-campaign" });
-    const readerParticipant = new StatefulParticipant();
+    const readerParticipant = new StatefulParticipant(0);
     const reader = new Persistence({ adapter, runAtSafeBoundary: (operation) => operation() });
     reader.registerParticipant(readerParticipant);
     await reader.load("class-slot");
