@@ -123,12 +123,13 @@ export function runEventBusTests() {
     assert(first.id !== second.id, "Event IDs must be unique within the bus.");
   });
 
-  test("enforces a per-drain event limit and clears the runaway queue", () => {
+  test("enforces a per-drain limit without discarding queued events", () => {
     const logs = [];
     const bus = new EventBus({ sources: ["loop"], maxEventsPerDrain: 5, logger: { error: (...args) => logs.push(args) } });
     bus.subscribe("loop.tick", "loop", () => bus.publish({ type: "loop.tick", source: "loop" }));
     expectCode(() => bus.publish({ type: "loop.tick", source: "loop" }), "EVENT_DRAIN_LIMIT");
-    assert(bus.pendingCount === 0, "Runaway queue must be cleared.");
+    assert(bus.pendingCount === 1, "Unprocessed events must remain queued.");
+    expectCode(() => bus.publish({ type: "loop.tick", source: "loop" }), "EVENT_BUS_BLOCKED");
     assert(logs.length === 1, "Limit breach must be logged.");
   });
 
@@ -138,7 +139,7 @@ export function runEventBusTests() {
     expectCode(() => new EventBus({ sources: ["pawn", "pawn"] }), "DUPLICATE_SOURCE");
   });
 
-  test("keeps a fresh drain usable after the event limit is reached", () => {
+  test("resumes a retained queue after the runaway source is removed", () => {
     const bus = new EventBus({ sources: ["loop"], maxEventsPerDrain: 2 });
     let loop = true;
     bus.subscribe("loop.tick", "loop", () => {
@@ -146,6 +147,7 @@ export function runEventBusTests() {
     });
     expectCode(() => bus.publish({ type: "loop.tick", source: "loop" }), "EVENT_DRAIN_LIMIT");
     loop = false;
+    assert(bus.drainPending() === 1, "Explicit resume should deliver the retained event.");
     const event = bus.publish({ type: "loop.tick", source: "loop" });
     assert(event.sequence > 2 && bus.pendingCount === 0, "Bus should recover for a later independent drain.");
   });
