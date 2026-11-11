@@ -1,6 +1,6 @@
 const WORLD_ID_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9:._-]{0,159}$/;
 const WORLD_TYPE_PATTERN = /^[a-z][a-z0-9.-]*$/;
-const SNAPSHOT_VERSION = 1;
+const SNAPSHOT_VERSION = 2;
 
 export class WorldRegistryError extends Error {
   constructor(code, message, details = {}) {
