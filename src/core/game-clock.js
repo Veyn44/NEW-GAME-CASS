@@ -26,11 +26,11 @@ export class GameClock {
   #totalSeconds = 0;
 
   constructor({
-    dayLengthRealSeconds = 720,
+    dayLengthRealSeconds = 86400,
     strategicSecondsPerDay = 86400,
     initialSpeed = 1,
-    minimumSpeed = 0.25,
-    maximumSpeed = 3
+    minimumSpeed = 0.01,
+    maximumSpeed = 100
   } = {}) {
     if (!Number.isFinite(dayLengthRealSeconds) || dayLengthRealSeconds <= 0) {
       throw new GameClockError("INVALID_DAY_LENGTH", "dayLengthRealSeconds must be a positive finite number.");
