@@ -45,7 +45,8 @@ function cloneData(value, path = "details", seen = new Set()) {
       return Object.freeze(result);
     }
     const result = Object.create(null);
-    for (const key of Object.keys(value)) {
+    for (const key of Reflect.ownKeys(value)) {
+      if (typeof key !== "string") throw new LoggerError("INVALID_LOG_DATA", `${path} contains a symbol key.`);
       const descriptor = Object.getOwnPropertyDescriptor(value, key);
       if (!descriptor || !descriptor.enumerable || !Object.hasOwn(descriptor, "value")) {
         throw new LoggerError("INVALID_LOG_DATA", `${path}.${key} must be a plain data property.`);
