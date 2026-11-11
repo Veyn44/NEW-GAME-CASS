@@ -93,6 +93,20 @@ export async function runPersistenceLoggerTests() {
     equal(saved.metadata.seed, 1234, "Generic application seed");
   });
 
+  await test("Persistence rejects non-function optional participant hooks with a contract error", () => {
+    const persistence = new Persistence({ adapter: new MemorySaveAdapter(), runAtSafeBoundary: (operation) => operation() });
+    expectCodeSync(() => persistence.registerParticipant({
+      id: "core.bad-validator", schemaVersion: 1,
+      captureSnapshot() { return {}; }, prepareRestore() { return { commit() {}, rollback() {} }; },
+      validateSnapshot: true
+    }), "INVALID_PARTICIPANT", PersistenceError);
+    expectCodeSync(() => persistence.registerParticipant({
+      id: "core.bad-migrator", schemaVersion: 1,
+      captureSnapshot() { return {}; }, prepareRestore() { return { commit() {}, rollback() {} }; },
+      migrateSnapshot: "not a function"
+    }), "INVALID_PARTICIPANT", PersistenceError);
+  });
+
   await test("Persistence preserves class participant methods and private state", async () => {
     const adapter = new MemorySaveAdapter();
     class StatefulParticipant {
