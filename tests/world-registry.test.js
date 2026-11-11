@@ -44,9 +44,12 @@ test("generates unique world IDs when none are supplied", () => {
   assert(first.worldId.startsWith("world:"));
 });
 
-test("encounter world requires stable encounter and location references", () => {
+test("host-specific world references are optional and do not constrain Core", () => {
   const registry = makeRegistry();
-  throwsCode(() => registry.registerWorld({ type: "encounter", dimensions: { width: 10, height: 10 } }), "INVALID_WORLD_ID");
+  const world = registry.registerWorld({ type: "encounter", dimensions: { width: 10, height: 10 } });
+  equal(world.type, "encounter");
+  equal(world.encounterId, null);
+  equal(world.locationId, null);
 });
 
 test("encounter world retains its asteroid location and encounter identity", () => {
