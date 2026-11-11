@@ -182,6 +182,25 @@ test("Persistence participant conforms to the coordinator contract", async () =>
   assert(typeof tx.commit === "function" && typeof tx.rollback === "function");
 });
 
+test("version-one encounter snapshots migrate to generic scopes without changing identity", () => {
+  const registry = new EntityRegistry({ idFactory: () => "generated" });
+  const participant = registry.createPersistenceParticipant();
+  const migrated = participant.migrateSnapshot({
+    version: 1,
+    entities: [{
+      id: "encounter:legacy:1", kind: "enemy", scope: "encounter",
+      encounterId: "legacy", originEncounterId: "legacy",
+      status: "active", metadata: { hp: 10 }
+    }]
+  }, 1);
+  equal(migrated.version, 2);
+  const transaction = registry.prepareRestore(migrated);
+  transaction.commit();
+  equal(registry.get("encounter:legacy:1").scope, "scoped");
+  equal(registry.get("encounter:legacy:1").scopeId, "legacy");
+  equal(registry.registerScoped({ scopeId: "legacy", kind: "enemy" }).id, "scope:legacy:2");
+});
+
 test("scoped sequence resumes from restored records", () => {
   const registry = makeRegistry();
   registry.registerScoped({ scopeId: "resume", kind: "enemy" });
