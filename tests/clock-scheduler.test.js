@@ -20,6 +20,8 @@ function expectCode(callback, code, ErrorType = SchedulerError) {
   throw new Error(`Expected error ${code}`);
 }
 
+function createClock() { return new GameClock({ dayLengthRealSeconds: 720, strategicSecondsPerDay: 86400, minimumSpeed: 0.25, maximumSpeed: 3 }); }
+
 export function runClockSchedulerTests() {
   const results = [];
   const test = (name, fn) => {
@@ -28,7 +30,7 @@ export function runClockSchedulerTests() {
   };
 
   test("one strategic day maps to twelve real minutes at 1x", () => {
-    const clock = new GameClock();
+    const clock = createClock();
     equal(clock.dayLengthRealSeconds, 720, "Real day length");
     equal(clock.strategicSecondsPerDay, 86400, "Strategic day length");
     equal(clock.scaleRealDelta(720), 86400, "Strategic seconds in one real day");
@@ -36,7 +38,7 @@ export function runClockSchedulerTests() {
   });
 
   test("speed scales strategic time within the approved range", () => {
-    const clock = new GameClock();
+    const clock = createClock();
     clock.setSpeed(2);
     equal(clock.scaleRealDelta(1), 240, "2x strategic delta");
     clock.setSpeed(3);
@@ -48,7 +50,7 @@ export function runClockSchedulerTests() {
   });
 
   test("pause reasons compose and can be removed independently", () => {
-    const clock = new GameClock();
+    const clock = createClock();
     clock.pause("manual");
     clock.pause("scheduler-overload");
     assert(clock.paused, "Clock should be paused.");
@@ -60,7 +62,7 @@ export function runClockSchedulerTests() {
   });
 
   test("pause and resume operations are idempotent", () => {
-    const clock = new GameClock();
+    const clock = createClock();
     equal(clock.pause("manual"), true, "First pause should change state.");
     equal(clock.pause("manual"), false, "Repeated pause should be a no-op.");
     equal(clock.resume("manual"), true, "First resume should remove reason.");
@@ -68,7 +70,7 @@ export function runClockSchedulerTests() {
   });
 
   test("clock validates deltas and commits only positive simulation time", () => {
-    const clock = new GameClock();
+    const clock = createClock();
     expectCode(() => clock.scaleRealDelta(-1), "INVALID_REAL_DELTA", GameClockError);
     expectCode(() => clock.scaleRealDelta(Infinity), "INVALID_REAL_DELTA", GameClockError);
     expectCode(() => clock.commitSimulationStep(0), "INVALID_SIMULATION_DELTA", GameClockError);
@@ -77,7 +79,7 @@ export function runClockSchedulerTests() {
   });
 
   test("scheduler waits for a complete fixed strategic step", () => {
-    const clock = new GameClock();
+    const clock = createClock();
     const scheduler = new SimulationScheduler({ clock, systemOrder: [] });
     equal(scheduler.advance(0.025).processedSteps, 0, "Half a step must not run.");
     equal(scheduler.tick, 0, "Tick before completion");
@@ -87,13 +89,13 @@ export function runClockSchedulerTests() {
 
   test("fixed-step results are independent of render-frame partitioning", () => {
     const make = () => {
-      const clock = new GameClock();
+      const clock = createClock();
       const scheduler = new SimulationScheduler({ clock, systemOrder: [], maxStepsPerFrame: 500 });
       for (let i = 0; i < 60; i++) scheduler.advance(1 / 60);
       return { clock, scheduler };
     };
     const a = make();
-    const clockB = new GameClock();
+    const clockB = createClock();
     const schedulerB = new SimulationScheduler({ clock: clockB, systemOrder: [], maxStepsPerFrame: 500 });
     for (let i = 0; i < 20; i++) schedulerB.advance(1 / 20);
     equal(a.scheduler.tick, schedulerB.tick, "Tick count");
@@ -101,7 +103,7 @@ export function runClockSchedulerTests() {
   });
 
   test("tasks execute in validated system dependency order", () => {
-    const clock = new GameClock();
+    const clock = createClock();
     const calls = [];
     const scheduler = new SimulationScheduler({
       clock,
@@ -117,7 +119,7 @@ export function runClockSchedulerTests() {
   });
 
   test("task frequency uses deterministic integer tick intervals", () => {
-    const clock = new GameClock();
+    const clock = createClock();
     const calls = [];
     const scheduler = new SimulationScheduler({
       clock,
@@ -132,7 +134,7 @@ export function runClockSchedulerTests() {
   });
 
   test("step context exposes strategic time and corresponding real-time slice", () => {
-    const clock = new GameClock();
+    const clock = createClock();
     let received;
     const scheduler = new SimulationScheduler({
       clock,
@@ -147,7 +149,7 @@ export function runClockSchedulerTests() {
   });
 
   test("already accumulated slices retain their original speed after a speed change", () => {
-    const clock = new GameClock();
+    const clock = createClock();
     let received;
     const scheduler = new SimulationScheduler({
       clock,
@@ -163,7 +165,7 @@ export function runClockSchedulerTests() {
   });
 
   test("pause stops new accumulation and preserves a partial step", () => {
-    const clock = new GameClock();
+    const clock = createClock();
     const scheduler = new SimulationScheduler({ clock, systemOrder: [] });
     scheduler.advance(0.025);
     clock.pause("manual");
@@ -175,7 +177,7 @@ export function runClockSchedulerTests() {
   });
 
   test("per-frame work limit preserves backlog instead of dropping time", () => {
-    const clock = new GameClock();
+    const clock = createClock();
     const scheduler = new SimulationScheduler({ clock, systemOrder: [], maxStepsPerFrame: 2 });
     const first = scheduler.advance(0.25);
     equal(first.processedSteps, 2, "First frame step cap");
@@ -190,7 +192,7 @@ export function runClockSchedulerTests() {
   });
 
   test("critical backlog triggers emergency pause without discarding time", () => {
-    const clock = new GameClock();
+    const clock = createClock();
     const diagnostics = [];
     const scheduler = new SimulationScheduler({
       clock,
@@ -209,7 +211,7 @@ export function runClockSchedulerTests() {
   });
 
   test("overload acknowledgement clears only the emergency pause reason", () => {
-    const clock = new GameClock();
+    const clock = createClock();
     const scheduler = new SimulationScheduler({
       clock, systemOrder: [], warningBacklogSeconds: 12, criticalBacklogSeconds: 30
     });
@@ -224,7 +226,7 @@ export function runClockSchedulerTests() {
   });
 
   test("warning diagnostic clears after backlog returns below its threshold", () => {
-    const clock = new GameClock();
+    const clock = createClock();
     const diagnostics = [];
     const scheduler = new SimulationScheduler({
       clock,
@@ -239,7 +241,7 @@ export function runClockSchedulerTests() {
   });
 
   test("invalid task declarations are rejected before simulation starts", () => {
-    const clock = new GameClock();
+    const clock = createClock();
     expectCode(() => new SimulationScheduler({
       clock, systemOrder: ["a"], tasks: [{ systemId: "missing", update() {} }]
     }), "UNKNOWN_TASK_SYSTEM");
@@ -252,7 +254,7 @@ export function runClockSchedulerTests() {
   });
 
   test("a task failure faults and pauses the scheduler without committing the failed step", () => {
-    const clock = new GameClock();
+    const clock = createClock();
     const scheduler = new SimulationScheduler({
       clock,
       systemOrder: ["broken"],
@@ -267,7 +269,7 @@ export function runClockSchedulerTests() {
   });
 
   test("async simulation tasks are rejected", () => {
-    const clock = new GameClock();
+    const clock = createClock();
     const scheduler = new SimulationScheduler({
       clock,
       systemOrder: ["async"],
@@ -278,7 +280,7 @@ export function runClockSchedulerTests() {
   });
 
   test("reentrant advance calls are rejected and fault the active step", () => {
-    const clock = new GameClock();
+    const clock = createClock();
     let scheduler;
     scheduler = new SimulationScheduler({
       clock,
@@ -290,7 +292,7 @@ export function runClockSchedulerTests() {
   });
 
   test("zero real delta can drain an existing backlog without adding time", () => {
-    const clock = new GameClock();
+    const clock = createClock();
     const scheduler = new SimulationScheduler({ clock, systemOrder: [], maxStepsPerFrame: 1 });
     scheduler.advance(0.1);
     const before = scheduler.snapshot.backlogSeconds;
