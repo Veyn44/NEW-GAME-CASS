@@ -5,7 +5,7 @@ import { SimulationScheduler } from "./simulation-scheduler.js";
 import { EntityRegistry } from "./entity-registry.js";
 import { WorldRegistry } from "./world-registry.js";
 import { WorldContext } from "./world-context.js";
-import { Persistence, MemorySaveAdapter } from "./persistence.js";
+import { Persistence } from "./persistence.js";
 import { SystemBootstrap } from "./system-bootstrap.js";
 
 const SERVICE = Object.freeze({
@@ -29,7 +29,7 @@ function required(context, id) {
  * the underlying registries. All domain state remains in its owning module.
  */
 export function createCoreAssembly({
-  saveAdapter = new MemorySaveAdapter(),
+  saveAdapter,
   gameVersion = "0.1.0",
   campaignFormatVersion = 1,
   dayLengthRealSeconds = 86400,
@@ -42,6 +42,9 @@ export function createCoreAssembly({
   simulationTasks = [],
   eventSources = []
 } = {}) {
+  if (!saveAdapter || typeof saveAdapter.read !== "function" || typeof saveAdapter.writeAtomic !== "function") {
+    throw new TypeError("Core Assembly requires an explicit saveAdapter implementing read() and writeAtomic().");
+  }
   let insideSimulationStep = false;
   let bootstrap = null;
   let eventBus = null;
