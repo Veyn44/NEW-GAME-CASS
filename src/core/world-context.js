@@ -189,7 +189,7 @@ export class WorldContext {
       id, schemaVersion: SNAPSHOT_VERSION, required: true, order,
       captureSnapshot: () => this.captureSnapshot(),
       validateSnapshot: (snapshot) => { try { this.#parseSnapshot(snapshot, { validateReferences: false }); return true; } catch { return false; } },
-      prepareRestore: (snapshot) => this.prepareRestore(snapshot)
+      prepareRestore: (snapshot) => this.prepareRestore(snapshot, { deferReferenceValidation: true })
     });
   }
 
@@ -202,8 +202,8 @@ export class WorldContext {
     });
   }
 
-  prepareRestore(snapshot) {
-    const next = this.#parseSnapshot(snapshot, { validateReferences: false });
+  prepareRestore(snapshot, { deferReferenceValidation = false } = {}) {
+    const next = this.#parseSnapshot(snapshot, { validateReferences: !deferReferenceValidation });
     const previous = this.#placements;
     let committed = false;
     return Object.freeze({
