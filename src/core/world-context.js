@@ -43,8 +43,8 @@ function freezePlacement(raw) {
 
 /**
  * Coordinates exclusive physical placement of registered entities.
- * It does not own entity identity, domain state, map contents, galaxy data,
- * encounter generation, ownership relationships or world transition side effects.
+ * It does not own entity identity, domain state, map contents, universe data,
+ * ownership relationships or world transition side effects.
  */
 export class WorldContext {
   #entities;
@@ -162,9 +162,6 @@ export class WorldContext {
     if (world.status === "closed") throw new WorldContextError("WORLD_CLOSED", `World "${worldId}" is closed.`, { worldId });
     if (entity.status === "stored") {
       throw new WorldContextError("ENTITY_STORED", "A stored entity must be activated before world placement.", { entityId });
-    }
-    if (entity.scope === "encounter" && (world.type !== "encounter" || entity.encounterId !== world.encounterId)) {
-      throw new WorldContextError("ENCOUNTER_SCOPE_MISMATCH", "An encounter-scoped entity may only be placed in its own encounter world.", { entityId, encounterId: entity.encounterId, worldId });
     }
     const point = clonePosition(position);
     if (point.x < 0 || point.y < 0 || point.x >= world.dimensions.width || point.y >= world.dimensions.height) {
