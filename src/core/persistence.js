@@ -138,10 +138,10 @@ export class Persistence {
       schemaVersion: participant.schemaVersion,
       required: participant.required !== false,
       order: Number.isSafeInteger(participant.order) ? participant.order : 0,
-      captureSnapshot: participant.captureSnapshot,
-      validateSnapshot: participant.validateSnapshot ?? null,
-      migrateSnapshot: participant.migrateSnapshot ?? null,
-      prepareRestore: participant.prepareRestore
+      captureSnapshot: participant.captureSnapshot.bind(participant),
+      validateSnapshot: participant.validateSnapshot == null ? null : participant.validateSnapshot.bind(participant),
+      migrateSnapshot: participant.migrateSnapshot == null ? null : participant.migrateSnapshot.bind(participant),
+      prepareRestore: participant.prepareRestore.bind(participant)
     });
     if (entry.validateSnapshot !== null && typeof entry.validateSnapshot !== "function") {
       throw new PersistenceError("INVALID_PARTICIPANT", `Participant "${id}" validateSnapshot must be a function.`);
