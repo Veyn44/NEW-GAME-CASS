@@ -269,7 +269,7 @@ export class EventBus {
 
   #assertType(type) {
     if (typeof type !== "string" || !TYPE_PATTERN.test(type)) {
-      throw new EventBusError("INVALID_EVENT_TYPE", "Event type must use a stable domain-prefixed name such as pawn.damaged.", { type });
+      throw new EventBusError("INVALID_EVENT_TYPE", "Event type must use a stable domain-prefixed name such as order.completed.", { type });
     }
   }
 
