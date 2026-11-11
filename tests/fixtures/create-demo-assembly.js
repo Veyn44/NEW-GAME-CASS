@@ -49,7 +49,7 @@ export function createCoreAssembly({ demoSystem = null, ...options } = {}) {
   return createEngineCoreAssembly({
     ...options,
     hostSystems: [...(options.hostSystems ?? []), demo],
-    eventSources: [...(options.eventSources ?? [])],
+    eventSources: [...(options.eventSources ?? []), "core.demo-system"],
     simulationTasks: [
       ...(options.simulationTasks ?? []),
       {
