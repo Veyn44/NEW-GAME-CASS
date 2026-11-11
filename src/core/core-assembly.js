@@ -197,7 +197,7 @@ export function createCoreAssembly({
 
   ];
 
-  bootstrap = new SystemBootstrap({ systems });
+  bootstrap = new SystemBootstrap({ systems: [...systems, ...hostSystems] });
   let runtimeContext = null;
 
   return Object.freeze({
