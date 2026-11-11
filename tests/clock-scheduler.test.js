@@ -29,6 +29,14 @@ export function runClockSchedulerTests() {
     catch (error) { results.push({ name, passed: false, error: error.message }); }
   };
 
+  test("default clock conversion is domain-neutral and one-to-one", () => {
+    const clock = new GameClock();
+    equal(clock.dayLengthRealSeconds, 86400, "Neutral real day length");
+    equal(clock.strategicSecondsPerDay, 86400, "Neutral simulation day length");
+    equal(clock.scaleRealDelta(10), 10, "Default time conversion");
+    equal(clock.speed, 1, "Default speed");
+  });
+
   test("one strategic day maps to twelve real minutes at 1x", () => {
     const clock = createClock();
     equal(clock.dayLengthRealSeconds, 720, "Real day length");
