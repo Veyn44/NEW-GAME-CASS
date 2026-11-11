@@ -20,6 +20,7 @@ export function createCoreAssembly({ demoSystem = null, ...options } = {}) {
       worlds.registerWorld({
         worldId: "world:cassandra",
         type: "cassandra",
+        metadata: { host: "cassandra-demo" },
         dimensions: { width: 128, height: 128 },
         coordinateSystem: "world-units"
       });
