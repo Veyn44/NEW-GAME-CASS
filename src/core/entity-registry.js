@@ -1,6 +1,6 @@
 const ENTITY_ID_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9:._-]{0,159}$/;
 const ENTITY_KIND_PATTERN = /^[a-z][a-z0-9.-]*$/;
-const SNAPSHOT_VERSION = 1;
+const SNAPSHOT_VERSION = 2;
 
 export class EntityRegistryError extends Error {
   constructor(code, message, details = {}) {
@@ -118,7 +118,7 @@ function validateRecord(raw, index) {
     throw new EntityRegistryError("INVALID_SNAPSHOT", `Stored entity "${id}" must have persistent scope.`, { id });
   }
   if (raw.originScopeId !== null && raw.originScopeId !== undefined) {
-    assertEntityId(raw.originScopeId, "Origin encounter ID");
+    assertEntityId(raw.originScopeId, "Origin scope ID");
   }
   if (raw.scope === "scoped" && raw.originScopeId !== null && raw.originScopeId !== undefined && raw.originScopeId !== raw.scopeId) {
     throw new EntityRegistryError("INVALID_SNAPSHOT", `Scoped entity "${id}" has inconsistent origin metadata.`, { id });
@@ -208,7 +208,7 @@ export class EntityRegistry {
 
   /**
    * Explicitly preserves an scoped entity in the campaign Entity Store.
-   * Only identity metadata is stored here; its owning domain system must
+   * Only identity metadata is stored here; the owning domain system must
    * persist the entity's actual state through its own Persistence participant.
    */
   store(id) {
