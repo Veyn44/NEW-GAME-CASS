@@ -33,6 +33,7 @@ export function createCoreAssembly({
   gameVersion = "0.1.0",
   campaignFormatVersion = 1,
   dayLengthRealSeconds = 86400,
+  strategicSecondsPerDay = 86400,
   initialSpeed = 1,
   minimumSpeed = 0.01,
   maximumSpeed = 100,
@@ -77,7 +78,7 @@ export function createCoreAssembly({
       id: "core.game-clock",
       provides: [SERVICE.clock],
       initialize() {
-        return { [SERVICE.clock]: new GameClock({ dayLengthRealSeconds, initialSpeed, minimumSpeed, maximumSpeed }) };
+        return { [SERVICE.clock]: new GameClock({ dayLengthRealSeconds, strategicSecondsPerDay, initialSpeed, minimumSpeed, maximumSpeed }) };
       },
       pause(context) {
         required(context, SERVICE.clock).pause("bootstrap-lifecycle");
