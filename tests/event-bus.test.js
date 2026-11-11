@@ -133,6 +133,15 @@ export function runEventBusTests() {
     assert(logs.length === 1, "Limit breach must be logged.");
   });
 
+  test("faults on asynchronous handlers and refuses subsequent delivery", () => {
+    const bus = new EventBus({ sources: ["alpha"] });
+    bus.subscribe("alpha.async", "alpha", () => Promise.resolve());
+    expectCode(() => bus.publish({ type: "alpha.async", source: "alpha" }), "ASYNC_HANDLER_NOT_SUPPORTED");
+    assert(bus.isFaulted, "Async handler must fault the Event Bus.");
+    expectCode(() => bus.publish({ type: "alpha.next", source: "alpha" }), "EVENT_BUS_FAULTED");
+    expectCode(() => bus.drainPending(), "EVENT_BUS_FAULTED");
+  });
+
   test("rejects unknown subscriber systems and duplicate sources", () => {
     const bus = new EventBus({ sources: ["pawn"] });
     expectCode(() => bus.subscribe("pawn.hit", "unknown", () => {}), "UNKNOWN_SUBSCRIBER");
