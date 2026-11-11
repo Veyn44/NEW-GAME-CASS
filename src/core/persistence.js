@@ -91,6 +91,22 @@ function deepFreeze(value) {
   return Object.freeze(value);
 }
 
+function normalizeMetadata(metadata) {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return metadata;
+  const {
+    campaignId: legacyStateId,
+    campaignFormatVersion: legacyFormatVersion,
+    gameVersion: legacyApplicationVersion,
+    ...current
+  } = metadata;
+  return {
+    ...current,
+    stateId: current.stateId ?? legacyStateId,
+    formatVersion: current.formatVersion ?? legacyFormatVersion,
+    applicationVersion: current.applicationVersion ?? legacyApplicationVersion
+  };
+}
+
 function assertSlotId(slotId) {
   if (typeof slotId !== "string" || !SLOT_PATTERN.test(slotId)) {
     throw new PersistenceError("INVALID_SLOT_ID", "Save slot ID contains unsupported characters or length.", { slotId });
@@ -108,14 +124,14 @@ export class Persistence {
   #adapter;
   #runAtSafeBoundary;
   #logger;
-  #gameVersion;
-  #campaignFormatVersion;
+  #applicationVersion;
+  #formatVersion;
 
   constructor({
     adapter,
     runAtSafeBoundary,
-    gameVersion = "0.0.0",
-    campaignFormatVersion = FORMAT_VERSION,
+    applicationVersion = "0.0.0",
+    formatVersion = FORMAT_VERSION,
     logger = null
   } = {}) {
     if (!adapter || typeof adapter.read !== "function" || typeof adapter.writeAtomic !== "function") {
@@ -124,15 +140,15 @@ export class Persistence {
     if (typeof runAtSafeBoundary !== "function") {
       throw new PersistenceError("INVALID_BOUNDARY", "Persistence requires runAtSafeBoundary(operation); saves and loads must not run mid-step.");
     }
-    if (typeof gameVersion !== "string" || !gameVersion.trim()) throw new PersistenceError("INVALID_GAME_VERSION", "gameVersion must be a non-empty string.");
-    if (!Number.isSafeInteger(campaignFormatVersion) || campaignFormatVersion < 1) {
-      throw new PersistenceError("INVALID_FORMAT_VERSION", "campaignFormatVersion must be a positive safe integer.");
+    if (typeof applicationVersion !== "string" || !applicationVersion.trim()) throw new PersistenceError("INVALID_GAME_VERSION", "applicationVersion must be a non-empty string.");
+    if (!Number.isSafeInteger(formatVersion) || formatVersion < 1) {
+      throw new PersistenceError("INVALID_FORMAT_VERSION", "formatVersion must be a positive safe integer.");
     }
     if (logger !== null && typeof logger.error !== "function") throw new PersistenceError("INVALID_LOGGER", "Logger must expose error(message, details).");
     this.#adapter = adapter;
     this.#runAtSafeBoundary = runAtSafeBoundary;
-    this.#gameVersion = gameVersion;
-    this.#campaignFormatVersion = campaignFormatVersion;
+    this.#applicationVersion = applicationVersion;
+    this.#formatVersion = formatVersion;
     this.#logger = logger;
   }
 
@@ -172,10 +188,10 @@ export class Persistence {
     return Object.freeze([...this.#participants.keys()].sort());
   }
 
-  async save(slotId, { campaignId, seed = null, kind = "manual" } = {}) {
+  async save(slotId, { stateId, seed = null, kind = "manual" } = {}) {
     assertSlotId(slotId);
-    if (typeof campaignId !== "string" || !campaignId.trim()) {
-      throw new PersistenceError("INVALID_CAMPAIGN_ID", "campaignId is required for a save.");
+    if (typeof stateId !== "string" || !stateId.trim()) {
+      throw new PersistenceError("INVALID_STATE_ID", "stateId is required for a save.");
     }
     if (kind !== "manual" && kind !== "autosave") throw new PersistenceError("INVALID_SAVE_KIND", "kind must be manual or autosave.");
     return this.#runAtSafeBoundary(async () => {
@@ -207,10 +223,10 @@ export class Persistence {
         }
         const saveData = {
           metadata: {
-            campaignId,
+            stateId,
             seed,
-            gameVersion: this.#gameVersion,
-            campaignFormatVersion: this.#campaignFormatVersion,
+            applicationVersion: this.#applicationVersion,
+            formatVersion: this.#formatVersion,
             createdAt: new Date().toISOString(),
             kind
           },
@@ -223,16 +239,16 @@ export class Persistence {
         } catch (error) {
           throw new PersistenceError("SAVE_FAILED", `Atomic write failed for slot "${slotId}".`, { slotId, cause: error });
         }
-        this.#log("info", "Campaign save committed.", { slotId, campaignId, kind, participantCount: Object.keys(snapshots).length });
+        this.#log("info", "State save committed.", { slotId, stateId, kind, participantCount: Object.keys(snapshots).length });
         return validated.metadata;
       } catch (error) {
-        this.#log("error", "Campaign save failed; previous save must remain intact.", { slotId, code: error?.code ?? "SAVE_FAILED", error: error?.message ?? String(error) });
+        this.#log("error", "State save failed; previous save must remain intact.", { slotId, code: error?.code ?? "SAVE_FAILED", error: error?.message ?? String(error) });
         throw error;
       }
     });
   }
 
-  async load(slotId, { campaignId = null } = {}) {
+  async load(slotId, { stateId = null } = {}) {
     assertSlotId(slotId);
     return this.#runAtSafeBoundary(async () => {
       try {
@@ -240,11 +256,12 @@ export class Persistence {
         if (!stored || typeof stored !== "object") throw new PersistenceError("SAVE_NOT_FOUND", `No save exists in slot "${slotId}".`, { slotId });
         const saveData = cloneSerializable(stored, "saveData");
         const metadata = saveData.metadata;
-        if (!metadata || metadata.campaignFormatVersion !== this.#campaignFormatVersion) {
-          throw new PersistenceError("INCOMPATIBLE_SAVE_FORMAT", "Save campaign format is incompatible.", { found: metadata?.campaignFormatVersion, expected: this.#campaignFormatVersion });
+        const normalizedMetadata = normalizeMetadata(metadata);
+        if (!normalizedMetadata || normalizedMetadata.formatVersion !== this.#formatVersion) {
+          throw new PersistenceError("INCOMPATIBLE_SAVE_FORMAT", "Save format is incompatible.", { found: normalizedMetadata?.formatVersion, expected: this.#formatVersion });
         }
-        if (campaignId !== null && metadata.campaignId !== campaignId) {
-          throw new PersistenceError("CAMPAIGN_MISMATCH", "Save belongs to a different campaign.", { expected: campaignId, found: metadata.campaignId });
+        if (stateId !== null && normalizedMetadata.stateId !== stateId) {
+          throw new PersistenceError("STATE_MISMATCH", "Save belongs to a different state.", { expected: stateId, found: normalizedMetadata.stateId });
         }
         if (!saveData.snapshots || !saveData.schemas) throw new PersistenceError("INVALID_SAVE", "Save is missing snapshots or schema metadata.");
         const ordered = [...this.#participants.values()].sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
@@ -267,7 +284,7 @@ export class Persistence {
           if (participant.validateSnapshot && await participant.validateSnapshot(snapshot) !== true) {
             throw new PersistenceError("INVALID_SNAPSHOT", `Participant "${participant.id}" rejected the stored snapshot.`, { participantId: participant.id });
           }
-          const transaction = await participant.prepareRestore(deepFreeze(snapshot), Object.freeze({ metadata, storedVersion, schemaVersion: participant.schemaVersion }));
+          const transaction = await participant.prepareRestore(deepFreeze(snapshot), Object.freeze({ metadata: normalizedMetadata, storedVersion, schemaVersion: participant.schemaVersion }));
           if (!transaction || typeof transaction.commit !== "function" || typeof transaction.rollback !== "function") {
             throw new PersistenceError("INVALID_RESTORE_TRANSACTION", `Participant "${participant.id}" must return commit() and rollback() functions from prepareRestore().`, { participantId: participant.id });
           }
@@ -288,10 +305,10 @@ export class Persistence {
           }
           throw new PersistenceError("RESTORE_COMMIT_FAILED", "Restore transaction failed; committed participants were rolled back where possible.", { cause: error });
         }
-        this.#log("info", "Campaign save restored.", { slotId, campaignId: metadata.campaignId, participantCount: prepared.length });
-        return deepFreeze(metadata);
+        this.#log("info", "State save restored.", { slotId, stateId: normalizedMetadata.stateId, participantCount: prepared.length });
+        return deepFreeze(normalizedMetadata);
       } catch (error) {
-        this.#log("error", "Campaign load failed; runtime must remain stopped.", { slotId, code: error?.code ?? "LOAD_FAILED", error: error?.message ?? String(error) });
+        this.#log("error", "State load failed; runtime must remain stopped.", { slotId, code: error?.code ?? "LOAD_FAILED", error: error?.message ?? String(error) });
         throw error;
       }
     });
