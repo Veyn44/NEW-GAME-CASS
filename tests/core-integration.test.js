@@ -114,6 +114,56 @@ test("restore transaction stages worlds before validating entity placements", as
   await runtime.destroy();
 });
 
+test("Persistence migrates version-one entity and world snapshots during a real load", async () => {
+  const adapter = {
+    slot: null,
+    async read() { return this.slot; },
+    async writeAtomic(_slot, value) { this.slot = value; }
+  };
+  const runtime = createCoreAssembly({ saveAdapter: adapter });
+  const context = await runtime.start();
+  const persistence = context.getService("core.persistence");
+  await persistence.save("legacy-slot", { campaignId: "campaign:legacy" });
+
+  const saved = adapter.slot;
+  const entitySnapshot = saved.snapshots["core.entity-registry"];
+  const worldSnapshot = saved.snapshots["core.world-registry"];
+  const persistentRecords = entitySnapshot.entities.map((record) => ({
+    id: record.id, kind: record.kind, scope: "persistent",
+    encounterId: null, originEncounterId: null,
+    status: record.status, metadata: record.metadata
+  }));
+  persistentRecords.push({
+    id: "encounter:legacy:1", kind: "enemy", scope: "encounter",
+    encounterId: "legacy", originEncounterId: "legacy",
+    status: "active", metadata: { health: 25 }
+  });
+  const legacyWorld = worldSnapshot.worlds[0];
+  const { metadata: _metadata, ...worldRecord } = legacyWorld;
+  adapter.slot = {
+    ...saved,
+    schemas: { ...saved.schemas, "core.entity-registry": 1, "core.world-registry": 1 },
+    snapshots: {
+      ...saved.snapshots,
+      "core.entity-registry": { version: 1, entities: persistentRecords },
+      "core.world-registry": {
+        version: 1,
+        activeWorldId: worldSnapshot.activeWorldId,
+        worlds: [{ ...worldRecord, locationId: "asteroid:legacy", encounterId: "encounter:legacy" }]
+      }
+    }
+  };
+
+  await persistence.load("legacy-slot", { campaignId: "campaign:legacy" });
+  const entities = context.getService("core.entity-registry");
+  const worlds = context.getService("core.world-registry");
+  equal(entities.get("encounter:legacy:1").scope, "scoped");
+  equal(entities.get("encounter:legacy:1").scopeId, "legacy");
+  equal(worlds.get("world:cassandra").metadata.locationId, "asteroid:legacy");
+  equal(worlds.get("world:cassandra").metadata.encounterId, "encounter:legacy");
+  await runtime.destroy();
+});
+
 test("persistence participant set includes identity, world and placement owners", async () => {
   const runtime = createCoreAssembly();
   const context = await runtime.start();
