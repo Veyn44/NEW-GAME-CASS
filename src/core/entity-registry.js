@@ -178,7 +178,7 @@ export class EntityRegistry {
       id, kind, scope: "scoped", scopeId,
       originScopeId: scopeId, status: "active", metadata
     });
-    if (/^(0|[1-9]\\d*)$/.test(local)) {
+    if (/^(0|[1-9]\d*)$/.test(local)) {
       const numericLocal = Number(local);
       if (Number.isSafeInteger(numericLocal)) {
         this.#scopeCounters.set(scopeId, Math.max(this.#scopeCounters.get(scopeId) ?? 0, numericLocal));
