@@ -104,9 +104,6 @@ function validateWorld(raw, index) {
   if (typeof raw.coordinateSystem !== "string" || raw.coordinateSystem.length < 1 || raw.coordinateSystem.length > 80) {
     throw new WorldRegistryError("INVALID_SNAPSHOT", `World "${worldId}" requires a coordinateSystem label.`, { worldId });
   }
-  if (raw.status === "closed" && type !== "encounter") {
-    throw new WorldRegistryError("INVALID_SNAPSHOT", "Only encounter worlds may be closed.", { worldId });
-  }
   return freezeWorld({
     worldId, type, status: raw.status,
     dimensions: { width, height },
@@ -118,7 +115,7 @@ function validateWorld(raw, index) {
 
 /**
  * Owns map-world identity, descriptors and active-world lifecycle.
- * It does not own map contents, entities, galaxy data, rendering or simulation.
+ * It does not own map contents, entities, universe data, rendering or simulation.
  */
 export class WorldRegistry {
   #worlds = new Map();
