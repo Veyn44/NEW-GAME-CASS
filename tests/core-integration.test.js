@@ -198,7 +198,7 @@ test("pause and resume stop and restart Scheduler time through the Game Clock", 
   await runtime.resume();
   equal(runtime.state, "running");
   assert(!clock.hasPauseReason("bootstrap-lifecycle"), "Lifecycle pause reason was not removed on resume");
-  scheduler.advance(6);
+  scheduler.advance(0.05);
   equal(scheduler.tick, pausedTick + 1);
   equal(clock.totalSeconds, pausedTime + 6);
   await runtime.destroy();
@@ -213,10 +213,10 @@ test("Bootstrap resume preserves an independent Game Clock pause reason", async 
   await runtime.pause();
   await runtime.resume();
   assert(clock.paused, "Bootstrap resume incorrectly cleared an independent pause");
-  scheduler.advance(6);
+  scheduler.advance(0.05);
   equal(scheduler.tick, 0);
   clock.resume("manual");
-  scheduler.advance(6);
+  scheduler.advance(0.05);
   equal(scheduler.tick, 1);
   await runtime.destroy();
 });
@@ -232,7 +232,7 @@ test("asynchronous demo update is rejected before publishing a successful simula
   let publishedSteps = 0;
   context.getService("core.event-bus").subscribe("core.simulation-step", "core.scheduler", () => { publishedSteps += 1; });
   let error = null;
-  try { scheduler.advance(6); } catch (caught) { error = caught; }
+  try { scheduler.advance(0.05); } catch (caught) { error = caught; }
   assert(error, "Asynchronous demo update was not rejected");
   equal(error.code, "SIMULATION_STEP_FAILED");
   equal(scheduler.snapshot.faulted, true);
@@ -257,7 +257,7 @@ test("Persistence rejects saves inside updates and Event Bus handlers but permit
   const events = context.getService("core.event-bus");
   const scheduler = context.getService("core.scheduler");
 
-  scheduler.advance(6);
+  scheduler.advance(0.05);
   const updateError = await rejects(() => updateSave, "UNSAFE_BOUNDARY");
   assert(updateError.message.includes("simulation step"));
 
