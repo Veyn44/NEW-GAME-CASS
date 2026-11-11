@@ -140,7 +140,7 @@ export class Persistence {
     if (typeof runAtSafeBoundary !== "function") {
       throw new PersistenceError("INVALID_BOUNDARY", "Persistence requires runAtSafeBoundary(operation); saves and loads must not run mid-step.");
     }
-    if (typeof applicationVersion !== "string" || !applicationVersion.trim()) throw new PersistenceError("INVALID_GAME_VERSION", "applicationVersion must be a non-empty string.");
+    if (typeof applicationVersion !== "string" || !applicationVersion.trim()) throw new PersistenceError("INVALID_APPLICATION_VERSION", "applicationVersion must be a non-empty string.");
     if (!Number.isSafeInteger(formatVersion) || formatVersion < 1) {
       throw new PersistenceError("INVALID_FORMAT_VERSION", "formatVersion must be a positive safe integer.");
     }
