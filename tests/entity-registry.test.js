@@ -126,7 +126,7 @@ test("snapshot captures identity metadata and all lifecycle tombstones", () => {
   registry.store(enemy.id);
   registry.remove(pawn.id);
   const snapshot = registry.captureSnapshot();
-  equal(snapshot.version, 1);
+  equal(snapshot.version, 2);
   equal(snapshot.entities.length, 2);
   assert(snapshot.entities.some((entry) => entry.id === pawn.id && entry.status === "removed"));
   assert(snapshot.entities.some((entry) => entry.id === enemy.id && entry.status === "stored"));
@@ -176,7 +176,7 @@ test("Persistence participant conforms to the coordinator contract", async () =>
   const registry = makeRegistry();
   const participant = registry.createPersistenceParticipant();
   equal(participant.id, "core.entity-registry");
-  equal(participant.schemaVersion, 1);
+  equal(participant.schemaVersion, 2);
   assert(await participant.validateSnapshot(registry.captureSnapshot()));
   const tx = participant.prepareRestore(registry.captureSnapshot());
   assert(typeof tx.commit === "function" && typeof tx.rollback === "function");
