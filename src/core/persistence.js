@@ -148,6 +148,12 @@ export class Persistence {
     if (typeof participant.captureSnapshot !== "function" || typeof participant.prepareRestore !== "function") {
       throw new PersistenceError("INVALID_PARTICIPANT", `Participant "${id}" must implement captureSnapshot() and prepareRestore(snapshot).`, { id });
     }
+    if (participant.validateSnapshot != null && typeof participant.validateSnapshot !== "function") {
+      throw new PersistenceError("INVALID_PARTICIPANT", `Participant "${id}" validateSnapshot must be a function.`);
+    }
+    if (participant.migrateSnapshot != null && typeof participant.migrateSnapshot !== "function") {
+      throw new PersistenceError("INVALID_PARTICIPANT", `Participant "${id}" migrateSnapshot must be a function.`);
+    }
     const entry = Object.freeze({
       id,
       schemaVersion: participant.schemaVersion,
@@ -158,12 +164,6 @@ export class Persistence {
       migrateSnapshot: participant.migrateSnapshot == null ? null : participant.migrateSnapshot.bind(participant),
       prepareRestore: participant.prepareRestore.bind(participant)
     });
-    if (entry.validateSnapshot !== null && typeof entry.validateSnapshot !== "function") {
-      throw new PersistenceError("INVALID_PARTICIPANT", `Participant "${id}" validateSnapshot must be a function.`);
-    }
-    if (entry.migrateSnapshot !== null && typeof entry.migrateSnapshot !== "function") {
-      throw new PersistenceError("INVALID_PARTICIPANT", `Participant "${id}" migrateSnapshot must be a function.`);
-    }
     this.#participants.set(id, entry);
     return () => this.#participants.delete(id);
   }
