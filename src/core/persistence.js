@@ -18,6 +18,13 @@ function assertId(value, label) {
   return value;
 }
 
+function safeDescriptor(value, key, path) {
+  try { return safeDescriptor(value, key, path); }
+  catch {
+    throw new PersistenceError("INVALID_SNAPSHOT_DATA", `${path} property could not be inspected safely.`);
+  }
+}
+
 function cloneSerializable(value, path = "value", seen = new Set()) {
   if (value === null || typeof value === "string" || typeof value === "boolean") return value;
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -48,7 +55,7 @@ function cloneSerializable(value, path = "value", seen = new Set()) {
         if (typeof key !== "string" || !/^(0|[1-9]\d*)$/.test(key) || Number(key) >= value.length) {
           throw new PersistenceError("INVALID_SNAPSHOT_DATA", `${path} contains an unsupported array property.`);
         }
-        const descriptor = Object.getOwnPropertyDescriptor(value, key);
+        const descriptor = safeDescriptor(value, key, path);
         if (!descriptor?.enumerable || !Object.hasOwn(descriptor, "value")) {
           throw new PersistenceError("INVALID_SNAPSHOT_DATA", `${path} contains an accessor or hidden array property.`);
         }
@@ -61,7 +68,7 @@ function cloneSerializable(value, path = "value", seen = new Set()) {
     const result = Object.create(null);
     for (const key of keys) {
       if (typeof key !== "string") throw new PersistenceError("INVALID_SNAPSHOT_DATA", `${path} contains a symbol key.`);
-      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      const descriptor = safeDescriptor(value, key, path);
       if (!descriptor?.enumerable || !Object.hasOwn(descriptor, "value")) {
         throw new PersistenceError("INVALID_SNAPSHOT_DATA", `${path}.${key} is not a plain data property.`);
       }
