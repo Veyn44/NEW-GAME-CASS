@@ -48,7 +48,7 @@ test("scheduler advances strategic time and delivers its event synchronously", a
   const demo = context.getService("core.demo-api");
   const scheduler = context.getService("core.scheduler");
   scheduler.advance(6);
-  equal(clock.totalSeconds, 6);
+  equal(clock.totalSeconds, 6, `Clock mismatch; clock=${JSON.stringify(clock.snapshot())}; scheduler=${JSON.stringify(scheduler.snapshot)}`);
   equal(demo.receivedSteps, 1);
   await runtime.destroy();
 });
