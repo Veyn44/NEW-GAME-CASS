@@ -35,11 +35,16 @@ export function createCoreAssembly({
   dayLengthRealSeconds = 720,
   fixedStepSeconds = 6,
   maxStepsPerFrame = 120,
-  demoSystem = null
+  hostSystems = [],
+  simulationTasks = [],
+  eventSources = []
 } = {}) {
   let insideSimulationStep = false;
   let bootstrap = null;
   let eventBus = null;
+  if (!Array.isArray(hostSystems) || !Array.isArray(simulationTasks) || !Array.isArray(eventSources)) throw new TypeError('hostSystems, simulationTasks and eventSources must be arrays.');
+  const hostSystemIds = hostSystems.map((system) => system?.id);
+  if (hostSystemIds.some((id) => typeof id !== 'string') || new Set(hostSystemIds).size !== hostSystemIds.length) throw new TypeError('Every host system must have a unique ID.');
 
   const systems = [
     {
@@ -56,7 +61,7 @@ export function createCoreAssembly({
       requires: [SERVICE.logger],
       initialize(context) {
         eventBus = new EventBus({
-          sources: ["core.event-bus", "core.demo-system", "core.scheduler"],
+          sources: ["core.event-bus", "core.scheduler", ...hostSystemIds, ...eventSources],
           logger: required(context, SERVICE.logger)
         });
         return { [SERVICE.events]: eventBus };
@@ -66,7 +71,7 @@ export function createCoreAssembly({
       id: "core.game-clock",
       provides: [SERVICE.clock],
       initialize() {
-        return { [SERVICE.clock]: new GameClock({ dayLengthRealSeconds, initialSpeed: 1, minimumSpeed: 1, maximumSpeed: 3 }) };
+        return { [SERVICE.clock]: new GameClock({ dayLengthRealSeconds, initialSpeed: 1, minimumSpeed: 0.25, maximumSpeed: 3 }) };
       },
       pause(context) {
         required(context, SERVICE.clock).pause("bootstrap-lifecycle");
@@ -111,33 +116,38 @@ export function createCoreAssembly({
         const logger = required(context, SERVICE.logger);
         const scheduler = new SimulationScheduler({
           clock,
-          systemOrder: ["core.demo-system"],
+          systemOrder: [...hostSystemIds, "core.scheduler"],
           fixedStepSeconds,
           maxStepsPerFrame,
-          tasks: [{
-            systemId: "core.demo-system",
-            update({ deltaSeconds, tick }) {
-              insideSimulationStep = true;
-              try {
-                const result = demoSystem?.update?.({ deltaSeconds, tick, context });
-                if (result && typeof result.then === "function") {
-                  // Prevent a rejected async hook from becoming an unhandled rejection;
-                  // the scheduler contract itself remains strictly synchronous.
-                  if (typeof result.catch === "function") result.catch(() => {});
-                  const error = new Error("Demo system update returned a Promise; simulation updates must be synchronous.");
-                  error.code = "ASYNC_UPDATE_NOT_SUPPORTED";
-                  throw error;
+          tasks: [
+            ...simulationTasks.map((task) => ({
+              ...task,
+              update(step) {
+                insideSimulationStep = true;
+                try {
+                  const result = task.update({ ...step, context });
+                  if (result && typeof result.then === "function") {
+                    if (typeof result.catch === "function") result.catch(() => {});
+                    const error = new Error("Host simulation task returned a Promise; updates must be synchronous.");
+                    error.code = "ASYNC_UPDATE_NOT_SUPPORTED";
+                    throw error;
+                  }
+                } finally {
+                  insideSimulationStep = false;
                 }
+              }
+            })),
+            {
+              systemId: "core.scheduler",
+              update({ deltaSeconds, tick }) {
                 events.publish({
                   type: "core.simulation-step",
                   source: "core.scheduler",
                   payload: { tick, deltaSeconds }
                 });
-              } finally {
-                insideSimulationStep = false;
               }
             }
-          }],
+          ],
           onDiagnostic: (diagnostic) => logger.warn("Scheduler diagnostic", diagnostic)
         });
         return { [SERVICE.scheduler]: scheduler };
@@ -184,42 +194,7 @@ export function createCoreAssembly({
         return { [SERVICE.persistence]: persistence };
       }
     },
-    {
-      id: "core.demo-system",
-      provides: ["core.demo-api"],
-      requires: [SERVICE.entities, SERVICE.worlds, SERVICE.worldContext, SERVICE.events, SERVICE.clock],
-      initialize(context) {
-        const entities = required(context, SERVICE.entities);
-        const worlds = required(context, SERVICE.worlds);
-        const worldContext = required(context, SERVICE.worldContext);
-        const events = required(context, SERVICE.events);
-        const clock = required(context, SERVICE.clock);
-        worlds.registerWorld({
-          worldId: "world:cassandra",
-          type: "cassandra",
-          dimensions: { width: 128, height: 128 },
-          coordinateSystem: "world-units",
-        });
-        worlds.activateWorld("world:cassandra");
-        const entity = entities.registerPersistent({ id: "entity:integration-pawn", kind: "pawn", metadata: { role: "integration-demo" } });
-        worldContext.placeEntity(entity.id, "world:cassandra", { x: 12, y: 18 });
-        let receivedSteps = 0;
-        const unsubscribe = events.subscribe("core.simulation-step", "core.demo-system", () => { receivedSteps += 1; });
-        return {
-          "core.demo-api": Object.freeze({
-            entityId: entity.id,
-            get receivedSteps() { return receivedSteps; },
-            unsubscribe
-          })
-        };
-      },
-      start(context) {
-        demoSystem?.start?.(context);
-      },
-      destroy() {
-        demoSystem?.destroy?.();
-      }
-    }
+
   ];
 
   bootstrap = new SystemBootstrap({ systems });
