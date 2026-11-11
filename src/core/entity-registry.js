@@ -165,7 +165,8 @@ export class EntityRegistry {
     assertEntityId(scopeId, "Scope ID");
     let local = localId;
     if (local === null) {
-      const next = (this.#scopeCounters.get(scopeId) ?? 0) + 1;
+      let next = (this.#scopeCounters.get(scopeId) ?? 0) + 1;
+      while (Number.isSafeInteger(next) && this.#entities.has(`scope:${scopeId}:${next}`)) next += 1;
       if (!Number.isSafeInteger(next)) {
         throw new EntityRegistryError("ID_SEQUENCE_EXHAUSTED", `Scoped ID sequence for "${scopeId}" is exhausted.`, { scopeId });
       }
