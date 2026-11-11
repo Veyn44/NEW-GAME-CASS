@@ -91,14 +91,12 @@ test("coordinate system is an explicit non-empty label", () => {
   throwsCode(() => registry.registerWorld({ type: "cassandra", dimensions: { width: 10, height: 10 }, coordinateSystem: "" }), "INVALID_COORDINATE_SYSTEM");
 });
 
-test("galaxy data context is not a playable map world", () => {
+test("accepts domain-neutral world types, including host-defined types", () => {
   const registry = makeRegistry();
-  throwsCode(() => registry.registerWorld({ type: "galaxy", dimensions: { width: 10, height: 10 } }), "INVALID_WORLD_TYPE");
-});
-
-test("only supported map-world types can be registered in version one", () => {
-  const registry = makeRegistry();
-  throwsCode(() => registry.registerWorld({ type: "shuttle", dimensions: { width: 10, height: 10 } }), "UNSUPPORTED_WORLD_TYPE");
+  const galaxy = registry.registerWorld({ type: "galaxy", dimensions: { width: 10, height: 10 } });
+  const shuttle = registry.registerWorld({ type: "shuttle", dimensions: { width: 10, height: 10 } });
+  equal(galaxy.type, "galaxy");
+  equal(shuttle.type, "shuttle");
 });
 
 test("world records and dimensions are immutable", () => {
@@ -151,11 +149,12 @@ test("an active world cannot be closed", () => {
   throwsCode(() => registry.closeWorld(encounter.worldId), "WORLD_ACTIVE");
 });
 
-test("only inactive encounter worlds can be closed", () => {
+test("any inactive world can be closed without domain-specific type checks", () => {
   const registry = makeRegistry();
   const cassandra = addCassandra(registry);
   const encounter = addEncounter(registry);
-  throwsCode(() => registry.closeWorld(cassandra.worldId), "WORLD_NOT_CLOSABLE");
+  assert(registry.closeWorld(cassandra.worldId));
+  equal(registry.get(cassandra.worldId).status, "closed");
   assert(registry.closeWorld(encounter.worldId));
   equal(registry.get(encounter.worldId).status, "closed");
   equal(registry.closeWorld(encounter.worldId), false);
