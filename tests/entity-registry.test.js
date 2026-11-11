@@ -166,7 +166,7 @@ test("snapshot accessors are rejected without being invoked", () => {
 test("invalid snapshots and duplicate snapshot IDs are rejected", () => {
   const registry = makeRegistry();
   throwsCode(() => registry.prepareRestore({ version: 99, entities: [] }), "INVALID_SNAPSHOT");
-  throwsCode(() => registry.prepareRestore({ version: 1, entities: [
+  throwsCode(() => registry.prepareRestore({ version: 2, entities: [
     { id: "same:1", kind: "pawn", scope: "persistent", scopeId: null, status: "active", metadata: {} },
     { id: "same:1", kind: "pawn", scope: "persistent", scopeId: null, status: "active", metadata: {} }
   ] }), "DUPLICATE_ENTITY_ID");
