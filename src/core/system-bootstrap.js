@@ -115,8 +115,10 @@ export class SystemBootstrap {
     try {
       for (const system of [...this.#started].reverse()) {
         if (system.pause) {
-          await system.pause(this.#context);
+          // Include the current system before invoking the hook: it may
+          // partially pause and then reject, requiring compensating resume.
           paused.push(system);
+          await system.pause(this.#context);
         }
       }
       this.#state = "paused";
@@ -139,8 +141,10 @@ export class SystemBootstrap {
     try {
       for (const system of this.#started) {
         if (system.resume) {
-          await system.resume(this.#context);
+          // A failed resume may have partially changed the system; include it
+          // in the compensating pause sequence as well.
           resumed.push(system);
+          await system.resume(this.#context);
         }
       }
       this.#state = "running";
