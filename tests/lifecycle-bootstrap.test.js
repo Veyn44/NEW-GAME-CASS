@@ -125,6 +125,35 @@ export async function runLifecycleBootstrapTests() {
     assert(bootstrap.state === "destroyed", "Expected destroyed state.");
   });
 
+  await test("compensates a partially failed pause hook", async () => {
+    const events = [];
+    const bootstrap = new SystemBootstrap({ systems: [
+      { id: "alpha", initialize() {}, start() {}, pause() { events.push("alpha:pause"); }, resume() { events.push("alpha:resume"); } },
+      { id: "beta", initialize() {}, start() {}, pause() { events.push("beta:pause"); throw new Error("partial pause"); }, resume() { events.push("beta:resume"); } },
+      { id: "gamma", initialize() {}, start() {}, pause() { events.push("gamma:pause"); }, resume() { events.push("gamma:resume"); } }
+    ] });
+    await bootstrap.start();
+    await expectCode(() => bootstrap.pause(), "PAUSE_FAILED");
+    assert(bootstrap.state === "running", "Failed pause must preserve running bootstrap state.");
+    assert(events.join("|") === "gamma:pause|beta:pause|beta:resume|gamma:resume", events.join("|"));
+    await bootstrap.destroy();
+  });
+
+  await test("compensates a partially failed resume hook", async () => {
+    const events = [];
+    const bootstrap = new SystemBootstrap({ systems: [
+      { id: "alpha", initialize() {}, start() {}, pause() { events.push("alpha:pause"); }, resume() { events.push("alpha:resume"); } },
+      { id: "beta", initialize() {}, start() {}, pause() { events.push("beta:pause"); }, resume() { events.push("beta:resume"); if (events.filter((item) => item === "beta:resume").length === 1) throw new Error("partial resume"); } }
+    ] });
+    await bootstrap.start();
+    await bootstrap.pause();
+    events.length = 0;
+    await expectCode(() => bootstrap.resume(), "RESUME_FAILED");
+    assert(bootstrap.state === "paused", "Failed resume must preserve paused bootstrap state.");
+    assert(events.join("|") === "alpha:resume|beta:resume|beta:pause|alpha:pause", events.join("|"));
+    await bootstrap.destroy();
+  });
+
   await test("exposes only public service resolution through GameContext", async () => {
     const bootstrap = new SystemBootstrap({ systems: [
       { id: "clock", provides: ["clock.api"], initialize() { return { "clock.api": { now: () => 1 } }; } }
