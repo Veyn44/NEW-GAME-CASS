@@ -236,6 +236,19 @@ export class WorldRegistry {
       required: true,
       order,
       captureSnapshot: () => this.captureSnapshot(),
+      migrateSnapshot: (snapshot, fromVersion) => {
+        if (fromVersion !== 1 || !snapshot || snapshot.version !== 1 || !Array.isArray(snapshot.worlds)) {
+          throw new WorldRegistryError("UNSUPPORTED_MIGRATION", "World Registry can migrate only version-one snapshots.");
+        }
+        return {
+          version: SNAPSHOT_VERSION,
+          activeWorldId: snapshot.activeWorldId ?? null,
+          worlds: snapshot.worlds.map((world) => {
+            const { locationId, encounterId, metadata = {}, ...record } = world;
+            return { ...record, metadata: { ...metadata, ...(locationId == null ? {} : { locationId }), ...(encounterId == null ? {} : { encounterId }) } };
+          })
+        };
+      },
       validateSnapshot: (snapshot) => {
         try { this.#parseSnapshot(snapshot); return true; }
         catch { return false; }
