@@ -165,7 +165,7 @@ test("snapshot restore validates stored placement lifecycle", () => {
   equal(context.getPlacement("encounter:encounter:a:body").type, "store");
 });
 
-function runAll() {
+export function runWorldContextTests() {
   let passed = 0;
   const lines = [];
   for (const item of tests) {
@@ -174,13 +174,12 @@ function runAll() {
   }
   lines.push(`RESULT ${passed}/${tests.length} passed`);
   if (typeof document !== "undefined") document.querySelector("#results").textContent = lines.join("\n");
-  if (passed !== tests.length) throw new Error(`World Context tests failed: ${passed}/${tests.length}`);
-  return { passed, total: tests.length };
+  return tests.map((item, index) => ({ name: item.name, passed: lines[index].startsWith("PASS "), error: lines[index].startsWith("FAIL ") ? lines[index].slice(lines[index].indexOf(": ") + 2) : null }));
 }
 if (typeof document !== "undefined") {
-  document.querySelector("#run")?.addEventListener("click", runAll);
+  document.querySelector("#run")?.addEventListener("click", () => {
+    const results = runWorldContextTests();
+    document.querySelector("#results").textContent = results.map((item) => `${item.passed ? "PASS" : "FAIL"} ${item.name}${item.error ? `: ${item.error}` : ""}`).join("\\n");
+  });
   document.querySelector("#results").textContent = "Ready. Press Run tests.";
-} else {
-  const result = runAll();
-  console.log(`RESULT ${result.passed}/${result.total} passed`);
 }
