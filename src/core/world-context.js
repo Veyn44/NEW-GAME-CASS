@@ -188,7 +188,7 @@ export class WorldContext {
     return Object.freeze({
       id, schemaVersion: SNAPSHOT_VERSION, required: true, order,
       captureSnapshot: () => this.captureSnapshot(),
-      validateSnapshot: (snapshot) => { try { this.#parseSnapshot(snapshot); return true; } catch { return false; } },
+      validateSnapshot: (snapshot) => { try { this.#parseSnapshot(snapshot, { validateReferences: false }); return true; } catch { return false; } },
       prepareRestore: (snapshot) => this.prepareRestore(snapshot)
     });
   }
@@ -203,12 +203,15 @@ export class WorldContext {
   }
 
   prepareRestore(snapshot) {
-    const next = this.#parseSnapshot(snapshot);
+    const next = this.#parseSnapshot(snapshot, { validateReferences: false });
     const previous = this.#placements;
     let committed = false;
     return Object.freeze({
       commit: () => {
         if (committed) throw new WorldContextError("RESTORE_ALREADY_COMMITTED", "World Context restore transaction was already committed.");
+        // Cross-registry references are validated at commit time, after the
+        // entity and world participants have committed their staged snapshots.
+        this.#parseSnapshot(snapshot, { validateReferences: true });
         this.#placements = next;
         committed = true;
       },
@@ -221,7 +224,7 @@ export class WorldContext {
     });
   }
 
-  #parseSnapshot(snapshot) {
+  #parseSnapshot(snapshot, { validateReferences = true } = {}) {
     if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot) ||
         snapshot.version !== SNAPSHOT_VERSION || !Array.isArray(snapshot.placements)) {
       throw new WorldContextError("INVALID_SNAPSHOT", "World Context snapshot has an unsupported version or shape.");
@@ -235,11 +238,17 @@ export class WorldContext {
       const entityId = assertId(raw.entityId, "Entity ID");
       if (next.has(entityId)) throw new WorldContextError("DUPLICATE_PLACEMENT", `Entity "${entityId}" has more than one placement.`, { entityId });
       let placement;
-      if (raw.type === "world") placement = this.#prepareWorldPlacement(entityId, raw.worldId, raw.position);
-      else if (raw.type === "store") {
+      if (raw.type === "world") {
+        const worldId = assertId(raw.worldId, "World ID");
+        const position = clonePosition(raw.position);
+        if (validateReferences) placement = this.#prepareWorldPlacement(entityId, worldId, position);
+        else placement = freezePlacement({ entityId, type: "world", worldId, position });
+      } else if (raw.type === "store") {
         const storeId = assertId(raw.storeId, "Store ID");
-        const entity = this.#requireActiveEntity(entityId);
-        if (entity.status !== "stored") throw new WorldContextError("ENTITY_NOT_STORED", "Stored placement requires stored entity lifecycle state.", { entityId });
+        if (validateReferences) {
+          const entity = this.#requireActiveEntity(entityId);
+          if (entity.status !== "stored") throw new WorldContextError("ENTITY_NOT_STORED", "Stored placement requires stored entity lifecycle state.", { entityId });
+        }
         placement = freezePlacement({ entityId, type: "store", storeId });
       } else throw new WorldContextError("INVALID_SNAPSHOT", `Placement at index ${index} has an unknown type.`);
       next.set(entityId, placement);
