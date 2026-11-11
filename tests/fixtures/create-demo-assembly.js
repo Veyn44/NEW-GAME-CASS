@@ -1,4 +1,5 @@
 import { createCoreAssembly as createEngineCoreAssembly } from "../../src/core/core-assembly.js";
+import { MemorySaveAdapter } from "../../src/core/persistence.js";
 
 /**
  * Cassandra-specific integration fixture. Kept outside src/core so the engine
@@ -52,6 +53,7 @@ export function createCoreAssembly({ demoSystem = null, ...options } = {}) {
     initialSpeed: 1,
     minimumSpeed: 0.25,
     maximumSpeed: 3,
+    saveAdapter: options.saveAdapter ?? new MemorySaveAdapter(),
     ...options,
     hostSystems: [...(options.hostSystems ?? []), demo],
     eventSources: [...(options.eventSources ?? []), "core.demo-system"],
