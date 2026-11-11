@@ -25,14 +25,22 @@ function cloneSerializable(value, path = "value", seen = new Set()) {
     throw new PersistenceError("INVALID_SNAPSHOT_DATA", `${path} contains a non-serializable value.`);
   }
   if (seen.has(value)) throw new PersistenceError("INVALID_SNAPSHOT_DATA", `${path} contains a circular reference.`);
-  const prototype = Object.getPrototypeOf(value);
-  if (!Array.isArray(value) && prototype !== Object.prototype && prototype !== null) {
+  let array;
+  let prototype;
+  let keys;
+  try {
+    array = Array.isArray(value);
+    prototype = Object.getPrototypeOf(value);
+    keys = Reflect.ownKeys(value);
+  } catch {
+    throw new PersistenceError("INVALID_SNAPSHOT_DATA", `${path} could not be inspected safely.`);
+  }
+  if (!array && prototype !== Object.prototype && prototype !== null) {
     throw new PersistenceError("INVALID_SNAPSHOT_DATA", `${path} must contain only plain objects and arrays.`);
   }
   seen.add(value);
   try {
-    if (Array.isArray(value)) {
-      const keys = Reflect.ownKeys(value);
+    if (array) {
       const result = new Array(value.length);
       const indices = new Set();
       for (const key of keys) {
@@ -51,7 +59,7 @@ function cloneSerializable(value, path = "value", seen = new Set()) {
       return result;
     }
     const result = Object.create(null);
-    for (const key of Reflect.ownKeys(value)) {
+    for (const key of keys) {
       if (typeof key !== "string") throw new PersistenceError("INVALID_SNAPSHOT_DATA", `${path} contains a symbol key.`);
       const descriptor = Object.getOwnPropertyDescriptor(value, key);
       if (!descriptor?.enumerable || !Object.hasOwn(descriptor, "value")) {
