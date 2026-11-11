@@ -81,9 +81,11 @@ export class SystemBootstrap {
     this.#state = "initializing";
     try {
       for (const system of this.#orderedSystems) {
+        // Register cleanup responsibility before invoking initialize: an
+        // initializer may allocate resources and then fail part-way through.
+        this.#initialized.push(system);
         let publicApis;
         if (system.initialize) publicApis = await system.initialize(this.#context);
-        this.#initialized.push(system);
         this.#publishDeclaredServices(system, publicApis);
       }
 
