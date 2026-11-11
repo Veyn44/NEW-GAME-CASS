@@ -10,7 +10,7 @@ export class GameClockError extends Error {
 }
 
 /**
- * Authoritative strategic clock for the host application.
+ * Authoritative scaled simulation clock for the host application.
  *
  * Strategic time conversion is configurable by the host application. The
  * clock does not own a calendar, frame loop, wall timer, or domain clock.
