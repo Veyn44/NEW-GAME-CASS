@@ -85,7 +85,7 @@ function assertSlotId(slotId) {
 
 /**
  * Coordinates system-owned snapshots. The supplied boundary must defer the
- * operation until the active simulation step and synchronous event delivery
+ * operation only when the active simulation step and synchronous event delivery
  * have completed. Storage adapters must implement atomic write semantics.
  */
 export class Persistence {
