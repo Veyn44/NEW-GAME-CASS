@@ -259,6 +259,23 @@ export class EntityRegistry {
       required: true,
       order,
       captureSnapshot: () => this.captureSnapshot(),
+      migrateSnapshot: (snapshot, fromVersion) => {
+        if (fromVersion !== 1 || !snapshot || snapshot.version !== 1 || !Array.isArray(snapshot.entities)) {
+          throw new EntityRegistryError("UNSUPPORTED_MIGRATION", "Entity Registry can migrate only version-one snapshots.");
+        }
+        return {
+          version: SNAPSHOT_VERSION,
+          entities: snapshot.entities.map((record) => ({
+            id: record.id,
+            kind: record.kind,
+            scope: record.scope === "encounter" ? "scoped" : record.scope,
+            scopeId: record.scope === "encounter" ? record.encounterId : null,
+            originScopeId: record.originEncounterId ?? (record.scope === "encounter" ? record.encounterId : null),
+            status: record.status,
+            metadata: record.metadata ?? {}
+          }))
+        };
+      },
       validateSnapshot: (snapshot) => {
         try { this.#parseSnapshot(snapshot); return true; }
         catch { return false; }
@@ -296,7 +313,7 @@ export class EntityRegistry {
         this.#scopeCounters = new Map();
         for (const record of next.values()) {
           if (record.scope === "scoped") {
-            const match = record.id.match(/^scope:(.+):([a-zA-Z0-9._-]+)$/);
+            const match = record.id.match(/^(?:scope|encounter):(.+):([a-zA-Z0-9._-]+)$/);
             if (match && /^\d+$/.test(match[2])) {
               this.#scopeCounters.set(match[1], Math.max(this.#scopeCounters.get(match[1]) ?? 0, Number(match[2])));
             }
