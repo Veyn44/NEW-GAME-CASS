@@ -30,8 +30,8 @@ function required(context, id) {
  */
 export function createCoreAssembly({
   saveAdapter,
-  gameVersion = "0.1.0",
-  campaignFormatVersion = 1,
+  applicationVersion = "0.1.0",
+  formatVersion = 1,
   dayLengthRealSeconds = 86400,
   strategicSecondsPerDay = 86400,
   initialSpeed = 1,
@@ -178,8 +178,8 @@ export function createCoreAssembly({
         const events = required(context, SERVICE.events);
         const persistence = new Persistence({
           adapter: saveAdapter,
-          gameVersion,
-          campaignFormatVersion,
+          applicationVersion,
+          formatVersion,
           logger,
           runAtSafeBoundary: async (operation) => {
             if (insideSimulationStep) {
