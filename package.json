@@ -1,0 +1,11 @@
+{
+  "name": "cassandra-engine-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Domain-neutral Core runtime for Cassandra Engine",
+  "scripts": {
+    "test:core": "node tests/run-core.js"
+  },
+  "engines": { "node": ">=20" }
+}
