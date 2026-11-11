@@ -48,6 +48,10 @@ export function createCoreAssembly({ demoSystem = null, ...options } = {}) {
     }
   };
   return createEngineCoreAssembly({
+    dayLengthRealSeconds: 720,
+    initialSpeed: 1,
+    minimumSpeed: 0.25,
+    maximumSpeed: 3,
     ...options,
     hostSystems: [...(options.hostSystems ?? []), demo],
     eventSources: [...(options.eventSources ?? []), "core.demo-system"],
