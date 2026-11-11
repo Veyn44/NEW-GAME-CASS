@@ -84,12 +84,13 @@ export async function runPersistenceLoggerTests() {
       runAtSafeBoundary: async (operation) => { boundaryCalls += 1; return operation(); }
     });
     persistence.registerParticipant({ id: "core.clock", schemaVersion: 1, captureSnapshot: () => ({ seconds: 42 }), prepareRestore: () => ({ commit() {}, rollback() {} }) });
-    const metadata = await persistence.save("slot-1", { campaignId: "campaign-a", galaxySeed: 1234 });
+    const metadata = await persistence.save("slot-1", { campaignId: "campaign-a", seed: 1234 });
     equal(boundaryCalls, 1, "Boundary must wrap save");
     equal(metadata.campaignId, "campaign-a", "Campaign metadata");
     const saved = await adapter.read("slot-1");
     equal(saved.snapshots["core.clock"].seconds, 42, "Stored snapshot");
     equal(saved.metadata.gameVersion, "1.2.3", "Game version");
+    equal(saved.metadata.seed, 1234, "Generic application seed");
   });
 
   await test("Persistence preserves class participant methods and private state", async () => {
