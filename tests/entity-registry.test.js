@@ -53,6 +53,12 @@ test("explicit numeric scoped IDs advance the automatic sequence", () => {
   equal(registry.registerScoped({ scopeId: "sequence", kind: "enemy" }).id, "scope:sequence:5");
 });
 
+test("automatic scoped IDs skip identities already reserved by another registration path", () => {
+  const registry = new EntityRegistry();
+  registry.registerPersistent({ id: "scope:collision:1", kind: "external" });
+  equal(registry.registerScoped({ scopeId: "collision", kind: "enemy" }).id, "scope:collision:2");
+});
+
 test("failed scoped registration does not consume an automatic ID", () => {
   const registry = new EntityRegistry();
   throwsCode(() => registry.registerScoped({ scopeId: "sequence", kind: "InvalidKind" }), "INVALID_ENTITY_KIND");
