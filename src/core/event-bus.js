@@ -153,6 +153,10 @@ export class EventBus {
     return this.#queue.length;
   }
 
+  get isDelivering() {
+    return this.#draining;
+  }
+
   subscribe(type, systemId, handler) {
     this.#assertType(type);
     assertId(systemId, "Subscriber system ID");
