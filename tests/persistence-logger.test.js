@@ -188,6 +188,27 @@ export async function runPersistenceLoggerTests() {
     equal(calls.join(","), "commit-a,commit-b,rollback-b,rollback-a", "Rollback order");
   });
 
+  await test("Persistence normalizes legacy campaign metadata to generic state metadata", async () => {
+    const adapter = new MemorySaveAdapter();
+    await adapter.writeAtomic("legacy-state", {
+      metadata: {
+        campaignId: "campaign:legacy",
+        campaignFormatVersion: 1,
+        gameVersion: "0.1.0",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        kind: "manual"
+      },
+      schemas: {},
+      snapshots: {}
+    });
+    const persistence = new Persistence({ adapter, runAtSafeBoundary: (operation) => operation() });
+    const metadata = await persistence.load("legacy-state", { stateId: "campaign:legacy" });
+    equal(metadata.stateId, "campaign:legacy");
+    equal(metadata.formatVersion, 1);
+    equal(metadata.applicationVersion, "0.1.0");
+    assert(!Object.hasOwn(metadata, "campaignId"), "Legacy campaign metadata leaked through normalized API.");
+  });
+
   await test("Persistence rejects incompatible save format and state identity", async () => {
     const adapter = new MemorySaveAdapter();
     const writer = new Persistence({ adapter, runAtSafeBoundary: (operation) => operation() });
