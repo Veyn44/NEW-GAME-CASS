@@ -106,7 +106,7 @@ test("restore transaction stages worlds before validating entity placements", as
   const persistence = context.getService("core.persistence");
   const worlds = context.getService("core.world-registry");
   await persistence.save("restore-slot", { campaignId: "campaign:restore" });
-  worlds.prepareRestore({ version: 1, activeWorldId: null, worlds: [] }).commit();
+  worlds.prepareRestore({ version: 2, activeWorldId: null, worlds: [] }).commit();
   await persistence.load("restore-slot", { campaignId: "campaign:restore" });
   assert(worlds.get("world:cassandra"), "Saved world was not restored before placement validation.");
   assert(context.getService("core.entity-registry").has("entity:integration-pawn"));
