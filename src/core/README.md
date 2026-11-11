@@ -15,7 +15,7 @@ The Core is the domain-neutral runtime foundation for host applications. Cassand
 - `entity-registry.js` — stable entity identity, persistent/scoped lifecycles and metadata, independent of domain behavior and world placement.
 - `world-registry.js` — registration and activation of host-defined worlds, with opaque host metadata.
 - `world-context.js` — exclusive entity placement and atomic transfer between world and storage locations.
-- `persistence.js` — adapter-neutral atomic save contract and transactional participant restore.
+- `persistence.js` — adapter-neutral atomic save contract, schema migration and transactional participant restore.
 
 ## Composition contract
 
@@ -33,6 +33,7 @@ A simulation task declares `systemId` matching a host system and a synchronous `
 - Event delivery is synchronous and sequential. A drain-limit fault retains the queue and blocks new publishes until the source is corrected and `drainPending()` is called.
 - Scheduler updates are synchronous fixed steps. Promise-returning updates fault the scheduler; simulation time is committed only after all tasks complete.
 - Scaled simulation time uses the configurable Game Clock. Pause reasons are independent and composable.
+- Entity Registry and World Registry provide explicit version-one to version-two snapshot migrations for the generalized scope and metadata contracts.
 - Persistence calls are rejected immediately when invoked inside a simulation step, during pending Event Bus delivery, or while Scheduler is faulted. There is no deferred safe-boundary queue.
 - Persistence uses `read` and `writeAtomic` adapters and participant prepare/commit/rollback. `MemorySaveAdapter` is a test/development adapter, not durable production storage.
 
