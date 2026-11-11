@@ -17,6 +17,20 @@ The Core is the domain-neutral runtime foundation for host applications. Cassand
 - `world-context.js` — exclusive entity placement and atomic transfer between world and storage locations.
 - `persistence.js` — adapter-neutral atomic save contract, schema migration and transactional participant restore.
 
+
+## Host configuration
+
+`createCoreAssembly` requires an explicit persistence adapter with `read(slotId)` and `writeAtomic(slotId, data)`. It does not choose an in-memory adapter implicitly. The host may configure `dayLengthRealSeconds`, `strategicSecondsPerDay`, `initialSpeed`, `minimumSpeed`, `maximumSpeed`, `fixedStepSeconds` and `maxStepsPerFrame`. The Core defaults are neutral; Cassandra's 12-minute day and 0.25×–3× speed range belong to its host fixture.
+
+## Entity and world contracts
+
+- `registerPersistent({ id?, kind, metadata? })` registers a host-defined identity in persistent scope.
+- `registerScoped({ scopeId, localId?, kind, metadata? })` registers an identity inside an opaque host scope. Generated IDs use `scope:<scopeId>:<localId>`; numeric local IDs are sequenced without reusing reserved IDs.
+- `store(id)` changes an active scoped identity to the stored lifecycle state; `activateStored(id)` reactivates it without changing identity. Domain state is saved by its owning participant.
+- World types are host-defined lowercase IDs. `metadata` is opaque, deeply copied and immutable; Core does not interpret location or encounter concepts.
+- World Context validates existence, lifecycle and coordinates, but leaves scope-to-world policy to host systems.
+- Entity Registry and World Registry snapshots use schema version 2 and migrate their version-one formats. Entity IDs remain unchanged during migration.
+
 ## Composition contract
 
 Create the runtime with `createCoreAssembly({ hostSystems, simulationTasks, eventSources, saveAdapter, ... })`. A durable adapter implementing `read()` and `writeAtomic()` is mandatory; Core never silently falls back to volatile in-memory saves.
