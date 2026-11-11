@@ -100,6 +100,22 @@ test("accepts domain-neutral world types, including host-defined types", () => {
   equal(shuttle.type, "shuttle");
 });
 
+test("world host metadata is deeply cloned, immutable and persisted", () => {
+  const registry = makeRegistry();
+  const metadata = { host: { key: "value" }, tags: ["alpha", "beta"] };
+  const world = registry.registerWorld({ type: "custom", dimensions: { width: 20, height: 30 }, metadata });
+  metadata.host.key = "mutated";
+  metadata.tags.push("gamma");
+  equal(world.metadata.host.key, "value");
+  equal(world.metadata.tags.length, 2);
+  assert(Object.isFrozen(world.metadata));
+  assert(Object.isFrozen(world.metadata.host));
+  assert(Object.isFrozen(world.metadata.tags));
+  const restored = makeRegistry();
+  restored.prepareRestore(registry.captureSnapshot()).commit();
+  equal(restored.get(world.worldId).metadata.host.key, "value");
+});
+
 test("world records and dimensions are immutable", () => {
   const registry = makeRegistry();
   const world = addCassandra(registry);
