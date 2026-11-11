@@ -367,8 +367,6 @@ test("Persistence rejects saves inside updates and Event Bus handlers but permit
 
   let handlerSave;
   const unsubscribe = events.subscribe("core.integration-boundary-probe", "core.scheduler", () => {
-    // Queue a nested event so pendingCount remains non-zero during this handler.
-    events.publish({ type: "core.integration-boundary-nested", source: "core.demo-system", payload: {} });
     handlerSave = persistence.save("inside-handler", { campaignId: "campaign:boundary" });
   });
   events.publish({ type: "core.integration-boundary-probe", source: "core.demo-system", payload: {} });
