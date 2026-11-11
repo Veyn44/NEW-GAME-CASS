@@ -218,12 +218,9 @@ export class WorldRegistry {
     return true;
   }
 
-  /** Encounter worlds are closed only after they are no longer active. */
+  /** A world may be closed after it is no longer active. */
   closeWorld(worldId) {
     const current = this.#require(worldId);
-    if (current.type !== "encounter") {
-      throw new WorldRegistryError("WORLD_NOT_CLOSABLE", "Only encounter worlds can be closed.", { worldId, type: current.type });
-    }
     if (current.status === "closed") return false;
     if (current.status === "active" || this.#activeWorldId === worldId) {
       throw new WorldRegistryError("WORLD_ACTIVE", "An active world must be deactivated before it can be closed.", { worldId });
