@@ -218,7 +218,7 @@ test("restore rollback reinstates the previous worlds and active world", () => {
 test("snapshot rejects accessors without invoking them", () => {
   const registry = makeRegistry();
   let invoked = false;
-  const snapshot = { version: 1, activeWorldId: null, worlds: [] };
+  const snapshot = { version: 2, activeWorldId: null, worlds: [] };
   Object.defineProperty(snapshot, "worlds", { enumerable: true, get() { invoked = true; return []; } });
   throwsCode(() => registry.prepareRestore(snapshot), "INVALID_SNAPSHOT");
   equal(invoked, false);
@@ -228,8 +228,8 @@ test("snapshot rejects multiple active worlds and inconsistent activeWorldId", (
   const registry = makeRegistry();
   const a = { worldId: "world:a", type: "cassandra", status: "active", dimensions: { width: 10, height: 10 }, coordinateSystem: "world-units", metadata: {} };
   const b = { ...a, worldId: "world:b" };
-  throwsCode(() => registry.prepareRestore({ version: 1, activeWorldId: "world:a", worlds: [a, b] }), "MULTIPLE_ACTIVE_WORLDS");
-  throwsCode(() => registry.prepareRestore({ version: 1, activeWorldId: "world:missing", worlds: [{ ...a, status: "inactive" }] }), "INVALID_ACTIVE_WORLD");
+  throwsCode(() => registry.prepareRestore({ version: 2, activeWorldId: "world:a", worlds: [a, b] }), "MULTIPLE_ACTIVE_WORLDS");
+  throwsCode(() => registry.prepareRestore({ version: 2, activeWorldId: "world:missing", worlds: [{ ...a, status: "inactive" }] }), "INVALID_ACTIVE_WORLD");
 });
 
 test("Persistence participant follows the coordinator contract", () => {
