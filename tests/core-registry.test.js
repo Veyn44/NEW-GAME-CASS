@@ -81,6 +81,22 @@ export function runCoreRegistryTests() {
     expectCode(() => registry.publishService("clock", "private.api", {}), "UNDECLARED_SERVICE");
   });
 
+  test("preserves class-instance service methods and private state", () => {
+    class CounterService {
+      #count = 0;
+      increment() { this.#count += 1; return this.#count; }
+    }
+    const registry = new SystemRegistry();
+    registry.register({ id: "counter", provides: ["counter.api"] });
+    registry.validate();
+    const service = new CounterService();
+    registry.publishService("counter", "counter.api", service);
+    const resolved = registry.getService("counter.api");
+    assert(resolved.increment() === 1, "Prototype method should retain its private-field receiver.");
+    assert(resolved.increment() === 2, "Private state should remain mutable after publication.");
+    assert(Object.isFrozen(resolved), "Published service instance should be frozen.");
+  });
+
   test("distinguishes declared-but-not-ready from unknown services", () => {
     const registry = new SystemRegistry();
     registry.register({ id: "clock", provides: ["clock.api"] });
