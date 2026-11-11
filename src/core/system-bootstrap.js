@@ -189,6 +189,13 @@ export class SystemBootstrap {
       if (!Object.hasOwn(publicApis, serviceId)) {
         throw new RegistryError("MISSING_SERVICE_API", `System "${system.id}" did not return declared service API "${serviceId}".`, { systemId: system.id, serviceId });
       }
+      const api = publicApis[serviceId];
+      if (!api || (typeof api !== "object" && typeof api !== "function")) {
+        throw new RegistryError("INVALID_SERVICE_API", `Public API for "${serviceId}" must be an object or function.`, { systemId: system.id, serviceId });
+      }
+    }
+    // Validate the complete API set before publishing any of it.
+    for (const serviceId of declaredIds) {
       this.#registry.publishService(system.id, serviceId, publicApis[serviceId]);
     }
   }
