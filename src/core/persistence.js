@@ -97,13 +97,15 @@ function normalizeMetadata(metadata) {
     campaignId: legacyStateId,
     campaignFormatVersion: legacyFormatVersion,
     gameVersion: legacyApplicationVersion,
+    galaxySeed: legacySeed,
     ...current
   } = metadata;
   return {
     ...current,
     stateId: current.stateId ?? legacyStateId,
     formatVersion: current.formatVersion ?? legacyFormatVersion,
-    applicationVersion: current.applicationVersion ?? legacyApplicationVersion
+    applicationVersion: current.applicationVersion ?? legacyApplicationVersion,
+    seed: current.seed ?? legacySeed
   };
 }
 
