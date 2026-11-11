@@ -44,7 +44,7 @@ A simulation task declares `systemId` matching a host system and a synchronous `
 ## Runtime semantics
 
 - Bootstrap resolves dependencies before any lifecycle hook runs.
-- Event delivery is synchronous and sequential. A drain-limit fault retains the queue and blocks new publishes until the source is corrected and `drainPending()` is called.
+- Event delivery is synchronous and sequential. Asynchronous handlers fault the bus and require runtime reconstruction. A drain-limit fault retains the queue and blocks new publishes until the source is corrected and `drainPending()` is called.
 - Scheduler updates are synchronous fixed steps. Promise-returning updates fault the scheduler; simulation time is committed only after all tasks complete.
 - Scaled simulation time uses the configurable Game Clock. Pause reasons are independent and composable.
 - Entity Registry and World Registry provide explicit version-one to version-two snapshot migrations for the generalized scope and metadata contracts.
