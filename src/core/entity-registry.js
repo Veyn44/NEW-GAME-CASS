@@ -89,8 +89,8 @@ function freezeRecord(record) {
     id: record.id,
     kind: record.kind,
     scope: record.scope,
-    encounterId: record.encounterId,
-    originEncounterId: record.originEncounterId ?? null,
+    scopeId: record.scopeId,
+    originScopeId: record.originScopeId ?? null,
     status: record.status,
     metadata: record.metadata
   });
@@ -102,31 +102,31 @@ function validateRecord(raw, index) {
   }
   const id = assertEntityId(raw.id);
   const kind = assertKind(raw.kind);
-  if (raw.scope !== "persistent" && raw.scope !== "encounter") {
+  if (raw.scope !== "persistent" && raw.scope !== "scoped") {
     throw new EntityRegistryError("INVALID_SNAPSHOT", `Entity "${id}" has an invalid scope.`, { id, scope: raw.scope });
   }
   if (!["active", "stored", "removed"].includes(raw.status)) {
     throw new EntityRegistryError("INVALID_SNAPSHOT", `Entity "${id}" has an invalid lifecycle status.`, { id, status: raw.status });
   }
-  if (raw.scope === "encounter" && (typeof raw.encounterId !== "string" || !ENTITY_ID_PATTERN.test(raw.encounterId))) {
-    throw new EntityRegistryError("INVALID_SNAPSHOT", `Encounter entity "${id}" requires a valid encounterId.`, { id });
+  if (raw.scope === "scoped" && (typeof raw.scopeId !== "string" || !ENTITY_ID_PATTERN.test(raw.scopeId))) {
+    throw new EntityRegistryError("INVALID_SNAPSHOT", `Scoped entity "${id}" requires a valid scopeId.`, { id });
   }
-  if (raw.scope === "persistent" && raw.encounterId !== null) {
-    throw new EntityRegistryError("INVALID_SNAPSHOT", `Persistent entity "${id}" cannot retain an active encounterId.`, { id });
+  if (raw.scope === "persistent" && raw.scopeId !== null) {
+    throw new EntityRegistryError("INVALID_SNAPSHOT", `Persistent entity "${id}" cannot retain an active scopeId.`, { id });
   }
   if (raw.status === "stored" && raw.scope !== "persistent") {
     throw new EntityRegistryError("INVALID_SNAPSHOT", `Stored entity "${id}" must have persistent scope.`, { id });
   }
-  if (raw.originEncounterId !== null && raw.originEncounterId !== undefined) {
-    assertEntityId(raw.originEncounterId, "Origin encounter ID");
+  if (raw.originScopeId !== null && raw.originScopeId !== undefined) {
+    assertEntityId(raw.originScopeId, "Origin encounter ID");
   }
-  if (raw.scope === "encounter" && raw.originEncounterId !== null && raw.originEncounterId !== undefined && raw.originEncounterId !== raw.encounterId) {
-    throw new EntityRegistryError("INVALID_SNAPSHOT", `Encounter entity "${id}" has inconsistent origin metadata.`, { id });
+  if (raw.scope === "scoped" && raw.originScopeId !== null && raw.originScopeId !== undefined && raw.originScopeId !== raw.scopeId) {
+    throw new EntityRegistryError("INVALID_SNAPSHOT", `Scoped entity "${id}" has inconsistent origin metadata.`, { id });
   }
   const metadata = cloneData(raw.metadata ?? {}, `entities[${index}].metadata`);
   return freezeRecord({
-    id, kind, scope: raw.scope, encounterId: raw.encounterId,
-    originEncounterId: raw.originEncounterId ?? null,
+    id, kind, scope: raw.scope, scopeId: raw.scopeId,
+    originScopeId: raw.originScopeId ?? null,
     status: raw.status, metadata
   });
 }
@@ -139,7 +139,7 @@ function validateRecord(raw, index) {
 export class EntityRegistry {
   #entities = new Map();
   #idFactory;
-  #encounterCounters = new Map();
+  #scopeCounters = new Map();
   #logger;
 
   constructor({ idFactory = defaultIdFactory, logger = null } = {}) {
@@ -156,25 +156,25 @@ export class EntityRegistry {
   registerPersistent({ id = null, kind, metadata = {} } = {}) {
     const entityId = id === null ? this.#newPersistentId() : assertEntityId(id);
     return this.#register({
-      id: entityId, kind, scope: "persistent", encounterId: null,
-      originEncounterId: null, status: "active", metadata
+      id: entityId, kind, scope: "persistent", scopeId: null,
+      originScopeId: null, status: "active", metadata
     });
   }
 
-  registerEncounter({ encounterId, localId = null, kind, metadata = {} } = {}) {
-    assertEntityId(encounterId, "Encounter ID");
+  registerScoped({ scopeId, localId = null, kind, metadata = {} } = {}) {
+    assertEntityId(scopeId, "Scope ID");
     let local = localId;
     if (local === null) {
-      const next = (this.#encounterCounters.get(encounterId) ?? 0) + 1;
-      this.#encounterCounters.set(encounterId, next);
+      const next = (this.#scopeCounters.get(scopeId) ?? 0) + 1;
+      this.#scopeCounters.set(scopeId, next);
       local = String(next);
     }
-    assertEntityId(local, "Encounter-local ID");
-    const id = `encounter:${encounterId}:${local}`;
+    assertEntityId(local, "Scoped-local ID");
+    const id = `scope:${scopeId}:${local}`;
     assertEntityId(id);
     return this.#register({
-      id, kind, scope: "encounter", encounterId,
-      originEncounterId: encounterId, status: "active", metadata
+      id, kind, scope: "scoped", scopeId,
+      originScopeId: scopeId, status: "active", metadata
     });
   }
 
@@ -189,39 +189,39 @@ export class EntityRegistry {
     return record ?? null;
   }
 
-  list({ scope = null, status = null, encounterId = null, kind = null } = {}) {
-    if (scope !== null && scope !== "persistent" && scope !== "encounter") {
-      throw new EntityRegistryError("INVALID_FILTER", "scope must be persistent, encounter or null.", { scope });
+  list({ scope = null, status = null, scopeId = null, kind = null } = {}) {
+    if (scope !== null && scope !== "persistent" && scope !== "scoped") {
+      throw new EntityRegistryError("INVALID_FILTER", "scope must be persistent, scoped or null.", { scope });
     }
     if (status !== null && !["active", "stored", "removed"].includes(status)) {
       throw new EntityRegistryError("INVALID_FILTER", "Unknown entity lifecycle status.", { status });
     }
-    if (encounterId !== null) assertEntityId(encounterId, "Encounter ID");
+    if (scopeId !== null) assertEntityId(scopeId, "Scope ID");
     if (kind !== null) assertKind(kind);
     return Object.freeze([...this.#entities.values()]
       .filter((item) => scope === null || item.scope === scope)
       .filter((item) => status === null || item.status === status)
-      .filter((item) => encounterId === null || item.encounterId === encounterId || item.originEncounterId === encounterId)
+      .filter((item) => scopeId === null || item.scopeId === scopeId || item.originScopeId === scopeId)
       .filter((item) => kind === null || item.kind === kind)
       .sort((a, b) => a.id.localeCompare(b.id)));
   }
 
   /**
-   * Explicitly preserves an encounter entity in the campaign Entity Store.
+   * Explicitly preserves an scoped entity in the campaign Entity Store.
    * Only identity metadata is stored here; its owning domain system must
    * persist the entity's actual state through its own Persistence participant.
    */
   store(id) {
     const current = this.#require(id);
-    if (current.status !== "active" || current.scope !== "encounter") {
-      throw new EntityRegistryError("ENTITY_NOT_STORABLE", `Entity "${id}" is not an active encounter entity.`, { id, scope: current.scope, status: current.status });
+    if (current.status !== "active" || current.scope !== "scoped") {
+      throw new EntityRegistryError("ENTITY_NOT_STORABLE", `Entity "${id}" is not an active scoped entity.`, { id, scope: current.scope, status: current.status });
     }
     const updated = freezeRecord({
-      ...current, scope: "persistent", encounterId: null,
-      originEncounterId: current.encounterId, status: "stored"
+      ...current, scope: "persistent", scopeId: null,
+      originScopeId: current.scopeId, status: "stored"
     });
     this.#entities.set(id, updated);
-    this.#log("info", "Encounter entity explicitly transferred to Entity Store.", { entityId: id, encounterId: current.encounterId });
+    this.#log("info", "Scoped entity explicitly transferred to Entity Store.", { entityId: id, scopeId: current.scopeId });
     return updated;
   }
 
@@ -276,8 +276,8 @@ export class EntityRegistry {
           id: record.id,
           kind: record.kind,
           scope: record.scope,
-          encounterId: record.encounterId,
-          originEncounterId: record.originEncounterId,
+          scopeId: record.scopeId,
+          originScopeId: record.originScopeId,
           status: record.status,
           metadata: record.metadata
         })))
@@ -293,12 +293,12 @@ export class EntityRegistry {
       commit: () => {
         if (committed) throw new EntityRegistryError("RESTORE_ALREADY_COMMITTED", "Entity Registry restore transaction was already committed.");
         this.#entities = next;
-        this.#encounterCounters = new Map();
+        this.#scopeCounters = new Map();
         for (const record of next.values()) {
-          if (record.scope === "encounter") {
-            const match = record.id.match(/^encounter:(.+):([a-zA-Z0-9._-]+)$/);
+          if (record.scope === "scoped") {
+            const match = record.id.match(/^scope:(.+):([a-zA-Z0-9._-]+)$/);
             if (match && /^\d+$/.test(match[2])) {
-              this.#encounterCounters.set(match[1], Math.max(this.#encounterCounters.get(match[1]) ?? 0, Number(match[2])));
+              this.#scopeCounters.set(match[1], Math.max(this.#scopeCounters.get(match[1]) ?? 0, Number(match[2])));
             }
           }
         }
@@ -307,12 +307,12 @@ export class EntityRegistry {
       rollback: () => {
         if (!committed) return false;
         this.#entities = previous;
-        this.#encounterCounters = new Map();
+        this.#scopeCounters = new Map();
         for (const record of previous.values()) {
-          if (record.scope === "encounter") {
-            const match = record.id.match(/^encounter:(.+):([a-zA-Z0-9._-]+)$/);
+          if (record.scope === "scoped") {
+            const match = record.id.match(/^scope:(.+):([a-zA-Z0-9._-]+)$/);
             if (match && /^\d+$/.test(match[2])) {
-              this.#encounterCounters.set(match[1], Math.max(this.#encounterCounters.get(match[1]) ?? 0, Number(match[2])));
+              this.#scopeCounters.set(match[1], Math.max(this.#scopeCounters.get(match[1]) ?? 0, Number(match[2])));
             }
           }
         }
