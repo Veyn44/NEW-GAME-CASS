@@ -207,6 +207,13 @@ export async function runPersistenceLoggerTests() {
     const persistence = new Persistence({ adapter: new MemorySaveAdapter(), runAtSafeBoundary: (operation) => operation() });
     persistence.registerParticipant({ id: "core.hostile", schemaVersion: 1, captureSnapshot: () => hostile, prepareRestore: () => ({ commit() {}, rollback() {} }) });
     await expectCode(() => persistence.save("slot", { campaignId: "c" }), "INVALID_SNAPSHOT_DATA");
+    const hostileDescriptor = new Proxy({}, {
+      ownKeys() { return ["hidden"]; },
+      getOwnPropertyDescriptor() { throw new Error("descriptor inspection denied"); }
+    });
+    const second = new Persistence({ adapter: new MemorySaveAdapter(), runAtSafeBoundary: (operation) => operation() });
+    second.registerParticipant({ id: "core.hostile", schemaVersion: 1, captureSnapshot: () => hostileDescriptor, prepareRestore: () => ({ commit() {}, rollback() {} }) });
+    await expectCode(() => second.save("slot", { campaignId: "c" }), "INVALID_SNAPSHOT_DATA");
   });
 
   await test("Persistence refuses unsafe slot IDs and invalid snapshot data", async () => {
