@@ -56,6 +56,36 @@ test("dependency order initializes providers before consumers", async () => {
   await runtime.destroy();
 });
 
+test("host simulation tasks follow the validated host-system dependency order", async () => {
+  const calls = [];
+  const runtime = createCoreAssembly({
+    hostSystems: [
+      {
+        id: "game.consumer",
+        provides: ["game.consumer-api"],
+        requires: ["game.provider-api"],
+        initialize(context) {
+          assert(context.hasService("game.provider-api"), "Provider service was not published before consumer initialization.");
+          return { "game.consumer-api": Object.freeze({ ready: true }) };
+        }
+      },
+      {
+        id: "game.provider",
+        provides: ["game.provider-api"],
+        initialize() { return { "game.provider-api": Object.freeze({ ready: true }) }; }
+      }
+    ],
+    simulationTasks: [
+      { systemId: "game.consumer", update() { calls.push("consumer"); } },
+      { systemId: "game.provider", update() { calls.push("provider"); } }
+    ]
+  });
+  const context = await runtime.start();
+  context.getService("core.scheduler").advance(0.05);
+  equal(calls.join(","), "provider,consumer");
+  await runtime.destroy();
+});
+
 test("demo system creates an entity with an exclusive world placement", async () => {
   const runtime = createCoreAssembly();
   const context = await runtime.start();
