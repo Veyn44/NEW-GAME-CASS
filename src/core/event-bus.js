@@ -124,6 +124,7 @@ export class EventBus {
   #instanceId;
   #draining = false;
   #maxEventsPerDrain;
+  #blocked = false;
 
   constructor({ sources, logger = null, maxEventsPerDrain = 1000 } = {}) {
     if (!Array.isArray(sources) || sources.length === 0) {
@@ -187,6 +188,9 @@ export class EventBus {
   }
 
   publish({ type, version = 1, source, payload = {} } = {}) {
+    if (this.#blocked) {
+      throw new EventBusError("EVENT_BUS_BLOCKED", "Event delivery is paused after reaching its drain limit; resolve the event chain and call drainPending().", { pending: this.#queue.length });
+    }
     this.#assertType(type);
     assertId(source, "Event source ID");
     if (!this.#sources.has(source)) {
@@ -221,6 +225,13 @@ export class EventBus {
     return event;
   }
 
+  drainPending() {
+    if (this.#draining) throw new EventBusError("REENTRANT_DRAIN", "Pending events cannot be drained from inside an active delivery.");
+    if (!this.#blocked && this.#queue.length === 0) return 0;
+    this.#blocked = false;
+    return this.#drain();
+  }
+
   #drain() {
     this.#draining = true;
     let processed = 0;
@@ -228,10 +239,10 @@ export class EventBus {
       while (this.#queue.length > 0) {
         if (processed >= this.#maxEventsPerDrain) {
           const pending = this.#queue.length;
-          this.#queue.length = 0;
+          this.#blocked = true;
           const error = new EventBusError(
             "EVENT_DRAIN_LIMIT",
-            `Event delivery exceeded the per-drain limit of ${this.#maxEventsPerDrain}; pending events were discarded to prevent an infinite event chain.`,
+            `Event delivery exceeded the per-drain limit of ${this.#maxEventsPerDrain}; pending events were retained and delivery was paused to prevent an infinite event chain.`,
             { maxEventsPerDrain: this.#maxEventsPerDrain, pending }
           );
           this.#logError(error, null);
@@ -250,6 +261,7 @@ export class EventBus {
           }
         }
       }
+      return processed;
     } finally {
       this.#draining = false;
     }
