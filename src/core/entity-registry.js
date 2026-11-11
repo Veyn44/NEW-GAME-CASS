@@ -166,16 +166,25 @@ export class EntityRegistry {
     let local = localId;
     if (local === null) {
       const next = (this.#scopeCounters.get(scopeId) ?? 0) + 1;
-      this.#scopeCounters.set(scopeId, next);
+      if (!Number.isSafeInteger(next)) {
+        throw new EntityRegistryError("ID_SEQUENCE_EXHAUSTED", `Scoped ID sequence for "${scopeId}" is exhausted.`, { scopeId });
+      }
       local = String(next);
     }
     assertEntityId(local, "Scoped-local ID");
     const id = `scope:${scopeId}:${local}`;
     assertEntityId(id);
-    return this.#register({
+    const entity = this.#register({
       id, kind, scope: "scoped", scopeId,
       originScopeId: scopeId, status: "active", metadata
     });
+    if (/^(0|[1-9]\\d*)$/.test(local)) {
+      const numericLocal = Number(local);
+      if (Number.isSafeInteger(numericLocal)) {
+        this.#scopeCounters.set(scopeId, Math.max(this.#scopeCounters.get(scopeId) ?? 0, numericLocal));
+      }
+    }
+    return entity;
   }
 
   has(id) {
