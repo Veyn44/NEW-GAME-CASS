@@ -240,6 +240,25 @@ test("snapshot rejects accessors without invoking them", () => {
   equal(invoked, false);
 });
 
+test("version-one world references migrate into generic metadata", () => {
+  const registry = makeRegistry();
+  const participant = registry.createPersistenceParticipant();
+  const migrated = participant.migrateSnapshot({
+    version: 1,
+    activeWorldId: "world:legacy",
+    worlds: [{
+      worldId: "world:legacy", type: "encounter", status: "active",
+      dimensions: { width: 10, height: 12 }, coordinateSystem: "world-units",
+      locationId: "asteroid:legacy", encounterId: "encounter:legacy"
+    }]
+  }, 1);
+  equal(migrated.version, 2);
+  const transaction = registry.prepareRestore(migrated);
+  transaction.commit();
+  equal(registry.get("world:legacy").metadata.locationId, "asteroid:legacy");
+  equal(registry.get("world:legacy").metadata.encounterId, "encounter:legacy");
+});
+
 test("snapshot rejects multiple active worlds and inconsistent activeWorldId", () => {
   const registry = makeRegistry();
   const a = { worldId: "world:a", type: "cassandra", status: "active", dimensions: { width: 10, height: 10 }, coordinateSystem: "world-units", metadata: {} };
