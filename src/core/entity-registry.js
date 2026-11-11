@@ -207,7 +207,7 @@ export class EntityRegistry {
   }
 
   /**
-   * Explicitly preserves an scoped entity in the campaign Entity Store.
+   * Moves a scoped entity into persistent storage.
    * Only identity metadata is stored here; the owning domain system must
    * persist the entity's actual state through its own Persistence participant.
    */
@@ -221,7 +221,7 @@ export class EntityRegistry {
       originScopeId: current.scopeId, status: "stored"
     });
     this.#entities.set(id, updated);
-    this.#log("info", "Scoped entity explicitly transferred to Entity Store.", { entityId: id, scopeId: current.scopeId });
+    this.#log("info", "Scoped entity transferred to persistent storage.", { entityId: id, scopeId: current.scopeId });
     return updated;
   }
 
