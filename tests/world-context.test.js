@@ -15,8 +15,8 @@ function setup() {
   const worlds = new WorldRegistry({ idFactory: () => "world-generated" });
   const context = new WorldContext({ entityRegistry: entities, worldRegistry: worlds });
   worlds.registerWorld({ worldId: "world:cassandra", type: "cassandra", dimensions: { width: 100, height: 80 } });
-  worlds.registerWorld({ worldId: "world:encounter-a", type: "encounter", encounterId: "encounter:a", locationId: "asteroid:a", dimensions: { width: 50, height: 40 } });
-  worlds.registerWorld({ worldId: "world:encounter-b", type: "encounter", encounterId: "encounter:b", locationId: "asteroid:a", dimensions: { width: 50, height: 40 } });
+  worlds.registerWorld({ worldId: "world:scoped-a", type: "scoped", scopeId: "scope:a", locationId: "asteroid:a", dimensions: { width: 50, height: 40 } });
+  worlds.registerWorld({ worldId: "world:scoped-b", type: "scoped", scopeId: "scope:b", locationId: "asteroid:a", dimensions: { width: 50, height: 40 } });
   return { entities, worlds, context };
 }
 function persistent(entities, id = "entity:pawn") { return entities.registerPersistent({ id, kind: "pawn" }); }
@@ -36,7 +36,7 @@ test("rejects placement in an unknown world", () => {
 });
 test("rejects placement in a closed world", () => {
   const { entities, worlds, context } = setup(); persistent(entities);
-  const world = worlds.registerWorld({ worldId: "world:closed", type: "encounter", encounterId: "encounter:closed", locationId: "asteroid:closed", dimensions: { width: 10, height: 10 } });
+  const world = worlds.registerWorld({ worldId: "world:closed", type: "scoped", scopeId: "scope:closed", locationId: "asteroid:closed", dimensions: { width: 10, height: 10 } });
   worlds.closeWorld(world.worldId);
   throwsCode(() => context.placeEntity("entity:pawn", world.worldId, { x: 1, y: 1 }), "WORLD_CLOSED");
 });
@@ -56,9 +56,9 @@ test("rejects a second placement for one entity", () => {
 test("moves an entity atomically between map worlds while retaining its ID", () => {
   const { entities, context } = setup(); persistent(entities);
   context.placeEntity("entity:pawn", "world:cassandra", { x: 1, y: 1 });
-  const result = context.moveEntity("entity:pawn", { type: "world", worldId: "world:encounter-a", position: { x: 5, y: 6 } });
+  const result = context.moveEntity("entity:pawn", { type: "world", worldId: "world:scoped-a", position: { x: 5, y: 6 } });
   equal(result.previous.worldId, "world:cassandra");
-  equal(result.current.worldId, "world:encounter-a");
+  equal(result.current.worldId, "world:scoped-a");
   equal(entities.get("entity:pawn").id, "entity:pawn");
   equal(context.listPlacements().length, 1);
 });
@@ -70,40 +70,40 @@ test("failed transfer preserves the original placement", () => {
 });
 test("world placement does not impose host-specific scope or world-type rules", () => {
   const { entities, context } = setup();
-  entities.registerEncounter({ encounterId: "encounter:a", localId: "enemy-1", kind: "enemy" });
-  context.placeEntity("encounter:encounter:a:enemy-1", "world:encounter-a", { x: 2, y: 2 });
-  const moved = context.moveEntity("encounter:encounter:a:enemy-1", { type: "world", worldId: "world:encounter-b", position: { x: 2, y: 2 } });
-  equal(moved.current.worldId, "world:encounter-b");
+  entities.registerScoped({ scopeId: "scope:a", localId: "enemy-1", kind: "enemy" });
+  context.placeEntity("scope:scope:a:enemy-1", "world:scoped-a", { x: 2, y: 2 });
+  const moved = context.moveEntity("scope:scope:a:enemy-1", { type: "world", worldId: "world:scoped-b", position: { x: 2, y: 2 } });
+  equal(moved.current.worldId, "world:scoped-b");
 });
 test("stored entity cannot be placed in a world before activation", () => {
   const { entities, context } = setup();
-  entities.registerEncounter({ encounterId: "encounter:a", localId: "body", kind: "pawn" });
-  entities.store("encounter:encounter:a:body");
-  throwsCode(() => context.placeEntity("encounter:encounter:a:body", "world:cassandra", { x: 2, y: 2 }), "ENTITY_STORED");
+  entities.registerScoped({ scopeId: "scope:a", localId: "body", kind: "pawn" });
+  entities.store("scope:scope:a:body");
+  throwsCode(() => context.placeEntity("scope:scope:a:body", "world:cassandra", { x: 2, y: 2 }), "ENTITY_STORED");
 });
-test("transfers an encounter entity from a world into Entity Store without changing its ID", () => {
+test("transfers an scoped entity from a world into Entity Store without changing its ID", () => {
   const { entities, context } = setup();
-  entities.registerEncounter({ encounterId: "encounter:a", localId: "body", kind: "pawn" });
-  context.placeEntity("encounter:encounter:a:body", "world:encounter-a", { x: 4, y: 5 });
-  const moved = context.storeEntity("encounter:encounter:a:body", "campaign:entity-store");
-  equal(moved.previous.worldId, "world:encounter-a");
+  entities.registerScoped({ scopeId: "scope:a", localId: "body", kind: "pawn" });
+  context.placeEntity("scope:scope:a:body", "world:scoped-a", { x: 4, y: 5 });
+  const moved = context.storeEntity("scope:scope:a:body", "campaign:entity-store");
+  equal(moved.previous.worldId, "world:scoped-a");
   equal(moved.current.type, "store");
-  equal(entities.get("encounter:encounter:a:body").status, "stored");
+  equal(entities.get("scope:scope:a:body").status, "stored");
   equal(context.listPlacements().length, 1);
 });
 test("stored entity can be assigned to Entity Store placement", () => {
   const { entities, context } = setup();
-  entities.registerEncounter({ encounterId: "encounter:a", localId: "body", kind: "pawn" });
-  entities.store("encounter:encounter:a:body");
-  context.placeInStore("encounter:encounter:a:body", "campaign:entity-store");
-  equal(context.getPlacement("encounter:encounter:a:body").storeId, "campaign:entity-store");
+  entities.registerScoped({ scopeId: "scope:a", localId: "body", kind: "pawn" });
+  entities.store("scope:scope:a:body");
+  context.placeInStore("scope:scope:a:body", "campaign:entity-store");
+  equal(context.getPlacement("scope:scope:a:body").storeId, "campaign:entity-store");
 });
 test("stored entities cannot transfer to a world until activated", () => {
   const { entities, context } = setup();
-  entities.registerEncounter({ encounterId: "encounter:a", localId: "body", kind: "pawn" });
-  entities.store("encounter:encounter:a:body");
-  context.prepareRestore({ version: 1, placements: [{ entityId: "encounter:encounter:a:body", type: "store", storeId: "campaign:entity-store" }] }).commit();
-  throwsCode(() => context.moveEntity("encounter:encounter:a:body", { type: "world", worldId: "world:cassandra", position: { x: 3, y: 3 } }), "ENTITY_STORED");
+  entities.registerScoped({ scopeId: "scope:a", localId: "body", kind: "pawn" });
+  entities.store("scope:scope:a:body");
+  context.prepareRestore({ version: 1, placements: [{ entityId: "scope:scope:a:body", type: "store", storeId: "campaign:entity-store" }] }).commit();
+  throwsCode(() => context.moveEntity("scope:scope:a:body", { type: "world", worldId: "world:cassandra", position: { x: 3, y: 3 } }), "ENTITY_STORED");
 });
 test("removed entities cannot be placed", () => {
   const { entities, context } = setup(); persistent(entities);
@@ -159,11 +159,11 @@ test("persistence participant exposes required versioned contract", () => {
 });
 test("snapshot restore validates stored placement lifecycle", () => {
   const { entities, context } = setup();
-  entities.registerEncounter({ encounterId: "encounter:a", localId: "body", kind: "pawn" });
-  entities.store("encounter:encounter:a:body");
-  const tx = context.prepareRestore({ version: 1, placements: [{ entityId: "encounter:encounter:a:body", type: "store", storeId: "campaign:entity-store" }] });
+  entities.registerScoped({ scopeId: "scope:a", localId: "body", kind: "pawn" });
+  entities.store("scope:scope:a:body");
+  const tx = context.prepareRestore({ version: 1, placements: [{ entityId: "scope:scope:a:body", type: "store", storeId: "campaign:entity-store" }] });
   tx.commit();
-  equal(context.getPlacement("encounter:encounter:a:body").type, "store");
+  equal(context.getPlacement("scope:scope:a:body").type, "store");
 });
 
 export function runWorldContextTests() {
