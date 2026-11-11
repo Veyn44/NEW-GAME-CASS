@@ -32,7 +32,10 @@ export function createCoreAssembly({
   saveAdapter = new MemorySaveAdapter(),
   gameVersion = "0.1.0",
   campaignFormatVersion = 1,
-  dayLengthRealSeconds = 720,
+  dayLengthRealSeconds = 86400,
+  initialSpeed = 1,
+  minimumSpeed = 0.01,
+  maximumSpeed = 100,
   fixedStepSeconds = 6,
   maxStepsPerFrame = 120,
   hostSystems = [],
@@ -71,7 +74,7 @@ export function createCoreAssembly({
       id: "core.game-clock",
       provides: [SERVICE.clock],
       initialize() {
-        return { [SERVICE.clock]: new GameClock({ dayLengthRealSeconds, initialSpeed: 1, minimumSpeed: 0.25, maximumSpeed: 3 }) };
+        return { [SERVICE.clock]: new GameClock({ dayLengthRealSeconds, initialSpeed, minimumSpeed, maximumSpeed }) };
       },
       pause(context) {
         required(context, SERVICE.clock).pause("bootstrap-lifecycle");
