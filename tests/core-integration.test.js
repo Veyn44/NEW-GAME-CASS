@@ -22,6 +22,22 @@ test("Core Assembly requires an explicit persistence adapter", async () => {
   assert(error.message.includes("saveAdapter"), "Missing adapter error should explain the required contract.");
 });
 
+test("Core Assembly forwards host clock conversion and speed configuration", async () => {
+  const runtime = createCoreAssembly({
+    dayLengthRealSeconds: 3600,
+    strategicSecondsPerDay: 7200,
+    initialSpeed: 2,
+    minimumSpeed: 0.5,
+    maximumSpeed: 4
+  });
+  const context = await runtime.start();
+  const clock = context.getService("core.game-clock");
+  equal(clock.dayLengthRealSeconds, 3600);
+  equal(clock.strategicSecondsPerDay, 7200);
+  equal(clock.scaleRealDelta(1), 4);
+  await runtime.destroy();
+});
+
 test("bootstrap publishes every declared Core service", async () => {
   const runtime = createCoreAssembly();
   const context = await runtime.start();
