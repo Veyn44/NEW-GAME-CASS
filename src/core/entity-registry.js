@@ -315,6 +315,7 @@ export class EntityRegistry {
   prepareRestore(snapshot) {
     const next = this.#parseSnapshot(snapshot);
     const previous = this.#entities;
+    const previousScopeCounters = this.#scopeCounters;
     let committed = false;
     return Object.freeze({
       commit: () => {
@@ -334,15 +335,7 @@ export class EntityRegistry {
       rollback: () => {
         if (!committed) return false;
         this.#entities = previous;
-        this.#scopeCounters = new Map();
-        for (const record of previous.values()) {
-          if (record.scope === "scoped") {
-            const match = record.id.match(/^scope:(.+):([a-zA-Z0-9._-]+)$/);
-            if (match && /^\d+$/.test(match[2])) {
-              this.#scopeCounters.set(match[1], Math.max(this.#scopeCounters.get(match[1]) ?? 0, Number(match[2])));
-            }
-          }
-        }
+        this.#scopeCounters = previousScopeCounters;
         committed = false;
         return true;
       }
