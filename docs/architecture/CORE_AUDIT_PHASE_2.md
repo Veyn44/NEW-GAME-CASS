@@ -123,3 +123,34 @@ These require game-design input and must not be guessed by implementation:
 **Core status: suitable for Phase 2 gameplay integration.**  
 **Core changes: none recommended.**  
 **Next implementation target: World/Pawn Foundation in the host/gameplay layer, after the open game-facing choices above are resolved.**
+
+
+## Follow-up audit — Colony Leader movement integration (2026-11-12)
+
+**Reviewed revision:** `793a47c89aba826e1b3945047995310e0b0bac68`  
+**Branch:** `next-step/phase-2`  
+**Review type:** Source/API inspection plus successful GitHub Actions regression run.
+
+The Colony Leader / Draft / locomotion slice was added entirely in the host/gameplay/presentation layers. No file under `src/core/` was changed.
+
+### Core capability verification
+
+- `WorldContext.moveEntity(entityId, target)` accepts finite fractional coordinates and validates the target against the registered world's half-open bounds. The existing implementation already supports smooth movement; no Core coordinate change was required.
+- `SimulationScheduler` accepts a host-selected `fixedStepSeconds`. Dev Lab now supplies `1 / 60` second for its movement workload; the Core default remains 6 seconds for other compositions.
+- Host systems can declare dependencies on `game.unit-api`, `game.input-api` and `core.persistence`, and a synchronous simulation task can consume those services in deterministic scheduler order.
+- Unit gameplay now owns the movement policy and fractional-position validation. Core continues to own identity, placement commit and world-bound validation.
+- Unit persistence validation accepts finite fractional placements, while initial placement remains integer/tile-snapped. Colony Control persists its current leader ID and Draft state as a separate gameplay participant.
+
+### Verification evidence
+
+- GitHub Actions: [run 43313238282](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43313238282), commit `793a47c89aba826e1b3945047995310e0b0bac68`.
+- `npm run test:all`: Core 198/198 passed; host/unit 38/38 passed; 0 failures.
+- Browser entry-point syntax checks passed for `application-shell.js` and `dev-world-preview.js`.
+- The run confirms regression compatibility and gameplay-system unit tests. It does not constitute a manual browser test of live keyboard, camera and canvas behavior.
+
+### Updated conclusion
+
+**Core status: suitable for the Phase 2 Colony Leader movement slice.**  
+**Core source changes: none.**  
+**Host-specific configuration:** Dev Lab uses a 1/60-second fixed step; this does not alter Core defaults.  
+**Remaining verification:** manual browser checks for Draft toggle, movement feel, camera reacquisition and pause/resume behavior.
