@@ -169,3 +169,36 @@ This file is the canonical log for accepted game and presentation decisions. It 
 - **BEHAVIOR:** The host feeds elapsed frame time to `runtime.advance()`; the Core Scheduler commits fixed simulation steps only while the Game Clock is not paused. The renderer and camera remain responsive while paused. Space toggles only the independent `player` pause reason, preserving unrelated pause reasons such as persistence or scheduler overload. Resuming cancels any active placement and clears the selected Unit. In paused mode, left-click selects a visible Unit marker; clicking empty space clears selection. The inspector reads the live Unit API and Core World Context placement.
 - **SCOPE:** Host input/frame-loop integration and Dev Lab presentation. No Core changes, no changes to Core lifecycle pause/resume, no new Unit attributes, movement, collision or occupancy rules. No simulation task is invented solely to make the clock appear active; actual gameplay systems will register their own tasks when implemented.
 - **STATUS:** Approved and implemented; automated and browser verification pending.
+
+
+## Decision: Dev Lab starts with an empty world; no implicit Pawn instances
+
+- **WHAT:** Canonical definitions remain available in Database, but Dev Lab creates no Unit/Pawn instances during startup. A live instance exists only after an explicit, user-approved creation/placement action.
+- **WHY:** A database definition is content, not permission to instantiate it. Automatically inserting Johny obscures the difference between canonical assets and runtime entities and makes an empty world impossible to inspect.
+- **BEHAVIOR:** Startup registers the Dev Lab world(s), composes gameplay systems and starts paused with an empty entity list. Selecting an object only inspects an existing live instance. Future creation tools must explicitly invoke the Database selection/confirmation flow and the owning gameplay API.
+- **SCOPE:** Supersedes the earlier Johny startup-seeding behavior. The canonical definition itself remains valid content.
+- **STATUS:** Approved; implementation committed, verification pending.
+
+## Decision: World viewport with independent floating UI layers
+
+- **WHAT:** The world canvas fills its viewport container. Quick Select and future HUD panels are DOM overlays positioned above the canvas; they do not participate in canvas layout sizing.
+- **WHY:** Adding or removing UI must not resize, stretch, recenter or otherwise alter the world view.
+- **BEHAVIOR:** The canvas is the bottom visual layer. HUD panels use overlay positioning and receive pointer input only over their interactive bounds. Quick Select appears at the upper-left of the viewport and is visible only for a selected live object while paused.
+- **SCOPE:** Dev Lab viewport and future game HUD presentation.
+- **STATUS:** Approved; initial Quick Select overlay implemented, verification pending.
+
+## Decision: Dev Lab world-size presets are real registered worlds
+
+- **WHAT:** Dev Lab exposes 64 × 64, 128 × 128 and 256 × 256 test-world presets. Each preset is a distinct World Registry descriptor; changing the selector activates the matching descriptor.
+- **WHY:** A preview label must not imply a world dimension that the authoritative World Registry does not have.
+- **BEHAVIOR:** All three descriptors are registered at startup. The selected preset is activated while paused; 128 × 128 remains the default.
+- **SCOPE:** Dev Lab test worlds only.
+- **STATUS:** Approved; implementation committed, verification pending.
+
+## Decision: Quick Select is a generic live-object inspector entry point
+
+- **WHAT:** Quick Select is a viewport overlay independent of Unit-specific lower panels. It presents the selected object's artwork when available, display name, short summary and a read-only INFO action.
+- **WHY:** The same selection surface should serve Pawns, walls, structures and other future world objects.
+- **BEHAVIOR:** The first adapter presents live Unit instances. Future object types must provide stable ID, kind, display name, summary, optional artwork and read-only detail data through their owning systems. INFO is available only while paused.
+- **SCOPE:** Initial Dev Lab selection presentation. No fake wall entities or sprites are created.
+- **STATUS:** Initial Unit adapter implemented; other object adapters deferred.
