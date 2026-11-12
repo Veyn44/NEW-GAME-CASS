@@ -219,6 +219,19 @@ test("version-one encounter snapshots migrate to generic scopes without changing
   equal(registry.registerScoped({ scopeId: "legacy", kind: "enemy" }).id, "scope:legacy:2");
 });
 
+test("rollback preserves scoped ID sequence after stored entities", () => {
+  const registry = makeRegistry();
+  const stored = registry.registerScoped({ scopeId: "rollback", localId: "10", kind: "enemy" });
+  registry.store(stored.id);
+  const source = makeRegistry();
+  source.registerPersistent({ id: "other:1", kind: "item" });
+  const tx = registry.prepareRestore(source.captureSnapshot());
+  tx.commit();
+  tx.rollback();
+  equal(registry.get(stored.id).status, "stored");
+  equal(registry.registerScoped({ scopeId: "rollback", kind: "enemy" }).id, "scope:rollback:11");
+});
+
 test("scoped sequence resumes from restored records", () => {
   const registry = makeRegistry();
   registry.registerScoped({ scopeId: "resume", kind: "enemy" });
