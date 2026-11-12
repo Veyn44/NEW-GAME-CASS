@@ -1,6 +1,6 @@
 # Phase 2 — First Testable Game Layer
 
-**Status:** Phase 2.0 technical architecture documented and checked against Core; gameplay implementation has not started.  
+**Status:** 2.0 technical architecture complete; 2.1 Host Runtime Shell implemented and verified in CI. Pawn/gameplay implementation has not started.  
 **Working branch:** `next-step/phase-2`  
 **Base:** `main` at the Phase 1 Core baseline plus project documentation.  
 **Purpose:** Build the smallest real host-game slice that proves the Core can support a running Cassandra game layer, without guessing the full future game.
@@ -221,7 +221,7 @@ A test is PASS only after it has actually run and passed. Prepared tests are not
 ## 8. Phase completion checklist
 
 - [x] 2.0 technical architecture and system contracts documented and checked against the actual Core API.
-- [ ] 2.1 host runtime starts and shuts down safely.
+- [x] 2.1 host runtime composition, scheduler bridge, pause/resume and failure cleanup implemented; 6/6 host tests and 198/198 Core tests passed in CI.
 - [ ] 2.2 world and Pawn identity/placement contracts pass.
 - [ ] 2.3 movement/control path passes deterministic tests.
 - [ ] 2.4 persistence and full integration pass.
@@ -238,3 +238,4 @@ A test is PASS only after it has actually run and passed. Prepared tests are not
 | 2026-11-12 | Core regression workflow extended to run on active `next-step/**` branches. |
 | 2026-11-12 | Repository folder layout and explicit phase-to-main merge map documented. |
 | 2026-11-12 | Initial host/world/Pawn/locomotion contracts checked against Core source; game-facing Pawn details remain open. |
+| 2026-11-12 | 2.1 host runtime shell implemented in `src/host/`; CI passed 198/198 Core tests and 6/6 host tests. |
