@@ -427,6 +427,7 @@ function inspectUnit(entityId) {
     clearUnitSelection();
     return;
   }
+  closeUnitProfile();
   state.selectedUnitId = unit.id;
   state.selectedObject = { id: unit.id, kind: "UNIT", unit };
   setSelectedWorldMarker(unit.id);
