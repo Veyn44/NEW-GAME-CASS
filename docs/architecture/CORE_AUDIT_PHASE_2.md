@@ -51,13 +51,13 @@ Those belong to Cassandra's world/gameplay layer.
 
 World Registry requires positive finite width and height. World Context requires finite coordinates in the half-open range `0 <= x < width`, `0 <= y < height`. It accepts fractional coordinates; if Cassandra's authoritative model uses integer tile coordinates, the game-owned world/Pawn boundary must enforce that rule.
 
-The preview's 64/128/256 presets and 64×32 view are development settings, not an accepted final world-size decision.
+The preview's 64/128/256 presets and 64×32 view are presentation settings. The first authoritative gameplay test world is now approved at 128 × 128; this does not determine the permanent home-world or temporary-world dimensions.
 
 ### 3. Only one world is marked active at a time
 
 World Registry exposes one `activeWorldId`. It can retain multiple registered worlds, but activating one makes the previous active world inactive. World Context placement validation does not require the target world to be the active world.
 
-For the first slice, use one active map world. Do not model every room, floor or tile region as a separate simultaneously active Core world without a concrete need and a deliberate architecture decision.
+Cassandra's approved lifecycle is one persistent world plus at most one active temporary world. Core's single active-world pointer fits this: the persistent world remains registered but inactive while the temporary world is active. Core activation alone does not pause Scheduler tasks; Cassandra must centrally gate world-scoped simulation so only the active world's rules advance. See [World Lifecycle](WORLD_LIFECYCLE.md).
 
 ### 4. Identity, domain state and placement have separate owners
 
@@ -112,8 +112,8 @@ The current preview is an empty visual harness. It does not create a Core world,
 ## Decisions intentionally left open
 
 These require game-design input and must not be guessed by implementation:
-- The actual dimensions of the first gameplay world (preview presets are not final).
-- Whether the first world is simply a bounded test region or needs a different long-term extent model.
+- The permanent home/base world's actual dimensions and content; the first test world is 128 × 128.
+- The retention and exit policy for temporary worlds.
 - The Pawn's player-facing identity/appearance fields and creation meaning.
 - The intended movement feel and whether movement is tile-step or continuous in time/space.
 - The first visible test environment's content and visual representation.
