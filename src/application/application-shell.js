@@ -67,6 +67,7 @@ const state = {
 
 function showView(name) {
   if (state.viewportDatabaseOpen && name !== "dev-lab") closeViewportDatabase();
+  if (document.body.dataset.currentView === "dev-lab" && name !== "dev-lab") cancelPlacement();
   const currentView = document.body.dataset.currentView;
   if (currentView === "dev-lab" && name !== "dev-lab") {
     if (!state.paused) {
@@ -564,6 +565,11 @@ window.addEventListener("keydown", (event) => {
   if (state.placementActive && event.code === "Escape") {
     event.preventDefault();
     cancelPlacement();
+    return;
+  }
+  if (state.viewportDatabaseOpen && event.code === "Escape") {
+    event.preventDefault();
+    closeViewportDatabase();
     return;
   }
   if (isInteractiveTarget(event.target)) return;
