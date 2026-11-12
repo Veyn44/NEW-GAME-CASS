@@ -66,7 +66,7 @@
           <button id="reset-camera" type="button">Reset camera</button>
           <span class="dev-note">Mouse wheel: zoom · Middle-button drag: pan</span>
         </section>
-        <section class="viewport-panel" aria-label="World viewport"><canvas id="world-canvas" aria-label="Empty square world with optional coordinate grid">Your browser does not support canvas.</canvas></section>
+        <section class="viewport-panel" aria-label="World viewport" data-paused="true" data-input-mode="paused"><canvas id="world-canvas" tabindex="0" aria-label="World viewport. Press Space to pause or resume.">Your browser does not support canvas.</canvas><div class="viewport-crosshair" aria-hidden="true"></div></section>
         <footer class="status-bar"><span id="world-status">World: 128 × 128</span><span id="view-status">View: calculating…</span><span id="simulation-status" aria-live="polite">PAUSED · Space to resume</span><span>Free camera</span></footer>
         <aside class="dev-tools-panel">
           <div class="dev-tool-copy"><p class="eyebrow">DEVELOPMENT TOOLS</p><strong>Spawn Unit</strong><p class="dev-note" id="spawn-status">Choose a Unit definition from the shared Database.</p><p id="dev-selected-unit" class="dev-selected-unit" hidden></p></div>
