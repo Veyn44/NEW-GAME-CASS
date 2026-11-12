@@ -30,7 +30,7 @@ function normalizePosition(position, { allowFractional = false } = {}) {
   const valid = allowFractional
     ? Number.isFinite(x) && Number.isFinite(y)
     : Number.isSafeInteger(x) && Number.isSafeInteger(y);
-  if (!valid || x < 0 || y < 0) {
+  if (!valid || (!allowFractional && (x < 0 || y < 0))) {
     throw new UnitSystemError("INVALID_POSITION", allowFractional
       ? "Unit coordinates must be finite non-negative numbers."
       : "Unit tile coordinates must be non-negative safe integers.", { position });
@@ -120,8 +120,8 @@ export function createUnitSystem({ definitionLookup } = {}) {
         throw new UnitSystemError("UNKNOWN_OR_CLOSED_WORLD", `World "${current.worldId}" is not available.`, { worldId: current.worldId });
       }
       const bounded = Object.freeze({
-        x: Math.min(target.x, world.dimensions.width - Number.EPSILON * world.dimensions.width),
-        y: Math.min(target.y, world.dimensions.height - Number.EPSILON * world.dimensions.height)
+        x: Math.max(0, Math.min(target.x, world.dimensions.width - Number.EPSILON * world.dimensions.width)),
+        y: Math.max(0, Math.min(target.y, world.dimensions.height - Number.EPSILON * world.dimensions.height))
       });
       try {
         worldContext.moveEntity(id, { type: "world", worldId: current.worldId, position: bounded });
