@@ -10,13 +10,13 @@ CASSANDRA3 is an architectural reference, not an implementation mandate. The Cor
 
 - Repository: `Veyn44/NEW-GAME-CASS`
 - Branch: `main`
-- Latest verified implementation commit: `64183d278a9a64ff61a39def0bcb40d000de9873`
+- Latest verified implementation commit: `166329bd530cc9e077de9fe0c2c9668c66ebeef7`
 - CI workflow: `Core tests`
 - Runtime: Node.js 20.20.2
-- Result: **186/186 passed; 0 failed**
-- Suites: Clock + Scheduler (22), Core Registry (13), Entity Registry (23), Event Bus (18), Lifecycle + Bootstrap (13), Persistence + Logger (19), World Registry (27), World Context (26), Core Integration (25).
+- Result: **188/188 passed; 0 failed**
+- Suites: Clock + Scheduler (22), Core Registry (13), Entity Registry (23), Event Bus (19), Lifecycle + Bootstrap (13), Persistence + Logger (19), World Registry (27), World Context (26), Core Integration (26).
 
-This is a real GitHub Actions execution, not a count inferred from test files. The latest run also exercised World Context snapshot hardening, serialized asynchronous persistence, and shutdown during an active persistence transaction. The HTML/browser test pages are separate harnesses and were not exercised by this CI run.
+This is a real GitHub Actions execution, not a count inferred from test files. The latest run also exercised World Context snapshot hardening, serialized asynchronous persistence, and shutdown during active persistence and lifecycle transactions, plus revoked-Proxy event payload rejection. The HTML/browser test pages are separate harnesses and were not exercised by this CI run.
 
 ## Core inventory
 
@@ -36,7 +36,7 @@ The assembly requires an explicit save adapter. The in-memory adapter is for tes
 
 The Core source has no gameplay implementation for Cassandra-specific systems. The Entity Registry retains a narrow legacy migration path for old encounter-scoped identity records; new records use generic scoped identities. World Context now detaches snapshot input before staging, rejects accessors/hostile proxy inspection, and validates the detached state again at commit so caller mutation cannot alter the transaction.
 
-The Core Assembly now serializes overlapping save/load transactions and holds an independent `core.persistence` clock pause until the queue drains. This prevents save-slot/participant races, prevents the host frame loop from advancing simulation during storage work, preserves unrelated pause reasons, and allows later queued operations to continue after an earlier storage failure. Core shutdown now rejects new persistence requests and waits for accepted storage transactions to drain before destroying host systems or Core participants. The integration suite verifies that shutdown cannot tear down state while an asynchronous save is still active.
+The Core Assembly now serializes overlapping save/load transactions and holds an independent `core.persistence` clock pause until the queue drains. This prevents save-slot/participant races, prevents the host frame loop from advancing simulation during storage work, preserves unrelated pause reasons, and allows later queued operations to continue after an earlier storage failure. Core shutdown now rejects new persistence requests and waits for accepted storage transactions to drain before destroying host systems or Core participants. Lifecycle operations (start, pause, resume and destroy) are serialized so shutdown cannot overtake an in-progress lifecycle hook. Integration tests verify both persistence and lifecycle teardown ordering.
 
 ## Intentional adaptation from CASSANDRA3
 
