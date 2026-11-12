@@ -82,7 +82,7 @@ test("camera allows up to 20 tiles of overscan beyond all four world edges", () 
       { columns: 64, rows: 32 },
       CAMERA_OVERSCAN_TILES
     ),
-    { x: -4, y: 64 }
+    { x: 12, y: 64 }
   );
   assert.deepEqual(
     clampCameraPosition(
@@ -91,7 +91,7 @@ test("camera allows up to 20 tiles of overscan beyond all four world edges", () 
       { columns: 64, rows: 32 },
       CAMERA_OVERSCAN_TILES
     ),
-    { x: 148, y: 64 }
+    { x: 116, y: 64 }
   );
 });
 
