@@ -1,4 +1,4 @@
-import { setWorldMarkers } from "../adapters/presentation/dev-world-preview.js";
+import { setWorldMarkers, beginUnitPlacement, cancelUnitPlacement } from "../adapters/presentation/dev-world-preview.js";
 import { createGameRuntime } from "../host/create-game-runtime.js";
 import { MemorySaveAdapter } from "../core/persistence.js";
 import { createUnitSystem } from "../gameplay/unit/unit-system.js";
@@ -40,10 +40,12 @@ const state = {
   selectedDefinition: null,
   detailRequest: 0,
   unitApi: null,
-  spawnCount: 0
+  spawnCount: 0,
+  placementActive: false
 };
 
 function showView(name) {
+  if (name !== "dev-lab" && state.placementActive) cancelUnitPlacement();
   for (const view of views) view.hidden = view.dataset.view !== name;
   document.body.dataset.currentView = name;
   window.scrollTo(0, 0);
@@ -258,7 +260,10 @@ function refreshDatabase() {
 }
 
 for (const button of navButtons) {
-  button.addEventListener("click", () => showView(button.dataset.navigate));
+  button.addEventListener("click", () => {
+    if (button.dataset.navigate === "database") openDatabase("browse");
+    else showView(button.dataset.navigate);
+  });
 }
 document.querySelectorAll("[data-back-menu]").forEach((button) =>
   button.addEventListener("click", () => showView("menu"))
@@ -283,22 +288,40 @@ databaseSelect.addEventListener("click", () => {
 });
 
 spawnButton.addEventListener("click", () => {
-  const definitionId = devSelectedUnit.dataset.definitionId;
-  if (!state.unitApi || !definitionId) return;
-  try {
-    const index = state.spawnCount++;
-    const position = { x: 60 + (index % 9), y: 60 + Math.floor(index / 9) };
-    state.unitApi.createUnit({ definitionId, worldId: "dev-lab-world", position });
-    const units = state.unitApi.listUnits();
-    setWorldMarkers(units.map((unit) => ({
-      x: unit.placement.position.x,
-      y: unit.placement.position.y,
-      label: getDefinition(unit.definitionId)?.name ?? unit.definitionId
-    })));
-    spawnStatus.textContent = `Spawned ${units.length} Unit instance(s). Last position: ${position.x}, ${position.y}.`;
-  } catch (error) {
-    spawnStatus.textContent = `Spawn failed: ${error.message}`;
+  if (state.placementActive) {
+    cancelUnitPlacement();
+    return;
   }
+  const definitionId = devSelectedUnit.dataset.definitionId;
+  const definition = getDefinition(definitionId);
+  if (!state.unitApi || !definitionId || !definition) return;
+
+  state.placementActive = true;
+  spawnButton.textContent = "Stop Placing";
+  spawnStatus.textContent = `Placing ${definition.name}: move the cursor and left-click to place. Right-click or Escape to cancel.`;
+  beginUnitPlacement({
+    label: definition.name,
+    onPlace(position) {
+      try {
+        state.unitApi.createUnit({ definitionId, worldId: "dev-lab-world", position });
+        state.spawnCount += 1;
+        const units = state.unitApi.listUnits();
+        setWorldMarkers(units.map((unit) => ({
+          x: unit.placement.position.x,
+          y: unit.placement.position.y,
+          label: getDefinition(unit.definitionId)?.name ?? unit.definitionId
+        })));
+        spawnStatus.textContent = `${definition.name} placed at ${position.x}, ${position.y}. ${units.length} Unit instance(s) in world. Continue placing or press Escape to finish.`;
+      } catch (error) {
+        spawnStatus.textContent = `Cannot place ${definition.name}: ${error.message}`;
+      }
+    },
+    onCancel() {
+      state.placementActive = false;
+      spawnButton.textContent = "Spawn Unit";
+      spawnStatus.textContent = `Placement finished. ${state.spawnCount} Unit instance(s) created in this session.`;
+    }
+  });
 });
 
 async function startDevLabRuntime() {
