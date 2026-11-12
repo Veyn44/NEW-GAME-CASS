@@ -9,7 +9,7 @@ Canonical documentation for the active development phase.
 
 ## Architecture
 
-- [Application Shell and Mode Architecture](architecture/APPLICATION_SHELL_AND_MODES.md) — main menu, Dev Lab/New Game separation, reusable gameplay ownership and development testing workflow.
+- [Application Shell and Mode Architecture](architecture/APPLICATION_SHELL_AND_MODES.md) — main menu, Dev Lab/New Game separation, reusable gameplay ownership and canonical Database registry.
 - [Core Audit — Phase 2](architecture/CORE_AUDIT_PHASE_2.md) — source-level review of Core ownership, API constraints, test evidence and the proposed World/Pawn integration.
 - [World Lifecycle](architecture/WORLD_LIFECYCLE.md) — approved persistent/temporary world model, simulation gating and transition constraints.
 - [Game Systems Architecture](architecture/GAME_SYSTEMS_ARCHITECTURE.md) — ownership, dependencies and communication.
