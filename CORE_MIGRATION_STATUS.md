@@ -10,11 +10,11 @@ CASSANDRA3 is an architectural reference, not an implementation mandate. The Cor
 
 - Repository: `Veyn44/NEW-GAME-CASS`
 - Branch: `main`
-- Latest verified implementation commit: `d9d250775b59d990752658151b90f5b7c492e353`
+- Latest verified implementation commit: `89e8d3dd9414ea4cfa631d4f83c69e286c837984`
 - CI workflow: `Core tests`
 - Runtime: Node.js 20.20.2
-- Result: **189/189 passed; 0 failed**
-- Suites: Clock + Scheduler (22), Core Registry (13), Entity Registry (23), Event Bus (19), Lifecycle + Bootstrap (14), Persistence + Logger (19), World Registry (27), World Context (26), Core Integration (26).
+- Result: **191/191 passed; 0 failed**
+- Suites: Clock + Scheduler (22), Core Registry (13), Entity Registry (25), Event Bus (19), Lifecycle + Bootstrap (14), Persistence + Logger (19), World Registry (27), World Context (26), Core Integration (26).
 
 This is a real GitHub Actions execution, not a count inferred from test files. The latest run also exercised World Context snapshot hardening, serialized asynchronous persistence, and shutdown during active persistence and lifecycle transactions, direct SystemBootstrap lifecycle serialization, plus revoked-Proxy event payload rejection. The HTML/browser test pages are separate harnesses and were not exercised by this CI run.
 
@@ -34,7 +34,7 @@ The current `src/core` contains the shared runtime modules:
 
 The assembly requires an explicit save adapter. The in-memory adapter is for tests/development only; durable storage belongs to the host application.
 
-The Core source has no gameplay implementation for Cassandra-specific systems. The Entity Registry retains a narrow legacy migration path for old encounter-scoped identity records; new records use generic scoped identities. World Context now detaches snapshot input before staging, rejects accessors/hostile proxy inspection, and validates the detached state again at commit so caller mutation cannot alter the transaction.
+Entity Registry restore now reconstructs scoped ID counters from all retained identities (including stored or removed records), and rollback restores the exact previous counter state. Regression tests cover both restored high-water marks and failed-restore rollback.\n\nThe Core source has no gameplay implementation for Cassandra-specific systems. The Entity Registry retains a narrow legacy migration path for old encounter-scoped identity records; new records use generic scoped identities. World Context now detaches snapshot input before staging, rejects accessors/hostile proxy inspection, and validates the detached state again at commit so caller mutation cannot alter the transaction.
 
 The Core Assembly now serializes overlapping save/load transactions and holds an independent `core.persistence` clock pause until the queue drains. This prevents save-slot/participant races, prevents the host frame loop from advancing simulation during storage work, preserves unrelated pause reasons, and allows later queued operations to continue after an earlier storage failure. Core shutdown now rejects new persistence requests and waits for accepted storage transactions to drain before destroying host systems or Core participants. Lifecycle operations (start, pause, resume and destroy) are serialized both at the Core Assembly boundary and inside the public SystemBootstrap API, so shutdown cannot overtake an in-progress lifecycle hook even when Bootstrap is used directly. Integration tests verify both persistence and lifecycle teardown ordering.
 
