@@ -1,6 +1,6 @@
 # Phase 2 — Test Plan
 
-**Status:** Phase 2.1 host runtime tests implemented and verified; Pawn/gameplay test layers remain planned.
+**Status:** Phase 2.1 host runtime tests have recorded CI evidence. Dev Lab Database, placement, Quick Select and INFO workflows are implemented and user-confirmed; their browser checks remain manual/pending evidence. Locomotion and full Phase 2 integration tests remain outstanding.
 
 ## Test layers
 
@@ -93,7 +93,7 @@ A test marked PASS must have actually run. Source inspection, a prepared test fi
 - Verify Escape cancels placement and creates nothing.
 - Verify the world-size selector cannot switch worlds during placement.
 - Verify the Database overlay and blueprint do not change the canvas bounding rectangle.
-- Browser interaction checks remain manual until an automated browser harness exists.
+- User confirms the Database and placement workflow works in the current development build. The checklist above remains the required repeatable browser verification; do not mark it PASS until the checks are actually performed and recorded.
 
 
 ## Live Unit profile card
@@ -103,7 +103,7 @@ A test marked PASS must have actually run. Source inspection, a prepared test fi
 - Verify missing artwork produces a deliberate portrait placeholder rather than a broken image.
 - Close the card with CLOSE or Escape; verify the selected Unit remains selected.
 - Select another Unit while the profile is open; verify the profile closes and Quick Select updates to the new Unit.
-- Verify profile inspection is unavailable while simulation is running.
+- Verify profile inspection is unavailable while simulation is running.\n- User confirms Quick Select and the INFO card currently work; browser evidence for the listed edge cases is still pending.
 
 
 ## Shared Database selection action
@@ -112,4 +112,4 @@ A test marked PASS must have actually run. Source inspection, a prepared test fi
 - Change selection to a non-spawnable definition; verify SELECT is hidden and cannot be activated.
 - Change back to a spawnable Unit; verify the shared SELECT action becomes available again.
 - Activate SELECT and verify the Database closes and the existing paused world-placement flow begins.
-- Open the Database in main-menu browse mode; verify the selection action remains hidden.
+- Open the Database in main-menu browse mode; verify the selection action remains hidden.\n- User confirms the shared Database/SELECT/placement flow currently works in Dev Lab; automated/browser evidence is still pending.
