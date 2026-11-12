@@ -2,7 +2,7 @@ name: Core and host tests
 
 on:
   push:
-    branches: [main, 'next-step/**', 'feature/**']
+    branches: [main, 'next-step/**']
   pull_request:
     branches: [main]
 
