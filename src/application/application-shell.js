@@ -560,7 +560,7 @@ async function startDevLabRuntime() {
     state.animationFrame = requestAnimationFrame(simulationFrame);
 
   } catch (error) {
-    entityStatus.textContent = `Dev Lab startup failed: ${error.message}`;
+    simulationStatus.textContent = `DEV LAB STARTUP FAILED · ${error.message}`;
   }
 }
 
