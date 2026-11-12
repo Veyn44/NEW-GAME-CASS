@@ -18,17 +18,22 @@ function assertId(value, label) {
   return value;
 }
 
-function normalizePosition(position) {
+function normalizePosition(position, { allowFractional = false } = {}) {
   if (!position || typeof position !== "object" || Array.isArray(position)) {
-    throw new UnitSystemError("INVALID_POSITION", "Unit position must be a tile coordinate object.");
+    throw new UnitSystemError("INVALID_POSITION", "Unit position must be a coordinate object.");
   }
   const keys = Reflect.ownKeys(position);
   if (keys.length !== 2 || TILE_POSITION_KEYS.some((key) => !Object.hasOwn(position, key))) {
     throw new UnitSystemError("INVALID_POSITION", "Unit position must contain only x and y coordinates.");
   }
   const { x, y } = position;
-  if (!Number.isSafeInteger(x) || !Number.isSafeInteger(y) || x < 0 || y < 0) {
-    throw new UnitSystemError("INVALID_POSITION", "Unit tile coordinates must be non-negative safe integers.", { position });
+  const valid = allowFractional
+    ? Number.isFinite(x) && Number.isFinite(y)
+    : Number.isSafeInteger(x) && Number.isSafeInteger(y);
+  if (!valid || x < 0 || y < 0) {
+    throw new UnitSystemError("INVALID_POSITION", allowFractional
+      ? "Unit coordinates must be finite non-negative numbers."
+      : "Unit tile coordinates must be non-negative safe integers.", { position });
   }
   return Object.freeze({ x, y });
 }
@@ -102,6 +107,22 @@ export function createUnitSystem({ definitionLookup } = {}) {
       return Object.freeze({ ...record, placement: worldContext.getPlacement(identity.id) });
     },
 
+    moveUnit(entityId, position) {
+      const id = assertId(entityId, "Unit ID");
+      if (!units.has(id)) throw new UnitSystemError("UNKNOWN_UNIT", `Unit "${id}" does not exist.`, { entityId: id });
+      const target = normalizePosition(position, { allowFractional: true });
+      const current = worldContext.getPlacement(id);
+      if (!current || current.type !== "world") {
+        throw new UnitSystemError("UNIT_NOT_IN_WORLD", `Unit "${id}" has no world placement.`, { entityId: id });
+      }
+      try {
+        worldContext.moveEntity(id, { type: "world", worldId: current.worldId, position: target });
+      } catch (error) {
+        throw new UnitSystemError(error.code ?? "UNIT_MOVE_FAILED", error.message, { entityId: id, position: target });
+      }
+      return api.getUnit(id);
+    },
+
     getUnit(entityId) {
       const id = assertId(entityId, "Unit ID");
       const record = units.get(id);
@@ -156,7 +177,8 @@ export function createUnitSystem({ definitionLookup } = {}) {
               throw new UnitSystemError("MISSING_UNIT_IDENTITY", `Restored Unit "${record.id}" has no matching active Core identity.`, { entityId: record.id });
             }
             if (!placement || placement.type !== "world"
-              || !Number.isSafeInteger(placement.position.x) || !Number.isSafeInteger(placement.position.y)) {
+              || !Number.isFinite(placement.position.x) || !Number.isFinite(placement.position.y)
+              || placement.position.x < 0 || placement.position.y < 0) {
               throw new UnitSystemError("INVALID_UNIT_PLACEMENT", `Restored Unit "${record.id}" has no valid world tile placement.`, { entityId: record.id });
             }
             const definition = definitionLookup(record.definitionId);
