@@ -92,7 +92,7 @@ function showView(name) {
     }
     inputController.clearForFocusLoss();
     if (state.clock && !state.clock.hasPauseReason("player")) state.clock.pause("player");
-    if (document.pointerLockElement === canvas) document.exitPointerLock();
+
     updateSimulationUi();
   }
   for (const view of views) view.hidden = view.dataset.view !== name;
@@ -484,38 +484,10 @@ function updateSimulationUi() {
   worldSizeSelect.disabled = !state.paused || state.placementActive;
   gridVisible.disabled = !state.paused;
   viewportDatabaseButton.disabled = !state.paused || state.placementActive;
-  resetCameraButton.disabled = !state.paused;
-  pointerStatus.textContent = state.paused
-    ? "INSPECTION CURSOR"
-    : document.pointerLockElement === canvas ? "POINTER LOCKED" : "CLICK MAP TO CAPTURE POINTER";
+  resetCameraButton.disabled = false;
+  pointerStatus.textContent = state.paused ? "INSPECTION CURSOR" : "GAMEPLAY CURSOR";
   setWorldInteraction({ paused: state.paused, onSelect: inspectUnit });
   if (!state.paused) clearUnitSelection();
-}
-
-function failPointerLock() {
-  viewportPanel.dataset.pointerLock = "unavailable";
-  pointerStatus.textContent = "POINTER LOCK UNAVAILABLE · PAUSED";
-  if (!state.paused) {
-    inputController.pause();
-    state.clock?.pause("player");
-    state.paused = true;
-    updateSimulationUi();
-    pointerStatus.textContent = "POINTER LOCK UNAVAILABLE · PAUSED";
-  }
-}
-
-function requestViewportPointerLock() {
-  canvas.focus({ preventScroll: true });
-  if (typeof canvas.requestPointerLock !== "function") {
-    failPointerLock();
-    return;
-  }
-  try {
-    const request = canvas.requestPointerLock();
-    request?.catch?.(failPointerLock);
-  } catch {
-    failPointerLock();
-  }
 }
 
 function toggleSimulationPause() {
@@ -527,13 +499,13 @@ function toggleSimulationPause() {
       inputController.pause();
     } else {
       inputController.resume();
-      requestViewportPointerLock();
     }
   } else {
     inputController.pause();
     state.clock.pause("player");
     state.paused = state.clock.paused;
-    if (document.pointerLockElement === canvas) document.exitPointerLock();
+  
+
   }
   updateSimulationUi();
 }
@@ -549,7 +521,7 @@ function simulationFrame(timestamp) {
       if (clockPaused !== state.paused) {
         if (clockPaused) {
           inputController.pause();
-          if (document.pointerLockElement === canvas) document.exitPointerLock();
+
         } else {
           inputController.resume();
         }
@@ -562,7 +534,7 @@ function simulationFrame(timestamp) {
       inputController.clearForFocusLoss();
       state.clock?.pause("simulation-fault");
       state.paused = true;
-      if (document.pointerLockElement === canvas) document.exitPointerLock();
+
       updateSimulationUi();
     }
   }
@@ -624,9 +596,7 @@ window.addEventListener("keyup", (event) => {
 canvas.addEventListener("pointerdown", (event) => {
   if (document.body.dataset.currentView !== "dev-lab" || ![0, 2].includes(event.button)) return;
   inputController.pointerDown(event.button);
-  if (!state.paused && event.button === 0 && document.pointerLockElement !== canvas) {
-    requestViewportPointerLock();
-  }
+
 }, true);
 
 window.addEventListener("pointerup", (event) => {
@@ -635,27 +605,6 @@ window.addEventListener("pointerup", (event) => {
 
 canvas.addEventListener("pointermove", (event) => {
   if (!state.paused) inputController.pointerMove(event.movementX || 0, event.movementY || 0);
-});
-
-let pointerLockWasAcquired = false;
-document.addEventListener("pointerlockerror", failPointerLock);
-
-document.addEventListener("pointerlockchange", () => {
-  const locked = document.pointerLockElement === canvas;
-  viewportPanel.dataset.pointerLocked = String(locked);
-  if (locked) pointerLockWasAcquired = true;
-  pointerStatus.textContent = state.paused
-    ? "INSPECTION CURSOR"
-    : locked ? "POINTER LOCKED" : "CLICK MAP TO CAPTURE POINTER";
-
-  // Escape or browser-driven Pointer Lock loss must not leave active gameplay
-  // running with an unrestricted pointer.
-  if (!locked && pointerLockWasAcquired && !state.paused) {
-    inputController.pause();
-    state.clock?.pause("player");
-    state.paused = true;
-    updateSimulationUi();
-  }
 });
 
 function handleFocusLoss() {
