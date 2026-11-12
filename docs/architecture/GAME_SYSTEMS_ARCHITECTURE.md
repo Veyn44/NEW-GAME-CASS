@@ -84,6 +84,14 @@ A **Unit Instance** is one actual Unit in a running/saved game. It references on
 
 The Database catalog reads canonical definitions from their owning gameplay systems. It must not become a second source of definitions or contain copied mutable instance state.
 
+Database is a single shared experience with two contextual modes:
+- **Browse mode** presents the full catalog for inspection. It does not expose an active selection action.
+- **Selection mode** reuses the same catalog, search, hierarchy and inspector, but the caller supplies an eligibility scope and receives a stable definition ID after confirmation. For Dev Lab Spawn Unit, only Unit-instantiable definitions may be confirmed.
+
+Selection controls belong to the caller context, not to individual catalog entries. Normal Database may hide the reserved Select area or render it as a non-interactive informational imprint. Dev Lab selection mode exposes the active Select control in a reserved bottom-right area. Database never creates runtime instances; the caller invokes the appropriate gameplay API.
+
+The catalog should support lazy detail loading: a lightweight index exposes stable IDs and navigation metadata; full definition details load when an entry is selected, and artwork loads only when that entry's detail is opened. The Database must still show all available information for the selected definition. This is a loading strategy, not permission to omit canonical attributes or details.
+
 ## 4. Ownership and boundaries
 
 | Responsibility | Owner | Must not own |
@@ -202,4 +210,4 @@ Before Unit implementation:
 6. Add unit, contract, integration and persistence tests.
 7. Keep Dev Lab controls and test-world assumptions outside reusable gameplay logic.
 
-**Current status:** architecture direction accepted; Unit gameplay code is not yet implemented.
+**Current status:** Unit foundation is implemented and automated tests pass. Contextual Database selection and Dev Lab Spawn Unit integration are the next planned slice.
