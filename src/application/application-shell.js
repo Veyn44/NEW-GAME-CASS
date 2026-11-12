@@ -3,12 +3,15 @@ import {
   setWorldInteraction,
   setSelectedWorldMarker,
   setWorldPlacement,
-  cancelWorldPlacement
+  cancelWorldPlacement,
+  setCameraFollowTarget,
+  clearCameraFollowTarget
 } from "../adapters/presentation/dev-world-preview.js";
 import { createGameRuntime } from "../host/create-game-runtime.js";
 import { MemorySaveAdapter } from "../core/persistence.js";
 import { createUnitSystem } from "../gameplay/unit/unit-system.js";
 import { createGameInputSystem } from "../gameplay/input/game-input-system.js";
+import { createColonyControlSystem } from "../gameplay/colony/colony-control-system.js";
 import { getDefinition } from "./database/definition-registry.js";
 import { loadCanonicalDefinitions } from "./database/database-loader.js";
 import { createViewportInputController } from "./input/viewport-input-controller.js";
@@ -65,6 +68,7 @@ const state = {
   detailRequest: 0,
   unitApi: null,
   inputApi: null,
+  colonyControlApi: null,
   clock: null,
   worldRegistry: null,
   paused: true,
@@ -166,6 +170,9 @@ function beginWorldPlacement(definition) {
           worldId: state.worldRegistry.activeWorldId,
           position: { x, y }
         });
+        if (definition.id === "pawn.johny" && !state.colonyControlApi.getState().leaderId) {
+          state.colonyControlApi.setLeader(unit.id);
+        }
         state.placementActive = false;
         viewportDatabaseButton.disabled = !state.paused;
         worldSizeSelect.disabled = !state.paused;
@@ -467,9 +474,10 @@ function inspectUnit(entityId) {
 }
 
 function updateSimulationUi() {
+  const controlState = state.colonyControlApi?.getState();
   simulationStatus.textContent = state.paused
-    ? "PAUSED · Space to resume"
-    : "RUNNING · Space to pause";
+    ? `PAUSED · ${controlState?.drafted ? "DRAFT ACTIVE" : "F TO DRAFT"} · Space to resume`
+    : `RUNNING · ${controlState?.drafted ? "DRAFT ACTIVE" : "NO DRAFT"} · Space to pause`;
   simulationStatus.dataset.state = state.paused ? "paused" : "running";
   viewportPanel.dataset.paused = String(state.paused);
   viewportPanel.dataset.inputMode = state.paused ? "paused" : "running";
@@ -595,6 +603,12 @@ window.addEventListener("keydown", (event) => {
     toggleSimulationPause();
     return;
   }
+  if (event.code === "KeyF" && state.paused && !event.repeat && state.colonyControlApi) {
+    event.preventDefault();
+    state.colonyControlApi.toggleDraft();
+    updateSimulationUi();
+    return;
+  }
   if (!state.paused) {
     inputController.keyDown(event.code);
     if (/^(Key[A-Z]|Digit[0-9]|Arrow(Up|Down|Left|Right))$/.test(event.code)) {
@@ -651,6 +665,7 @@ function handleFocusLoss() {
     state.paused = true;
   }
   inputController.clearForFocusLoss();
+  clearCameraFollowTarget();
   if (document.pointerLockElement === canvas) document.exitPointerLock();
   updateSimulationUi();
 }
@@ -724,10 +739,20 @@ worldSizeSelect.addEventListener("change", () => {
 async function startDevLabRuntime() {
   const runtime = createGameRuntime({
     saveAdapter: new MemorySaveAdapter(),
+    fixedStepSeconds: 1 / 60,
+    maxStepsPerFrame: 120,
     hostSystems: [
       createGameInputSystem({ inputController }),
-      createUnitSystem({ definitionLookup: getDefinition })
-    ]
+      createUnitSystem({ definitionLookup: getDefinition }),
+      createColonyControlSystem()
+    ],
+    simulationTasks: [{
+      systemId: "game.colony-control",
+      update({ deltaSeconds, context }) {
+        const moved = context.getService("game.colony-control-api").update(deltaSeconds);
+        if (moved) setCameraFollowTarget(moved.entityId, moved.position);
+      }
+    }]
   });
   try {
     const context = await runtime.start();
@@ -739,6 +764,7 @@ async function startDevLabRuntime() {
     state.worldRegistry = worlds;
     state.unitApi = context.getService("game.unit-api");
     state.inputApi = context.getService("game.input-api");
+    state.colonyControlApi = context.getService("game.colony-control-api");
     setWorldMarkers([]);
     clearUnitSelection();
     state.clock = context.getService("core.game-clock");
