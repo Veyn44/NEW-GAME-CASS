@@ -1,6 +1,6 @@
 # Phase 2 — First Testable Game Layer
 
-**Status:** Proposed plan; implementation has not started.  
+**Status:** Phase 2.0 technical architecture documented and checked against Core; gameplay implementation has not started.  
 **Working branch:** `next-step/phase-2`  
 **Base:** `main` at the Phase 1 Core baseline plus project documentation.  
 **Purpose:** Build the smallest real host-game slice that proves the Core can support a running Cassandra game layer, without guessing the full future game.
@@ -59,12 +59,13 @@ This is a technical vertical slice, not a declaration of the final game design. 
 
 **Work:**
 - Complete `docs/architecture/GAME_SYSTEMS_ARCHITECTURE.md` with initial system boundaries, ownership and dependencies.
+- Complete `docs/architecture/PHASE_2_SYSTEM_CONTRACTS.md` with host, world, Pawn, locomotion and persistence boundaries checked against the actual Core API.
 - Adopt `docs/standards/SYSTEM_DEVELOPMENT_STANDARD.md` as the required template for new systems.
 - Confirm which Core services the host needs and how the host composes them.
 - Identify the minimum Pawn/world slice and explicitly list what is not part of this phase.
 - Record unresolved design questions instead of silently inventing permanent game rules.
 
-**Files:** `docs/phases/PHASE_2.md`, `docs/architecture/GAME_SYSTEMS_ARCHITECTURE.md`, `docs/architecture/REPOSITORY_STRUCTURE.md`, `docs/standards/SYSTEM_DEVELOPMENT_STANDARD.md`, and `docs/testing/PHASE_2_TEST_PLAN.md`.
+**Files:** `docs/phases/PHASE_2.md`, `docs/architecture/GAME_SYSTEMS_ARCHITECTURE.md`, `docs/architecture/REPOSITORY_STRUCTURE.md`, `docs/architecture/PHASE_2_SYSTEM_CONTRACTS.md`, `docs/standards/SYSTEM_DEVELOPMENT_STANDARD.md`, and `docs/testing/PHASE_2_TEST_PLAN.md`.
 
 **Creates for future development:** a shared vocabulary, explicit ownership boundaries and a repeatable system contract. Future systems can be added without having to predict or redesign the entire game now.
 
@@ -219,7 +220,7 @@ A test is PASS only after it has actually run and passed. Prepared tests are not
 
 ## 8. Phase completion checklist
 
-- [ ] 2.0 architecture and system contracts accepted.
+- [x] 2.0 technical architecture and system contracts documented and checked against the actual Core API.
 - [ ] 2.1 host runtime starts and shuts down safely.
 - [ ] 2.2 world and Pawn identity/placement contracts pass.
 - [ ] 2.3 movement/control path passes deterministic tests.
@@ -236,3 +237,4 @@ A test is PASS only after it has actually run and passed. Prepared tests are not
 | 2026-11-12 | Initial Phase 2 plan created on `next-step/phase-2`; implementation not started. |
 | 2026-11-12 | Core regression workflow extended to run on active `next-step/**` branches. |
 | 2026-11-12 | Repository folder layout and explicit phase-to-main merge map documented. |
+| 2026-11-12 | Initial host/world/Pawn/locomotion contracts checked against Core source; game-facing Pawn details remain open. |
