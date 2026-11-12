@@ -499,6 +499,53 @@ test("Persistence rejects saves inside updates and Event Bus handlers but permit
   await runtime.destroy();
 });
 
+
+test("Core shutdown waits for accepted persistence work and rejects new requests", async () => {
+  let releaseWrite;
+  const blockedWrite = new Promise((resolve) => { releaseWrite = resolve; });
+  let writeStarted = false;
+  let systemDestroyed = false;
+  const adapter = {
+    async read() { return null; },
+    async writeAtomic() {
+      writeStarted = true;
+      await blockedWrite;
+      return true;
+    }
+  };
+  const runtime = createCoreAssembly({
+    saveAdapter: adapter,
+    hostSystems: [{
+      id: "game.shutdown-probe",
+      destroy() { systemDestroyed = true; }
+    }]
+  });
+  const context = await runtime.start();
+  const persistence = context.getService("core.persistence");
+  const clock = context.getService("core.game-clock");
+
+  const savePromise = persistence.save("shutdown-slot", { stateId: "campaign:shutdown" });
+  while (!writeStarted) await Promise.resolve();
+
+  let shutdownFinished = false;
+  const shutdownPromise = runtime.destroy().then(() => { shutdownFinished = true; });
+  await Promise.resolve();
+  assert(!shutdownFinished, "Core shutdown completed while accepted storage I/O was still active.");
+  assert(!systemDestroyed, "Host systems were destroyed while persistence still used Core state.");
+  assert(clock.hasPauseReason("core.persistence"), "Persistence pause was released before storage completed.");
+
+  await rejects(() => persistence.save("late-slot", { stateId: "campaign:late" }), "RUNTIME_DESTROYING");
+  releaseWrite();
+  await savePromise;
+  await shutdownPromise;
+
+  assert(shutdownFinished, "Core shutdown did not finish after persistence drained.");
+  assert(systemDestroyed, "Host systems were not destroyed after persistence completed.");
+  assert(!clock.hasPauseReason("core.persistence"), "Persistence pause remained after shutdown.");
+  equal(runtime.state, "destroyed");
+  await runtime.destroy();
+});
+
 export async function runCoreIntegrationTests() {
   let passed = 0;
   const lines = [];
