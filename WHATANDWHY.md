@@ -8,7 +8,7 @@ This file is the canonical log for accepted game and presentation decisions. It 
 - **WHY:** The original purple felt too conventionally violet. The selected shade is richer and redder while retaining a purple undertone; it gives Cassandra a distinctive accent without competing with the turquoise.
 - **BEHAVIOR:** `#812044` is a static base color. No global pulsing, glow or animation is implied by the palette. Individual elements may opt into their own light/emission/pulse behavior when their function calls for it.
 - **SCOPE:** Shared presentation design tokens and future game UI/lighting accents. This does not prescribe which gameplay objects emit light or animate.
-- **STATUS:** Approved; preview styling implementation pending.
+- **STATUS:** Approved and implemented in the development preview.
 
 ## Decision: Full-screen world viewport and overlay UI
 
@@ -16,7 +16,7 @@ This file is the canonical log for accepted game and presentation decisions. It 
 - **WHY:** The map should remain the primary continuous spatial surface. UI should not permanently consume map dimensions or introduce browser scrollbars into the main game screen.
 - **BEHAVIOR:** The application shell should fit the viewport without page-level scrolling. The world rendering layer sits beneath UI overlay layers. The top region is reserved for persistent controls/status; the left panel is floating and can overlay the world.
 - **SCOPE:** Development preview shell and future application presentation layout. Individual panel content, dimensions and interaction remain undecided.
-- **STATUS:** Approved design; preview shell implementation pending.
+- **STATUS:** Approved and implemented in the development preview shell.
 
 ## Decision: Camera zoom anchoring
 
