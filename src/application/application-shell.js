@@ -40,6 +40,16 @@ const quickSelectName = document.querySelector("#quick-select-name");
 const quickSelectSummary = document.querySelector("#quick-select-summary");
 const quickSelectInfo = document.querySelector("#quick-select-info");
 const quickSelectDetails = document.querySelector("#quick-select-details");
+const unitProfile = document.querySelector("#unit-profile");
+const unitProfileClose = document.querySelector("#unit-profile-close");
+const unitProfileName = document.querySelector("#unit-profile-name");
+const unitProfileArtwork = document.querySelector("#unit-profile-artwork");
+const unitProfileArtworkEmpty = document.querySelector("#unit-profile-artwork-empty");
+const unitProfileCategory = document.querySelector("#unit-profile-category");
+const unitProfileDescription = document.querySelector("#unit-profile-description");
+const unitProfileAttributes = document.querySelector("#unit-profile-attributes");
+const unitProfileInstance = document.querySelector("#unit-profile-instance");
+const unitProfileLocation = document.querySelector("#unit-profile-location");
 const viewportPanel = document.querySelector(".viewport-panel");
 const canvas = document.querySelector("#world-canvas");
 const worldSizeSelect = document.querySelector("#world-size");
@@ -397,6 +407,7 @@ function clearUnitSelection() {
   quickSelectInfo.textContent = "INFO";
   quickSelectDetails.hidden = true;
   quickSelectDetails.replaceChildren();
+  closeUnitProfile();
   quickSelectArtwork.hidden = true;
   quickSelectArtwork.removeAttribute("src");
   quickSelectArtworkEmpty.hidden = false;
@@ -567,6 +578,11 @@ window.addEventListener("keydown", (event) => {
     cancelPlacement();
     return;
   }
+  if (!unitProfile.hidden && event.code === "Escape") {
+    event.preventDefault();
+    closeUnitProfile();
+    return;
+  }
   if (state.viewportDatabaseOpen && event.code === "Escape") {
     event.preventDefault();
     closeViewportDatabase();
@@ -645,11 +661,53 @@ document.addEventListener("visibilitychange", () => {
 
 viewportDatabaseButton.addEventListener("click", openViewportDatabase);
 
+function closeUnitProfile() {
+  unitProfile.hidden = true;
+  quickSelectInfo.textContent = "INFO";
+}
+
+function openUnitProfile() {
+  if (!state.paused || !state.selectedObject || state.selectedObject.kind !== "UNIT") return;
+  const unit = state.unitApi?.getUnit(state.selectedUnitId);
+  if (!unit) {
+    clearUnitSelection();
+    return;
+  }
+  const definition = getDefinition(unit.definitionId);
+  unitProfileName.textContent = definition?.name ?? "Unknown unit";
+  unitProfileCategory.textContent = definition?.category ?? "UNIT";
+  unitProfileDescription.textContent = definition?.description ?? "No personal record is available.";
+  unitProfileArtwork.hidden = !definition?.artwork;
+  unitProfileArtworkEmpty.hidden = Boolean(definition?.artwork);
+  if (definition?.artwork) {
+    unitProfileArtwork.src = definition.artwork;
+    unitProfileArtwork.alt = definition.name ?? "Unit portrait";
+  } else {
+    unitProfileArtwork.removeAttribute("src");
+  }
+  unitProfileAttributes.replaceChildren();
+  const attributes = definition?.attributes ?? {};
+  if (attributes && typeof attributes === "object" && !Array.isArray(attributes)) {
+    appendAttributeRows(unitProfileAttributes, attributes);
+  } else {
+    appendAttributeRows(unitProfileAttributes, { Record: attributes });
+  }
+  if (!unitProfileAttributes.childElementCount) {
+    appendAttributeRows(unitProfileAttributes, { Record: "No personal attributes recorded." });
+  }
+  unitProfileInstance.textContent = "LIVE WORLD INSTANCE";
+  unitProfileLocation.textContent = unit.placement?.position
+    ? `LOCATION · ${unit.placement.position.x}, ${unit.placement.position.y}`
+    : "LOCATION · UNKNOWN";
+  unitProfile.hidden = false;
+  quickSelectInfo.textContent = "CLOSE INFO";
+}
+
 quickSelectInfo.addEventListener("click", () => {
-  if (!state.paused || !state.selectedObject) return;
-  quickSelectDetails.hidden = !quickSelectDetails.hidden;
-  quickSelectInfo.textContent = quickSelectDetails.hidden ? "INFO" : "HIDE INFO";
+  if (unitProfile.hidden) openUnitProfile();
+  else closeUnitProfile();
 });
+unitProfileClose.addEventListener("click", closeUnitProfile);
 
 worldSizeSelect.addEventListener("change", () => {
   if (!state.paused || !state.worldRegistry) return;
