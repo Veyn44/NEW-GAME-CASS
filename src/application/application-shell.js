@@ -526,9 +526,11 @@ window.addEventListener("keyup", (event) => {
 });
 
 canvas.addEventListener("pointerdown", (event) => {
-  if (document.body.dataset.currentView !== "dev-lab" || event.button !== 0) return;
+  if (document.body.dataset.currentView !== "dev-lab" || ![0, 2].includes(event.button)) return;
   inputController.pointerDown(event.button);
-  if (!state.paused && document.pointerLockElement !== canvas) requestViewportPointerLock();
+  if (!state.paused && event.button === 0 && document.pointerLockElement !== canvas) {
+    requestViewportPointerLock();
+  }
 }, true);
 
 window.addEventListener("pointerup", (event) => {
