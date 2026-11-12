@@ -12,6 +12,7 @@ Cassandra is developed in bounded phases. Each phase has one integration branch 
 - `main` contains only completed, reviewed and accepted phase results.
 - A new `next-step/phase-N` branch starts from the current `main`.
 - Work is committed in small, meaningful commits within that phase branch.
+- GitHub Actions runs the existing Core regression suite on pushes to `main` and `next-step/**`, so the active phase branch receives continuous Core protection.
 - The whole phase is tested together on the same branch, not just each substep in isolation.
 - Fixes stay on the phase branch until its acceptance criteria pass.
 - Only after review and acceptance is the phase merged into `main`.
@@ -184,3 +185,4 @@ A test is PASS only after it has actually run and passed. Prepared tests are not
 | Date | Change |
 |---|---|
 | 2026-11-12 | Initial Phase 2 plan created on `next-step/phase-2`; implementation not started. |
+| 2026-11-12 | Core regression workflow extended to run on active `next-step/**` branches. |
