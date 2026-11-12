@@ -38,7 +38,9 @@ const state = {
   databaseMode: "browse",
   selectedDefinitionId: null,
   selectedDefinition: null,
-  detailRequest: 0
+  detailRequest: 0,
+  unitApi: null,
+  spawnCount: 0
 };
 
 function showView(name) {
@@ -274,8 +276,60 @@ databaseSelect.addEventListener("click", () => {
   devSelectedUnit.hidden = false;
   spawnButton.disabled = true;
   spawnButton.textContent = "Spawn Unit · RUNTIME NOT CONNECTED";
-  spawnButton.disabled = !state.unitApi;\n  spawnButton.textContent = state.unitApi ? "Spawn Unit" : "Spawn Unit · STARTING";\n  spawnStatus.textContent = state.unitApi ? "Ready to create a Unit instance in the test world." : "Starting the Dev Lab world session…";
+  spawnButton.disabled = !state.unitApi;
+  spawnButton.textContent = state.unitApi ? "Spawn Unit" : "Spawn Unit · STARTING";
+  spawnStatus.textContent = state.unitApi ? "Ready to create a Unit instance in the test world." : "Starting the Dev Lab world session…";
   showView("dev-lab");
 });
 
+spawnButton.addEventListener("click", () => {
+  const definitionId = devSelectedUnit.dataset.definitionId;
+  if (!state.unitApi || !definitionId) return;
+  try {
+    const index = state.spawnCount++;
+    const position = { x: 60 + (index % 9), y: 60 + Math.floor(index / 9) };
+    state.unitApi.createUnit({ definitionId, worldId: "dev-lab-world", position });
+    const units = state.unitApi.listUnits();
+    setWorldMarkers(units.map((unit) => ({
+      x: unit.placement.position.x,
+      y: unit.placement.position.y,
+      label: getDefinition(unit.definitionId)?.name ?? unit.definitionId
+    })));
+    spawnStatus.textContent = `Spawned ${units.length} Unit instance(s). Last position: ${position.x}, ${position.y}.`;
+  } catch (error) {
+    spawnStatus.textContent = `Spawn failed: ${error.message}`;
+  }
+});
+
+async function startDevLabRuntime() {
+  const runtime = createGameRuntime({
+    saveAdapter: new MemorySaveAdapter(),
+    hostSystems: [createUnitSystem({ definitionLookup: getDefinition })]
+  });
+  try {
+    const context = await runtime.start();
+    const worlds = context.getService("core.world-registry");
+    worlds.registerWorld({
+      worldId: "dev-lab-world",
+      type: "dev-lab-test",
+      dimensions: { width: 128, height: 128 },
+      coordinateSystem: "tiles"
+    });
+    worlds.activateWorld("dev-lab-world");
+    state.unitApi = context.getService("game.unit-api");
+    spawnButton.disabled = !devSelectedUnit.dataset.definitionId;
+    spawnButton.textContent = "Spawn Unit";
+    if (devSelectedUnit.dataset.definitionId) {
+      spawnStatus.textContent = "Ready to create a Unit instance in the test world.";
+    } else {
+      spawnStatus.textContent = "Choose a Unit definition from the shared Database.";
+    }
+  } catch (error) {
+    spawnStatus.textContent = `Dev Lab startup failed: ${error.message}`;
+    spawnButton.disabled = true;
+    spawnButton.textContent = "Spawn Unit · STARTUP FAILED";
+  }
+}
+
+startDevLabRuntime();
 showView("menu");
