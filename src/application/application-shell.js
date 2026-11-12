@@ -25,6 +25,7 @@ const databaseHome = document.createComment("database-home");
 databaseView.before(databaseHome);
 const viewportDatabaseButton = document.querySelector("#open-viewport-database");
 const databaseBackButton = databaseView.querySelector("[data-back-menu]");
+const databaseSelectButton = databaseView.querySelector("#database-select-definition");
 const databaseList = document.querySelector("#database-list");
 const databaseSearch = document.querySelector("#database-search");
 const databaseCategory = document.querySelector("#database-category");
@@ -116,6 +117,8 @@ function openViewportDatabase() {
   state.databaseMode = "viewport";
   state.selectedDefinitionId = null;
   state.selectedDefinition = null;
+  databaseSelectButton.hidden = true;
+  databaseSelectButton.disabled = true;
   databaseView.dataset.mode = "viewport";
   databaseView.classList.add("database-overlay");
   databaseModeLabel.textContent = "CASSANDRA / DEV LAB";
@@ -140,6 +143,8 @@ function closeViewportDatabase() {
   databaseModeLabel.textContent = "CASSANDRA / KNOWLEDGE";
   state.databaseMode = "browse";
   state.viewportDatabaseOpen = false;
+  databaseSelectButton.hidden = true;
+  databaseSelectButton.disabled = true;
 }
 
 function beginWorldPlacement(definition) {
@@ -221,6 +226,8 @@ async function inspectDefinition(id) {
   const request = ++state.detailRequest;
   state.selectedDefinitionId = id;
   state.selectedDefinition = null;
+  databaseSelectButton.hidden = true;
+  databaseSelectButton.disabled = true;
   databaseInspector.replaceChildren();
 
   const loading = document.createElement("p");
@@ -232,6 +239,9 @@ async function inspectDefinition(id) {
   if (request !== state.detailRequest || !definition) return;
 
   state.selectedDefinition = definition;
+  databaseSelectButton.hidden = state.databaseMode !== "viewport"
+    || !definition.spawnableAs.includes("unit");
+  databaseSelectButton.disabled = databaseSelectButton.hidden;
   databaseInspector.replaceChildren();
 
   const heading = document.createElement("div");
@@ -294,17 +304,7 @@ async function inspectDefinition(id) {
   });
   databaseInspector.append(metadata);
 
-  if (state.databaseMode === "viewport" && definition.spawnableAs.includes("unit")) {
-    const actions = document.createElement("div");
-    actions.className = "database-selection-actions";
-    const select = document.createElement("button");
-    select.type = "button";
-    select.className = "database-select-button";
-    select.textContent = "SELECT";
-    select.addEventListener("click", () => beginWorldPlacement(definition));
-    actions.append(select);
-    databaseInspector.append(actions);
-  }
+
 }
 
 function renderDatabase() {
@@ -661,6 +661,10 @@ document.addEventListener("visibilitychange", () => {
 });
 
 viewportDatabaseButton.addEventListener("click", openViewportDatabase);
+databaseSelectButton.addEventListener("click", () => {
+  if (state.databaseMode !== "viewport" || !state.selectedDefinition) return;
+  beginWorldPlacement(state.selectedDefinition);
+});
 
 function closeUnitProfile() {
   unitProfile.hidden = true;
