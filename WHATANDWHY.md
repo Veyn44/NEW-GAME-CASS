@@ -235,3 +235,12 @@ This file is the canonical log for accepted game and presentation decisions. It 
 - **BEHAVIOR:** Space toggles the session pause. While paused, the user can inspect live Units and use the Database placement workflow. The world canvas remains stable beneath floating overlays; overlay interaction is isolated to the overlay bounds. The pause indicator is a viewport-only visual treatment and does not replace the authoritative simulation pause.
 - **SCOPE:** Dev Lab host/input/presentation behavior. This does not claim that Pawn locomotion or the complete Phase 2 gameplay loop is finished.
 - **STATUS:** Implemented in the current Phase 2 development build; user confirms pause and viewport behavior work. Automated/browser verification remains separately tracked.
+
+
+## Decision: Pawn means membership in player control, not direct manual control
+
+- **WHAT:** A Pawn is any Unit that belongs in any way to the player's control. Direct, continuous player input is not required for Pawn classification. The main protagonist is the primary fully controllable Pawn; other Pawns may be controlled through different, more indirect or limited mechanisms. A robot can be a Pawn when it belongs to the player's control.
+- **WHY:** Pawn describes the Unit's relationship to player control, not its species, body type, autonomy level or exact input method. Restricting Pawn to the one directly controlled protagonist would exclude other player-controlled units and systems that may be introduced later.
+- **BEHAVIOR:** Unit remains the general gameplay instance. Pawn is a player-control role/specialization assigned to a Unit when it belongs to the player's control. The protagonist is the fully directly controllable example, not the definition of every Pawn. Other Pawn control models are intentionally deferred; this decision does not define commands, permissions, AI, delegation, selection or control mechanics.
+- **SCOPE:** Unit/Pawn domain vocabulary and future control architecture. No new Core primitive, identity registry or separate Pawn lifecycle is introduced. Existing game.unit foundation remains unchanged.
+- **STATUS:** Approved by the user on 2026-11-12; implementation details deferred until the relevant control systems are designed.
