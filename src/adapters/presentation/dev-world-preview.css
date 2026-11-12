@@ -250,6 +250,7 @@ canvas:active { cursor: grabbing; }
 /* Runtime controls and live Unit inspector */
 #simulation-status { color: #f3c969; font-weight: 700; }
 #simulation-status[data-state="running"] { color: #38d6c5; }
+.dev-tools-panel { flex-wrap: wrap; }
 .unit-inspector {
   flex: 1 1 100%;
   min-width: 240px;
