@@ -125,3 +125,17 @@ Database is an enabled application-level catalog of canonical gameplay definitio
 The catalog describes definitions (for example a Pawn type, enemy type, wall material, asteroid material, weapon or ammunition type), not mutable runtime instances. Current health, damage state, inventory and other live values belong to a future runtime inspection view.
 
 The first implementation includes a small definition registry, search and category filtering. The catalog starts empty rather than showing invented game objects. As real gameplay definitions are implemented, they register into the catalog and become inspectable.
+
+
+## 10. Database asset browser and inspector direction
+
+The intended full Database experience is a navigable asset browser, not a flat attribute list or a save-state viewer.
+
+- A search field finds assets across the catalog.
+- A left navigation tree mirrors the real content taxonomy and, where useful, the corresponding gameplay/content folder structure: categories, nested subcategories and individual assets.
+- Selecting an asset opens a larger detail/inspection area on the right.
+- The detail area is intended to show the asset's pixel-art presentation at a useful scale, identity and category, all canonical definition attributes, and associated gameplay behavior/metadata as those become available.
+- The hierarchy should reflect the actual implemented content and code ownership rather than a separately invented taxonomy. The UI may present a human-friendly tree, but each entry must retain a stable link to its canonical definition and owning system/source.
+- Database is also intended as a future in-game balancing/reference tool. It must distinguish canonical/base definition values from live runtime instance state. Editing/balancing capabilities, if desired, require a separate design and authorization; the initial catalog is read-only.
+
+The initial compact registry/search UI is only a foundation. The tree, nested categories, asset artwork and right-side inspector are future presentation work and should be developed after the user has tested the first shell.
