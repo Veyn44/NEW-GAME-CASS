@@ -1,5 +1,5 @@
-import "./adapters/presentation/dev-world-preview.js";
-import { listDefinitions, getCategories } from "./application/database/definition-registry.js";
+import "../adapters/presentation/dev-world-preview.js";
+import { listDefinitions, getCategories } from "./database/definition-registry.js";
 
 const views = [...document.querySelectorAll("[data-view]")];
 const navButtons = [...document.querySelectorAll("[data-navigate]")];
