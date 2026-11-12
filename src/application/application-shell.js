@@ -1,4 +1,10 @@
-import { setWorldMarkers, beginUnitPlacement, cancelUnitPlacement } from "../adapters/presentation/dev-world-preview.js";
+import {
+  setWorldMarkers,
+  setWorldInteraction,
+  setSelectedWorldMarker,
+  beginUnitPlacement,
+  cancelUnitPlacement
+} from "../adapters/presentation/dev-world-preview.js";
 import { createGameRuntime } from "../host/create-game-runtime.js";
 import { MemorySaveAdapter } from "../core/persistence.js";
 import { createUnitSystem } from "../gameplay/unit/unit-system.js";
@@ -23,6 +29,8 @@ const devSelectUnit = document.querySelector("#dev-select-unit");
 const devSelectedUnit = document.querySelector("#dev-selected-unit");
 const spawnButton = document.querySelector("#spawn-unit");
 const spawnStatus = document.querySelector("#spawn-status");
+const simulationStatus = document.querySelector("#simulation-status");
+const unitInspector = document.querySelector("#unit-inspector");
 
 registerDefinition({
   id: "pawn.basic",
@@ -41,7 +49,12 @@ const state = {
   detailRequest: 0,
   unitApi: null,
   spawnCount: 0,
-  placementActive: false
+  placementActive: false,
+  clock: null,
+  paused: true,
+  selectedUnitId: null,
+  animationFrame: null,
+  lastFrameTime: null
 };
 
 function showView(name) {
@@ -298,7 +311,9 @@ spawnButton.addEventListener("click", () => {
   const definition = getDefinition(definitionId);
   if (!state.unitApi || !definitionId || !definition) return;
 
+  if (!state.paused) return;
   state.placementActive = true;
+  clearUnitSelection();
   spawnButton.textContent = "Stop Placing";
   spawnStatus.textContent = `Placing ${definition.name}: move the cursor and left-click to place. Right-click or Escape to cancel.`;
   beginUnitPlacement({
@@ -311,6 +326,7 @@ spawnButton.addEventListener("click", () => {
         setWorldMarkers(units.map((unit) => ({
           x: unit.placement.position.x,
           y: unit.placement.position.y,
+          id: unit.id,
           label: getDefinition(unit.definitionId)?.name ?? unit.definitionId
         })));
         spawnStatus.textContent = `${definition.name} placed at ${position.x}, ${position.y}. ${units.length} Unit instance(s) in world. Continue placing or press Escape to finish.`;
@@ -324,6 +340,103 @@ spawnButton.addEventListener("click", () => {
       spawnStatus.textContent = `Placement finished. ${state.spawnCount} Unit instance(s) created in this session.`;
     }
   });
+});
+
+
+function clearUnitSelection() {
+  state.selectedUnitId = null;
+  setSelectedWorldMarker(null);
+  unitInspector.hidden = true;
+  unitInspector.replaceChildren();
+}
+
+function inspectUnit(entityId) {
+  if (!state.paused || state.placementActive) return;
+  if (!entityId) {
+    clearUnitSelection();
+    return;
+  }
+  const unit = state.unitApi?.getUnit(entityId);
+  if (!unit) {
+    clearUnitSelection();
+    return;
+  }
+  state.selectedUnitId = unit.id;
+  setSelectedWorldMarker(unit.id);
+  const definition = getDefinition(unit.definitionId);
+  unitInspector.replaceChildren();
+  const eyebrow = document.createElement("p");
+  eyebrow.className = "eyebrow";
+  eyebrow.textContent = "SELECTED UNIT";
+  const title = document.createElement("h3");
+  title.textContent = definition?.name ?? "Unknown definition";
+  const details = document.createElement("dl");
+  details.className = "attribute-list unit-instance-details";
+  appendAttributeRows(details, {
+    "Instance ID": unit.id,
+    "Definition": definition?.name ?? unit.definitionId,
+    "Definition ID": unit.definitionId,
+    "World": unit.placement?.worldId ?? "—",
+    "Tile X": unit.placement?.position?.x ?? "—",
+    "Tile Y": unit.placement?.position?.y ?? "—"
+  });
+  const hint = document.createElement("p");
+  hint.className = "dev-note";
+  hint.textContent = "Instance data is read from the live Unit and World services.";
+  unitInspector.append(eyebrow, title, details, hint);
+  unitInspector.hidden = false;
+}
+
+function updateSimulationUi() {
+  simulationStatus.textContent = state.paused
+    ? "PAUSED · Space to resume"
+    : "RUNNING · Space to pause";
+  simulationStatus.dataset.state = state.paused ? "paused" : "running";
+  spawnButton.disabled = !state.unitApi || !devSelectedUnit.dataset.definitionId || !state.paused;
+  if (!state.paused && state.placementActive) cancelUnitPlacement();
+  setWorldInteraction({ paused: state.paused, onSelect: inspectUnit });
+  if (!state.paused) clearUnitSelection();
+}
+
+function toggleSimulationPause() {
+  if (!state.clock) return;
+  state.paused = !state.paused;
+  if (state.paused) state.clock.pause("player");
+  else state.clock.resume("player");
+  updateSimulationUi();
+}
+
+function simulationFrame(timestamp) {
+  if (state.lastFrameTime !== null && state.unitApi) {
+    const elapsedSeconds = Math.min(0.25, Math.max(0, (timestamp - state.lastFrameTime) / 1000));
+    try {
+      // The Core scheduler and Game Clock are the authoritative simulation gate.
+      // Rendering and input remain responsive while the clock is paused.
+      runtimeAdvance(elapsedSeconds);
+    } catch (error) {
+      simulationStatus.textContent = `SIMULATION ERROR · ${error.message}`;
+      state.clock?.pause("simulation-fault");
+      state.paused = true;
+      updateSimulationUi();
+    }
+  }
+  state.lastFrameTime = timestamp;
+  state.animationFrame = requestAnimationFrame(simulationFrame);
+}
+
+let advanceRuntime = null;
+function runtimeAdvance(deltaSeconds) {
+  advanceRuntime?.(deltaSeconds);
+}
+
+window.addEventListener("keydown", (event) => {
+  if (event.code !== "Space" || event.repeat || event.altKey || event.ctrlKey || event.metaKey) return;
+  const target = event.target;
+  if (target instanceof HTMLElement && (target.isContentEditable
+    || ["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(target.tagName))) return;
+  if (document.body.dataset.currentView !== "dev-lab") return;
+  event.preventDefault();
+  toggleSimulationPause();
 });
 
 async function startDevLabRuntime() {
@@ -342,6 +455,12 @@ async function startDevLabRuntime() {
     });
     worlds.activateWorld("dev-lab-world");
     state.unitApi = context.getService("game.unit-api");
+    state.clock = context.getService("core.game-clock");
+    advanceRuntime = (deltaSeconds) => runtime.advance(deltaSeconds);
+    state.clock.pause("player");
+    state.paused = true;
+    updateSimulationUi();
+    state.animationFrame = requestAnimationFrame(simulationFrame);
     spawnButton.disabled = !devSelectedUnit.dataset.definitionId;
     spawnButton.textContent = "Spawn Unit";
     if (devSelectedUnit.dataset.definitionId) {
