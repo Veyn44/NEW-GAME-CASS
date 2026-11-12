@@ -369,6 +369,47 @@ test("an externally faulted Event Bus stops host simulation before the next upda
   await runtime.destroy();
 });
 
+test("overlapping Persistence requests are serialized under one continuous simulation pause", async () => {
+  let releaseFirstWrite;
+  const firstWriteBlock = new Promise((resolve) => { releaseFirstWrite = resolve; });
+  let firstWriteStarted = false;
+  const writes = [];
+  const adapter = {
+    async read() { return null; },
+    async writeAtomic(slotId) {
+      writes.push(slotId);
+      if (slotId === "save-one") {
+        firstWriteStarted = true;
+        await firstWriteBlock;
+      }
+      return true;
+    }
+  };
+  const runtime = createCoreAssembly({ saveAdapter: adapter });
+  const context = await runtime.start();
+  const clock = context.getService("core.game-clock");
+  const scheduler = context.getService("core.scheduler");
+  const persistence = context.getService("core.persistence");
+
+  const firstSave = persistence.save("save-one", { stateId: "campaign:one" });
+  while (!firstWriteStarted) await Promise.resolve();
+  const secondSave = persistence.save("save-two", { stateId: "campaign:two" });
+  await Promise.resolve();
+
+  equal(writes.length, 1, "The second storage write started before the first transaction finished.");
+  assert(clock.hasPauseReason("core.persistence"), "The shared persistence pause was not held.");
+  scheduler.advance(0.05);
+  equal(scheduler.tick, 0, "Simulation advanced during overlapping persistence requests.");
+
+  releaseFirstWrite();
+  await Promise.all([firstSave, secondSave]);
+  equal(writes.length, 2);
+  assert(!clock.hasPauseReason("core.persistence"), "The persistence pause remained after the queue drained.");
+  scheduler.advance(0.05);
+  equal(scheduler.tick, 1, "Simulation did not resume after all persistence requests completed.");
+  await runtime.destroy();
+});
+
 test("Persistence holds an independent simulation pause across asynchronous storage writes", async () => {
   let releaseWrite;
   const blockedWrite = new Promise((resolve) => { releaseWrite = resolve; });
