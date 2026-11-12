@@ -170,3 +170,12 @@ Dev Lab starts with registered test-world descriptors for 64 × 64, 128 × 128 a
 The viewport canvas fills its stable container. HUD and selection panels are DOM overlays positioned above the canvas and must not participate in the layout dimensions of the canvas. Opening or closing an overlay must not resize the canvas, change its camera, or alter its visible world dimensions.
 
 Quick Select is positioned at the upper-left of the viewport below the world-size toolbar. It is a generic selected-object presentation surface: optional sprite, display name, short summary and a read-only INFO disclosure. It is available only while paused. The first adapter presents live Unit instances; future walls and structures must supply the same small presentation contract through their owning systems. No placeholder wall instances or artwork are fabricated.
+
+
+### Viewport Database and object placement
+
+The Dev Lab DATABASE control reuses the canonical Database view node and its existing catalog/detail rendering. It does not load a second catalog or duplicate definition state. In viewport mode the same view is temporarily presented as a modal DOM overlay above the world canvas and returned to its original application location when closed.
+
+A selectable definition exposes a left-aligned SELECT action only when its canonical `spawnableAs` contract includes the currently supported Unit instance kind. SELECT closes the Database overlay and enters a paused-only placement mode. The presentation adapter renders a grid-snapped, translucent one-tile blueprint at the cursor. A valid in-world tile click calls the existing `game.unit-api.createUnit({ definitionId, worldId, position })` service. Successful placement refreshes world markers and selects the new instance. Escape cancels placement without creating an instance.
+
+The renderer owns only cursor-to-tile projection and blueprint presentation. It does not create entities, validate canonical definitions or mutate world placement. Core identity and placement remain owned by the existing Core services through the Unit system.
