@@ -1,6 +1,6 @@
 # Phase 2 — Initial System Contracts
 
-**Status:** Unit foundation and Dev Lab Database/placement/inspection integration implemented on the Phase 2 branch; locomotion and full end-to-end Phase 2 acceptance remain outstanding.  
+**Status:** Unit foundation, Dev Lab Database/placement/inspection, Colony Leader Draft and fixed-step locomotion are implemented on the Phase 2 branch; full end-to-end Phase 2 acceptance and manual browser verification remain outstanding.  
 **Authority:** Accepted decisions in `WHATANDWHY.md`, current Core source and `src/core/README.md`.
 
 This document defines the smallest technical contracts needed for the first runnable gameplay slice. It separates Core identity, Unit domain state and world placement. It deliberately leaves game-design fields open where they should be chosen from actual gameplay needs.
@@ -231,3 +231,18 @@ Do not invent answers to these for convenience. Ask for user input when a decisi
 - [x] Dev Lab Database selection and paused Unit placement integration implemented through the existing Unit API; user confirms the workflow works. Automated/browser evidence is tracked separately in the Phase 2 test plan.
 
 Actual Unit/Pawn locomotion through a gameplay-owned movement command and deterministic scheduler task remains unimplemented. Pawn-specific behavior and game-specific attributes remain deferred by design. Dev Lab's current placement and inspection UI are development tools, not substitutes for locomotion or final player-facing presentation.
+
+
+## 11. Colony Leader control and locomotion implementation
+
+The first direct-control implementation is owned by `game.colony-control` and exposed as `game.colony-control-api`. It depends on `game.unit-api`, `game.input-api` and `core.persistence`; it is not a Core primitive.
+
+- The current leader is stored by stable Unit ID. In Dev Lab, the first successfully placed instance of canonical definition `pawn.johny` becomes the temporary Phase 2 leader. No Unit is created automatically at startup.
+- `F` while paused toggles Draft for the current leader. Draft state is distinct from viewport selection and remains active across ordinary pause/resume.
+- WASD moves only the current leader. Movement speed is 4 world tiles per game-time second; diagonal input is normalized.
+- The movement system runs as a synchronous Scheduler task. Dev Lab configures a 1/60-second fixed step through the host runtime; Core's default fixed step is unchanged.
+- Unit creation remains integer/tile-snapped. `game.unit-api.moveUnit` accepts finite fractional coordinates, applies world-edge clamping and commits the new position through Core World Context.
+- Camera reacquisition is triggered by actual movement updates and targets the leader by ID. Canvas remains presentation-only.
+- Colony Leader ID and Draft state are saved by a separate `game.colony-control` persistence participant. Unit and Core participants retain their own state ownership.
+
+The initial automated checks cover movement speed, diagonal normalization, leader targeting, no movement while undrafted, fractional Unit persistence, world-edge clamping and Colony Control persistence. Manual browser verification remains required before Phase 2.3/2.4 acceptance.
