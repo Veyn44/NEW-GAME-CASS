@@ -36,7 +36,7 @@ Owns application-level navigation, main menu presentation and mode entry/exit co
 
 Owns development-only presentation and tools, plus its own test setup/environment. It composes real gameplay systems so new features can be exercised immediately.
 
-The initial Dev Lab scenario seeds one canonical Johny Unit instance into its test world so the entity can be inspected immediately. No spawn or placement action is exposed in the paused viewport; further developer tools require a separate, explicit tool-mode design.
+Dev Lab starts with an empty test world. Canonical definitions such as Johny remain available in Database, but no live Unit/Pawn is created implicitly. A runtime instance can exist only after a future explicit creation/placement action.
 
 Dev Lab's panels, layout, debug controls and test-world content are not automatically included in New Game or player-facing gameplay.
 
@@ -128,7 +128,7 @@ The catalog describes canonical identities and definitions, not mutable runtime 
 
 The first canonical Pawn record is `pawn.johny`: a Human, age 32, with an intentionally unspecified role and origin. Johny is not the player's protagonist. The player will create their own protagonist; a separate robot identity may be introduced later. A runtime Unit/Pawn instance references the canonical definition rather than copying or redefining its identity.
 
-The JSON asset is version-controlled and therefore stable across game launches and installations. The runtime registry may be rebuilt from it at startup without becoming the source of truth. Dev Lab creates one live Unit instance from this definition at the center of its test world; the instance references the canonical record, so the age and identity attributes are not copied into an unrelated placeholder.
+The JSON asset is version-controlled and therefore stable across game launches and installations. The runtime registry may be rebuilt from it at startup without becoming the source of truth. Dev Lab does not instantiate this definition during startup; its test world begins empty.
 
 
 ## 10. Database asset browser and inspector direction
@@ -161,3 +161,12 @@ Focus loss clears all held input state and forces the viewport into pause. This 
 The application composition root injects the viewport controller into the host-side `game.input` system. Gameplay systems consume its read-only `game.input-api` service rather than reaching into DOM events or the application shell.
 
 Pointer Lock is browser-mediated and may be denied. If capture cannot be acquired, the viewport fails safe back into pause instead of allowing active gameplay with an unrestricted pointer. Actual gameplay input must continue to respect the controller's running/paused gate.
+
+
+## 12. Dev Lab viewport overlays and empty-world startup
+
+Dev Lab starts with registered test-world descriptors for 64 × 64, 128 × 128 and 256 × 256 tiles. The default active descriptor is 128 × 128. Selecting another preset activates its matching World Registry descriptor; the selector is not merely a renderer-side scale setting.
+
+The viewport canvas fills its stable container. HUD and selection panels are DOM overlays positioned above the canvas and must not participate in the layout dimensions of the canvas. Opening or closing an overlay must not resize the canvas, change its camera, or alter its visible world dimensions.
+
+Quick Select is positioned at the upper-left of the viewport below the world-size toolbar. It is a generic selected-object presentation surface: optional sprite, display name, short summary and a read-only INFO disclosure. It is available only while paused. The first adapter presents live Unit instances; future walls and structures must supply the same small presentation contract through their owning systems. No placeholder wall instances or artwork are fabricated.
