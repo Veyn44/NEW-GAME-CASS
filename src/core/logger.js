@@ -14,49 +14,72 @@ export class LoggerError extends Error {
 function cloneData(value, path = "details", seen = new Set()) {
   if (value === null || typeof value === "string" || typeof value === "boolean") return value;
   if (typeof value === "number") {
-    if (!Number.isFinite(value)) throw new LoggerError("INVALID_LOG_DATA", `${path} contains a non-finite number.`);
+    if (!Number.isFinite(value)) throw new LoggerError("INVALID_LOG_DATA", path + " contains a non-finite number.");
     return value;
   }
-  if (typeof value !== "object") throw new LoggerError("INVALID_LOG_DATA", `${path} contains a non-serializable value.`);
-  if (seen.has(value)) throw new LoggerError("INVALID_LOG_DATA", `${path} contains a circular reference.`);
-  const prototype = Object.getPrototypeOf(value);
-  if (!Array.isArray(value) && prototype !== Object.prototype && prototype !== null) {
-    throw new LoggerError("INVALID_LOG_DATA", `${path} must contain only plain objects and arrays.`);
+  if (typeof value !== "object") throw new LoggerError("INVALID_LOG_DATA", path + " contains a non-serializable value.");
+  if (seen.has(value)) throw new LoggerError("INVALID_LOG_DATA", path + " contains a circular reference.");
+
+  let prototype;
+  let array;
+  let keys;
+  let length = 0;
+  try {
+    array = Array.isArray(value);
+    prototype = Object.getPrototypeOf(value);
+    keys = Reflect.ownKeys(value);
+    if (array) length = Object.getOwnPropertyDescriptor(value, "length")?.value;
+  } catch {
+    throw new LoggerError("INVALID_LOG_DATA", path + " could not be inspected safely.");
   }
+  if (array ? prototype !== Array.prototype : prototype !== Object.prototype && prototype !== null) {
+    throw new LoggerError("INVALID_LOG_DATA", path + " must contain only plain objects and arrays.");
+  }
+  if (array && (!Number.isSafeInteger(length) || length < 0)) {
+    throw new LoggerError("INVALID_LOG_DATA", path + " has an invalid array length.");
+  }
+
   seen.add(value);
   try {
-    if (Array.isArray(value)) {
-      const result = new Array(value.length);
-      const keys = Reflect.ownKeys(value);
+    if (array) {
+      const result = new Array(length);
       const indices = new Set();
       for (const key of keys) {
         if (key === "length") continue;
-        if (typeof key !== "string" || !/^(0|[1-9]\d*)$/.test(key) || Number(key) >= value.length) {
-          throw new LoggerError("INVALID_LOG_DATA", `${path} contains an unsupported array property.`);
+        if (typeof key !== "string" || !/^(0|[1-9]\d*)$/.test(key)) {
+          throw new LoggerError("INVALID_LOG_DATA", path + " contains an unsupported array property.");
+        }
+        const index = Number(key);
+        if (!Number.isSafeInteger(index) || index >= length) {
+          throw new LoggerError("INVALID_LOG_DATA", path + " contains an unsupported array property.");
         }
         const descriptor = Object.getOwnPropertyDescriptor(value, key);
         if (!descriptor?.enumerable || !Object.hasOwn(descriptor, "value")) {
-          throw new LoggerError("INVALID_LOG_DATA", `${path} contains an accessor or hidden array property.`);
+          throw new LoggerError("INVALID_LOG_DATA", path + " contains an accessor or hidden array property.");
         }
-        indices.add(Number(key));
-        result[Number(key)] = cloneData(descriptor.value, `${path}[${key}]`, seen);
+        indices.add(index);
+        result[index] = cloneData(descriptor.value, path + "[" + key + "]", seen);
       }
-      if (indices.size !== value.length) throw new LoggerError("INVALID_LOG_DATA", `${path} contains sparse arrays.`);
+      if (indices.size !== length) throw new LoggerError("INVALID_LOG_DATA", path + " contains sparse arrays.");
       return Object.freeze(result);
     }
+
     const result = Object.create(null);
-    for (const key of Reflect.ownKeys(value)) {
-      if (typeof key !== "string") throw new LoggerError("INVALID_LOG_DATA", `${path} contains a symbol key.`);
+    for (const key of keys) {
+      if (typeof key !== "string") throw new LoggerError("INVALID_LOG_DATA", path + " contains a symbol key.");
       const descriptor = Object.getOwnPropertyDescriptor(value, key);
       if (!descriptor || !descriptor.enumerable || !Object.hasOwn(descriptor, "value")) {
-        throw new LoggerError("INVALID_LOG_DATA", `${path}.${key} must be a plain data property.`);
+        throw new LoggerError("INVALID_LOG_DATA", path + "." + key + " must be a plain data property.");
       }
       Object.defineProperty(result, key, {
-        value: cloneData(descriptor.value, `${path}.${key}`, seen),
+        value: cloneData(descriptor.value, path + "." + key, seen),
         enumerable: true
       });
     }
     return Object.freeze(result);
+  } catch (error) {
+    if (error instanceof LoggerError) throw error;
+    throw new LoggerError("INVALID_LOG_DATA", path + " could not be copied safely.");
   } finally {
     seen.delete(value);
   }
@@ -125,30 +148,50 @@ export class Logger {
     if (typeof message !== "string" || message.trim().length === 0) {
       throw new LoggerError("INVALID_MESSAGE", "Log message must be a non-empty string.");
     }
-    if (!details || typeof details !== "object" || Array.isArray(details)) {
+    if (!details || typeof details !== "object") {
       throw new LoggerError("INVALID_DETAILS", "Log details must be an object.");
     }
-    const source = details.source ?? "core";
-    const category = details.category ?? "general";
+
+    let detailsArray;
+    let detailsPrototype;
+    let keys;
+    try {
+      detailsArray = Array.isArray(details);
+      detailsPrototype = Object.getPrototypeOf(details);
+      keys = Reflect.ownKeys(details);
+    } catch {
+      throw new LoggerError("INVALID_DETAILS", "Log details could not be inspected safely.");
+    }
+    if (detailsArray || (detailsPrototype !== Object.prototype && detailsPrototype !== null)) {
+      throw new LoggerError("INVALID_DETAILS", "Log details must be a plain object.");
+    }
+
+    const values = new Map();
+    for (const key of keys) {
+      if (typeof key !== "string") throw new LoggerError("INVALID_LOG_DATA", "Log details cannot contain symbol keys.");
+      let descriptor;
+      try { descriptor = Object.getOwnPropertyDescriptor(details, key); }
+      catch { throw new LoggerError("INVALID_LOG_DATA", "Log details property could not be inspected safely."); }
+      if (!descriptor?.enumerable || !Object.hasOwn(descriptor, "value")) {
+        throw new LoggerError("INVALID_LOG_DATA", "Log details properties must be enumerable data properties.");
+      }
+      values.set(key, descriptor.value);
+    }
+
+    const source = values.get("source") ?? "core";
+    const category = values.get("category") ?? "general";
     if (typeof source !== "string" || !ID_PATTERN.test(source)) throw new LoggerError("INVALID_SOURCE", "Log source must be a stable lowercase ID.", { source });
     if (typeof category !== "string" || !ID_PATTERN.test(category)) throw new LoggerError("INVALID_CATEGORY", "Log category must be a stable lowercase ID.", { category });
+
     let timestamp;
     try { timestamp = this.#clock(); }
     catch { timestamp = null; }
     if (typeof timestamp !== "string" || timestamp.length === 0) timestamp = null;
-    const detailsPrototype = Object.getPrototypeOf(details);
-    if (detailsPrototype !== Object.prototype && detailsPrototype !== null) {
-      throw new LoggerError("INVALID_DETAILS", "Log details must be a plain object.");
-    }
+
     const metadata = Object.create(null);
-    for (const key of Reflect.ownKeys(details)) {
+    for (const [key, value] of values) {
       if (key === "source" || key === "category") continue;
-      if (typeof key !== "string") throw new LoggerError("INVALID_LOG_DATA", "Log details cannot contain symbol keys.");
-      const descriptor = Object.getOwnPropertyDescriptor(details, key);
-      if (!descriptor?.enumerable || !Object.hasOwn(descriptor, "value")) {
-        throw new LoggerError("INVALID_LOG_DATA", `Log details property "${key}" must be a plain data property.`);
-      }
-      Object.defineProperty(metadata, key, { value: descriptor.value, enumerable: true });
+      Object.defineProperty(metadata, key, { value, enumerable: true });
     }
     const record = Object.freeze({
       timestamp,
@@ -165,5 +208,4 @@ export class Logger {
     this.#records.push(record);
     try { this.#sink?.(record); } catch { /* Output failures must not affect the caller. */ }
     return record;
-  }
-}
+  }}
