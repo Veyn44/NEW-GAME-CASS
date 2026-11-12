@@ -138,6 +138,7 @@ function beginWorldPlacement(definition) {
   clearUnitSelection();
   state.placementActive = true;
   viewportDatabaseButton.disabled = true;
+  worldSizeSelect.disabled = true;
   canvas.focus({ preventScroll: true });
   setWorldPlacement({
     label: definition.name,
@@ -151,6 +152,7 @@ function beginWorldPlacement(definition) {
         });
         state.placementActive = false;
         viewportDatabaseButton.disabled = !state.paused;
+        worldSizeSelect.disabled = !state.paused;
         setWorldPlacement(null);
         refreshWorldMarkers();
         inspectUnit(unit.id);
@@ -168,6 +170,7 @@ function cancelPlacement() {
   if (!state.placementActive) return;
   state.placementActive = false;
   viewportDatabaseButton.disabled = !state.paused;
+  worldSizeSelect.disabled = !state.paused;
   cancelWorldPlacement();
   simulationStatus.textContent = "PAUSED · PLACEMENT CANCELLED";
 }
@@ -457,7 +460,7 @@ function updateSimulationUi() {
   simulationStatus.dataset.state = state.paused ? "paused" : "running";
   viewportPanel.dataset.paused = String(state.paused);
   viewportPanel.dataset.inputMode = state.paused ? "paused" : "running";
-  worldSizeSelect.disabled = !state.paused;
+  worldSizeSelect.disabled = !state.paused || state.placementActive;
   gridVisible.disabled = !state.paused;
   viewportDatabaseButton.disabled = !state.paused || state.placementActive;
   resetCameraButton.disabled = !state.paused;
