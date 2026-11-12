@@ -160,4 +160,4 @@ Focus loss clears all held input state and forces the viewport into pause. This 
 
 The application composition root injects the viewport controller into the host-side `game.input` system. Gameplay systems consume its read-only `game.input-api` service rather than reaching into DOM events or the application shell.
 
-Pointer Lock is browser-mediated and may be denied. The viewport retains a focused-canvas fallback and reports lock failure in its presentation state; actual gameplay input must continue to respect the controller's running/paused gate.
+Pointer Lock is browser-mediated and may be denied. If capture cannot be acquired, the viewport fails safe back into pause instead of allowing active gameplay with an unrestricted pointer. Actual gameplay input must continue to respect the controller's running/paused gate.
