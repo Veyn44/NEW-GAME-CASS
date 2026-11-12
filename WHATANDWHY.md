@@ -151,3 +151,12 @@ This file is the canonical log for accepted game and presentation decisions. It 
 - **BEHAVIOR:** Selecting Basic Pawn in Dev Lab's Database picker enables Spawn Unit. Each spawn creates one persistent Core Entity-backed Unit using the selected definition and a valid tile in the test world. The canvas displays markers derived from `game.unit-api.listUnits()`; the renderer receives presentation markers and does not own gameplay state. Spawn failures are surfaced in the Dev Lab tool status.
 - **SCOPE:** First Pawn definition, Dev Lab runtime composition, initial 128 × 128 test-world registration, Spawn Unit handoff and simple canvas marker rendering. No Pawn-specific data schema, movement, collision, selection/inspection of live instances, artwork, or production save storage. The Dev Lab runtime uses an in-memory save adapter for this test slice.
 - **STATUS:** Approved and implemented; automated verification pending.
+
+
+## Decision: Click-to-place Unit spawning in Dev Lab
+
+- **WHAT:** Spawn Unit enters a cursor-following placement mode instead of creating a Unit at an automatically chosen coordinate. The preview shows a pulsing translucent Unit marker and its target tile. Left-click places one Unit; right-click or Escape ends placement. The tool remains active after a successful placement so multiple Units can be placed in sequence.
+- **WHY:** The developer must see the exact intended location before creating a runtime instance. Automatic placement hides spatial intent and is not a useful foundation for testing future world interactions.
+- **BEHAVIOR:** The presentation adapter converts the cursor position to an integer world tile and displays a valid/invalid ghost preview. Only a left-click on a valid in-bounds tile calls the Unit API. The actual Unit and world placement remain owned by gameplay/Core; the preview never creates or stores an entity. Middle-button camera panning and wheel zoom remain available. Right-click or Escape cancels the placement tool without affecting already placed Units.
+- **SCOPE:** Dev Lab placement interaction and world-preview presentation only. No collision, occupancy checks, pathfinding, footprint dimensions, Pawn movement, or changes to Core.
+- **STATUS:** Approved and implemented as the first interactive placement tool; browser verification pending.
