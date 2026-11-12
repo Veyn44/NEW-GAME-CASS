@@ -286,6 +286,7 @@ canvas:active { cursor: grabbing; }
 }
 .viewport-panel[data-paused="false"] { border-color: var(--color-border); animation: none; }
 .viewport-panel[data-input-mode="running"] canvas { cursor: none; }
+.viewport-panel[data-input-mode="running"][data-pointer-locked="false"] canvas { cursor: crosshair; }
 .viewport-panel[data-input-mode="paused"] canvas { cursor: grab; }
 .viewport-panel[data-input-mode="paused"] canvas:active { cursor: grabbing; }
 .viewport-crosshair {
