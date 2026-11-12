@@ -125,3 +125,43 @@ test("Unit domain records restore transactionally with Core identity and placeme
     clearDefinitionsForTests();
   }
 });
+
+
+test("Unit movement accepts fractional world coordinates and persists them across restore", async () => {
+  const state = await startWithWorld();
+  try {
+    const unit = state.units.createUnit({
+      definitionId: "unit.test-worker",
+      worldId: "unit-test-world",
+      position: { x: 19, y: 21 }
+    });
+    const moved = state.units.moveUnit(unit.id, { x: 19.25, y: 21.75 });
+    assert.deepEqual(moved.placement.position, { x: 19.25, y: 21.75 });
+
+    const persistence = state.context.getService("core.persistence");
+    await persistence.save("unit-fractional", { stateId: "unit-fractional-state" });
+    state.units.moveUnit(unit.id, { x: 30, y: 30 });
+    await persistence.load("unit-fractional", { stateId: "unit-fractional-state" });
+    assert.deepEqual(state.units.getUnit(unit.id).placement.position, { x: 19.25, y: 21.75 });
+  } finally {
+    await state.runtime.destroy();
+    clearDefinitionsForTests();
+  }
+});
+
+test("Unit movement clamps to the world edge without producing an invalid placement", async () => {
+  const state = await startWithWorld();
+  try {
+    const unit = state.units.createUnit({
+      definitionId: "unit.test-worker",
+      worldId: "unit-test-world",
+      position: { x: 127, y: 127 }
+    });
+    const moved = state.units.moveUnit(unit.id, { x: 140, y: 140 });
+    assert.ok(moved.placement.position.x < 128);
+    assert.ok(moved.placement.position.y < 128);
+  } finally {
+    await state.runtime.destroy();
+    clearDefinitionsForTests();
+  }
+});
