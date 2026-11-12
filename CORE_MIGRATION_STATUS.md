@@ -40,6 +40,8 @@ The Core Assembly now serializes overlapping save/load transactions and holds an
 
 ## Intentional adaptation from CASSANDRA3
 
+The original reference specifies `initialize()`, `start()` and `destroy()` as mandatory hooks on every system. This reusable Core accepts these lifecycle hooks as optional and validates their types when supplied. A system that only publishes a prepared service does not need empty no-op methods; Bootstrap still tracks initialized systems and invokes `destroy()` wherever cleanup is implemented. This is an intentional reduction of host-system boilerplate, not an accidental omission.
+
 The original Phase 1 plan mentioned an adapter preserving the old prototype UI and controls. That adapter is not being copied into this repository: NEW-GAME-CASS is being established as a clean, reusable engine foundation, and the old prototype UI is not part of the Core runtime. Host UI and input integration should be implemented by the host layer when it exists, without introducing presentation dependencies into Core.
 
 ## Remaining Phase 1 work
