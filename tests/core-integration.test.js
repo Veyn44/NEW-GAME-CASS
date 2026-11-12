@@ -580,6 +580,76 @@ test("Core lifecycle transitions are serialized before shutdown", async () => {
   equal(runtime.state, "destroyed");
 });
 
+test("cross-registry reference failure rolls back entity counters, worlds and placements", async () => {
+  const adapter = {
+    slot: null,
+    async read() { return this.slot; },
+    async writeAtomic(_slot, value) { this.slot = value; }
+  };
+  const runtime = createEngineCoreAssembly({ saveAdapter: adapter });
+  const context = await runtime.start();
+  const entities = context.getService("core.entity-registry");
+  const worlds = context.getService("core.world-registry");
+  const placements = context.getService("core.world-context");
+  const persistence = context.getService("core.persistence");
+
+  const entity = entities.registerScoped({ scopeId: "campaign", localId: "7", kind: "probe" });
+  worlds.registerWorld({
+    worldId: "world:rollback-original",
+    type: "test.world",
+    dimensions: { width: 100, height: 100 }
+  });
+  worlds.activateWorld("world:rollback-original");
+  placements.placeEntity(entity.id, "world:rollback-original", { x: 2, y: 3 });
+  await persistence.save("cross-registry-rollback", { stateId: "campaign:cross-registry" });
+
+  // Establish a distinct live state and a higher scoped-ID counter.
+  entities.registerScoped({ scopeId: "campaign", localId: "20", kind: "probe" });
+  worlds.registerWorld({
+    worldId: "world:runtime",
+    type: "test.world",
+    dimensions: { width: 100, height: 100 }
+  });
+  worlds.activateWorld("world:runtime");
+  placements.moveEntity(entity.id, {
+    type: "world", worldId: "world:runtime", position: { x: 5, y: 6 }
+  });
+
+  // This snapshot is structurally valid. Its missing entity reference is
+  // intentionally detected only when World Context commits after the
+  // Entity and World Registry participants have committed.
+  const saved = adapter.slot;
+  adapter.slot = {
+    ...saved,
+    snapshots: {
+      ...saved.snapshots,
+      "core.world-context": {
+        ...saved.snapshots["core.world-context"],
+        placements: [{
+          entityId: "entity:missing-cross-reference",
+          type: "world",
+          worldId: "world:rollback-original",
+          position: { x: 1, y: 1 }
+        }]
+      }
+    }
+  };
+
+  await rejects(
+    () => persistence.load("cross-registry-rollback", { stateId: "campaign:cross-registry" }),
+    "RESTORE_COMMIT_FAILED"
+  );
+
+  assert(entities.has("scope:campaign:20"), "Entity rollback did not restore the live registry state.");
+  equal(worlds.activeWorldId, "world:runtime", "World rollback did not restore the active world.");
+  assert(worlds.has("world:runtime"), "World rollback lost a live world.");
+  equal(placements.getPlacement(entity.id).worldId, "world:runtime", "Placement rollback did not restore the live placement.");
+
+  const next = entities.registerScoped({ scopeId: "campaign", kind: "probe" });
+  equal(next.id, "scope:campaign:21", "Entity rollback did not restore the exact scoped-ID counter.");
+  await runtime.destroy();
+});
+
 export async function runCoreIntegrationTests() {
   let passed = 0;
   const lines = [];
