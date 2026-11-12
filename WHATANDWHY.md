@@ -45,8 +45,8 @@ This file is the canonical log for accepted game and presentation decisions. It 
 
 ## Decision: Vertical camera overscan
 
-- **WHAT:** The camera may show up to 20 world tiles beyond the top and bottom world boundaries.
+- **WHAT:** The camera may show up to 20 world tiles beyond each of the four world boundaries.
 - **WHY:** Pawns and other important objects at extreme vertical coordinates should not be forced against the screen edge or obscured by top overlay UI. The extra camera travel also provides room for future camera-follow behavior.
-- **BEHAVIOR:** Camera vertical bounds extend by at most 20 tiles beyond the world. If the viewport is too large to preserve both bounds, the camera centers vertically. Horizontal camera bounds remain constrained to the world for now.
+- **BEHAVIOR:** Camera bounds extend by at most 20 tiles beyond the left, right, top and bottom edges. If the viewport is too large to preserve both bounds on an axis, the camera centers on that axis.
 - **SCOPE:** Camera positioning in the world preview and future follow-camera framing. This is a camera visibility margin, not additional playable world area or new world tiles.
-- **STATUS:** Approved and implemented as bounded vertical camera overscan. Pawn-follow framing still requires a real Pawn and later gameplay integration.
+- **STATUS:** Approved and implemented as symmetric bounded camera overscan. Pawn-follow framing still requires a real Pawn and later gameplay integration.
