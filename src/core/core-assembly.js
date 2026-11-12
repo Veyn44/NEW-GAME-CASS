@@ -50,9 +50,16 @@ export function createCoreAssembly({
   let persistenceQueue = Promise.resolve();
   let pendingPersistenceOperations = 0;
   let runtimeDestroying = false;
+  let lifecycleQueue = Promise.resolve();
   let startPromise = null;
   let destroyPromise = null;
   let bootstrap = null;
+
+  const enqueueLifecycle = (operation) => {
+    const queued = lifecycleQueue.then(operation);
+    lifecycleQueue = queued.then(() => undefined, () => undefined);
+    return queued;
+  };
   let eventBus = null;
   if (!Array.isArray(hostSystems) || !Array.isArray(simulationTasks) || !Array.isArray(eventSources)) throw new TypeError('hostSystems, simulationTasks and eventSources must be arrays.');
   const hostSystemIds = hostSystems.map((system) => system?.id);
@@ -246,7 +253,7 @@ export function createCoreAssembly({
     async start() {
       if (runtimeDestroying || destroyPromise) throw new Error("Core assembly is shutting down and cannot be started.");
       if (runtimeContext || startPromise) throw new Error("Core assembly has already been started.");
-      startPromise = bootstrap.start().then((context) => {
+      startPromise = enqueueLifecycle(() => bootstrap.start()).then((context) => {
         runtimeContext = context;
         return context;
       });
@@ -259,12 +266,20 @@ export function createCoreAssembly({
     get context() { return runtimeContext; },
     get state() { return bootstrap.state; },
     get initializationOrder() { return bootstrap.initializationOrder; },
-    async pause() { return bootstrap.pause(); },
-    async resume() { return bootstrap.resume(); },
+    async pause() {
+      if (runtimeDestroying) throw new Error("Core assembly is shutting down and cannot be paused.");
+      return enqueueLifecycle(() => bootstrap.pause());
+    },
+    async resume() {
+      if (runtimeDestroying) throw new Error("Core assembly is shutting down and cannot be resumed.");
+      return enqueueLifecycle(() => bootstrap.resume());
+    },
     async destroy() {
       if (destroyPromise) return destroyPromise;
       runtimeDestroying = true;
-      destroyPromise = (async () => {
+      destroyPromise = enqueueLifecycle(async () => {
+        // start() is queued ahead of destroy(), so its promise settles before
+        // teardown begins. A failed startup has already run its own cleanup.
         if (startPromise) {
           try { await startPromise; } catch { /* Failed startup already performs its own cleanup. */ }
         }
@@ -273,7 +288,7 @@ export function createCoreAssembly({
         await persistenceQueue;
         await bootstrap.destroy();
         runtimeContext = null;
-      })();
+      });
       return destroyPromise;
     },
     services: SERVICE
