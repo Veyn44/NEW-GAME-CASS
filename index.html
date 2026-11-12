@@ -23,20 +23,35 @@
           <button class="menu-entry menu-entry-available" type="button" data-navigate="database"><span><strong>DATABASE</strong><small>Inspectable game definitions and attributes</small></span><b>OPEN</b></button>
           <button class="menu-entry" type="button" disabled><span><strong>ARCHIVE</strong><small>Records and history</small></span><b>COMING SOON</b></button>
         </nav>
-        <footer class="app-footer"><span> CASSANDRA / APPLICATION </span><span>PHASE 2 · DEVELOPMENT BUILD</span></footer>
+        <footer class="app-footer"><span>CASSANDRA / APPLICATION</span><span>PHASE 2 · DEVELOPMENT BUILD</span></footer>
       </section>
 
-      <section class="app-view database-view" data-view="database" hidden>
+      <section class="app-view database-view" data-view="database" data-mode="browse" hidden>
         <header class="section-header">
-          <div><p class="eyebrow">CASSANDRA / KNOWLEDGE</p><h1>Database</h1><p class="dev-note">Canonical definitions registered by gameplay systems</p></div>
+          <div><p class="eyebrow" id="database-mode-label">CASSANDRA / KNOWLEDGE</p><h1>Database</h1><p class="dev-note">One catalog · contextual inspection and selection</p></div>
           <button type="button" class="secondary-button" data-back-menu>← Main menu</button>
         </header>
         <div class="database-toolbar">
           <label class="database-search">Search definitions<input id="database-search" type="search" placeholder="Pawn, enemy, wall, material…"></label>
           <label class="database-filter">Category<select id="database-category"><option value="all">All categories</option></select></label>
         </div>
-        <div id="database-list" class="database-list" aria-live="polite"></div>
-        <p class="database-footnote">The catalog contains definitions, not live unit instances. Runtime condition and current health will be shown through a separate inspection view when those systems exist.</p>
+        <div class="database-workspace">
+          <section class="database-index-panel" aria-label="Definition catalog">
+            <div class="database-panel-heading"><strong>CATALOG</strong><span>Registered definitions</span></div>
+            <div id="database-list" class="database-list" aria-live="polite"></div>
+          </section>
+          <section class="database-inspector-panel" aria-label="Selected definition details">
+            <div class="database-panel-heading"><strong>INSPECTOR</strong><span>Complete definition</span></div>
+            <div id="database-inspector" class="database-inspector"><div class="database-inspector-state">Select an entry to inspect its complete definition.</div></div>
+          </section>
+        </div>
+        <footer class="database-footer">
+          <p class="database-footnote">Browse mode is read-only. Runtime instances and their effective values will use this same inspector through a live data source.</p>
+          <div class="database-footer-actions">
+            <button id="database-cancel" class="secondary-button" type="button" hidden>Cancel</button>
+            <button id="database-select" class="primary-action" type="button" hidden disabled>Select</button>
+          </div>
+        </footer>
       </section>
 
       <section class="app-view dev-lab-view" data-view="dev-lab" hidden>
@@ -53,7 +68,10 @@
         </section>
         <section class="viewport-panel" aria-label="World viewport"><canvas id="world-canvas" aria-label="Empty square world with optional coordinate grid">Your browser does not support canvas.</canvas></section>
         <footer class="status-bar"><span id="world-status">World: 128 × 128</span><span id="view-status">View: calculating…</span><span>Free camera</span></footer>
-        <aside class="dev-tools-panel"><div><p class="eyebrow">DEVELOPMENT TOOLS</p><strong>Spawn Unit</strong><p class="dev-note">Will become available when the Pawn/unit system is implemented.</p></div><button type="button" disabled>Spawn Unit · NOT AVAILABLE</button></aside>
+        <aside class="dev-tools-panel">
+          <div class="dev-tool-copy"><p class="eyebrow">DEVELOPMENT TOOLS</p><strong>Spawn Unit</strong><p class="dev-note" id="spawn-status">Choose a Unit definition from the shared Database.</p><p id="dev-selected-unit" class="dev-selected-unit" hidden></p></div>
+          <div class="dev-tool-actions"><button id="dev-select-unit" type="button">Select Unit</button><button id="spawn-unit" type="button" disabled>Spawn Unit · SELECT A UNIT</button></div>
+        </aside>
       </section>
     </main>
     <script type="module" src="./src/application/application-shell.js"></script>
