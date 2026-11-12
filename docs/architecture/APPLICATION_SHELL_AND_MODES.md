@@ -1,6 +1,6 @@
 # Application Shell and Mode Architecture
 
-**Status:** Approved architecture; implementation pending.  
+**Status:** Architecture implemented in the current Phase 2 development branch; the current Dev Lab workflow is user-confirmed. Automated/browser verification and full Phase 2 acceptance remain tracked separately.  
 **Decision record:** `/WHATANDWHY.md` — “Application shell and isolated development/game modes”, “Dev Lab is a development host for real gameplay systems” and “Future player-accessible Dev Lab compatibility”.
 
 ## 1. Purpose
@@ -22,7 +22,7 @@ The main menu is owned by the application shell and initially presents:
 | Database | Visible, disabled | Player-facing information/reference database |
 | Archive | Visible, disabled | Future archive/browsing feature |
 
-Only Dev Lab is interactive in the initial shell milestone. The other entries are intentional placeholders, not partially implemented actions. Their future behavior must be specified before activation.
+Dev Lab is the active development mode. Application-level Database browsing is available through the shared catalog; the Dev Lab viewport opens that same Database view in an overlay and supplies a contextual Unit-selection action. New Game, Settings, Save/Load and Archive remain future application flows unless separately implemented.
 
 The application shell remains distinct from both Dev Lab UI and in-game UI. Leaving Dev Lab returns to the main menu.
 
@@ -36,7 +36,7 @@ Owns application-level navigation, main menu presentation and mode entry/exit co
 
 Owns development-only presentation and tools, plus its own test setup/environment. It composes real gameplay systems so new features can be exercised immediately.
 
-Dev Lab starts with an empty test world. Canonical definitions such as Johny remain available in Database, but no live Unit/Pawn is created implicitly. A runtime instance can exist only after a future explicit creation/placement action.
+Dev Lab starts with an empty test world. Canonical definitions such as Johny remain available in Database, but no live Unit/Pawn is created implicitly. A runtime instance exists only after an explicit creation/placement action. The current viewport workflow reuses the shared Database, enters paused placement with a cursor-following grid blueprint, and creates the Unit through the existing Unit API after a valid world click.
 
 Dev Lab's panels, layout, debug controls and test-world content are not automatically included in New Game or player-facing gameplay.
 
@@ -142,7 +142,7 @@ The intended full Database experience is a navigable asset browser, not a flat a
 - The hierarchy should reflect the actual implemented content and code ownership rather than a separately invented taxonomy. The UI may present a human-friendly tree, but each entry must retain a stable link to its canonical definition and owning system/source.
 - Database is also intended as a future in-game balancing/reference tool. It must distinguish canonical/base definition values from live runtime instance state. Editing/balancing capabilities, if desired, require a separate design and authorization; the initial catalog is read-only.
 
-The initial compact registry/search UI is only a foundation. The tree, nested categories, asset artwork and right-side inspector are future presentation work and should be developed after the user has tested the first shell.
+The current Database catalog and inspector are available in the application and reused by Dev Lab. The longer-term hierarchical asset browser, complete artwork coverage and richer content taxonomy remain incremental presentation work; do not describe those future refinements as already complete.
 
 
 ## 11. Viewport pause and input modes
@@ -169,13 +169,13 @@ Dev Lab starts with registered test-world descriptors for 64 × 64, 128 × 128 a
 
 The viewport canvas fills its stable container. HUD and selection panels are DOM overlays positioned above the canvas and must not participate in the layout dimensions of the canvas. Opening or closing an overlay must not resize the canvas, change its camera, or alter its visible world dimensions.
 
-Quick Select is positioned at the upper-left of the viewport below the world-size toolbar. It is a generic selected-object presentation surface: optional sprite, display name, short summary and a read-only INFO disclosure. It is available only while paused. The first adapter presents live Unit instances; future walls and structures must supply the same small presentation contract through their owning systems. No placeholder wall instances or artwork are fabricated.
+Quick Select is positioned at the upper-left of the viewport below the world-size toolbar. It is a generic selected-object presentation surface: optional sprite, display name, short summary and a read-only INFO disclosure. It is available only while paused. INFO opens the larger live Unit information card without changing canvas dimensions. The first adapter presents live Unit instances; future walls and structures must supply the same small presentation contract through their owning systems. No placeholder wall instances or artwork are fabricated. The user confirms Quick Select and the INFO card work in the current development build; browser verification remains tracked in the test plan.
 
 
 ### Viewport Database and object placement
 
 The Dev Lab DATABASE control reuses the canonical Database view node and its existing catalog/detail rendering. It does not load a second catalog or duplicate definition state. In viewport mode the same view is temporarily presented as a modal DOM overlay above the world canvas and returned to its original application location when closed.
 
-A selectable definition exposes a left-aligned SELECT action only when its canonical `spawnableAs` contract includes the currently supported Unit instance kind. SELECT closes the Database overlay and enters a paused-only placement mode. The presentation adapter renders a grid-snapped, translucent one-tile blueprint at the cursor. A valid in-world tile click calls the existing `game.unit-api.createUnit({ definitionId, worldId, position })` service. Successful placement refreshes world markers and selects the new instance. Escape cancels placement without creating an instance.
+A selectable definition exposes a contextual SELECT action in the Database header only when its canonical `spawnableAs` contract includes the currently supported Unit instance kind. SELECT closes the Database overlay and enters a paused-only placement mode. The presentation adapter renders a grid-snapped, translucent one-tile blueprint at the cursor. A valid in-world tile click calls the existing `game.unit-api.createUnit({ definitionId, worldId, position })` service. The current placement workflow is user-confirmed as working; automated/browser evidence remains separate. Successful placement refreshes world markers and selects the new instance. Escape cancels placement without creating an instance. Placement is a paused Dev Lab editing action, not a Pawn movement mechanic.
 
 The renderer owns only cursor-to-tile projection and blueprint presentation. It does not create entities, validate canonical definitions or mutate world placement. Core identity and placement remain owned by the existing Core services through the Unit system.
