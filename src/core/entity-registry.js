@@ -80,6 +80,9 @@ function cloneData(value, path = "metadata", seen = new Set()) {
       });
     }
     return Object.freeze(result);
+  } catch (error) {
+    if (error instanceof EntityRegistryError) throw error;
+    throw new EntityRegistryError("INVALID_METADATA", path + " could not be copied safely.");
   } finally {
     seen.delete(value);
   }
