@@ -181,6 +181,7 @@ export function createCoreAssembly({
         const worldContext = required(context, SERVICE.worldContext);
         const scheduler = required(context, SERVICE.scheduler);
         const events = required(context, SERVICE.events);
+        const clock = required(context, SERVICE.clock);
         const persistence = new Persistence({
           adapter: saveAdapter,
           applicationVersion,
@@ -202,7 +203,17 @@ export function createCoreAssembly({
               error.code = "UNSAFE_BOUNDARY";
               throw error;
             }
-            return operation();
+
+            // Saving and loading await storage I/O. Hold an independent clock
+            // pause for the whole transaction so a host frame loop cannot
+            // advance simulation while snapshots are being captured/restored.
+            // Removing only this reason preserves manual/lifecycle/overload pauses.
+            clock.pause("core.persistence");
+            try {
+              return await operation();
+            } finally {
+              clock.resume("core.persistence");
+            }
           }
         });
         persistence.registerParticipant(entities.createPersistenceParticipant());
