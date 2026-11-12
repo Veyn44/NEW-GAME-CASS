@@ -298,7 +298,6 @@ gridToggle.addEventListener("change", () => {
 
 canvas.addEventListener("wheel", (event) => {
   event.preventDefault();
-  if (!state.paused) return;
   const bounds = canvas.getBoundingClientRect();
   const anchor = {
     x: (event.clientX - bounds.left) / bounds.width,
@@ -309,7 +308,6 @@ canvas.addEventListener("wheel", (event) => {
 }, { passive: false });
 
 resetButton.addEventListener("click", () => {
-  if (!state.paused) return;
   state.cameraX = state.worldSize / 2;
   state.cameraY = state.worldSize / 2;
   updateZoom(1);
@@ -318,7 +316,7 @@ resetButton.addEventListener("click", () => {
 
 canvas.addEventListener("pointerdown", (event) => {
   if (!state.paused) return;
-  if (event.button === 0 && state.placement) {
+  if (event.button === 0 && state.paused && state.placement) {
     const tile = screenPointToTile(event.clientX, event.clientY);
     if (tile?.valid) {
       const placed = state.placement.onPlace(tile.x, tile.y);
@@ -327,7 +325,7 @@ canvas.addEventListener("pointerdown", (event) => {
     event.preventDefault();
     return;
   }
-  if (event.button === 0 && selectionEnabled && onMarkerSelect) {
+  if (event.button === 0 && state.paused && selectionEnabled && onMarkerSelect) {
     const bounds = canvas.getBoundingClientRect();
     const view = visibleDimensions();
     const cellWidth = bounds.width / view.columns;
@@ -344,8 +342,9 @@ canvas.addEventListener("pointerdown", (event) => {
     onMarkerSelect(hit?.id ?? null);
     return;
   }
-  // Middle mouse remains dedicated to camera panning.
-  if (event.button !== 1 || !state.paused) return;
+  // Middle mouse remains available for camera panning in both pause states.
+  if (event.button !== 1) return;
+  cameraFollowTargetId = null;
   state.dragging = true;
   state.pointerX = event.clientX;
   state.pointerY = event.clientY;
@@ -356,8 +355,7 @@ canvas.addEventListener("auxclick", (event) => {
   if (event.button === 1) event.preventDefault();
 });
 canvas.addEventListener("pointermove", (event) => {
-  if (!state.paused) return;
-  if (state.placement) {
+  if (state.paused && state.placement) {
     state.placement.tile = screenPointToTile(event.clientX, event.clientY);
     state.placement.valid = Boolean(state.placement.tile?.valid);
     render();
