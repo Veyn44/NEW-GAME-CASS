@@ -54,3 +54,68 @@ A simulation task declares `systemId` matching a host system and a synchronous `
 ## Ownership boundaries
 
 Entity Registry owns identity. Domain systems own domain state. World Registry owns world definitions/activation. World Context owns entity placement. Core does not generate galaxies, maps, expeditions, scans, host-specific entities or game rules.
+
+## Minimal host integration
+
+A host owns its systems, domain data and durable storage. It supplies a save adapter and declares its systems/tasks when composing Core:
+
+```js
+import { createCoreAssembly } from "./core/core-assembly.js";
+
+// Implement these methods with the host application's durable storage.
+// Core deliberately does not provide an implicit in-memory production fallback.
+const hostSaveAdapter = {
+  async read(slotId) {
+    return await hostStorage.read(slotId);
+  },
+  async writeAtomic(slotId, saveData) {
+    return await hostStorage.writeAtomically(slotId, saveData);
+  }
+};
+
+const inventorySystem = {
+  id: "game.inventory",
+  provides: ["game.inventory-api"],
+  requires: ["core.event-bus"],
+  initialize(context) {
+    const events = context.getService("core.event-bus");
+    const items = new Map();
+
+    return {
+      "game.inventory-api": Object.freeze({
+        add(itemId, quantity) {
+          items.set(itemId, (items.get(itemId) ?? 0) + quantity);
+          events.publish({
+            type: "inventory.item-added",
+            source: "game.inventory",
+            payload: { itemId, quantity }
+          });
+        },
+        getQuantity(itemId) {
+          return items.get(itemId) ?? 0;
+        }
+      })
+    };
+  }
+};
+
+const core = createCoreAssembly({
+  saveAdapter: hostSaveAdapter,
+  hostSystems: [inventorySystem],
+  simulationTasks: [{
+    systemId: "game.inventory",
+    update({ deltaSeconds, tick, context }) {
+      // Synchronous host simulation work for this fixed step.
+    }
+  }]
+});
+
+const context = await core.start();
+const inventory = context.getService("game.inventory-api");
+inventory.add("iron-ore", 5);
+
+// At shutdown:
+await core.destroy();
+```
+
+The example's `hostStorage` is intentionally supplied by the host; it is not a Core global. A production adapter must make `writeAtomic` genuinely atomic for the chosen storage medium. Simulation task updates and Event Bus handlers must remain synchronous. The host should request saves only after the simulation step and synchronous event delivery have returned.
