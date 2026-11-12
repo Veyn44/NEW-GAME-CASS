@@ -1,6 +1,6 @@
 # Phase 2 — First Testable Game Layer
 
-**Status:** 2.0 technical architecture complete; 2.1 Host Runtime Shell implemented and verified in CI. Pawn/gameplay implementation has not started.  
+**Status:** 2.0 technical architecture complete; 2.1 Host Runtime Shell implemented and verified in CI. The Unit foundation and substantial Dev Lab tooling (shared Database, placement, Quick Select, INFO card and pause/viewport workflow) are implemented. Phase 2 remains in progress: actual Unit/Pawn locomotion and full end-to-end persistence/integration acceptance are still outstanding.  
 **Working branch:** `next-step/phase-2`  
 **Base:** `main` at the Phase 1 Core baseline plus project documentation.  
 **Purpose:** Build the smallest real host-game slice that proves the Core can support a running Cassandra game layer, without guessing the full future game.
