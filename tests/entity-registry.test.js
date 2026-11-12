@@ -232,6 +232,15 @@ test("rollback preserves scoped ID sequence after stored entities", () => {
   equal(registry.registerScoped({ scopeId: "rollback", kind: "enemy" }).id, "scope:rollback:11");
 });
 
+test("restore retains scoped sequence high-water mark for stored entities", () => {
+  const source = makeRegistry();
+  const entity = source.registerScoped({ scopeId: "transfer", localId: "10", kind: "enemy" });
+  source.store(entity.id);
+  const restored = makeRegistry();
+  restored.prepareRestore(source.captureSnapshot()).commit();
+  equal(restored.registerScoped({ scopeId: "transfer", kind: "enemy" }).id, "scope:transfer:11");
+});
+
 test("scoped sequence resumes from restored records", () => {
   const registry = makeRegistry();
   registry.registerScoped({ scopeId: "resume", kind: "enemy" });
