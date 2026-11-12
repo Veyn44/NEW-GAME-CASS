@@ -104,3 +104,12 @@ A test marked PASS must have actually run. Source inspection, a prepared test fi
 - Close the card with CLOSE or Escape; verify the selected Unit remains selected.
 - Select another Unit while the profile is open; verify the profile closes and Quick Select updates to the new Unit.
 - Verify profile inspection is unavailable while simulation is running.
+
+
+## Shared Database selection action
+- Open the Database from the Dev Lab viewport and select a spawnable Unit definition.
+- Verify SELECT appears in the Database header beside CLOSE DATABASE, not inside the definition inspector.
+- Change selection to a non-spawnable definition; verify SELECT is hidden and cannot be activated.
+- Change back to a spawnable Unit; verify the shared SELECT action becomes available again.
+- Activate SELECT and verify the Database closes and the existing paused world-placement flow begins.
+- Open the Database in main-menu browse mode; verify the selection action remains hidden.
