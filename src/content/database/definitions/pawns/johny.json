@@ -3,7 +3,7 @@
   "id": "pawn.johny",
   "name": "Johny",
   "category": "Pawns",
-  "description": "A known human entity whose origin and role have not yet been established. Johny is not the player's protagonist.",
+  "description": "A human test Pawn used as the temporary Phase 2 Colony Leader and direct-control protagonist. This is a development assignment, not final character lore.",
   "entityType": "human",
   "attributes": {
     "species": "Human",
