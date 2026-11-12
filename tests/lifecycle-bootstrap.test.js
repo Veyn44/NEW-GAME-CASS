@@ -189,5 +189,36 @@ export async function runLifecycleBootstrapTests() {
     await expectCode(() => bootstrap.start(), "INVALID_BOOTSTRAP_STATE");
   });
 
+
+  await test("SystemBootstrap serializes direct lifecycle calls during destroy", async () => {
+    let releasePause;
+    const blocked = new Promise((resolve) => { releasePause = resolve; });
+    let pauseStarted = false;
+    let destroyed = false;
+    const bootstrap = new SystemBootstrap({ systems: [{
+      id: "system.lifecycle-race",
+      initialize() {},
+      start() {},
+      async pause() { pauseStarted = true; await blocked; },
+      destroy() { destroyed = true; }
+    }] });
+    await bootstrap.start();
+
+    const pausePromise = bootstrap.pause();
+    while (!pauseStarted) await Promise.resolve();
+    let destroyFinished = false;
+    const destroyPromise = bootstrap.destroy().then(() => { destroyFinished = true; });
+    await Promise.resolve();
+
+    assert(!destroyFinished, "Direct Bootstrap destroy overtook a running pause hook.");
+    assert(!destroyed, "System was destroyed before its pause hook completed.");
+    releasePause();
+    await pausePromise;
+    await destroyPromise;
+    assert(destroyed, "System was not destroyed after the queued lifecycle operations.");
+    assert(bootstrap.state === "destroyed", "Bootstrap did not reach destroyed state.");
+    await bootstrap.destroy();
+  });
+
   return results;
 }
