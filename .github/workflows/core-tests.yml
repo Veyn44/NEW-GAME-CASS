@@ -2,7 +2,7 @@ name: Core tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'next-step/**']
   pull_request:
     branches: [main]
 
