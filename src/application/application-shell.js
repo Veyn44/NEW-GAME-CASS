@@ -8,6 +8,7 @@ import {
 import { createGameRuntime } from "../host/create-game-runtime.js";
 import { MemorySaveAdapter } from "../core/persistence.js";
 import { createUnitSystem } from "../gameplay/unit/unit-system.js";
+import { createGameInputSystem } from "../gameplay/input/game-input-system.js";
 import { getDefinition } from "./database/definition-registry.js";
 import { loadCanonicalDefinitions } from "./database/database-loader.js";
 import { createViewportInputController } from "./input/viewport-input-controller.js";
@@ -575,7 +576,10 @@ document.addEventListener("visibilitychange", () => {
 async function startDevLabRuntime() {
   const runtime = createGameRuntime({
     saveAdapter: new MemorySaveAdapter(),
-    hostSystems: [createUnitSystem({ definitionLookup: getDefinition })]
+    hostSystems: [
+      createGameInputSystem({ inputController }),
+      createUnitSystem({ definitionLookup: getDefinition })
+    ]
   });
   try {
     const context = await runtime.start();
@@ -588,6 +592,7 @@ async function startDevLabRuntime() {
     });
     worlds.activateWorld("dev-lab-world");
     state.unitApi = context.getService("game.unit-api");
+    state.inputApi = context.getService("game.input-api");
     state.clock = context.getService("core.game-clock");
     advanceRuntime = (deltaSeconds) => runtime.advance(deltaSeconds);
     state.clock.pause("player");
