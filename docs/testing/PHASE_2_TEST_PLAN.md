@@ -94,3 +94,13 @@ A test marked PASS must have actually run. Source inspection, a prepared test fi
 - Verify the world-size selector cannot switch worlds during placement.
 - Verify the Database overlay and blueprint do not change the canvas bounding rectangle.
 - Browser interaction checks remain manual until an automated browser harness exists.
+
+
+## Live Unit profile card
+- Select a placed Unit while paused; Quick Select remains visible on the left.
+- Press INFO and verify a large profile card opens on the right without resizing or shifting the world canvas.
+- Verify the card shows the canonical portrait when available, description, personal attributes, and the selected live instance's world position.
+- Verify missing artwork produces a deliberate portrait placeholder rather than a broken image.
+- Close the card with CLOSE or Escape; verify the selected Unit remains selected.
+- Select another Unit while the profile is open; verify the profile closes and Quick Select updates to the new Unit.
+- Verify profile inspection is unavailable while simulation is running.
