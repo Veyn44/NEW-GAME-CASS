@@ -45,7 +45,7 @@ function clampCamera() {
     { x: state.cameraX, y: state.cameraY },
     state.worldSize,
     visibleDimensions(),
-    CAMERA_VERTICAL_OVERSCAN_TILES
+    CAMERA_OVERSCAN_TILES
   );
   state.cameraX = position.x;
   state.cameraY = position.y;
