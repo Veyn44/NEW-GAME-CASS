@@ -4,11 +4,13 @@
 
 ## World dimensions
 
+- The first authoritative gameplay test world is approved at **128 × 128 tiles**. This is a test configuration, not a final home-world size or a universal size for all worlds.
 - Every world uses a square coordinate extent: width equals height.
 - Primary supported sizes are 64 × 64, 128 × 128 and 256 × 256 fields.
 - The architecture should not inherently cap worlds at 256; larger square worlds such as 512 × 512 may be supported later.
 - If an implementation requires a finite set of guaranteed presets, the primary set remains 64, 128 and 256.
-- The home/base world size is deliberately undecided and may be changed after visual/gameplay evaluation.
+- The permanent home/base world size remains deliberately undecided and may differ from the 128 × 128 test world.
+- Future temporary worlds may use different dimensions; their sizes are not yet decided.
 
 ## Coordinates and existence
 
