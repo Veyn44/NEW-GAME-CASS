@@ -426,21 +426,29 @@ function updateSimulationUi() {
   if (!state.paused) clearUnitSelection();
 }
 
+function failPointerLock() {
+  viewportPanel.dataset.pointerLock = "unavailable";
+  pointerStatus.textContent = "POINTER LOCK UNAVAILABLE · PAUSED";
+  if (!state.paused) {
+    inputController.pause();
+    state.clock?.pause("player");
+    state.paused = true;
+    updateSimulationUi();
+    pointerStatus.textContent = "POINTER LOCK UNAVAILABLE · PAUSED";
+  }
+}
+
 function requestViewportPointerLock() {
   canvas.focus({ preventScroll: true });
   if (typeof canvas.requestPointerLock !== "function") {
-    viewportPanel.dataset.pointerLock = "unsupported";
+    failPointerLock();
     return;
   }
   try {
     const request = canvas.requestPointerLock();
-    request?.catch?.(() => {
-      viewportPanel.dataset.pointerLock = "unavailable";
-      pointerStatus.textContent = "POINTER LOCK UNAVAILABLE";
-    });
+    request?.catch?.(failPointerLock);
   } catch {
-    viewportPanel.dataset.pointerLock = "unavailable";
-    pointerStatus.textContent = "POINTER LOCK UNAVAILABLE";
+    failPointerLock();
   }
 }
 
@@ -542,6 +550,8 @@ canvas.addEventListener("pointermove", (event) => {
 });
 
 let pointerLockWasAcquired = false;
+document.addEventListener("pointerlockerror", failPointerLock);
+
 document.addEventListener("pointerlockchange", () => {
   const locked = document.pointerLockElement === canvas;
   viewportPanel.dataset.pointerLocked = String(locked);
