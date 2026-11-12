@@ -8,6 +8,7 @@ test("a plain pause preserves held keys and mouse buttons until resume", () => {
   input.keyDown("KeyW");
   input.keyDown("KeyE");
   input.pointerDown(0);
+  input.pointerDown(2);
 
   input.pause();
   assert.deepEqual(input.getState().keys, []);
@@ -16,7 +17,7 @@ test("a plain pause preserves held keys and mouse buttons until resume", () => {
 
   input.resume();
   assert.deepEqual(input.getState().keys, ["KeyE", "KeyW"]);
-  assert.deepEqual(input.getState().buttons, [0]);
+  assert.deepEqual(input.getState().buttons, [0, 2]);
 });
 
 test("releasing an input during pause removes only that input from the resume snapshot", () => {
