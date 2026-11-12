@@ -381,6 +381,7 @@ test("overlapping Persistence requests are serialized under one continuous simul
       if (slotId === "save-one") {
         firstWriteStarted = true;
         await firstWriteBlock;
+        throw new Error("simulated first-slot storage failure");
       }
       return true;
     }
@@ -402,7 +403,10 @@ test("overlapping Persistence requests are serialized under one continuous simul
   equal(scheduler.tick, 0, "Simulation advanced during overlapping persistence requests.");
 
   releaseFirstWrite();
-  await Promise.all([firstSave, secondSave]);
+  const outcomes = await Promise.allSettled([firstSave, secondSave]);
+  equal(outcomes[0].status, "rejected", "The simulated first save failure was not reported.");
+  equal(outcomes[0].reason?.code, "SAVE_FAILED", "The first save failure lost its Persistence error code.");
+  equal(outcomes[1].status, "fulfilled", "A failed first save prevented the queued second save from running.");
   equal(writes.length, 2);
   assert(!clock.hasPauseReason("core.persistence"), "The persistence pause remained after the queue drained.");
   scheduler.advance(0.05);
