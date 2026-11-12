@@ -5,7 +5,11 @@
   "type": "module",
   "description": "Domain-neutral Core runtime for Cassandra Engine",
   "scripts": {
-    "test:core": "node tests/run-core.js"
+    "test:core": "node tests/run-core.js",
+    "test:host": "node --test tests/unit/*.test.js",
+    "test:all": "npm run test:core && npm run test:host"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  }
 }
