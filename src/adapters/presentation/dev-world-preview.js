@@ -11,6 +11,20 @@ const viewStatus = document.querySelector("#view-status");
 
 let worldMarkers = [];
 let placementAnimationFrame = null;
+let selectionEnabled = false;
+let onMarkerSelect = null;
+let selectedMarkerId = null;
+
+export function setWorldInteraction({ paused = false, onSelect = null } = {}) {
+  selectionEnabled = Boolean(paused);
+  onMarkerSelect = typeof onSelect === "function" ? onSelect : null;
+  render();
+}
+
+export function setSelectedWorldMarker(entityId) {
+  selectedMarkerId = entityId ?? null;
+  render();
+}
 
 export function beginUnitPlacement({ label, onPlace, onCancel } = {}) {
   if (typeof onPlace !== "function") throw new TypeError("Unit placement requires an onPlace callback.");
@@ -39,6 +53,9 @@ function animatePlacement() {
 
 export function setWorldMarkers(markers) {
   worldMarkers = Array.isArray(markers) ? markers.map((marker) => ({ ...marker })) : [];
+  if (selectedMarkerId && !worldMarkers.some((marker) => marker.id === selectedMarkerId)) {
+    selectedMarkerId = null;
+  }
   render();
 }
 
@@ -151,12 +168,19 @@ function render() {
     const markerY = (marker.y + 0.5 - top) * cellHeight;
     if (markerX < 0 || markerX > width || markerY < 0 || markerY > height) continue;
     context.beginPath();
-    context.fillStyle = "#38d6c5";
-    context.strokeStyle = "#07131c";
-    context.lineWidth = 2;
+    context.fillStyle = marker.id === selectedMarkerId ? "#f3c969" : "#38d6c5";
+    context.strokeStyle = marker.id === selectedMarkerId ? "#fff0bd" : "#07131c";
+    context.lineWidth = marker.id === selectedMarkerId ? 3 : 2;
     context.arc(markerX, markerY, Math.max(4, Math.min(9, cellWidth * 0.32)), 0, Math.PI * 2);
     context.fill();
     context.stroke();
+    if (marker.id === selectedMarkerId) {
+      context.beginPath();
+      context.strokeStyle = "rgba(243, 201, 105, 0.8)";
+      context.lineWidth = 1.5;
+      context.arc(markerX, markerY, Math.max(8, Math.min(14, cellWidth * 0.48)), 0, Math.PI * 2);
+      context.stroke();
+    }
     if (cellWidth >= 12) {
       context.font = "10px sans-serif";
       context.textAlign = "left";
@@ -280,6 +304,23 @@ canvas.addEventListener("pointerdown", (event) => {
     if (state.placement?.valid) {
       state.placement.onPlace({ x: state.placement.tile.x, y: state.placement.tile.y });
     }
+    return;
+  }
+  if (event.button === 0 && selectionEnabled && onMarkerSelect) {
+    const bounds = canvas.getBoundingClientRect();
+    const view = visibleDimensions();
+    const cellWidth = bounds.width / view.columns;
+    const cellHeight = bounds.height / view.rows;
+    const left = state.cameraX - view.columns / 2;
+    const top = state.cameraY - view.rows / 2;
+    const pointerX = event.clientX - bounds.left;
+    const pointerY = event.clientY - bounds.top;
+    const hit = [...worldMarkers].reverse().find((marker) => {
+      const x = (marker.x + 0.5 - left) * cellWidth;
+      const y = (marker.y + 0.5 - top) * cellHeight;
+      return Math.hypot(pointerX - x, pointerY - y) <= Math.max(9, Math.min(16, cellWidth * 0.55));
+    });
+    onMarkerSelect(hit?.id ?? null);
     return;
   }
   // Middle mouse remains dedicated to camera panning.
