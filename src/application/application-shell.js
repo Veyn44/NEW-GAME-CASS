@@ -12,6 +12,7 @@ function showView(name) {
   document.body.dataset.currentView = name;
   window.scrollTo(0, 0);
   if (name === "database") renderDatabase();
+  if (name === "dev-lab") window.dispatchEvent(new Event("resize"));
 }
 
 function renderDatabase() {
