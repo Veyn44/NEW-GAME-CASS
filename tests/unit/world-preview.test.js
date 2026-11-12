@@ -1,26 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-
-const PRIMARY_WORLD_SIZES = Object.freeze([64, 128, 256]);
-const BASE_VIEW_COLUMNS = 64;
-const BASE_VIEW_ROWS = 32;
-
-function createWorldDescriptor(size) {
-  if (!Number.isInteger(size) || size <= 0) {
-    throw new TypeError("World size must be a positive integer.");
-  }
-  return Object.freeze({ width: size, height: size, shape: "square" });
-}
-
-function getVisibleDimensions(zoom) {
-  if (!Number.isFinite(zoom) || zoom <= 0) {
-    throw new TypeError("Zoom must be a positive finite number.");
-  }
-  return {
-    columns: BASE_VIEW_COLUMNS / zoom,
-    rows: BASE_VIEW_ROWS / zoom
-  };
-}
+import {
+  PRIMARY_WORLD_SIZES,
+  createWorldDescriptor,
+  getVisibleDimensions,
+  clampCameraPosition
+} from "../../src/adapters/presentation/world-preview-model.js";
 
 test("primary world sizes are square and use the agreed dimensions", () => {
   assert.deepEqual(PRIMARY_WORLD_SIZES, [64, 128, 256]);
@@ -51,6 +36,17 @@ test("base viewport shows 64 by 32 fields and zoom changes only the view", () =>
   assert.deepEqual(getVisibleDimensions(1), { columns: 64, rows: 32 });
   assert.deepEqual(getVisibleDimensions(2), { columns: 32, rows: 16 });
   assert.deepEqual(getVisibleDimensions(0.5), { columns: 128, rows: 64 });
+});
+
+test("camera remains inside the square world and centers small worlds", () => {
+  assert.deepEqual(
+    clampCameraPosition({ x: -20, y: 300 }, 128, { columns: 64, rows: 32 }),
+    { x: 32, y: 112 }
+  );
+  assert.deepEqual(
+    clampCameraPosition({ x: 0, y: 0 }, 64, { columns: 128, rows: 64 }),
+    { x: 32, y: 32 }
+  );
 });
 
 test("invalid zoom values are rejected", () => {
