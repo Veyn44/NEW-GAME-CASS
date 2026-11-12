@@ -116,3 +116,12 @@ It should not implement the New Game generator, save/load behavior, database/arc
 The first 128 × 128 test world and early Pawn systems belong to the Dev Lab test composition. They are development fixtures, not the permanent game world or the generated New Game asteroid.
 
 World/Pawn gameplay logic must be reusable outside Dev Lab. The test-world layout, spawn tools and development UI must remain mode-specific.
+
+
+## 9. Database catalog
+
+Database is an enabled application-level catalog of canonical gameplay definitions. Gameplay systems own and register immutable records containing a stable ID, display name, category, description and structured attributes. The Database UI reads those records; it does not maintain a manually duplicated copy of gameplay values.
+
+The catalog describes definitions (for example a Pawn type, enemy type, wall material, asteroid material, weapon or ammunition type), not mutable runtime instances. Current health, damage state, inventory and other live values belong to a future runtime inspection view.
+
+The first implementation includes a small definition registry, search and category filtering. The catalog starts empty rather than showing invented game objects. As real gameplay definitions are implemented, they register into the catalog and become inspectable.
