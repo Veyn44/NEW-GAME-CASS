@@ -77,6 +77,9 @@ function clonePlain(value, path = "snapshot", seen = new Set()) {
       });
     }
     return Object.freeze(result);
+  } catch (error) {
+    if (error instanceof WorldRegistryError) throw error;
+    throw new WorldRegistryError("INVALID_SNAPSHOT", path + " could not be copied safely.");
   } finally { seen.delete(value); }
 }
 
