@@ -546,6 +546,40 @@ test("Core shutdown waits for accepted persistence work and rejects new requests
   await runtime.destroy();
 });
 
+
+test("Core lifecycle transitions are serialized before shutdown", async () => {
+  let releasePause;
+  const pauseBlock = new Promise((resolve) => { releasePause = resolve; });
+  let pauseStarted = false;
+  let destroyed = false;
+  const runtime = createCoreAssembly({
+    hostSystems: [{
+      id: "game.lifecycle-race",
+      async pause() {
+        pauseStarted = true;
+        await pauseBlock;
+      },
+      destroy() { destroyed = true; }
+    }]
+  });
+  await runtime.start();
+
+  const pausePromise = runtime.pause();
+  while (!pauseStarted) await Promise.resolve();
+  let shutdownFinished = false;
+  const shutdownPromise = runtime.destroy().then(() => { shutdownFinished = true; });
+  await Promise.resolve();
+
+  assert(!shutdownFinished, "Shutdown overtook an active lifecycle transition.");
+  assert(!destroyed, "System was destroyed while its pause hook was still running.");
+  releasePause();
+  await pausePromise;
+  await shutdownPromise;
+
+  assert(destroyed, "System was not destroyed after the lifecycle queue drained.");
+  equal(runtime.state, "destroyed");
+});
+
 export async function runCoreIntegrationTests() {
   let passed = 0;
   const lines = [];
