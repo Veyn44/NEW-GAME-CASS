@@ -1,4 +1,4 @@
-name: Core tests
+name: Core and host tests
 
 on:
   push:
@@ -14,4 +14,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm run test:core
+      - run: npm run test:all
