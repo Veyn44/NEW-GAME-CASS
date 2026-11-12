@@ -13,12 +13,60 @@ let worldMarkers = [];
 let selectionEnabled = false;
 let onMarkerSelect = null;
 let selectedMarkerId = null;
+let placementArtwork = null;
+let placementImage = null;
+let placementImageReady = false;
 
 export function setWorldInteraction({ paused = false, onSelect = null } = {}) {
   state.paused = Boolean(paused);
   selectionEnabled = state.paused;
   onMarkerSelect = typeof onSelect === "function" ? onSelect : null;
   render();
+}
+
+export function setWorldPlacement(configuration = null) {
+  if (!configuration) {
+    placementArtwork = null;
+    placementImage = null;
+    placementImageReady = false;
+    state.placement = null;
+    render();
+    return;
+  }
+  if (typeof configuration.onPlace !== "function") {
+    throw new TypeError("World placement requires an onPlace(x, y) callback.");
+  }
+  placementArtwork = configuration.artwork ?? null;
+  placementImage = null;
+  placementImageReady = false;
+  state.placement = {
+    label: String(configuration.label ?? "Object"),
+    onPlace: configuration.onPlace,
+    tile: null,
+    valid: false
+  };
+  if (placementArtwork) {
+    const image = new Image();
+    image.onload = () => {
+      if (placementImage === image) {
+        placementImageReady = true;
+        render();
+      }
+    };
+    image.onerror = () => {
+      if (placementImage === image) {
+        placementImageReady = false;
+        render();
+      }
+    };
+    placementImage = image;
+    image.src = placementArtwork;
+  }
+  render();
+}
+
+export function cancelWorldPlacement() {
+  setWorldPlacement(null);
 }
 
 export function setSelectedWorldMarker(entityId) {
@@ -43,7 +91,8 @@ const state = {
   dragging: false,
   pointerX: 0,
   pointerY: 0,
-  paused: true
+  paused: true,
+  placement: null
 };
 
 function resizeCanvas() {
@@ -165,6 +214,34 @@ function render() {
     }
   }
 
+  if (state.placement?.tile) {
+    const tile = state.placement.tile;
+    const x = (tile.x - left) * cellWidth;
+    const y = (tile.y - top) * cellHeight;
+    if (x + cellWidth >= 0 && x <= width && y + cellHeight >= 0 && y <= height) {
+      context.save();
+      context.globalAlpha = state.placement.valid ? 0.48 : 0.16;
+      if (placementImageReady && placementImage) {
+        context.drawImage(placementImage, x, y, cellWidth, cellHeight);
+      } else {
+        context.fillStyle = state.placement.valid ? "#38d6c5" : "#e36b72";
+        context.fillRect(x + 1, y + 1, Math.max(0, cellWidth - 2), Math.max(0, cellHeight - 2));
+      }
+      context.globalAlpha = 1;
+      context.strokeStyle = state.placement.valid ? "#38d6c5" : "#e36b72";
+      context.lineWidth = 2;
+      context.setLineDash([5, 3]);
+      context.strokeRect(x + 1, y + 1, Math.max(0, cellWidth - 2), Math.max(0, cellHeight - 2));
+      context.setLineDash([]);
+      context.font = "11px sans-serif";
+      context.textAlign = "left";
+      context.textBaseline = "bottom";
+      context.fillStyle = "#f2f6fa";
+      context.fillText(state.placement.label, x + 4, Math.max(12, y - 3));
+      context.restore();
+    }
+  }
+
   const visibleColumns = Math.max(0, Math.min(state.worldSize, right) - Math.max(0, left));
   const visibleRows = Math.max(0, Math.min(state.worldSize, bottom) - Math.max(0, top));
   worldStatus.textContent = `World: ${state.worldSize} × ${state.worldSize}`;
@@ -226,6 +303,15 @@ resetButton.addEventListener("click", () => {
 
 canvas.addEventListener("pointerdown", (event) => {
   if (!state.paused) return;
+  if (event.button === 0 && state.placement) {
+    const tile = screenPointToTile(event.clientX, event.clientY);
+    if (tile?.valid) {
+      const placed = state.placement.onPlace(tile.x, tile.y);
+      if (placed) setWorldPlacement(null);
+    }
+    event.preventDefault();
+    return;
+  }
   if (event.button === 0 && selectionEnabled && onMarkerSelect) {
     const bounds = canvas.getBoundingClientRect();
     const view = visibleDimensions();
@@ -256,6 +342,11 @@ canvas.addEventListener("auxclick", (event) => {
 });
 canvas.addEventListener("pointermove", (event) => {
   if (!state.paused) return;
+  if (state.placement) {
+    state.placement.tile = screenPointToTile(event.clientX, event.clientY);
+    state.placement.valid = Boolean(state.placement.tile?.valid);
+    render();
+  }
   if (state.dragging) {
     const bounds = canvas.getBoundingClientRect();
     const view = visibleDimensions();
@@ -269,6 +360,27 @@ canvas.addEventListener("pointermove", (event) => {
   }
   if (state.dragging) render();
 });
+canvas.addEventListener("pointerleave", () => {
+  if (state.placement) {
+    state.placement.tile = null;
+    state.placement.valid = false;
+    render();
+  }
+});
+
+function screenPointToTile(clientX, clientY) {
+  const bounds = canvas.getBoundingClientRect();
+  if (clientX < bounds.left || clientX >= bounds.right || clientY < bounds.top || clientY >= bounds.bottom) return null;
+  const view = visibleDimensions();
+  const cellWidth = bounds.width / view.columns;
+  const cellHeight = bounds.height / view.rows;
+  const left = state.cameraX - view.columns / 2;
+  const top = state.cameraY - view.rows / 2;
+  const x = Math.floor(left + (clientX - bounds.left) / cellWidth);
+  const y = Math.floor(top + (clientY - bounds.top) / cellHeight);
+  return { x, y, valid: x >= 0 && y >= 0 && x < state.worldSize && y < state.worldSize };
+}
+
 function stopDragging() { state.dragging = false; }
 canvas.addEventListener("pointerup", stopDragging);
 canvas.addEventListener("pointercancel", stopDragging);
