@@ -1,9 +1,7 @@
 import {
   setWorldMarkers,
   setWorldInteraction,
-  setSelectedWorldMarker,
-  beginUnitPlacement,
-  cancelUnitPlacement
+  setSelectedWorldMarker
 } from "../adapters/presentation/dev-world-preview.js";
 import { createGameRuntime } from "../host/create-game-runtime.js";
 import { MemorySaveAdapter } from "../core/persistence.js";
@@ -25,16 +23,11 @@ const databaseList = document.querySelector("#database-list");
 const databaseSearch = document.querySelector("#database-search");
 const databaseCategory = document.querySelector("#database-category");
 const databaseInspector = document.querySelector("#database-inspector");
-const databaseSelect = document.querySelector("#database-select");
-const databaseCancel = document.querySelector("#database-cancel");
 const databaseModeLabel = document.querySelector("#database-mode-label");
-const devSelectUnit = document.querySelector("#dev-select-unit");
-const devSelectedUnit = document.querySelector("#dev-selected-unit");
-const spawnButton = document.querySelector("#spawn-unit");
-const spawnStatus = document.querySelector("#spawn-status");
 const simulationStatus = document.querySelector("#simulation-status");
 const pointerStatus = document.querySelector("#pointer-status");
 const unitInspector = document.querySelector("#unit-inspector");
+const entityStatus = document.querySelector("#entity-status");
 const viewportPanel = document.querySelector(".viewport-panel");
 const canvas = document.querySelector("#world-canvas");
 const worldSizeSelect = document.querySelector("#world-size");
@@ -49,8 +42,7 @@ const state = {
   detailRequest: 0,
   unitApi: null,
   inputApi: null,
-  spawnCount: 0,
-  placementActive: false,
+  johnyId: null,
   clock: null,
   paused: true,
   selectedUnitId: null,
@@ -71,23 +63,16 @@ function showView(name) {
     if (document.pointerLockElement === canvas) document.exitPointerLock();
     updateSimulationUi();
   }
-  if (name !== "dev-lab" && state.placementActive) cancelUnitPlacement();
   for (const view of views) view.hidden = view.dataset.view !== name;
   document.body.dataset.currentView = name;
   window.scrollTo(0, 0);
   if (name === "dev-lab") window.dispatchEvent(new Event("resize"));
 }
 
-function setDatabaseMode(mode) {
-  state.databaseMode = mode;
-  databaseView.dataset.mode = mode;
-  databaseModeLabel.textContent = mode === "select-unit"
-    ? "DEV LAB / SELECT UNIT"
-    : "CASSANDRA / KNOWLEDGE";
-  databaseSelect.hidden = mode !== "select-unit";
-  databaseCancel.hidden = mode !== "select-unit";
-  databaseSelect.disabled = true;
-  databaseSelect.textContent = "Select";
+function openDatabase() {
+  state.databaseMode = "browse";
+  databaseView.dataset.mode = "browse";
+  databaseModeLabel.textContent = "CASSANDRA / KNOWLEDGE";
   databaseSearch.value = "";
   databaseCategory.value = "all";
   state.selectedDefinitionId = null;
@@ -95,10 +80,6 @@ function setDatabaseMode(mode) {
   databaseInspector.replaceChildren();
   populateCategories();
   renderDatabase();
-}
-
-function openDatabase(mode = "browse") {
-  setDatabaseMode(mode);
   showView("database");
 }
 
@@ -137,7 +118,6 @@ async function inspectDefinition(id) {
   const request = ++state.detailRequest;
   state.selectedDefinitionId = id;
   state.selectedDefinition = null;
-  databaseSelect.disabled = true;
   databaseInspector.replaceChildren();
 
   const loading = document.createElement("p");
@@ -211,20 +191,12 @@ async function inspectDefinition(id) {
   });
   databaseInspector.append(metadata);
 
-  databaseSelect.disabled = state.databaseMode !== "select-unit"
-    || !definition.spawnableAs.includes("unit");
-  if (state.databaseMode === "select-unit" && !definition.spawnableAs.includes("unit")) {
-    databaseSelect.textContent = "Not a Unit";
-  } else {
-    databaseSelect.textContent = "Select";
-  }
 }
 
 function renderDatabase() {
   const query = databaseSearch.value.trim().toLocaleLowerCase();
   const category = databaseCategory.value;
-  const selectionScope = state.databaseMode === "select-unit" ? "unit" : undefined;
-  const entries = listDefinitionIndex({ spawnableAs: selectionScope }).filter((entry) => {
+  const entries = listDefinitionIndex().filter((entry) => {
     const matchesCategory = category === "all" || entry.category === category;
     const haystack = [entry.id, entry.name, entry.description, entry.category].join(" ").toLocaleLowerCase();
     return matchesCategory && (!query || haystack.includes(query));
@@ -235,11 +207,9 @@ function renderDatabase() {
     const empty = document.createElement("div");
     empty.className = "database-empty";
     const strong = document.createElement("strong");
-    strong.textContent = state.databaseMode === "select-unit" ? "No Unit definitions available." : "Database is ready.";
+    strong.textContent = "Database is ready.";
     const message = document.createElement("span");
-    message.textContent = state.databaseMode === "select-unit"
-      ? "Register a canonical definition with spawnableAs: [\"unit\"] to make it available in this picker."
-      : "No registered game definitions yet. Real definitions will appear here as gameplay content is added.";
+    message.textContent = "Canonical game definitions are loaded from the content database.";
     empty.append(strong, message);
     databaseList.append(empty);
     return;
@@ -274,9 +244,7 @@ function populateCategories() {
   all.value = "all";
   all.textContent = "All categories";
   databaseCategory.append(all);
-  for (const category of getCategories({
-    spawnableAs: state.databaseMode === "select-unit" ? "unit" : undefined
-  })) {
+  for (const category of getCategories()) {
     const option = document.createElement("option");
     option.value = category;
     option.textContent = category;
@@ -291,7 +259,7 @@ function refreshDatabase() {
 
 for (const button of navButtons) {
   button.addEventListener("click", () => {
-    if (button.dataset.navigate === "database") openDatabase("browse");
+    if (button.dataset.navigate === "database") openDatabase();
     else showView(button.dataset.navigate);
   });
 }
@@ -301,63 +269,6 @@ document.querySelectorAll("[data-back-menu]").forEach((button) =>
 databaseSearch.addEventListener("input", renderDatabase);
 databaseCategory.addEventListener("change", renderDatabase);
 
-devSelectUnit.addEventListener("click", () => openDatabase("select-unit"));
-databaseCancel.addEventListener("click", () => showView("dev-lab"));
-databaseSelect.addEventListener("click", () => {
-  if (state.databaseMode !== "select-unit" || !state.selectedDefinition
-    || !state.selectedDefinition.spawnableAs.includes("unit")) return;
-  devSelectedUnit.textContent = state.selectedDefinition.name;
-  devSelectedUnit.dataset.definitionId = state.selectedDefinition.id;
-  devSelectedUnit.hidden = false;
-  spawnButton.disabled = true;
-  spawnButton.textContent = "Spawn Unit · RUNTIME NOT CONNECTED";
-  spawnButton.disabled = !state.unitApi || !state.paused;
-  spawnButton.textContent = state.unitApi ? "Spawn Unit" : "Spawn Unit · STARTING";
-  spawnStatus.textContent = state.unitApi ? "Ready to create a Unit instance in the test world." : "Starting the Dev Lab world session…";
-  showView("dev-lab");
-});
-
-spawnButton.addEventListener("click", () => {
-  if (state.placementActive) {
-    cancelUnitPlacement();
-    return;
-  }
-  const definitionId = devSelectedUnit.dataset.definitionId;
-  const definition = getDefinition(definitionId);
-  if (!state.unitApi || !definitionId || !definition) return;
-
-  if (!state.paused) return;
-  state.placementActive = true;
-  clearUnitSelection();
-  spawnButton.textContent = "Stop Placing";
-  spawnStatus.textContent = `Placing ${definition.name}: move the cursor and left-click to place. Right-click or Escape to cancel.`;
-  beginUnitPlacement({
-    label: definition.name,
-    onPlace(position) {
-      try {
-        state.unitApi.createUnit({ definitionId, worldId: "dev-lab-world", position });
-        state.spawnCount += 1;
-        const units = state.unitApi.listUnits();
-        setWorldMarkers(units.map((unit) => ({
-          x: unit.placement.position.x,
-          y: unit.placement.position.y,
-          id: unit.id,
-          label: getDefinition(unit.definitionId)?.name ?? unit.definitionId
-        })));
-        spawnStatus.textContent = `${definition.name} placed at ${position.x}, ${position.y}. ${units.length} Unit instance(s) in world. Continue placing or press Escape to finish.`;
-      } catch (error) {
-        spawnStatus.textContent = `Cannot place ${definition.name}: ${error.message}`;
-      }
-    },
-    onCancel() {
-      state.placementActive = false;
-      spawnButton.textContent = "Spawn Unit";
-      spawnStatus.textContent = `Placement finished. ${state.spawnCount} Unit instance(s) created in this session.`;
-    }
-  });
-});
-
-
 function clearUnitSelection() {
   state.selectedUnitId = null;
   setSelectedWorldMarker(null);
@@ -366,7 +277,7 @@ function clearUnitSelection() {
 }
 
 function inspectUnit(entityId) {
-  if (!state.paused || state.placementActive) return;
+  if (!state.paused) return;
   inputController.beginInspection();
   if (!entityId) {
     clearUnitSelection();
@@ -420,8 +331,6 @@ function updateSimulationUi() {
   pointerStatus.textContent = state.paused
     ? "INSPECTION CURSOR"
     : document.pointerLockElement === canvas ? "POINTER LOCKED" : "CLICK MAP TO CAPTURE POINTER";
-  spawnButton.disabled = !state.unitApi || !devSelectedUnit.dataset.definitionId || !state.paused;
-  if (!state.paused && state.placementActive) cancelUnitPlacement();
   setWorldInteraction({ paused: state.paused, onSelect: inspectUnit });
   if (!state.paused) clearUnitSelection();
 }
@@ -606,23 +515,27 @@ async function startDevLabRuntime() {
     worlds.activateWorld("dev-lab-world");
     state.unitApi = context.getService("game.unit-api");
     state.inputApi = context.getService("game.input-api");
+    state.johnyId = state.unitApi.createUnit({
+      definitionId: "pawn.johny",
+      worldId: "dev-lab-world",
+      position: { x: 64, y: 64 }
+    }).id;
+    setWorldMarkers(state.unitApi.listUnits().map((unit) => ({
+      x: unit.placement.position.x,
+      y: unit.placement.position.y,
+      id: unit.id,
+      label: getDefinition(unit.definitionId)?.name ?? unit.definitionId
+    })));
+    entityStatus.textContent = "Canonical Human · age 32 · role unknown. Select Johny while paused to inspect the live entity.";
     state.clock = context.getService("core.game-clock");
     advanceRuntime = (deltaSeconds) => runtime.advance(deltaSeconds);
     state.clock.pause("player");
     state.paused = true;
     updateSimulationUi();
     state.animationFrame = requestAnimationFrame(simulationFrame);
-    spawnButton.disabled = !devSelectedUnit.dataset.definitionId || !state.paused;
-    spawnButton.textContent = "Spawn Unit";
-    if (devSelectedUnit.dataset.definitionId) {
-      spawnStatus.textContent = "Ready to create a Unit instance in the test world.";
-    } else {
-      spawnStatus.textContent = "Choose a Unit definition from the shared Database.";
-    }
+
   } catch (error) {
-    spawnStatus.textContent = `Dev Lab startup failed: ${error.message}`;
-    spawnButton.disabled = true;
-    spawnButton.textContent = "Spawn Unit · STARTUP FAILED";
+    entityStatus.textContent = `Dev Lab startup failed: ${error.message}`;
   }
 }
 
