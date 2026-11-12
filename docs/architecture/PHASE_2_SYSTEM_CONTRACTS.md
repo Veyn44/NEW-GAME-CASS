@@ -1,6 +1,6 @@
 # Phase 2 — Initial System Contracts
 
-**Status:** Architecture proposal; no Unit gameplay implementation is implied.  
+**Status:** Phase 2 Unit foundation implemented; movement and game-specific Unit attributes remain intentionally deferred.  
 **Authority:** Accepted decisions in `WHATANDWHY.md`, current Core source and `src/core/README.md`.
 
 This document defines the smallest technical contracts needed for the first runnable gameplay slice. It separates Core identity, Unit domain state and world placement. It deliberately leaves game-design fields open where they should be chosen from actual gameplay needs.
@@ -84,7 +84,7 @@ The application Database reads canonical definitions from their owning systems. 
 
 - **System ID:** `game.unit`
 - **Candidate service ID:** `game.unit-api`
-- **Status:** proposed; exact public method names and minimum data shape are to be finalized immediately before implementation.
+- **Status:** implemented as the first narrow Unit foundation.
 
 ### Ownership
 The Unit system owns:
@@ -102,21 +102,21 @@ It does not own:
 
 ### Required Core services
 - `core.entity-registry` — allocate and query generic identity; first Unit identity uses `registerPersistent({ kind: "unit", metadata })`; retire with `remove`.
-- `core.world-context` — place/query/move/remove placement through its validated public API.
-- `core.event-bus` — publish completed Unit lifecycle facts only when consumers need them.
+- `core.world-registry` — validate the target world's descriptor and tile bounds before allocating identity.
+- `core.world-context` — place/query/remove placement through its validated public API.
 - `core.persistence` — register the Unit-owned snapshot participant.
 
 Do not require `core.world-registry` if the Unit system can meet its needs through World Context. Avoid redundant dependencies.
 
-### Candidate public operations
+### Implemented public API
 
-Keep the first API narrow. Likely operations:
-- create a Unit from a known definition and a valid world position;
-- query one Unit and list Units;
-- remove/retire a Unit safely;
-- request movement only if the first vertical slice includes movement.
+The service `game.unit-api` exposes:
+- `createUnit({ definitionId, worldId, position })` — validates a registered canonical definition, an available world and an in-bounds non-negative integer tile before allocating identity; returns the Unit record and Core placement.
+- `getUnit(entityId)` — returns one detached Unit record with its current Core placement, or `null`.
+- `listUnits()` — returns a stable ID-sorted frozen list of detached Unit records and placements.
+- `removeUnit(entityId)` — removes the placement, retires the Core identity and removes the Unit domain record; returns `false` when the ID is not a Unit.
 
-These are capability requirements, not frozen method names. Return detached/immutable domain records and documented placement queries. Validate arguments at the public boundary and expose stable error behavior.
+The Unit domain record is deliberately minimal: Core Entity ID plus canonical `definitionId`. World position is read from Core World Context and is not duplicated. Returned records and collections are immutable.
 
 ### Creation and removal consistency
 
@@ -195,7 +195,9 @@ Do not invent answers to these for convenience. Ask for user input when a decisi
 - [x] Scheduler synchronous task and time-step contract checked.
 - [x] Core source compared between `main` and `next-step/phase-2`; no Core differences.
 - [x] Entity → Unit → Pawn vocabulary and data ownership documented.
-- [ ] Unit public API and minimal data schema finalized for implementation.
-- [ ] Unit code and tests implemented.
+- [x] Unit public API and minimal data schema finalized for the first foundation.
+- [x] Unit creation, query, listing, removal and persistence participant implemented.
+- [x] Unit identity/placement rollback and tile-coordinate validation covered by tests.
+- [ ] Dev Lab Spawn Unit integration remains deferred until the user tests the initial shell and approves the interaction.
 
-**No gameplay code has been added by this architecture update.**
+Movement, Pawn-specific behavior, visual representation and game-specific attributes remain unimplemented by design.
