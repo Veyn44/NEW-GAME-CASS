@@ -8,7 +8,9 @@ import {
 import { createGameRuntime } from "../host/create-game-runtime.js";
 import { MemorySaveAdapter } from "../core/persistence.js";
 import { createUnitSystem } from "../gameplay/unit/unit-system.js";
-import { registerDefinition, getDefinition } from "./database/definition-registry.js";
+import { getDefinition } from "./database/definition-registry.js";
+import { loadCanonicalDefinitions } from "./database/database-loader.js";
+import { createViewportInputController } from "./input/viewport-input-controller.js";
 import {
   listDefinitionIndex,
   getCategories,
@@ -31,16 +33,12 @@ const spawnButton = document.querySelector("#spawn-unit");
 const spawnStatus = document.querySelector("#spawn-status");
 const simulationStatus = document.querySelector("#simulation-status");
 const unitInspector = document.querySelector("#unit-inspector");
-
-registerDefinition({
-  id: "pawn.basic",
-  name: "Basic Pawn",
-  category: "Pawns",
-  description: "The first minimal Pawn definition used to verify the Database-to-Unit workflow.",
-  attributes: {},
-  artwork: null,
-  spawnableAs: ["unit"]
-});
+const viewportPanel = document.querySelector(".viewport-panel");
+const canvas = document.querySelector("#world-canvas");
+const worldSizeSelect = document.querySelector("#world-size");
+const gridVisible = document.querySelector("#grid-visible");
+const resetCameraButton = document.querySelector("#reset-camera");
+const inputController = createViewportInputController();
 
 const state = {
   databaseMode: "browse",
@@ -58,6 +56,18 @@ const state = {
 };
 
 function showView(name) {
+  const currentView = document.body.dataset.currentView;
+  if (currentView === "dev-lab" && name !== "dev-lab") {
+    if (!state.paused) {
+      inputController.pause();
+      state.clock?.pause("player");
+      state.paused = true;
+    }
+    inputController.clearForFocusLoss();
+    if (state.clock && !state.clock.hasPauseReason("player")) state.clock.pause("player");
+    if (document.pointerLockElement === canvas) document.exitPointerLock();
+    updateSimulationUi();
+  }
   if (name !== "dev-lab" && state.placementActive) cancelUnitPlacement();
   for (const view of views) view.hidden = view.dataset.view !== name;
   document.body.dataset.currentView = name;
@@ -352,6 +362,7 @@ function clearUnitSelection() {
 
 function inspectUnit(entityId) {
   if (!state.paused || state.placementActive) return;
+  inputController.beginInspection();
   if (!entityId) {
     clearUnitSelection();
     return;
@@ -392,17 +403,50 @@ function updateSimulationUi() {
     ? "PAUSED · Space to resume"
     : "RUNNING · Space to pause";
   simulationStatus.dataset.state = state.paused ? "paused" : "running";
+  viewportPanel.dataset.paused = String(state.paused);
+  viewportPanel.dataset.inputMode = state.paused ? "paused" : "running";
+  worldSizeSelect.disabled = !state.paused;
+  gridVisible.disabled = !state.paused;
+  resetCameraButton.disabled = !state.paused;
   spawnButton.disabled = !state.unitApi || !devSelectedUnit.dataset.definitionId || !state.paused;
   if (!state.paused && state.placementActive) cancelUnitPlacement();
   setWorldInteraction({ paused: state.paused, onSelect: inspectUnit });
   if (!state.paused) clearUnitSelection();
 }
 
+function requestViewportPointerLock() {
+  canvas.focus({ preventScroll: true });
+  if (typeof canvas.requestPointerLock !== "function") {
+    viewportPanel.dataset.pointerLock = "unsupported";
+    return;
+  }
+  try {
+    const request = canvas.requestPointerLock();
+    request?.catch?.(() => {
+      viewportPanel.dataset.pointerLock = "unavailable";
+    });
+  } catch {
+    viewportPanel.dataset.pointerLock = "unavailable";
+  }
+}
+
 function toggleSimulationPause() {
   if (!state.clock) return;
-  if (state.clock.hasPauseReason("player")) state.clock.resume("player");
-  else state.clock.pause("player");
-  state.paused = state.clock.paused;
+  if (state.paused) {
+    state.clock.resume("player");
+    state.paused = state.clock.paused;
+    if (state.paused) {
+      inputController.pause();
+    } else {
+      inputController.resume();
+      requestViewportPointerLock();
+    }
+  } else {
+    inputController.pause();
+    state.clock.pause("player");
+    state.paused = state.clock.paused;
+    if (document.pointerLockElement === canvas) document.exitPointerLock();
+  }
   updateSimulationUi();
 }
 
@@ -415,13 +459,22 @@ function simulationFrame(timestamp) {
       runtimeAdvance(elapsedSeconds);
       const clockPaused = state.clock?.paused ?? true;
       if (clockPaused !== state.paused) {
+        if (clockPaused) {
+          inputController.pause();
+          if (document.pointerLockElement === canvas) document.exitPointerLock();
+        } else {
+          inputController.resume();
+        }
         state.paused = clockPaused;
         updateSimulationUi();
       }
     } catch (error) {
       simulationStatus.textContent = `SIMULATION ERROR · ${error.message}`;
+      inputController.pause();
+      inputController.clearForFocusLoss();
       state.clock?.pause("simulation-fault");
       state.paused = true;
+      if (document.pointerLockElement === canvas) document.exitPointerLock();
       updateSimulationUi();
     }
   }
@@ -434,14 +487,62 @@ function runtimeAdvance(deltaSeconds) {
   advanceRuntime?.(deltaSeconds);
 }
 
+function isInteractiveTarget(target) {
+  return target instanceof HTMLElement && (target.isContentEditable
+    || ["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(target.tagName));
+}
+
 window.addEventListener("keydown", (event) => {
-  if (event.code !== "Space" || event.repeat || event.altKey || event.ctrlKey || event.metaKey) return;
-  const target = event.target;
-  if (target instanceof HTMLElement && (target.isContentEditable
-    || ["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(target.tagName))) return;
-  if (document.body.dataset.currentView !== "dev-lab") return;
-  event.preventDefault();
-  toggleSimulationPause();
+  if (document.body.dataset.currentView !== "dev-lab" || isInteractiveTarget(event.target)) return;
+  if (event.code === "Space" && !event.repeat && !event.altKey && !event.ctrlKey && !event.metaKey) {
+    event.preventDefault();
+    toggleSimulationPause();
+    return;
+  }
+  if (!state.paused) {
+    inputController.keyDown(event.code);
+    if (/^(Key[A-Z]|Digit[0-9]|Arrow(Up|Down|Left|Right))$/.test(event.code)) {
+      event.preventDefault();
+    }
+  }
+});
+
+window.addEventListener("keyup", (event) => {
+  inputController.keyUp(event.code);
+});
+
+canvas.addEventListener("pointerdown", (event) => {
+  if (document.body.dataset.currentView !== "dev-lab" || event.button !== 0) return;
+  inputController.pointerDown(event.button);
+  if (!state.paused && document.pointerLockElement !== canvas) requestViewportPointerLock();
+}, true);
+
+window.addEventListener("pointerup", (event) => {
+  inputController.pointerUp(event.button);
+});
+
+canvas.addEventListener("pointermove", (event) => {
+  if (!state.paused) inputController.pointerMove(event.movementX || 0, event.movementY || 0);
+});
+
+document.addEventListener("pointerlockchange", () => {
+  viewportPanel.dataset.pointerLocked = String(document.pointerLockElement === canvas);
+});
+
+function handleFocusLoss() {
+  if (!state.paused && state.clock) {
+    inputController.pause();
+    state.clock.pause("player");
+    state.paused = true;
+  }
+  inputController.clearForFocusLoss();
+  if (document.pointerLockElement === canvas) document.exitPointerLock();
+  updateSimulationUi();
+}
+
+window.addEventListener("blur", handleFocusLoss);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") handleFocusLoss();
 });
 
 async function startDevLabRuntime() {
@@ -480,5 +581,7 @@ async function startDevLabRuntime() {
   }
 }
 
+loadCanonicalDefinitions();
+refreshDatabase();
 startDevLabRuntime();
 showView("menu");
