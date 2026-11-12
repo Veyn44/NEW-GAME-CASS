@@ -286,6 +286,19 @@ test("Persistence participant follows the coordinator contract", () => {
   assert(typeof tx.commit === "function" && typeof tx.rollback === "function");
 });
 
+test("snapshot descriptor Proxy traps are normalized to INVALID_SNAPSHOT", () => {
+  const registry = makeRegistry();
+  const hostile = new Proxy({ value: 1 }, {
+    getOwnPropertyDescriptor() { throw new Error("descriptor trap failed"); }
+  });
+  throwsCode(() => registry.registerWorld({
+    worldId: "world:proxy-descriptor-trap",
+    type: "test.world",
+    dimensions: { width: 10, height: 10 },
+    metadata: hostile
+  }), "INVALID_SNAPSHOT");
+});
+
 export async function runWorldRegistryTests() {
   const results = [];
   for (const item of tests) {
