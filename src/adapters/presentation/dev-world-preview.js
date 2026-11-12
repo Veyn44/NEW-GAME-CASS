@@ -1,3 +1,5 @@
+import { getVisibleDimensions, clampCameraPosition, MIN_ZOOM, MAX_ZOOM } from "./world-preview-model.js";
+
 const canvas = document.querySelector("#world-canvas");
 const context = canvas.getContext("2d");
 const sizeSelect = document.querySelector("#world-size");
@@ -19,11 +21,6 @@ const state = {
   pointerY: 0
 };
 
-const BASE_VIEW_COLUMNS = 64;
-const BASE_VIEW_ROWS = 32;
-const MIN_ZOOM = 0.5;
-const MAX_ZOOM = 2;
-
 function resizeCanvas() {
   const bounds = canvas.getBoundingClientRect();
   const pixelRatio = window.devicePixelRatio || 1;
@@ -34,18 +31,18 @@ function resizeCanvas() {
 }
 
 function visibleDimensions() {
-  return {
-    columns: BASE_VIEW_COLUMNS / state.zoom,
-    rows: BASE_VIEW_ROWS / state.zoom
-  };
+  return getVisibleDimensions(state.zoom);
 }
 
 function clampCamera() {
   const view = visibleDimensions();
-  const halfColumns = Math.min(view.columns, state.worldSize) / 2;
-  const halfRows = Math.min(view.rows, state.worldSize) / 2;
-  state.cameraX = Math.max(halfColumns, Math.min(state.worldSize - halfColumns, state.cameraX));
-  state.cameraY = Math.max(halfRows, Math.min(state.worldSize - halfRows, state.cameraY));
+  const position = clampCameraPosition(
+    { x: state.cameraX, y: state.cameraY },
+    state.worldSize,
+    view
+  );
+  state.cameraX = position.x;
+  state.cameraY = position.y;
 }
 
 function render() {
