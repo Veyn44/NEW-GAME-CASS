@@ -14,6 +14,13 @@ function makeRegistry() {
   return new EntityRegistry({ idFactory: () => `test-${++id}` });
 }
 
+test("revoked Proxy metadata is rejected with a stable registry error", () => {
+  const registry = makeRegistry();
+  const revocable = Proxy.revocable({}, {});
+  revocable.revoke();
+  throwsCode(() => registry.registerPersistent({ kind: "pawn", metadata: revocable.proxy }), "INVALID_METADATA");
+});
+
 test("persistent entities receive unique stable IDs", () => {
   const registry = makeRegistry();
   const first = registry.registerPersistent({ kind: "pawn" });
