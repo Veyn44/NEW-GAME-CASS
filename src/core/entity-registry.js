@@ -323,7 +323,10 @@ export class EntityRegistry {
         this.#entities = next;
         this.#scopeCounters = new Map();
         for (const record of next.values()) {
-          if (record.scope === "scoped") {
+          // Stored and removed records retain their identities. Include them
+          // when rebuilding counters so a restored campaign cannot rewind
+          // the sequence of a scope whose entities have since moved away.
+          {
             const match = record.id.match(/^(?:scope|encounter):(.+):([a-zA-Z0-9._-]+)$/);
             if (match && /^\d+$/.test(match[2])) {
               this.#scopeCounters.set(match[1], Math.max(this.#scopeCounters.get(match[1]) ?? 0, Number(match[2])));
