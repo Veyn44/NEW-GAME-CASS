@@ -1,8 +1,4 @@
-const DEFAULT_GAMEPLAY_KEYS = new Set([
-  "KeyW", "KeyA", "KeyS", "KeyD",
-  "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight",
-  "ShiftLeft", "ShiftRight", "ControlLeft", "ControlRight"
-]);
+const PAUSE_KEY = "Space";
 
 /**
  * Keeps physical input state separate from permission to apply it to gameplay.
@@ -13,11 +9,11 @@ const DEFAULT_GAMEPLAY_KEYS = new Set([
  * held until its matching release event arrives.
  */
 export function createViewportInputController({
-  gameplayKeys = DEFAULT_GAMEPLAY_KEYS,
+  gameplayKeys = null,
   gameplayButtons = [0],
   onChange = null
 } = {}) {
-  const allowedKeys = new Set(gameplayKeys);
+  const allowedKeys = gameplayKeys === null ? null : new Set(gameplayKeys);
   const allowedButtons = new Set(gameplayButtons);
   const physicalKeys = new Set();
   const physicalButtons = new Set();
@@ -108,7 +104,7 @@ export function createViewportInputController({
   }
 
   function keyDown(code) {
-    if (!allowedKeys.has(code) || physicalKeys.has(code)) return false;
+    if (code === PAUSE_KEY || (allowedKeys && !allowedKeys.has(code)) || physicalKeys.has(code)) return false;
     physicalKeys.add(code);
     if (paused) {
       blockedKeys.add(code);
