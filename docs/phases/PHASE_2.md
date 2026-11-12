@@ -239,3 +239,4 @@ A test is PASS only after it has actually run and passed. Prepared tests are not
 | 2026-11-12 | Repository folder layout and explicit phase-to-main merge map documented. |
 | 2026-11-12 | Initial host/world/Pawn/locomotion contracts checked against Core source; game-facing Pawn details remain open. |
 | 2026-11-12 | 2.1 host runtime shell implemented in `src/host/`; CI passed 198/198 Core tests and 6/6 host tests. |
+| 2026-11-12 | Approved square world dimensions (64/128/256 primary presets), independent grid overlay and initial 64 × 32 viewport target documented. Added a minimal browser preview with size selection, grid toggle, pan and zoom. |
