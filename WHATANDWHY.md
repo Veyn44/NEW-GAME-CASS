@@ -202,3 +202,36 @@ This file is the canonical log for accepted game and presentation decisions. It 
 - **BEHAVIOR:** The first adapter presents live Unit instances. Future object types must provide stable ID, kind, display name, summary, optional artwork and read-only detail data through their owning systems. INFO is available only while paused.
 - **SCOPE:** Initial Dev Lab selection presentation. No fake wall entities or sprites are created.
 - **STATUS:** Initial Unit adapter implemented; other object adapters deferred.
+
+
+## Decision: Shared Database is reused inside Dev Lab
+
+- **WHAT:** The Database opened from the Dev Lab viewport is the same application Database view and canonical catalog used elsewhere. Dev Lab presents that existing view as an overlay; it does not create a second catalog, registry, inspector implementation or independent selection state.
+- **WHY:** One source of truth prevents catalog entries and detail behavior from drifting. The Database remains an application-level information tool; Dev Lab only supplies the context that determines what action is available after selecting a definition.
+- **BEHAVIOR:** The viewport DATABASE control opens the shared Database view above the world canvas. The overlay does not resize or reflow the canvas. In the Dev Lab placement context, SELECT is exposed in the Database header only for a definition eligible to instantiate as the currently supported Unit kind. Activating SELECT closes the Database and hands the stable definition ID to the existing placement flow. Ordinary browsing does not activate placement.
+- **SCOPE:** Dev Lab presentation and contextual Database integration. Database does not create runtime entities and does not own Unit lifecycle or world placement.
+- **STATUS:** Implemented in the current Phase 2 development build; user confirms the in-game Database flow works. Automated/browser verification remains separately tracked.
+
+## Decision: Dev Lab placement is an explicit paused editing action
+
+- **WHAT:** Placing a Unit from the Database is a deliberate, cursor-guided action. Selecting an eligible definition enters a placement mode with a translucent blueprint snapped to the world grid. A valid world click creates one Unit at that tile; Escape cancels the active placement.
+- **WHY:** The developer must see and control the exact target location. Creation should never happen as a side effect of browsing a definition or by silently choosing a coordinate.
+- **BEHAVIOR:** Placement is available only while the session is paused. The presentation adapter projects the cursor onto an integer tile and displays the blueprint. Only a valid in-bounds click calls `game.unit-api.createUnit({ definitionId, worldId, position })`. The Unit system and Core services remain authoritative for identity and placement. The renderer only presents the blueprint and translates screen coordinates; it does not create entities or mutate world state. Placement can be cancelled with Escape.
+- **SCOPE:** Dev Lab editing workflow and viewport presentation. This does not add Pawn movement, collision/occupancy, multi-tile footprints or construction mechanics.
+- **STATUS:** Implemented in the current Phase 2 development build; user confirms placement works. Automated/browser verification remains separately tracked.
+
+## Decision: Quick Select and live Unit information card
+
+- **WHAT:** A selected live Unit is represented by a compact Quick Select overlay at the upper-left of the viewport. Its INFO action opens a larger live-instance information card, positioned independently of the world canvas.
+- **WHY:** Selection should provide immediate context without permanently consuming world space. Detailed inspection should be available on demand and should not disturb the map or its camera.
+- **BEHAVIOR:** Quick Select presents the selected object's available artwork, name and short summary. INFO opens the live Unit information card with the instance details supplied by the owning gameplay APIs, including its current world position and available canonical/personal information. Inspection is read-only and available while paused. Closing the card returns to the selected-object state; the viewport canvas dimensions and camera remain unchanged. Missing artwork must use a deliberate fallback rather than a broken image.
+- **SCOPE:** Dev Lab live-object presentation and inspection. The UI does not own or calculate authoritative Unit attributes. Future object kinds must provide equivalent data through their owning systems before appearing as supported live selections.
+- **STATUS:** Implemented in the current Phase 2 development build; user confirms Quick Select and INFO card work. Automated/browser verification remains separately tracked.
+
+## Decision: Dev Lab pause and viewport remain the stable editing surface
+
+- **WHAT:** Dev Lab uses a real session pause for inspection and placement. The viewport remains the primary spatial surface, with toolbar and floating DOM panels layered above it.
+- **WHY:** Paused editing must not race the simulation, and diagnostic UI must not alter world geometry or camera framing when opened, closed or updated.
+- **BEHAVIOR:** Space toggles the session pause. While paused, the user can inspect live Units and use the Database placement workflow. The world canvas remains stable beneath floating overlays; overlay interaction is isolated to the overlay bounds. The pause indicator is a viewport-only visual treatment and does not replace the authoritative simulation pause.
+- **SCOPE:** Dev Lab host/input/presentation behavior. This does not claim that Pawn locomotion or the complete Phase 2 gameplay loop is finished.
+- **STATUS:** Implemented in the current Phase 2 development build; user confirms pause and viewport behavior work. Automated/browser verification remains separately tracked.
