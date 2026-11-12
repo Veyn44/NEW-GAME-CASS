@@ -369,6 +369,46 @@ test("an externally faulted Event Bus stops host simulation before the next upda
   await runtime.destroy();
 });
 
+test("Persistence holds an independent simulation pause across asynchronous storage writes", async () => {
+  let releaseWrite;
+  const blockedWrite = new Promise((resolve) => { releaseWrite = resolve; });
+  let writeStarted = false;
+  let stored = null;
+  const adapter = {
+    async read() { return stored; },
+    async writeAtomic(_slotId, saveData) {
+      writeStarted = true;
+      await blockedWrite;
+      stored = saveData;
+      return true;
+    }
+  };
+  const runtime = createCoreAssembly({ saveAdapter: adapter });
+  const context = await runtime.start();
+  const clock = context.getService("core.game-clock");
+  const scheduler = context.getService("core.scheduler");
+  const persistence = context.getService("core.persistence");
+
+  clock.pause("manual");
+  const savePromise = persistence.save("slow-storage", { stateId: "campaign:boundary" });
+  while (!writeStarted) await Promise.resolve();
+
+  assert(clock.hasPauseReason("core.persistence"), "Persistence did not hold its clock pause during storage I/O.");
+  assert(clock.hasPauseReason("manual"), "Persistence removed an unrelated manual pause.");
+  scheduler.advance(0.05);
+  equal(scheduler.tick, 0, "Simulation advanced while the save transaction was pending.");
+
+  releaseWrite();
+  await savePromise;
+  assert(!clock.hasPauseReason("core.persistence"), "Persistence pause reason was not released after saving.");
+  assert(clock.hasPauseReason("manual"), "Manual pause was not preserved after saving.");
+
+  clock.resume("manual");
+  scheduler.advance(0.05);
+  equal(scheduler.tick, 1, "Simulation did not resume after the save completed.");
+  await runtime.destroy();
+});
+
 test("Persistence remains blocked after an asynchronous Event Bus handler faults the bus", async () => {
   const runtime = createCoreAssembly();
   const context = await runtime.start();
