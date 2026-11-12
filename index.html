@@ -56,18 +56,15 @@
           <div class="dev-header-actions"><span class="dev-note">Development environment · isolated from game UI</span><button type="button" class="secondary-button" data-back-menu>← Main menu</button></div>
         </header>
         <section class="toolbar" aria-label="World preview controls">
-          <label class="control"><span>World size</span><select id="world-size"><option value="128" selected>128 × 128</option></select></label>
+          <label class="control"><span>World size</span><select id="world-size"><option value="64">64 × 64</option><option value="128" selected>128 × 128</option><option value="256">256 × 256</option></select></label>
           <label class="toggle-control" for="grid-visible"><input id="grid-visible" type="checkbox" checked><span>Show grid</span></label>
           <span class="control zoom-readout">Zoom <output id="zoom-value">100%</output></span>
           <button id="reset-camera" type="button">Reset camera</button>
           <span class="dev-note">Mouse wheel: zoom · Middle-button drag: pan</span>
         </section>
-        <section class="viewport-panel" aria-label="World viewport" data-paused="true" data-input-mode="paused"><canvas id="world-canvas" tabindex="0" aria-label="World viewport. Press Space to pause or resume.">Your browser does not support canvas.</canvas><div class="viewport-crosshair" aria-hidden="true"></div></section>
+        <section class="viewport-panel" aria-label="World viewport" data-paused="true" data-input-mode="paused"><canvas id="world-canvas" tabindex="0" aria-label="World viewport. Press Space to pause or resume.">Your browser does not support canvas.</canvas><div class="viewport-crosshair" aria-hidden="true"></div><aside id="quick-select" class="quick-select" aria-label="Quick Select" hidden><div class="quick-select-heading"><span class="eyebrow">QUICK SELECT</span><span id="quick-select-kind">OBJECT</span></div><div class="quick-select-preview"><img id="quick-select-artwork" alt="" hidden><span id="quick-select-artwork-empty">NO SPRITE</span></div><h2 id="quick-select-name">No selection</h2><p id="quick-select-summary">Select an object in the paused world.</p><button id="quick-select-info" type="button" disabled>INFO</button><section id="quick-select-details" class="quick-select-details" hidden></section></aside></section>
         <footer class="status-bar"><span id="world-status">World: 128 × 128</span><span id="view-status">View: calculating…</span><span id="simulation-status" aria-live="polite">PAUSED · Space to resume</span><span id="pointer-status">INSPECTION CURSOR</span><span>Free camera</span></footer>
-        <aside class="dev-tools-panel">
-          <div class="dev-tool-copy"><p class="eyebrow">TEST ENTITY</p><strong>Johny</strong><p id="entity-status" class="dev-note">Loading canonical Human entity…</p></div>
-          <section id="unit-inspector" class="unit-inspector" aria-live="polite" hidden></section>
-        </aside>
+        
       </section>
     </main>
     <script type="module" src="./src/application/application-shell.js"></script>
