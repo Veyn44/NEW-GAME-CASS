@@ -27,6 +27,13 @@ function addEncounter(registry, encounterId = "encounter:alpha", locationId = "a
   });
 }
 
+test("revoked Proxy snapshots are rejected with a stable registry error", () => {
+  const registry = makeRegistry();
+  const revocable = Proxy.revocable({}, {});
+  revocable.revoke();
+  throwsCode(() => registry.prepareRestore(revocable.proxy), "INVALID_SNAPSHOT");
+});
+
 test("registers Cassandra as a stable map world", () => {
   const registry = makeRegistry();
   const world = addCassandra(registry);
