@@ -1,6 +1,6 @@
 # Phase 2 — Initial System Contracts
 
-**Status:** Phase 2 Unit foundation implemented; movement and game-specific Unit attributes remain intentionally deferred.  
+**Status:** Unit foundation and Dev Lab Database/placement/inspection integration implemented on the Phase 2 branch; locomotion and full end-to-end Phase 2 acceptance remain outstanding.  
 **Authority:** Accepted decisions in `WHATANDWHY.md`, current Core source and `src/core/README.md`.
 
 This document defines the smallest technical contracts needed for the first runnable gameplay slice. It separates Core identity, Unit domain state and world placement. It deliberately leaves game-design fields open where they should be chosen from actual gameplay needs.
@@ -198,6 +198,6 @@ Do not invent answers to these for convenience. Ask for user input when a decisi
 - [x] Unit public API and minimal data schema finalized for the first foundation.
 - [x] Unit creation, query, listing, removal and persistence participant implemented.
 - [x] Unit identity/placement rollback and tile-coordinate validation covered by tests.
-- [ ] Dev Lab Spawn Unit integration remains deferred until the user tests the initial shell and approves the interaction.
+- [x] Dev Lab Database selection and paused Unit placement integration implemented through the existing Unit API; user confirms the workflow works. Automated/browser evidence is tracked separately in the Phase 2 test plan.
 
-Movement, Pawn-specific behavior, visual representation and game-specific attributes remain unimplemented by design.
+Actual Unit/Pawn locomotion through a gameplay-owned movement command and deterministic scheduler task remains unimplemented. Pawn-specific behavior and game-specific attributes remain deferred by design. Dev Lab's current placement and inspection UI are development tools, not substitutes for locomotion or final player-facing presentation.
