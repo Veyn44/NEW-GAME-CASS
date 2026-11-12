@@ -74,15 +74,17 @@ A Pawn:
 - may expose additional Pawn-specific behavior or data only when a concrete requirement needs it;
 - does not receive a second Core Entity identity merely because it is a Pawn.
 
-The precise player-facing meaning and distinguishing attributes of Pawn remain open game-design decisions. Until they are decided, Pawn must not become a separate Core kind, a parallel identity model, or a premature independent system.
+The precise player-facing meaning and distinguishing attributes of Pawn remain open game-design decisions. Profession/skill-like values (for example mining or research ratings) may become data-driven Unit/Pawn attributes, but their ownership, progression and modifier rules remain open until designed. Until they are decided, Pawn must not become a separate Core kind, a parallel identity model, or a premature independent system.
 
 ### Definition versus instance
 
 A **Unit Definition** is immutable canonical content describing what kind of Unit can be created. It has a stable definition ID and is owned by the gameplay system responsible for that content. Definitions are not runtime entities and are not registered in Core Entity Registry.
 
-A **Unit Instance** is one actual Unit in a running/saved game. It references one canonical Unit Definition and has its own Core Entity ID plus Unit-owned mutable runtime state.
+A **Unit Instance** is one actual Unit in a running/saved game. It references one canonical Unit Definition and has its own Core Entity ID plus Unit-owned mutable runtime state. The definition may supply canonical/default values; the instance owns mutable values and progression. Effective values after modifiers are derived at runtime and must not overwrite the canonical definition.
 
-The Database catalog reads canonical definitions from their owning gameplay systems. It must not become a second source of definitions or contain copied mutable instance state.
+The Database inspector is a reusable presentation surface for both canonical definitions and live Unit/Pawn instances. In definition context it displays canonical content values. In live-instance context it displays current instance/effective values, and may show base values plus modifier contributions when the relevant gameplay APIs provide them. The Database does not own runtime state or calculate gameplay values; it renders data supplied by the owning gameplay systems. This allows an in-game Pawn information action to reuse the same inspector instead of introducing a separate Pawn-only information UI.
+
+The Database catalog reads canonical definitions from their owning gameplay systems. It must not become a second source of definitions or contain copied mutable instance state. The same inspector can also render a live Unit/Pawn instance using data supplied by gameplay APIs; it shows current/effective values rather than mutating or replacing canonical definition values.
 
 Database is a single shared experience with two contextual modes:
 - **Browse mode** presents the full catalog for inspection. It does not expose an active selection action.
