@@ -69,3 +69,14 @@ The host suite is currently `tests/unit/host-runtime.test.js`; run it with `npm 
 ## Evidence discipline
 
 A test marked PASS must have actually run. Source inspection, a prepared test file or a successful build is not a substitute for a test result. A CI job that runs only Core tests does not prove Phase 2 gameplay behavior.
+
+
+## Dev Lab viewport correction checks (2026-11-12)
+
+- Verify startup registers 64, 128 and 256 square descriptors and activates 128 by default.
+- Verify startup does not call createUnit and the initial Unit list is empty.
+- Verify selecting a preset activates the descriptor with matching dimensions.
+- Verify Quick Select INFO cannot open while running and is read-only while paused.
+- Compare canvas bounding rectangle before selection, after selection and after clearing selection; dimensions must remain unchanged.
+- Verify overlay controls do not leak pointer events to world selection, while clicks outside the overlay reach the canvas.
+- Verify all three presets and empty-space selection clearing in a real browser. Record manual checks separately from automated results.
