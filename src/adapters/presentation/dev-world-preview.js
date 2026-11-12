@@ -16,6 +16,7 @@ let selectedMarkerId = null;
 let placementArtwork = null;
 let placementImage = null;
 let placementImageReady = false;
+let cameraFollowTargetId = null;
 
 export function setWorldInteraction({ paused = false, onSelect = null } = {}) {
   state.paused = Boolean(paused);
@@ -67,6 +68,20 @@ export function setWorldPlacement(configuration = null) {
 
 export function cancelWorldPlacement() {
   setWorldPlacement(null);
+}
+
+export function setCameraFollowTarget(entityId, position) {
+  cameraFollowTargetId = entityId ?? null;
+  if (cameraFollowTargetId && position && Number.isFinite(position.x) && Number.isFinite(position.y)) {
+    state.cameraX = position.x + 0.5;
+    state.cameraY = position.y + 0.5;
+    clampCamera();
+    render();
+  }
+}
+
+export function clearCameraFollowTarget() {
+  cameraFollowTargetId = null;
 }
 
 export function setSelectedWorldMarker(entityId) {
@@ -348,6 +363,7 @@ canvas.addEventListener("pointermove", (event) => {
     render();
   }
   if (state.dragging) {
+    cameraFollowTargetId = null;
     const bounds = canvas.getBoundingClientRect();
     const view = visibleDimensions();
     const cellWidth = bounds.width / view.columns;
