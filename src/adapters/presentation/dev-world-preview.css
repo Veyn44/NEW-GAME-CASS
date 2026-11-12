@@ -241,3 +241,7 @@ canvas:active { cursor: grabbing; }
  .database-workspace { grid-template-columns:1fr; grid-template-rows:minmax(130px,.75fr) minmax(0,1.25fr); }
  .database-inspector-heading h2 { font-size:18px; }
 }
+
+/* Dev Lab test Unit marker */
+.dev-tool-copy { max-width: min(60%, 760px); }
+@media(max-width:640px) { .dev-tool-copy { max-width:100%; } }

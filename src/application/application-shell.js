@@ -1,4 +1,8 @@
-import "../adapters/presentation/dev-world-preview.js";
+import { setWorldMarkers } from "../adapters/presentation/dev-world-preview.js";
+import { createGameRuntime } from "../host/create-game-runtime.js";
+import { MemorySaveAdapter } from "../core/persistence.js";
+import { createUnitSystem } from "../gameplay/unit/unit-system.js";
+import { registerDefinition, getDefinition } from "./database/definition-registry.js";
 import {
   listDefinitionIndex,
   getCategories,
@@ -19,6 +23,16 @@ const devSelectUnit = document.querySelector("#dev-select-unit");
 const devSelectedUnit = document.querySelector("#dev-selected-unit");
 const spawnButton = document.querySelector("#spawn-unit");
 const spawnStatus = document.querySelector("#spawn-status");
+
+registerDefinition({
+  id: "pawn.basic",
+  name: "Basic Pawn",
+  category: "Pawns",
+  description: "The first minimal Pawn definition used to verify the Database-to-Unit workflow.",
+  attributes: {},
+  artwork: null,
+  spawnableAs: ["unit"]
+});
 
 const state = {
   databaseMode: "browse",
@@ -260,7 +274,7 @@ databaseSelect.addEventListener("click", () => {
   devSelectedUnit.hidden = false;
   spawnButton.disabled = true;
   spawnButton.textContent = "Spawn Unit · RUNTIME NOT CONNECTED";
-  spawnStatus.textContent = "Definition selected. Unit spawning will be enabled when Dev Lab owns a running world session.";
+  spawnButton.disabled = !state.unitApi;\n  spawnButton.textContent = state.unitApi ? "Spawn Unit" : "Spawn Unit · STARTING";\n  spawnStatus.textContent = state.unitApi ? "Ready to create a Unit instance in the test world." : "Starting the Dev Lab world session…";
   showView("dev-lab");
 });
 

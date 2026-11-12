@@ -9,7 +9,7 @@ const resetButton = document.querySelector("#reset-camera");
 const worldStatus = document.querySelector("#world-status");
 const viewStatus = document.querySelector("#view-status");
 
-const state = {
+let worldMarkers = [];\n\nexport function setWorldMarkers(markers) {\n  worldMarkers = Array.isArray(markers) ? markers.map((marker) => ({ ...marker })) : [];\n  render();\n}\n\nconst state = {
   worldSize: Number(sizeSelect.value),
   gridVisible: gridToggle.checked,
   zoom: 1,
