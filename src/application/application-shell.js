@@ -296,7 +296,7 @@ databaseSelect.addEventListener("click", () => {
   devSelectedUnit.hidden = false;
   spawnButton.disabled = true;
   spawnButton.textContent = "Spawn Unit · RUNTIME NOT CONNECTED";
-  spawnButton.disabled = !state.unitApi;
+  spawnButton.disabled = !state.unitApi || !state.paused;
   spawnButton.textContent = state.unitApi ? "Spawn Unit" : "Spawn Unit · STARTING";
   spawnStatus.textContent = state.unitApi ? "Ready to create a Unit instance in the test world." : "Starting the Dev Lab world session…";
   showView("dev-lab");
@@ -400,9 +400,9 @@ function updateSimulationUi() {
 
 function toggleSimulationPause() {
   if (!state.clock) return;
-  state.paused = !state.paused;
-  if (state.paused) state.clock.pause("player");
-  else state.clock.resume("player");
+  if (state.clock.hasPauseReason("player")) state.clock.resume("player");
+  else state.clock.pause("player");
+  state.paused = state.clock.paused;
   updateSimulationUi();
 }
 
@@ -413,6 +413,11 @@ function simulationFrame(timestamp) {
       // The Core scheduler and Game Clock are the authoritative simulation gate.
       // Rendering and input remain responsive while the clock is paused.
       runtimeAdvance(elapsedSeconds);
+      const clockPaused = state.clock?.paused ?? true;
+      if (clockPaused !== state.paused) {
+        state.paused = clockPaused;
+        updateSimulationUi();
+      }
     } catch (error) {
       simulationStatus.textContent = `SIMULATION ERROR · ${error.message}`;
       state.clock?.pause("simulation-fault");
@@ -461,7 +466,7 @@ async function startDevLabRuntime() {
     state.paused = true;
     updateSimulationUi();
     state.animationFrame = requestAnimationFrame(simulationFrame);
-    spawnButton.disabled = !devSelectedUnit.dataset.definitionId;
+    spawnButton.disabled = !devSelectedUnit.dataset.definitionId || !state.paused;
     spawnButton.textContent = "Spawn Unit";
     if (devSelectedUnit.dataset.definitionId) {
       spawnStatus.textContent = "Ready to create a Unit instance in the test world.";
