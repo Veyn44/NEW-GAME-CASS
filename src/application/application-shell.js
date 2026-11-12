@@ -482,7 +482,7 @@ function updateSimulationUi() {
   viewportPanel.dataset.paused = String(state.paused);
   viewportPanel.dataset.inputMode = state.paused ? "paused" : "running";
   worldSizeSelect.disabled = !state.paused || state.placementActive;
-  gridVisible.disabled = !state.paused;
+  gridVisible.disabled = false;
   viewportDatabaseButton.disabled = !state.paused || state.placementActive;
   resetCameraButton.disabled = false;
   pointerStatus.textContent = state.paused ? "INSPECTION CURSOR" : "GAMEPLAY CURSOR";
@@ -615,7 +615,6 @@ function handleFocusLoss() {
   }
   inputController.clearForFocusLoss();
   clearCameraFollowTarget();
-  if (document.pointerLockElement === canvas) document.exitPointerLock();
   updateSimulationUi();
 }
 
