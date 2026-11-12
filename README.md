@@ -4,6 +4,8 @@ A modular game-engine foundation with Cassandra as its first host application.
 
 ## Core
 
+Current migration scope, verified test baseline and remaining Phase 1 work: [CORE_MIGRATION_STATUS.md](CORE_MIGRATION_STATUS.md).
+
 The reusable, domain-neutral runtime lives in [`src/core`](src/core/README.md). Host games provide their own systems and synchronous simulation tasks to the Core Assembly. Cassandra-specific demo wiring exists only in test fixtures.
 
 ## Development
