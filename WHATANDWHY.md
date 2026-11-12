@@ -101,3 +101,12 @@ This file is the canonical log for accepted game and presentation decisions. It 
 - **BEHAVIOR:** Gameplay systems own and register immutable definition records containing a stable ID, name, category, description and structured attributes. Database presents those records with search and category filtering. It describes definition/base attributes, not mutable runtime instance state such as current health or damage; runtime inspection is a separate future capability. Dev Lab and normal gameplay may both consume the same definitions without depending on the Database UI.
 - **SCOPE:** Application-level catalog presentation and a small definition registry outside Core. This does not authorize fake placeholder game records or move gameplay ownership into the catalog.
 - **STATUS:** Approved; initial registry and empty Database UI implemented, gameplay definitions pending.
+
+
+## Decision: Database as a hierarchical asset browser and inspector
+
+- **WHAT:** The intended Database experience is a searchable hierarchical asset browser. A left-side tree contains categories, nested subcategories and individual game assets, organized to correspond closely to the actual content taxonomy and code/folder ownership. Selecting an asset displays a larger pixel-art representation and its associated attributes/details in a right-side inspector.
+- **WHY:** The Database is a navigational map of what exists in Cassandra and a practical way to inspect how implemented assets are built without searching source files. It should also support future in-game reference and balancing work.
+- **BEHAVIOR:** Search finds assets across categories. The navigation tree exposes the hierarchy. Selecting an item opens its canonical definition and associated artwork/metadata in the inspector. The catalog describes base definitions; mutable runtime instance state remains separate. Each entry should preserve stable identity and ownership/source traceability. Initial catalog presentation is read-only; any editing or balancing workflow needs a separate decision.
+- **SCOPE:** Future Database information architecture and presentation. The first compact registry/search implementation remains a foundation; the hierarchical tree, artwork and full inspector are not claimed as implemented yet.
+- **STATUS:** Approved design direction; implementation deferred until the user has tested the initial shell.
