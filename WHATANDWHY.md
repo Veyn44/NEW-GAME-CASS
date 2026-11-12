@@ -160,3 +160,12 @@ This file is the canonical log for accepted game and presentation decisions. It 
 - **BEHAVIOR:** The presentation adapter converts the cursor position to an integer world tile and displays a valid/invalid ghost preview. Only a left-click on a valid in-bounds tile calls the Unit API. The actual Unit and world placement remain owned by gameplay/Core; the preview never creates or stores an entity. Middle-button camera panning and wheel zoom remain available. Right-click or Escape cancels the placement tool without affecting already placed Units.
 - **SCOPE:** Dev Lab placement interaction and world-preview presentation only. No collision, occupancy checks, pathfinding, footprint dimensions, Pawn movement, or changes to Core.
 - **STATUS:** Approved and implemented as the first interactive placement tool; browser verification pending.
+
+
+## Decision: Player pause gates Dev Lab world interaction
+
+- **WHAT:** The Space key toggles the authoritative Game Clock pause reason `player`. Dev Lab starts paused. World simulation time advances through the Core Simulation Scheduler while running. Selecting a placed Unit and using Spawn Unit placement are permitted only while paused.
+- **WHY:** Inspection and placement must be deterministic editing actions, not interactions competing with a running simulation. Pause must control the actual simulation clock/scheduler, not merely change a UI label or stop rendering.
+- **BEHAVIOR:** The host feeds elapsed frame time to `runtime.advance()`; the Core Scheduler commits fixed simulation steps only while the Game Clock is not paused. The renderer and camera remain responsive while paused. Space toggles only the independent `player` pause reason, preserving unrelated pause reasons such as persistence or scheduler overload. Resuming cancels any active placement and clears the selected Unit. In paused mode, left-click selects a visible Unit marker; clicking empty space clears selection. The inspector reads the live Unit API and Core World Context placement.
+- **SCOPE:** Host input/frame-loop integration and Dev Lab presentation. No Core changes, no changes to Core lifecycle pause/resume, no new Unit attributes, movement, collision or occupancy rules. No simulation task is invented solely to make the clock appear active; actual gameplay systems will register their own tasks when implemented.
+- **STATUS:** Approved and implemented; automated and browser verification pending.
