@@ -39,14 +39,15 @@ function cloneImmutable(value, seen = new WeakSet(), path = "payload") {
 
   let prototype;
   let keys;
+  let isArray;
   try {
     prototype = Object.getPrototypeOf(value);
     keys = Reflect.ownKeys(value);
+    isArray = Array.isArray(value);
   } catch {
     invalidPayload(path, "could not be inspected as plain data.");
   }
 
-  const isArray = Array.isArray(value);
   if (isArray) {
     if (prototype !== Array.prototype) {
       invalidPayload(path, "must use the standard Array prototype.");
