@@ -49,6 +49,9 @@ export function createCoreAssembly({
   let insideSimulationStep = false;
   let persistenceQueue = Promise.resolve();
   let pendingPersistenceOperations = 0;
+  let runtimeDestroying = false;
+  let startPromise = null;
+  let destroyPromise = null;
   let bootstrap = null;
   let eventBus = null;
   if (!Array.isArray(hostSystems) || !Array.isArray(simulationTasks) || !Array.isArray(eventSources)) throw new TypeError('hostSystems, simulationTasks and eventSources must be arrays.');
@@ -190,6 +193,11 @@ export function createCoreAssembly({
           formatVersion,
           logger,
           runAtSafeBoundary: async (operation) => {
+            if (runtimeDestroying) {
+              const error = new Error("Persistence operation rejected because Core Assembly is shutting down.");
+              error.code = "RUNTIME_DESTROYING";
+              throw error;
+            }
             if (insideSimulationStep) {
               const error = new Error("Persistence operation attempted during a simulation step.");
               error.code = "UNSAFE_BOUNDARY";
@@ -236,9 +244,17 @@ export function createCoreAssembly({
 
   return Object.freeze({
     async start() {
-      if (runtimeContext) throw new Error("Core assembly has already been started.");
-      runtimeContext = await bootstrap.start();
-      return runtimeContext;
+      if (runtimeDestroying || destroyPromise) throw new Error("Core assembly is shutting down and cannot be started.");
+      if (runtimeContext || startPromise) throw new Error("Core assembly has already been started.");
+      startPromise = bootstrap.start().then((context) => {
+        runtimeContext = context;
+        return context;
+      });
+      try {
+        return await startPromise;
+      } finally {
+        startPromise = null;
+      }
     },
     get context() { return runtimeContext; },
     get state() { return bootstrap.state; },
@@ -246,8 +262,19 @@ export function createCoreAssembly({
     async pause() { return bootstrap.pause(); },
     async resume() { return bootstrap.resume(); },
     async destroy() {
-      await bootstrap.destroy();
-      runtimeContext = null;
+      if (destroyPromise) return destroyPromise;
+      runtimeDestroying = true;
+      destroyPromise = (async () => {
+        if (startPromise) {
+          try { await startPromise; } catch { /* Failed startup already performs its own cleanup. */ }
+        }
+        // Do not destroy registries or participants while an accepted save/load
+        // transaction is still using them. New requests are rejected above.
+        await persistenceQueue;
+        await bootstrap.destroy();
+        runtimeContext = null;
+      })();
+      return destroyPromise;
     },
     services: SERVICE
   });
