@@ -10,12 +10,14 @@ function deepFreeze(value) {
 function normalizeDefinition(definition) {
   if (!definition || typeof definition !== "object") throw new TypeError("A definition object is required.");
   const {
-    id, name, category, description = "", attributes = {},
-    artwork = null, spawnableAs = []
+    schemaVersion = 1, id, name, category, description = "", entityType = null,
+    attributes = {}, artwork = null, spawnableAs = []
   } = definition;
   for (const [field, value] of Object.entries({ id, name, category })) {
     if (typeof value !== "string" || !value.trim()) throw new TypeError(`Definition ${field} must be a non-empty string.`);
   }
+  if (!Number.isSafeInteger(schemaVersion) || schemaVersion < 1) throw new TypeError("Definition schemaVersion must be a positive safe integer.");
+  if (entityType !== null && (typeof entityType !== "string" || !entityType.trim())) throw new TypeError("Definition entityType must be a non-empty string or null.");
   if (typeof description !== "string") throw new TypeError("Definition description must be a string.");
   if (!attributes || typeof attributes !== "object" || Array.isArray(attributes)) throw new TypeError("Definition attributes must be an object.");
   if (artwork !== null && (typeof artwork !== "string" || !artwork.trim())) throw new TypeError("Definition artwork must be a non-empty path or null.");
@@ -23,10 +25,12 @@ function normalizeDefinition(definition) {
     throw new TypeError("Definition spawnableAs must contain supported instance kinds.");
   }
   return deepFreeze({
+    schemaVersion,
     id: id.trim(),
     name: name.trim(),
     category: category.trim(),
     description,
+    entityType: entityType?.trim() ?? null,
     attributes: { ...attributes },
     artwork,
     spawnableAs: [...new Set(spawnableAs)]
@@ -51,8 +55,8 @@ export function listDefinitionIndex({ category, spawnableAs } = {}) {
   return [...definitions.values()]
     .filter((entry) => !category || entry.category === category)
     .filter((entry) => !spawnableAs || entry.spawnableAs.includes(spawnableAs))
-    .map(({ id, name, category: entryCategory, description, spawnableAs: kinds }) =>
-      Object.freeze({ id, name, category: entryCategory, description, spawnableAs: kinds }))
+    .map(({ id, name, category: entryCategory, description, entityType, spawnableAs: kinds }) =>
+      Object.freeze({ id, name, category: entryCategory, description, entityType, spawnableAs: kinds }))
     .sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
 }
 
