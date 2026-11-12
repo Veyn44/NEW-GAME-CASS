@@ -47,6 +47,8 @@ export function createCoreAssembly({
     throw new TypeError("Core Assembly requires an explicit saveAdapter implementing read() and writeAtomic().");
   }
   let insideSimulationStep = false;
+  let persistenceQueue = Promise.resolve();
+  let pendingPersistenceOperations = 0;
   let bootstrap = null;
   let eventBus = null;
   if (!Array.isArray(hostSystems) || !Array.isArray(simulationTasks) || !Array.isArray(eventSources)) throw new TypeError('hostSystems, simulationTasks and eventSources must be arrays.');
@@ -204,15 +206,19 @@ export function createCoreAssembly({
               throw error;
             }
 
-            // Saving and loading await storage I/O. Hold an independent clock
-            // pause for the whole transaction so a host frame loop cannot
-            // advance simulation while snapshots are being captured/restored.
-            // Removing only this reason preserves manual/lifecycle/overload pauses.
-            clock.pause("core.persistence");
+            // Saving and loading await storage I/O. Serialize them so two
+            // overlapping transactions cannot race over the same participants
+            // or save slots. Hold one independent clock pause until the entire
+            // queue drains; this also preserves unrelated pause reasons.
+            pendingPersistenceOperations += 1;
+            if (pendingPersistenceOperations === 1) clock.pause("core.persistence");
+            const queuedOperation = persistenceQueue.then(() => operation());
+            persistenceQueue = queuedOperation.then(() => undefined, () => undefined);
             try {
-              return await operation();
+              return await queuedOperation;
             } finally {
-              clock.resume("core.persistence");
+              pendingPersistenceOperations -= 1;
+              if (pendingPersistenceOperations === 0) clock.resume("core.persistence");
             }
           }
         });
