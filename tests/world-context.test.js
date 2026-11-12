@@ -152,6 +152,42 @@ test("restore rejects references to missing entities or worlds", () => {
   const { context } = setup();
   throwsCode(() => context.prepareRestore({ version: 1, placements: [{ entityId: "entity:missing", type: "world", worldId: "world:cassandra", position: { x: 1, y: 1 } }] }), "UNKNOWN_ENTITY");
 });
+test("restore snapshots are detached before commit so caller mutation cannot change staged state", () => {
+  const { entities, context } = setup(); persistent(entities);
+  const snapshot = { version: 1, placements: [{
+    entityId: "entity:pawn", type: "world", worldId: "world:cassandra",
+    position: { x: 10, y: 12 }
+  }] };
+  const transaction = context.prepareRestore(snapshot);
+  snapshot.placements[0].position.x = 99;
+  transaction.commit();
+  equal(context.getPlacement("entity:pawn").position.x, 10);
+});
+
+test("restore rejects accessors without invoking their getters", () => {
+  const { entities, context } = setup(); persistent(entities);
+  let getterCalls = 0;
+  const placement = {
+    type: "world",
+    worldId: "world:cassandra",
+    position: { x: 1, y: 1 }
+  };
+  Object.defineProperty(placement, "entityId", {
+    enumerable: true,
+    get() { getterCalls += 1; return "entity:pawn"; }
+  });
+  throwsCode(() => context.prepareRestore({ version: 1, placements: [placement] }), "INVALID_SNAPSHOT");
+  equal(getterCalls, 0);
+});
+
+test("restore rejects snapshots whose proxy traps fail during inspection", () => {
+  const { context } = setup();
+  const hostile = new Proxy({}, {
+    getPrototypeOf() { throw new Error("blocked"); }
+  });
+  throwsCode(() => context.prepareRestore(hostile), "INVALID_SNAPSHOT");
+});
+
 test("persistence participant exposes required versioned contract", () => {
   const { context } = setup();
   const participant = context.createPersistenceParticipant();
