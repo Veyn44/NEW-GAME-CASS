@@ -37,6 +37,14 @@ export async function runPersistenceLoggerTests() {
     assert(Object.isFrozen(record) && Object.isFrozen(record.details), "Log record must be immutable.");
   });
 
+  await test("Logger safely clones nested arrays in structured details", () => {
+    const logger = new Logger();
+    const record = logger.info("array details", { values: [1, { label: "nested" }] });
+    equal(record.details.values[0], 1, "First array item");
+    equal(record.details.values[1].label, "nested", "Nested array object");
+    assert(Object.isFrozen(record.details.values), "Nested arrays must be immutable.");
+  });
+
   await test("Logger filters by minimum level and supports category/source filters", () => {
     const logger = new Logger({ minimumLevel: "WARN" });
     equal(logger.debug("hidden"), null, "DEBUG must be filtered");
