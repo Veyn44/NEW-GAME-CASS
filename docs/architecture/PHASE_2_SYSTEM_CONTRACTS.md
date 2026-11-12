@@ -67,11 +67,13 @@ The Unit record must not duplicate:
 
 The first implementation must not invent attributes such as health, age, needs, skills, jobs, inventory, equipment, personality, combat stats or appearance before their concrete requirements are established.
 
-### Pawn — Unit specialization
+### Pawn — Unit belonging to player control
 
-Pawn is a gameplay specialization/role within the Unit domain, not a Core primitive, independent identity registry or parallel entity lifecycle. It uses the Unit identity and Unit instance record. Pawn-specific fields or behavior are introduced only when a concrete gameplay requirement defines them.
+Pawn is a gameplay role/specialization within the Unit domain, not a Core primitive, independent identity registry or parallel entity lifecycle. A Unit is a Pawn when it belongs in any way to the player's control. This relationship does not require direct or continuous manual input.
 
-The exact player-facing meaning of Pawn remains open. Do not introduce `kind: "pawn"` in Core or a separate `game.pawn` system as the default foundation.
+The main protagonist is the primary fully and directly controllable Pawn. Other Pawns may be controlled through different, more indirect or limited mechanisms; those control models are deliberately deferred until their gameplay requirements are designed. A robot can be a Pawn if it belongs to the player's control. Pawn therefore describes the Unit's relationship to player control, not its species, body type, autonomy level or input method.
+
+A Unit outside the player's control is not a Pawn merely because it is mobile, intelligent or humanoid. Pawn uses the Unit identity and instance record. Do not introduce `kind: "pawn"` in Core or a separate `game.pawn` system as the default foundation. The exact representation of player-control membership and its lifecycle is a future gameplay contract, not part of the current Unit foundation.
 
 ### Definition and instance
 
@@ -178,7 +180,7 @@ Cassandra must provide a centralized world-session/simulation gate so only the c
 
 ## 9. Deliberately open game-design decisions
 
-- What makes one Pawn meaningfully different from another Unit?
+- How is a Unit's membership in player control represented, assigned and revoked?
 - Which player-facing identity/display fields should the first Unit have?
 - Which Unit Definition fields are genuinely required by the first concrete content?
 - Is movement part of the first vertical slice, and if so what is its feel/time basis?
