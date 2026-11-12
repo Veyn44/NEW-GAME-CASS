@@ -67,3 +67,28 @@ This file is the canonical log for accepted game and presentation decisions. It 
 - **BEHAVIOR:** When entering a temporary world, the persistent world remains registered and retains its state but becomes inactive; its world simulation must not advance. The temporary world becomes the sole active world and is the only world whose world-scoped simulation advances. On return, the temporary world is ended or retained according to its later-defined purpose, and the persistent world is reactivated and resumes from its preserved state. World existence, registry activation and simulation execution are distinct concepts.
 - **SCOPE:** World lifecycle/session architecture and world-scoped simulation scheduling. This does not yet decide whether multiple inactive temporary-world records may be retained, nor the creation, save, discard or reuse policy for each temporary-world type.
 - **STATUS:** Approved architecture; implementation pending.
+
+
+## Decision: Application shell and isolated development/game modes
+
+- **WHAT:** Cassandra is structured as an application with a main menu and distinct operating modes. The initial main menu includes New Game, Dev Lab, Settings, Save/Load, Database and Archive. In the first implementation, only Dev Lab is enabled; the other entries are visible but disabled placeholders. Dev Lab is a distinct mode, not the application shell and not part of the gameplay runtime.
+- **WHY:** The application needs a stable entry point and clear separation between development workflows and player-facing game flows. Establishing this boundary before world and Pawn work prevents test tools, development layout and test-world assumptions from leaking into every game mode.
+- **BEHAVIOR:** The application shell owns the main menu and mode selection. Selecting Dev Lab enters a dedicated development environment. New Game will later own its own setup flow, including procedural asteroid generation and a map preview; it does not need to be playable in the first shell milestone. Returning from Dev Lab goes back to the application shell. Disabled menu entries are visible but cannot be activated until their feature is implemented.
+- **SCOPE:** Application shell, top-level navigation and future mode boundaries. This does not authorize implementation of the New Game generator, save/load, database, archive or settings functionality now.
+- **STATUS:** Approved architecture; implementation pending.
+
+## Decision: Dev Lab is a development host for real gameplay systems
+
+- **WHAT:** Dev Lab has its own development UI, tools and test environment, but it hosts the same underlying gameplay systems intended for the actual game. Development tools and presentation layout are not transferred into New Game or the player-facing game.
+- **WHY:** Every gameplay system should be testable as soon as it is created, without requiring the developer to start and navigate a complete new game. At the same time, the final game must not inherit Dev Lab's diagnostic panels, spawn controls, layout or test-world content.
+- **BEHAVIOR:** Gameplay logic is owned by reusable gameplay/runtime systems and must not depend on Dev Lab being present. Dev Lab may compose those systems and expose development-only controls, initially including a Spawn Unit menu. New Game and later game modes may compose the same gameplay systems with their own UI, world generation and session setup. A feature tested in Dev Lab is not considered integrated merely because a Dev Lab-only implementation exists; its gameplay logic must remain usable outside Dev Lab.
+- **SCOPE:** Ownership boundaries between application shell, mode-specific presentation/tools, gameplay systems and runtime composition. Dev Lab may use a dedicated test world and test setup; neither is implicitly the actual New Game world or its UI.
+- **STATUS:** Approved architecture; implementation pending.
+
+## Decision: Future player-accessible Dev Lab compatibility
+
+- **WHAT:** Preserve the option for Dev Lab to be available to players in a future build, potentially controlled by a developer-mode setting. Do not implement activation rules, permissions or the setting now.
+- **WHY:** The development environment may later be useful as an optional player-facing sandbox, but this future possibility must not constrain or leak into normal gameplay.
+- **BEHAVIOR:** Keep Dev Lab as a separately selectable application mode with a clean boundary. Future access control can decide whether it is exposed to a player; gameplay systems must not rely on Dev Lab access.
+- **SCOPE:** Architectural compatibility only. No current settings toggle, unlock flow or player-facing Dev Lab permission system.
+- **STATUS:** Approved future direction; implementation deferred.
