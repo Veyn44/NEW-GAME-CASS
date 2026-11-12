@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#11151b">
+    <title>Cassandra — World Preview</title>
+    <link rel="stylesheet" href="./src/adapters/presentation/dev-world-preview.css">
+  </head>
+  <body>
+    <main class="dev-shell">
+      <header class="dev-header">
+        <div>
+          <p class="eyebrow">CASSANDRA / DEVELOPMENT</p>
+          <h1>World preview</h1>
+        </div>
+        <p class="dev-note">Temporary spatial test harness · not the final game UI</p>
+      </header>
+
+      <section class="toolbar" aria-label="World preview controls">
+        <label class="control">
+          <span>World size</span>
+          <select id="world-size">
+            <option value="64">64 × 64</option>
+            <option value="128" selected>128 × 128</option>
+            <option value="256">256 × 256</option>
+          </select>
+        </label>
+        <label class="toggle-control" for="grid-visible">
+          <input id="grid-visible" type="checkbox" checked>
+          <span>Show grid</span>
+        </label>
+        <label class="control zoom-control">
+          <span>Zoom <output id="zoom-value">100%</output></span>
+          <input id="zoom" type="range" min="50" max="200" step="10" value="100">
+        </label>
+        <button id="reset-camera" type="button">Reset camera</button>
+      </section>
+
+      <section class="viewport-panel" aria-label="World viewport">
+        <canvas id="world-canvas" aria-label="Empty square world with optional coordinate grid">
+          Your browser does not support canvas.
+        </canvas>
+      </section>
+
+      <footer class="status-bar">
+        <span id="world-status">World: 128 × 128</span>
+        <span id="view-status">View: calculating…</span>
+        <span>Drag to pan</span>
+      </footer>
+    </main>
+    <script type="module" src="./src/adapters/presentation/dev-world-preview.js"></script>
+  </body>
+</html>
