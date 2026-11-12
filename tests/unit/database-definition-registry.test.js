@@ -5,7 +5,7 @@ import {
   loadDefinitionDetail, getCategories, clearDefinitionsForTests
 } from "../../src/application/database/definition-registry.js";
 
-test("registers canonical definitions and exposes a lightweight navigation index", () => {
+test("registers canonical definitions and exposes a lightweight navigation index", async () => {
   clearDefinitionsForTests();
   const entry = registerDefinition({
     id: "pawn.worker", name: "Worker", category: "Pawn",

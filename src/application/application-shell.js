@@ -49,6 +49,7 @@ function setDatabaseMode(mode) {
   state.selectedDefinitionId = null;
   state.selectedDefinition = null;
   databaseInspector.replaceChildren();
+  populateCategories();
   renderDatabase();
 }
 
