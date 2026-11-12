@@ -33,9 +33,14 @@ function clonePlain(value, path = "snapshot", seen = new Set()) {
   }
   let prototype;
   let keys;
-  try { prototype = Object.getPrototypeOf(value); keys = Reflect.ownKeys(value); }
-  catch { throw new WorldRegistryError("INVALID_SNAPSHOT", `${path} could not be inspected safely.`); }
-  const array = Array.isArray(value);
+  let array;
+  try {
+    prototype = Object.getPrototypeOf(value);
+    keys = Reflect.ownKeys(value);
+    array = Array.isArray(value);
+  } catch {
+    throw new WorldRegistryError("INVALID_SNAPSHOT", `${path} could not be inspected safely.`);
+  }
   if (array ? prototype !== Array.prototype : prototype !== Object.prototype && prototype !== null) {
     throw new WorldRegistryError("INVALID_SNAPSHOT", `${path} must contain only plain objects and arrays.`);
   }
