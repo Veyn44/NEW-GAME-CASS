@@ -32,6 +32,7 @@ const devSelectedUnit = document.querySelector("#dev-selected-unit");
 const spawnButton = document.querySelector("#spawn-unit");
 const spawnStatus = document.querySelector("#spawn-status");
 const simulationStatus = document.querySelector("#simulation-status");
+const pointerStatus = document.querySelector("#pointer-status");
 const unitInspector = document.querySelector("#unit-inspector");
 const viewportPanel = document.querySelector(".viewport-panel");
 const canvas = document.querySelector("#world-canvas");
@@ -201,6 +202,8 @@ async function inspectDefinition(id) {
   metadata.className = "attribute-list database-detail-attributes";
   appendAttributeRows(metadata, {
     "Definition ID": definition.id,
+    "Definition schema": definition.schemaVersion,
+    "Entity type": definition.entityType ?? "—",
     Category: definition.category,
     "Available for": definition.spawnableAs
   });
@@ -408,6 +411,9 @@ function updateSimulationUi() {
   worldSizeSelect.disabled = !state.paused;
   gridVisible.disabled = !state.paused;
   resetCameraButton.disabled = !state.paused;
+  pointerStatus.textContent = state.paused
+    ? "INSPECTION CURSOR"
+    : document.pointerLockElement === canvas ? "POINTER LOCKED" : "CLICK MAP TO CAPTURE POINTER";
   spawnButton.disabled = !state.unitApi || !devSelectedUnit.dataset.definitionId || !state.paused;
   if (!state.paused && state.placementActive) cancelUnitPlacement();
   setWorldInteraction({ paused: state.paused, onSelect: inspectUnit });
@@ -424,9 +430,11 @@ function requestViewportPointerLock() {
     const request = canvas.requestPointerLock();
     request?.catch?.(() => {
       viewportPanel.dataset.pointerLock = "unavailable";
+      pointerStatus.textContent = "POINTER LOCK UNAVAILABLE";
     });
   } catch {
     viewportPanel.dataset.pointerLock = "unavailable";
+    pointerStatus.textContent = "POINTER LOCK UNAVAILABLE";
   }
 }
 
@@ -526,7 +534,11 @@ canvas.addEventListener("pointermove", (event) => {
 });
 
 document.addEventListener("pointerlockchange", () => {
-  viewportPanel.dataset.pointerLocked = String(document.pointerLockElement === canvas);
+  const locked = document.pointerLockElement === canvas;
+  viewportPanel.dataset.pointerLocked = String(locked);
+  pointerStatus.textContent = state.paused
+    ? "INSPECTION CURSOR"
+    : locked ? "POINTER LOCKED" : "CLICK MAP TO CAPTURE POINTER";
 });
 
 function handleFocusLoss() {
