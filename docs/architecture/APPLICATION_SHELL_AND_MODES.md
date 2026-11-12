@@ -118,13 +118,17 @@ The first 128 × 128 test world and early Pawn systems belong to the Dev Lab tes
 World/Pawn gameplay logic must be reusable outside Dev Lab. The test-world layout, spawn tools and development UI must remain mode-specific.
 
 
-## 9. Database catalog
+## 9. Database catalog and canonical content
 
-Database is an enabled application-level catalog of canonical gameplay definitions. Gameplay systems own and register immutable records containing a stable ID, display name, category, description and structured attributes. The Database UI reads those records; it does not maintain a manually duplicated copy of gameplay values.
+Database is an application-level catalog of canonical gameplay definitions. Version-controlled assets under `src/content/database/definitions` are the source of truth. The runtime definition registry is an immutable in-memory index/cache; it is not the canonical store and must never invent definitions during application startup.
 
-The catalog describes definitions (for example a Pawn type, enemy type, wall material, asteroid material, weapon or ammunition type), not mutable runtime instances. Current health, damage state, inventory and other live values belong to a future runtime inspection view.
+Each asset has a stable ID, schema version, display name, category, description, structured attributes and the instance kinds it can create. A database loader validates and registers canonical assets before gameplay systems are composed. The Database UI reads those same records; it does not maintain a manually duplicated copy of gameplay values.
 
-The first implementation includes a small definition registry, search and category filtering. The catalog starts empty rather than showing invented game objects. As real gameplay definitions are implemented, they register into the catalog and become inspectable.
+The catalog describes canonical identities and definitions, not mutable runtime instances. Current health, damage state, inventory, position and other live values belong to runtime entities and their persistence participants.
+
+The first canonical Pawn record is `pawn.johny`: a Human, age 32, with an intentionally unspecified role and origin. Johny is not the player's protagonist. The player will create their own protagonist; a separate robot identity may be introduced later. A runtime Unit/Pawn instance references the canonical definition rather than copying or redefining its identity.
+
+The JSON asset is version-controlled and therefore stable across game launches and installations. The runtime registry may be rebuilt from it at startup without becoming the source of truth.
 
 
 ## 10. Database asset browser and inspector direction
@@ -139,3 +143,19 @@ The intended full Database experience is a navigable asset browser, not a flat a
 - Database is also intended as a future in-game balancing/reference tool. It must distinguish canonical/base definition values from live runtime instance state. Editing/balancing capabilities, if desired, require a separate design and authorization; the initial catalog is read-only.
 
 The initial compact registry/search UI is only a foundation. The tree, nested categories, asset artwork and right-side inspector are future presentation work and should be developed after the user has tested the first shell.
+
+
+## 11. Viewport pause and input modes
+
+The simulation pause is scoped to the game session displayed by the viewport. The pause indicator is a pulsing amber frame around the map viewport only; it does not surround the application shell.
+
+The viewport has two input modes:
+
+- **Running:** the viewport owns the pointer through Pointer Lock where supported. A centered crosshair is visible, keyboard and mouse input are collected for gameplay, and inspection selection/camera tools are disabled.
+- **Paused:** Pointer Lock is released. The pointer is free to move outside the canvas. Left-click selection opens runtime inspection; inspection is read-only and no gameplay commands execute. Camera pan/zoom and view-only controls remain available.
+
+The input controller separates physical input state from permission to apply gameplay input. A plain pause stores the keys/buttons already held. Releasing one while paused removes it from the pending resume snapshot. Resuming without inspection restores only inputs that are still physically held. Entering inspection invalidates the snapshot and suppresses any still-held inputs until their release event, preventing an old movement/fire input from unexpectedly resuming after inspection.
+
+Focus loss clears all held input state and forces the viewport into pause. This prevents stuck movement or firing after switching applications or tabs.
+
+Pointer Lock is browser-mediated and may be denied. The viewport retains a focused-canvas fallback and reports lock failure in its presentation state; actual gameplay input must continue to respect the controller's running/paused gate.
