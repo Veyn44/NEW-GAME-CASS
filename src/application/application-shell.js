@@ -77,8 +77,10 @@ function openDatabase(mode = "browse") {
 }
 
 function renderValue(value) {
-  if (value === null) return "null";
-  if (typeof value === "object") return JSON.stringify(value, null, 2);
+  if (value === null) return "—";
+  if (Array.isArray(value)) return value.length ? value.map(renderValue).join(", ") : "None";
+  if (typeof value === "object") return JSON.stringify(value);
+  if (typeof value === "boolean") return value ? "Yes" : "No";
   return String(value);
 }
 
@@ -175,9 +177,9 @@ async function inspectDefinition(id) {
   const metadata = document.createElement("dl");
   metadata.className = "attribute-list database-detail-attributes";
   appendAttributeRows(metadata, {
-    id: definition.id,
-    category: definition.category,
-    spawnableAs: definition.spawnableAs
+    "Definition ID": definition.id,
+    Category: definition.category,
+    "Available for": definition.spawnableAs
   });
   databaseInspector.append(metadata);
 
