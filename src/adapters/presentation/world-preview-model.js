@@ -26,7 +26,7 @@ export function clampCameraPosition(
   camera,
   worldSize,
   view,
-  overscan = CAMERA_OVERSCAN_TILES
+  overscan = 0
 ) {
   if (!Number.isFinite(overscan) || overscan < 0) {
     throw new TypeError("Camera overscan must be a non-negative finite number.");
