@@ -36,7 +36,7 @@ Owns application-level navigation, main menu presentation and mode entry/exit co
 
 Owns development-only presentation and tools, plus its own test setup/environment. It composes real gameplay systems so new features can be exercised immediately.
 
-The initial development toolset includes a **Spawn Unit** action/menu. Further tools may be added when useful for testing systems under development.
+The initial Dev Lab scenario seeds one canonical Johny Unit instance into its test world so the entity can be inspected immediately. No spawn or placement action is exposed in the paused viewport; further developer tools require a separate, explicit tool-mode design.
 
 Dev Lab's panels, layout, debug controls and test-world content are not automatically included in New Game or player-facing gameplay.
 
@@ -128,7 +128,7 @@ The catalog describes canonical identities and definitions, not mutable runtime 
 
 The first canonical Pawn record is `pawn.johny`: a Human, age 32, with an intentionally unspecified role and origin. Johny is not the player's protagonist. The player will create their own protagonist; a separate robot identity may be introduced later. A runtime Unit/Pawn instance references the canonical definition rather than copying or redefining its identity.
 
-The JSON asset is version-controlled and therefore stable across game launches and installations. The runtime registry may be rebuilt from it at startup without becoming the source of truth.
+The JSON asset is version-controlled and therefore stable across game launches and installations. The runtime registry may be rebuilt from it at startup without becoming the source of truth. Dev Lab creates one live Unit instance from this definition at the center of its test world; the instance references the canonical record, so the age and identity attributes are not copied into an unrelated placeholder.
 
 
 ## 10. Database asset browser and inspector direction
