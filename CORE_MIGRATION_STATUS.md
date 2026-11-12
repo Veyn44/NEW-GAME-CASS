@@ -10,11 +10,12 @@ CASSANDRA3 is an architectural reference, not an implementation mandate. The Cor
 
 - Repository: `Veyn44/NEW-GAME-CASS`
 - Branch: `main`
-- Latest verified implementation commit: `c5c9ff8341d9fcd057f15e1a58e115a2abdd5bc3`
+- Latest verified implementation commit: `16b490b7ae39aff358a85b66d803fc3ec731ddcf`
+- Latest verified CI run: `43180774563` (head `09c79eac7114089e6c61b52ec5a1edf558d98424`)
 - CI workflow: `Core tests`
 - Runtime: Node.js 20.20.2
-- Result: **193/193 passed; 0 failed**
-- Suites: Clock + Scheduler (22), Core Registry (13), Entity Registry (26), Event Bus (19), Lifecycle + Bootstrap (14), Persistence + Logger (19), World Registry (28), World Context (26), Core Integration (26).
+- Result: **198/198 passed; 0 failed**
+- Suites: Clock + Scheduler (22), Core Registry (13), Entity Registry (27), Event Bus (19), Lifecycle + Bootstrap (14), Persistence + Logger (21), World Registry (29), World Context (26), Core Integration (27).
 
 This is a real GitHub Actions execution, not a count inferred from test files. The latest run also exercised World Context snapshot hardening, serialized asynchronous persistence, and shutdown during active persistence and lifecycle transactions, direct SystemBootstrap lifecycle serialization, plus revoked-Proxy event payload rejection. The HTML/browser test pages are separate harnesses and were not exercised by this CI run.
 
@@ -44,13 +45,13 @@ The original reference specifies `initialize()`, `start()` and `destroy()` as ma
 
 The original Phase 1 plan mentioned an adapter preserving the old prototype UI and controls. That adapter is not being copied into this repository: NEW-GAME-CASS is being established as a clean, reusable engine foundation, and the old prototype UI is not part of the Core runtime. Host UI and input integration should be implemented by the host layer when it exists, without introducing presentation dependencies into Core.
 
-## Remaining Phase 1 work
+## Phase 1 closure checklist
 
-1. Finish the module-by-module contract review against the CASSANDRA3 Core integration reference, treating it as a reference rather than a law.
-2. Complete the final integrated failure/recovery review across Event Bus, Scheduler, Bootstrap and Persistence.
-3. Browser harness review: the HTML pages call the same JavaScript contract-test modules as Node; they add a convenient manual browser runner, but no distinct browser-only Core execution path. Keep them as manual diagnostics; a separate browser CI layer is not justified for this domain-neutral Core until browser-specific host integration exists.
-4. Run the final CI suite after any remaining code changes and inspect the final commit/check result.
+1. **Module contract review — complete.** Reviewed System Registry, Game Context, Bootstrap/lifecycle, Event Bus, Game Clock, Scheduler, Logger, Entity Registry, World Registry, World Context, Persistence and Core Assembly against the domain-neutral Core contract and the CASSANDRA3 reference.
+2. **Integrated failure/recovery review — complete.** Coverage includes synchronous handler isolation and async Event Bus faulting, scheduler step faults and overload recovery, lifecycle compensation/teardown ordering, serialized persistence and shutdown, participant rollback, and deferred cross-registry reference validation.
+3. **Browser harness decision — complete.** The HTML pages call the same JavaScript contract-test modules as Node; they add a convenient manual browser runner, but no distinct browser-only Core execution path. Keep them as manual diagnostics; a separate browser CI layer is not justified for this domain-neutral Core until browser-specific host integration exists.
+4. **Final verification — pending documentation commit and its CI result.** The latest code/test CI run above passed 198/198; the final documentation commit must also receive a successful CI result before Phase 1 is closed.
 
-Public API documentation and a minimal host-system example are now present in `src/core/README.md`.
+Public API documentation and a minimal host-system example are present in `src/core/README.md`.
 
-Phase 1 is not declared complete until this review is finished and the final integrated test run passes. No gameplay systems should be added as a substitute for finishing the Core foundation.
+Phase 1 remains open only for the final documentation commit and its CI confirmation. No gameplay systems should be added as a substitute for finishing the Core foundation.
