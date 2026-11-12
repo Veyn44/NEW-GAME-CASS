@@ -80,3 +80,17 @@ A test marked PASS must have actually run. Source inspection, a prepared test fi
 - Compare canvas bounding rectangle before selection, after selection and after clearing selection; dimensions must remain unchanged.
 - Verify overlay controls do not leak pointer events to world selection, while clicks outside the overlay reach the canvas.
 - Verify all three presets and empty-space selection clearing in a real browser. Record manual checks separately from automated results.
+
+
+## Dev Lab Database and placement checks (2026-11-12)
+
+- Open DATABASE from the viewport and verify it is the same canonical catalog/detail view used by the main menu, not a second registry.
+- Verify selecting a definition without `spawnableAs: ["unit"]` does not expose SELECT.
+- Verify SELECT is at the lower-left of the inspector and closes the Database overlay.
+- Verify the blueprint follows the pointer and snaps to one world tile.
+- Verify clicking an in-bounds tile creates exactly one Unit through `game.unit-api`, with matching definition and Core World Context placement.
+- Verify a click outside the world bounds creates nothing and leaves placement active.
+- Verify Escape cancels placement and creates nothing.
+- Verify the world-size selector cannot switch worlds during placement.
+- Verify the Database overlay and blueprint do not change the canvas bounding rectangle.
+- Browser interaction checks remain manual until an automated browser harness exists.
