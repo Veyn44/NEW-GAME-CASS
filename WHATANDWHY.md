@@ -92,3 +92,12 @@ This file is the canonical log for accepted game and presentation decisions. It 
 - **BEHAVIOR:** Keep Dev Lab as a separately selectable application mode with a clean boundary. Future access control can decide whether it is exposed to a player; gameplay systems must not rely on Dev Lab access.
 - **SCOPE:** Architectural compatibility only. No current settings toggle, unlock flow or player-facing Dev Lab permission system.
 - **STATUS:** Approved future direction; implementation deferred.
+
+
+## Decision: Database is an enabled application-level catalog
+
+- **WHAT:** Database is an enabled application-level catalog from the first main-menu milestone. It displays canonical inspectable definitions registered by gameplay systems, including categories such as Pawns, enemies, structures, materials, weapons and ammunition as those systems are implemented.
+- **WHY:** Development and design should be able to inspect actual game attributes through the application without searching source files. A single canonical definition source avoids a manually duplicated catalog drifting away from gameplay behavior.
+- **BEHAVIOR:** Gameplay systems own and register immutable definition records containing a stable ID, name, category, description and structured attributes. Database presents those records with search and category filtering. It describes definition/base attributes, not mutable runtime instance state such as current health or damage; runtime inspection is a separate future capability. Dev Lab and normal gameplay may both consume the same definitions without depending on the Database UI.
+- **SCOPE:** Application-level catalog presentation and a small definition registry outside Core. This does not authorize fake placeholder game records or move gameplay ownership into the catalog.
+- **STATUS:** Approved; initial registry and empty Database UI implemented, gameplay definitions pending.
