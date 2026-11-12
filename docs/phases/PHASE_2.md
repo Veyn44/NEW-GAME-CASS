@@ -240,3 +240,15 @@ A test is PASS only after it has actually run and passed. Prepared tests are not
 | 2026-11-12 | Initial host/world/Pawn/locomotion contracts checked against Core source; game-facing Pawn details remain open. |
 | 2026-11-12 | 2.1 host runtime shell implemented in `src/host/`; CI passed 198/198 Core tests and 6/6 host tests. |
 | 2026-11-12 | Approved square world dimensions (64/128/256 primary presets), independent grid overlay and initial 64 × 32 viewport target documented. Added a minimal browser preview with size selection, grid toggle, pan and zoom. |
+
+
+## 10. Dev Lab viewport correction — 2026-11-12
+
+- Removed automatic Johny Unit creation. The canonical Database definition remains; Dev Lab starts with zero live Units.
+- Registered 64 × 64, 128 × 128 and 256 × 256 test-world presets in World Registry and made the selector activate the matching descriptor.
+- Replaced the lower, layout-expanding Unit inspector with a floating Quick Select overlay inside the viewport.
+- Positioned Quick Select at the upper-left of the viewport. The overlay does not participate in canvas sizing.
+- Added a paused-only INFO disclosure for selected live Unit details. Empty-space click clears selection.
+- Kept future object categories on a generic presentation contract; no fake objects or sprites are created.
+- Updated WHATANDWHY.md and the application-shell architecture with superseding decisions while retaining original decision history.
+- Automated and browser verification: pending.
