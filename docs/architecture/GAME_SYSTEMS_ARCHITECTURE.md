@@ -1,6 +1,7 @@
 # Game Systems Architecture Map
 
-**Status:** Initial map for Phase 2. This is a living map, not a claim that the full game design is known.
+**Status:** Living architecture map for Phase 2.  
+**Authority:** Accepted decisions in `WHATANDWHY.md`, current Core source and the system development standard.
 
 ## 1. Architectural direction
 
@@ -18,130 +19,187 @@ The complete future system inventory is intentionally unknown. Add systems when 
 
 ## 2. Existing Core capabilities (do not reimplement in gameplay systems)
 
-The current Core exposes these infrastructure services through Core Assembly:
-
 | Service ID | Responsibility | Must not own |
 |---|---|---|
-| `core.event-bus` | Synchronous event delivery and subscriptions | Gameplay commands or domain state |
-| `core.game-clock` | Authoritative simulation clock and pause/speed state | Pawn-specific timers or domain schedules |
-| `core.entity-registry` | Stable entity identity and generic lifecycle | Pawn attributes, inventory or behavior |
-| `core.world-registry` | Registration/activation of host-defined worlds | Map tiles, galaxy data or world generation |
+| `core.event-bus` | Synchronous ordered event delivery | Gameplay commands or domain state |
+| `core.game-clock` | Authoritative simulation clock and pause reasons | Unit-specific timers or domain schedules |
+| `core.entity-registry` | Stable generic identity and lifecycle | Unit/Pawn attributes, inventory or behavior |
+| `core.world-registry` | World descriptors and one active-world pointer | Tile data, galaxy data or world generation |
 | `core.world-context` | Exclusive entity placement and atomic transfers | Movement rules, pathfinding or collision policy |
-| `core.scheduler` | Fixed-step execution of declared synchronous simulation tasks | Gameplay rules or a second dependency graph |
-| `core.persistence` | Coordinated snapshots, restore transactions and schema migration | Serialization of private domain structures |
-| `core.logger` | Structured technical diagnostics | Player-facing game events or domain state |
+| `core.scheduler` | Fixed-step synchronous task execution | Gameplay rules or a second dependency graph |
+| `core.persistence` | Coordinated snapshots, migrations and restore transactions | Private domain serialization |
+| `core.logger` | Structured technical diagnostics | Player-facing events or domain state |
 
-The Core Assembly also provides the Game Context, System Registry and Bootstrap lifecycle. Their public contracts are documented in `src/core/README.md`.
+Core Assembly also provides System Registry, System Bootstrap and Game Context. Their contracts are defined by the actual implementation and `src/core/README.md`.
 
-**Important:** service IDs above are taken from the current Core Assembly. Do not invent alternate IDs or access private Core internals. If an implementation needs a service not listed here, inspect the actual Core API before designing an adapter.
+**Core protection:** do not add game-specific fields, concepts or behavior to Core. Before proposing a Core change, document the exact limitation, a reproducible failing host/gameplay scenario, why a gameplay-owned solution cannot solve it, and the domain-neutral benefit. Without that evidence and explicit approval, solve the requirement outside Core.
 
-## 3. Initial host/gameplay layers
+## 3. Domain vocabulary and identity layers
 
-These are responsibility areas, not a frozen final list of systems.
+The terms below describe different layers and must not be used interchangeably.
+
+### Entity (Core concept)
+
+An Entity is a generic identity registered in Core Entity Registry. Core owns:
+- stable ID;
+- generic `kind`;
+- generic scope and lifecycle status;
+- generic metadata.
+
+Core Entity is not a complete game object. It does not own gameplay attributes, behavior, relationships, visual appearance, inventory, world position or tile occupancy.
+
+For the first Unit implementation, the proposed Core identity kind is `unit`. The Core record is an identity anchor only; it is not the Unit data record.
+
+### Unit (Cassandra gameplay concept)
+
+A Unit is a gameplay-domain instance owned by the Unit gameplay layer. It is backed by exactly one Core Entity identity and may have a placement managed by Core World Context.
+
+The Unit layer owns:
+- the Unit's domain record and schema;
+- the relationship between its Unit ID (the Core Entity ID) and its gameplay definition;
+- Unit-specific lifecycle rules that are not generic Core lifecycle;
+- validation and public operations for Unit instances.
+
+A Unit record must not copy Core-owned identity lifecycle fields or Core-owned placement coordinates. It refers to those services through their public APIs.
+
+The initial Unit contract must remain deliberately small. Do not invent health, age, needs, skills, jobs, inventory, equipment, personality, combat statistics or appearance fields until a concrete gameplay requirement defines them.
+
+### Pawn (gameplay specialization; not a Core primitive)
+
+Pawn is a gameplay-level specialization/role within the Unit domain, not a second identity registry and not a replacement for Unit.
+
+A Pawn:
+- uses the Unit's stable identity;
+- uses the Unit system's canonical instance record and lifecycle;
+- may expose additional Pawn-specific behavior or data only when a concrete requirement needs it;
+- does not receive a second Core Entity identity merely because it is a Pawn.
+
+The precise player-facing meaning and distinguishing attributes of Pawn remain open game-design decisions. Until they are decided, Pawn must not become a separate Core kind, a parallel identity model, or a premature independent system.
+
+### Definition versus instance
+
+A **Unit Definition** is immutable canonical content describing what kind of Unit can be created. It has a stable definition ID and is owned by the gameplay system responsible for that content. Definitions are not runtime entities and are not registered in Core Entity Registry.
+
+A **Unit Instance** is one actual Unit in a running/saved game. It references one canonical Unit Definition and has its own Core Entity ID plus Unit-owned mutable runtime state.
+
+The Database catalog reads canonical definitions from their owning gameplay systems. It must not become a second source of definitions or contain copied mutable instance state.
+
+## 4. Ownership and boundaries
+
+| Responsibility | Owner | Must not own |
+|---|---|---|
+| Generic identity and generic lifecycle | Core Entity Registry | Unit/Pawn domain state |
+| World identity, dimensions and active-world pointer | Core World Registry | Map tiles or Unit placement |
+| Exclusive placement and coordinates | Core World Context | Movement/collision rules |
+| Unit definitions and Unit instance domain state | Unit gameplay system | Generic identity or placement |
+| Pawn-specific data/behavior | Unit domain, or a later justified Pawn module | A parallel identity registry |
+| Movement intent and movement rules | Initially a small Unit-owned module; split only if independently justified | Input devices or rendering |
+| Tile/map contents and tile queries | Cassandra world/map gameplay owner when implemented | Core World Registry/Context |
+| Input capture and translation | Host input adapter | Direct authoritative state mutation |
+| Drawing, camera and UI | Presentation adapter | Simulation truth |
+| Save coordination | Core Persistence | Private Unit schema |
+| Unit snapshot schema and migration | Unit gameplay system | Core identity/placement snapshots |
+| Canonical definition catalog presentation | Application Database UI | Ownership or mutation of gameplay definitions |
+
+No universal GameState object should become the owner of all game data.
+
+## 5. Initial host/gameplay slice
+
+These are responsibility areas, not a frozen final system inventory.
 
 ### A. Host application and adapters
 
 | Responsibility | Owns | Does not own |
 |---|---|---|
-| Host composition | Core Assembly configuration, system list, simulation task list, lifecycle | Gameplay state |
-| Input adapter | Keyboard/mouse/device input and translation into game commands | Direct mutation of Pawn/world state |
-| Presentation adapter | Drawing, camera, debug overlays and UI state | Simulation truth or authoritative entity state |
-| Storage adapter | Durable host storage implementation for Core persistence | Domain serialization rules of individual systems |
+| Host composition | Core Assembly configuration, systems and simulation tasks | Gameplay state |
+| Input adapter | Device/browser input and translation into public game requests | Direct mutation of Unit/world state |
+| Presentation adapter | Drawing, camera, debug overlays and UI state | Simulation truth |
+| Storage adapter | Durable host storage implementation | Domain serialization rules |
 
-### B. First gameplay slice
+### B. First gameplay foundation
 
-| Candidate system | Owns | Likely Core contracts used | Initial scope |
+| Candidate | Owns | Core integration | Initial scope |
 |---|---|---|---|
-| World/Scene host definition | Definition/configuration of the one test world and its dimensions | World Registry, World Context | One simple bounded world; no galaxy or world generation |
-| Pawn system | Pawn-specific identity references, domain state and public Pawn API | Entity Registry, World Context, Event Bus, Persistence | Create/query/remove a minimal Pawn and preserve its state |
-| Locomotion system (or Pawn movement module if still very small) | Movement intent, movement rules and movement state | World Context, Scheduler, Event Bus | Deterministic movement in the test world |
-| Optional spatial/collision system | Spatial queries and collision rules if required by the first slice | World Context, Scheduler | Only introduce if movement needs a separate owner; do not prebuild a physics engine |
+| World bootstrap / world definition | Configuration of the first test world | World Registry | Register and activate one bounded test world |
+| World/map model (when tile content is introduced) | Authoritative tile/cell data and tile-specific queries | May refer to world ID | No premature generic map framework |
+| Unit system | Unit definitions/instances as implementation scope requires, Unit domain records and public API | Entity Registry, World Context, Event Bus, Persistence | Create/query/list/remove minimal Unit instances and preserve Unit-owned state |
+| Unit movement module | Movement intent and movement rules if needed by first playable slice | World Context, Scheduler, Event Bus | Minimal deterministic movement |
+| Optional spatial/collision owner | Spatial queries and collision policy only if a concrete requirement justifies it | World Context and scheduler as needed | No prebuilt physics/pathfinding engine |
 
-The final split between Pawn and Locomotion is an explicit design decision for 2.0. Prefer a separate Locomotion system only if it has a genuinely independent responsibility and public contract. Do not split code into empty systems just to look modular.
+Do not create empty systems merely to appear modular. Begin movement as a small Unit-owned module. Extract a separate `game.locomotion` system only when it has a genuinely independent data model, lifecycle or public contract.
 
-### C. Possible future domains (not committed to Phase 2)
+### C. Future domains (not committed to Phase 2)
 
-Potential areas that may emerge as the game develops:
-
-- Pawn Life: needs, health, aging, skills, professions and relationships.
-- Inventory and Equipment: item identity, ownership, loadouts and storage.
-- Construction and Structures: modules, rooms, walls, doors and structural integrity.
-- Environment: atmosphere, pressure, temperature and environmental hazards.
-- Power: generation, routing, consumers and electrical faults.
+Potential areas include:
+- Unit Life: needs, health, aging, skills, professions and relationships.
+- Inventory and Equipment.
+- Construction and Structures.
+- Environment: atmosphere, pressure, temperature and hazards.
+- Power: generation, routing, consumers and faults.
 - Colony Operations: jobs, priorities, schedules and automation.
-- Combat and Threats: targeting, weapons, damage, hostile behavior and incapacitation.
-- Exploration and Mining: locations, resource deposits, extraction and discovery.
-- Navigation and Vehicles: travel, shuttle, docking and transitions.
-- Galaxy Data: hierarchical address space, procedural generation and discovery.
-- UI/UX: screens, commands, information presentation and accessibility.
+- Combat and Threats.
+- Exploration and Mining.
+- Navigation and Vehicles.
+- Galaxy Data and procedural generation.
+- UI/UX.
 
-These are discovery categories, not a promise that every category will exist or that each must become one system.
+These are discovery categories, not a promise that each will exist or become a separate system.
 
-## 4. Dependency direction
+## 6. Dependency direction and communication
 
-Preferred dependency direction:
+Preferred direction:
 
 ```text
 Host Application
-  ├── Input Adapter ───────────────┐
-  ├── Presentation Adapter         │
-  ├── Storage Adapter              │
-  └── Core Assembly                │
-        └── Core Infrastructure    │
-                                   ▼
-                         Gameplay public APIs
-                          ├── Pawn
-                          ├── World/Scene definition
-                          └── Locomotion (if separate)
-                                   │
-                                   ▼
-                         Core services / placement
+  ├── Input Adapter
+  ├── Presentation Adapter
+  ├── Storage Adapter
+  └── Core Assembly
+        └── Core Infrastructure
+              ▲
+              │ public service contracts
+        Gameplay Systems
+          ├── World / Map
+          ├── Unit (Unit + possible Pawn specialization)
+          └── Other gameplay domains
 ```
 
-The diagram expresses responsibility boundaries, not an instruction for systems to call each other in a cycle. Gameplay systems declare service dependencies during registration. A system must not import another system's private source file to reach its internal data.
+A gameplay system declares service dependencies and uses public APIs. It must not import another system's private source files or mutate its internal state.
 
-## 5. Data ownership rules
+Use a public service when a caller needs information or requests an operation. Use Event Bus to announce a completed fact. Events are not commands or a hidden work queue. Payloads must be versioned, detached and immutable according to the Core contract.
 
-- Entity Registry owns generic identity and generic lifecycle only.
-- World Registry owns world definitions/activation metadata.
-- World Context owns exclusive placement and atomic transfer.
-- Pawn system owns Pawn-specific domain state.
-- Locomotion owns movement rules/state if it is split into its own system.
-- A future inventory system owns item records and ownership relations; Pawn stores references/IDs through its public contract rather than copying item objects.
-- A future environment system owns environmental state and rules.
-- Persistence coordinates participants; each participant owns its own snapshot schema and migrations.
-- Presentation may cache derived visual data, but it is never the authority for simulation state.
-- Input produces requests/commands; it does not directly change authoritative state.
+## 7. Persistence and lifecycle
 
-No universal GameState object should become the owner of all game data.
+- Core Entity Registry snapshots generic identity.
+- Core World Registry snapshots world descriptors and active-world status.
+- Core World Context snapshots placements.
+- Unit system snapshots only Unit-owned domain records and definition references/IDs required to restore them.
+- Unit restore must prepare detached data without mutating live state, validate cross-references after earlier Core participants have committed, and support rollback.
+- Do not duplicate Core identity or placement data inside Unit snapshots.
+- A Core Entity status of `active` is not the same as a world being active or a Unit being present in an active simulation.
+- Core Scheduler runs tasks globally; active-world selection does not automatically filter world-scoped work. Cassandra must gate world-scoped simulation centrally.
 
-## 6. Cross-system communication
+## 8. Open game-design decisions
 
-Use a public service when a caller needs an answer or requests an operation (for example, create a Pawn, query a state, request movement).
+Resolve these only when the relevant implementation requires them:
+- The precise player-facing meaning and differentiating traits of Pawn.
+- Which Unit types are required for the first playable slice.
+- Unit display/identity fields and definition attributes.
+- Movement feel and whether movement is tile-step or continuous.
+- The first test environment's content and visual representation.
+- The eventual split, if any, between Unit and dedicated Locomotion systems.
 
-Use Event Bus when a system announces a completed fact (for example, Pawn created, Pawn moved, world activated). Event payloads are versioned contracts and must not expose mutable internal objects.
+Do not settle these by assumption. Record accepted decisions in `WHATANDWHY.md`.
 
-Do not use events as a hidden command queue. Do not make a consumer depend on the private class or storage structure of the publisher.
+## 9. Implementation gate
 
-## 7. Core change gate
+Before Unit implementation:
+1. Confirm the smallest useful Unit Definition shape from actual content needs.
+2. Confirm the smallest Unit Instance shape without speculative gameplay fields.
+3. Specify the public service contract and Core dependencies.
+4. Specify creation/removal failure handling and identity/placement consistency.
+5. Specify Unit persistence prepare/commit/rollback behavior.
+6. Add unit, contract, integration and persistence tests.
+7. Keep Dev Lab controls and test-world assumptions outside reusable gameplay logic.
 
-Before proposing a Core change, document:
-
-1. Exact current Core contract that is insufficient.
-2. Concrete failing test or reproducible host integration scenario.
-3. Why an adapter or gameplay-owned implementation cannot solve it.
-4. Why the change remains domain-neutral.
-5. Compatibility and regression impact.
-6. Required archive/version/provenance update if accepted.
-
-Without this evidence, the change belongs in the host/gameplay layer.
-
-## 8. Open decisions to resolve only when needed
-
-- Whether Locomotion is a separate system or initially part of Pawn.
-- Whether the first visible test harness uses Canvas, DOM, or a temporary debug renderer.
-- The first world's coordinate model and whether it is tile/grid-based or continuous.
-- The minimum movement and collision behavior needed for the first slice.
-- The host storage adapter used during development and later production.
-
-Do not settle these questions by assumption. Resolve them in the relevant Phase 2 substep and record the decision with its reason and test evidence.
+**Current status:** architecture direction accepted; Unit gameplay code is not yet implemented.
