@@ -9,7 +9,14 @@ const resetButton = document.querySelector("#reset-camera");
 const worldStatus = document.querySelector("#world-status");
 const viewStatus = document.querySelector("#view-status");
 
-let worldMarkers = [];\n\nexport function setWorldMarkers(markers) {\n  worldMarkers = Array.isArray(markers) ? markers.map((marker) => ({ ...marker })) : [];\n  render();\n}\n\nconst state = {
+let worldMarkers = [];
+
+export function setWorldMarkers(markers) {
+  worldMarkers = Array.isArray(markers) ? markers.map((marker) => ({ ...marker })) : [];
+  render();
+}
+
+const state = {
   worldSize: Number(sizeSelect.value),
   gridVisible: gridToggle.checked,
   zoom: 1,
@@ -111,6 +118,26 @@ function render() {
   context.lineWidth = 1.5;
   context.strokeRect(worldLeft, worldTop, state.worldSize * cellWidth, state.worldSize * cellHeight);
   context.globalAlpha = 1;
+
+  for (const marker of worldMarkers) {
+    const markerX = (marker.x + 0.5 - left) * cellWidth;
+    const markerY = (marker.y + 0.5 - top) * cellHeight;
+    if (markerX < 0 || markerX > width || markerY < 0 || markerY > height) continue;
+    context.beginPath();
+    context.fillStyle = "#38d6c5";
+    context.strokeStyle = "#07131c";
+    context.lineWidth = 2;
+    context.arc(markerX, markerY, Math.max(4, Math.min(9, cellWidth * 0.32)), 0, Math.PI * 2);
+    context.fill();
+    context.stroke();
+    if (cellWidth >= 12) {
+      context.font = "10px sans-serif";
+      context.textAlign = "left";
+      context.textBaseline = "middle";
+      context.fillStyle = "#d7e4ef";
+      context.fillText(marker.label, markerX + 9, markerY);
+    }
+  }
 
   const visibleColumns = Math.max(0, Math.min(state.worldSize, right) - Math.max(0, left));
   const visibleRows = Math.max(0, Math.min(state.worldSize, bottom) - Math.max(0, top));
