@@ -208,4 +208,5 @@ export class Logger {
     this.#records.push(record);
     try { this.#sink?.(record); } catch { /* Output failures must not affect the caller. */ }
     return record;
-  }}
+  }
+}
