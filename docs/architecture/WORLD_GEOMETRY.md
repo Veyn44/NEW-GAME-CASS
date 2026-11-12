@@ -23,7 +23,7 @@
 - The initial development preview uses a 2:1 viewport.
 - At 100% preview zoom, the target visible area is 64 × 32 fields.
 - Zoom changes only the visible field count, not the world dimensions.
-- The camera can be panned and is constrained to the square world extent.
+- The camera can be panned with the middle mouse button; the left mouse button remains available for game interaction.\n- Horizontal camera movement remains constrained to the world extent. Vertically, the camera may overscan up to 20 tiles beyond the top and bottom world boundaries so edge-positioned entities can remain visible with breathing room. This does not create additional world tiles.\n- Zoom uses the mouse wheel. In free-camera mode it anchors to the cursor; future camera-lock mode will anchor to its followed target.
 - These preview values are provisional visual test settings, not a final art or Pawn scale decision.
 
 ## Initial browser preview
