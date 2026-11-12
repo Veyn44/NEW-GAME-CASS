@@ -10,7 +10,7 @@ const PAUSE_KEY = "Space";
  */
 export function createViewportInputController({
   gameplayKeys = null,
-  gameplayButtons = [0],
+  gameplayButtons = [0, 2],
   onChange = null
 } = {}) {
   const allowedKeys = gameplayKeys === null ? null : new Set(gameplayKeys);
@@ -130,7 +130,7 @@ export function createViewportInputController({
     physicalButtons.add(button);
     if (paused) {
       blockedButtons.add(button);
-      beginInspection();
+      if (button === 0) beginInspection();
       return false;
     }
     if (blockedButtons.has(button)) return false;
