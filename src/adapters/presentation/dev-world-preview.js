@@ -4,7 +4,6 @@ const canvas = document.querySelector("#world-canvas");
 const context = canvas.getContext("2d");
 const sizeSelect = document.querySelector("#world-size");
 const gridToggle = document.querySelector("#grid-visible");
-const zoomInput = document.querySelector("#zoom");
 const zoomValue = document.querySelector("#zoom-value");
 const resetButton = document.querySelector("#reset-camera");
 const worldStatus = document.querySelector("#world-status");
@@ -13,7 +12,7 @@ const viewStatus = document.querySelector("#view-status");
 const state = {
   worldSize: Number(sizeSelect.value),
   gridVisible: gridToggle.checked,
-  zoom: Number(zoomInput.value) / 100,
+  zoom: 1,
   cameraX: 0,
   cameraY: 0,
   dragging: false,
@@ -31,15 +30,21 @@ function resizeCanvas() {
 }
 
 function visibleDimensions() {
-  return getVisibleDimensions(state.zoom);
+  const bounds = canvas.getBoundingClientRect();
+  const aspectRatio = bounds.width / Math.max(1, bounds.height);
+  const baseColumns = 64;
+  const baseRows = baseColumns / aspectRatio;
+  return {
+    columns: baseColumns / state.zoom,
+    rows: baseRows / state.zoom
+  };
 }
 
 function clampCamera() {
-  const view = visibleDimensions();
   const position = clampCameraPosition(
     { x: state.cameraX, y: state.cameraY },
     state.worldSize,
-    view
+    visibleDimensions()
   );
   state.cameraX = position.x;
   state.cameraY = position.y;
@@ -61,16 +66,15 @@ function render() {
   const bottom = top + view.rows;
 
   context.clearRect(0, 0, width, height);
-  context.fillStyle = "#090d12";
+  context.fillStyle = "#090f19";
   context.fillRect(0, 0, width, height);
 
-  // The square world boundary is independent from the optional grid overlay.
   const worldLeft = (0 - left) * cellWidth;
   const worldTop = (0 - top) * cellHeight;
   const worldRight = (state.worldSize - left) * cellWidth;
   const worldBottom = (state.worldSize - top) * cellHeight;
 
-  context.fillStyle = "#111923";
+  context.fillStyle = "#111e2e";
   context.fillRect(
     Math.max(0, worldLeft),
     Math.max(0, worldTop),
@@ -80,7 +84,7 @@ function render() {
 
   if (state.gridVisible) {
     context.beginPath();
-    context.strokeStyle = "rgba(160, 180, 202, 0.18)";
+    context.strokeStyle = "rgba(160, 190, 210, 0.16)";
     context.lineWidth = 1;
 
     const firstColumn = Math.max(0, Math.floor(left));
@@ -101,9 +105,11 @@ function render() {
     context.stroke();
   }
 
-  context.strokeStyle = "#8195aa";
-  context.lineWidth = 2;
+  context.strokeStyle = "#38d6c5";
+  context.globalAlpha = 0.5;
+  context.lineWidth = 1.5;
   context.strokeRect(worldLeft, worldTop, state.worldSize * cellWidth, state.worldSize * cellHeight);
+  context.globalAlpha = 1;
 
   const visibleColumns = Math.max(0, Math.min(state.worldSize, right) - Math.max(0, left));
   const visibleRows = Math.max(0, Math.min(state.worldSize, bottom) - Math.max(0, top));
@@ -112,9 +118,20 @@ function render() {
   zoomValue.textContent = `${Math.round(state.zoom * 100)}%`;
 }
 
-function updateZoom(value) {
-  state.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, value));
-  zoomInput.value = String(Math.round(state.zoom * 100));
+function updateZoom(value, anchor = { x: 0.5, y: 0.5 }) {
+  const nextZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, value));
+  if (nextZoom === state.zoom) return;
+
+  const oldView = visibleDimensions();
+  const offsetX = anchor.x - 0.5;
+  const offsetY = anchor.y - 0.5;
+  const worldAnchorX = state.cameraX + offsetX * oldView.columns;
+  const worldAnchorY = state.cameraY + offsetY * oldView.rows;
+
+  state.zoom = nextZoom;
+  const nextView = visibleDimensions();
+  state.cameraX = worldAnchorX - offsetX * nextView.columns;
+  state.cameraY = worldAnchorY - offsetY * nextView.rows;
   clampCamera();
   render();
 }
@@ -131,7 +148,16 @@ gridToggle.addEventListener("change", () => {
   render();
 });
 
-zoomInput.addEventListener("input", () => updateZoom(Number(zoomInput.value) / 100));
+canvas.addEventListener("wheel", (event) => {
+  event.preventDefault();
+  const bounds = canvas.getBoundingClientRect();
+  const anchor = {
+    x: (event.clientX - bounds.left) / bounds.width,
+    y: (event.clientY - bounds.top) / bounds.height
+  };
+  const factor = event.deltaY < 0 ? 1.12 : 1 / 1.12;
+  updateZoom(state.zoom * factor, anchor);
+}, { passive: false });
 
 resetButton.addEventListener("click", () => {
   state.cameraX = state.worldSize / 2;
