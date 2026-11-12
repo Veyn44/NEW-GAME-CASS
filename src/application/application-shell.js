@@ -1,7 +1,9 @@
 import {
   setWorldMarkers,
   setWorldInteraction,
-  setSelectedWorldMarker
+  setSelectedWorldMarker,
+  setWorldPlacement,
+  cancelWorldPlacement
 } from "../adapters/presentation/dev-world-preview.js";
 import { createGameRuntime } from "../host/create-game-runtime.js";
 import { MemorySaveAdapter } from "../core/persistence.js";
@@ -19,6 +21,10 @@ import {
 const views = [...document.querySelectorAll("[data-view]")];
 const navButtons = [...document.querySelectorAll("[data-navigate]")];
 const databaseView = document.querySelector('[data-view="database"]');
+const databaseHome = document.createComment("database-home");
+databaseView.before(databaseHome);
+const viewportDatabaseButton = document.querySelector("#open-viewport-database");
+const databaseBackButton = databaseView.querySelector("[data-back-menu]");
 const databaseList = document.querySelector("#database-list");
 const databaseSearch = document.querySelector("#database-search");
 const databaseCategory = document.querySelector("#database-category");
@@ -53,11 +59,14 @@ const state = {
   paused: true,
   selectedUnitId: null,
   selectedObject: null,
+  viewportDatabaseOpen: false,
+  placementActive: false,
   animationFrame: null,
   lastFrameTime: null
 };
 
 function showView(name) {
+  if (state.viewportDatabaseOpen && name !== "dev-lab") closeViewportDatabase();
   const currentView = document.body.dataset.currentView;
   if (currentView === "dev-lab" && name !== "dev-lab") {
     if (!state.paused) {
@@ -77,6 +86,7 @@ function showView(name) {
 }
 
 function openDatabase() {
+  if (state.viewportDatabaseOpen) closeViewportDatabase();
   state.databaseMode = "browse";
   databaseView.dataset.mode = "browse";
   databaseModeLabel.textContent = "CASSANDRA / KNOWLEDGE";
@@ -88,6 +98,74 @@ function openDatabase() {
   populateCategories();
   renderDatabase();
   showView("database");
+}
+
+function openViewportDatabase() {
+  if (!state.paused || state.placementActive || state.viewportDatabaseOpen) return;
+  state.databaseMode = "viewport";
+  state.selectedDefinitionId = null;
+  state.selectedDefinition = null;
+  databaseView.dataset.mode = "viewport";
+  databaseView.classList.add("database-overlay");
+  databaseModeLabel.textContent = "CASSANDRA / DEV LAB";
+  databaseBackButton.textContent = "CLOSE DATABASE";
+  databaseSearch.value = "";
+  databaseCategory.value = "all";
+  databaseInspector.replaceChildren();
+  populateCategories();
+  renderDatabase();
+  viewportPanel.append(databaseView);
+  databaseView.hidden = false;
+  state.viewportDatabaseOpen = true;
+}
+
+function closeViewportDatabase() {
+  if (!state.viewportDatabaseOpen) return;
+  databaseHome.after(databaseView);
+  databaseView.hidden = true;
+  databaseView.classList.remove("database-overlay");
+  databaseView.dataset.mode = "browse";
+  databaseBackButton.textContent = "← Main menu";
+  databaseModeLabel.textContent = "CASSANDRA / KNOWLEDGE";
+  state.databaseMode = "browse";
+  state.viewportDatabaseOpen = false;
+}
+
+function beginWorldPlacement(definition) {
+  if (!state.paused || !state.unitApi || !state.worldRegistry
+    || !definition || !definition.spawnableAs.includes("unit")) return;
+  closeViewportDatabase();
+  clearUnitSelection();
+  state.placementActive = true;
+  setWorldPlacement({
+    label: definition.name,
+    artwork: definition.artwork,
+    onPlace: (x, y) => {
+      try {
+        const unit = state.unitApi.createUnit({
+          definitionId: definition.id,
+          worldId: state.worldRegistry.activeWorldId,
+          position: { x, y }
+        });
+        state.placementActive = false;
+        setWorldPlacement(null);
+        refreshWorldMarkers();
+        inspectUnit(unit.id);
+        return true;
+      } catch (error) {
+        simulationStatus.textContent = `PLACEMENT REJECTED · ${error.message}`;
+        return false;
+      }
+    }
+  });
+  simulationStatus.textContent = `PLACING · ${definition.name} · CLICK A TILE · ESC TO CANCEL`;
+}
+
+function cancelPlacement() {
+  if (!state.placementActive) return;
+  state.placementActive = false;
+  cancelWorldPlacement();
+  simulationStatus.textContent = "PAUSED · PLACEMENT CANCELLED";
 }
 
 function renderValue(value) {
@@ -198,6 +276,17 @@ async function inspectDefinition(id) {
   });
   databaseInspector.append(metadata);
 
+  if (state.databaseMode === "viewport" && definition.spawnableAs.includes("unit")) {
+    const actions = document.createElement("div");
+    actions.className = "database-selection-actions";
+    const select = document.createElement("button");
+    select.type = "button";
+    select.className = "database-select-button";
+    select.textContent = "SELECT";
+    select.addEventListener("click", () => beginWorldPlacement(definition));
+    actions.append(select);
+    databaseInspector.append(actions);
+  }
 }
 
 function renderDatabase() {
@@ -271,10 +360,25 @@ for (const button of navButtons) {
   });
 }
 document.querySelectorAll("[data-back-menu]").forEach((button) =>
-  button.addEventListener("click", () => showView("menu"))
+  button.addEventListener("click", () => {
+    if (button === databaseBackButton && state.viewportDatabaseOpen) closeViewportDatabase();
+    else showView("menu");
+  })
 );
 databaseSearch.addEventListener("input", renderDatabase);
 databaseCategory.addEventListener("change", renderDatabase);
+
+function refreshWorldMarkers() {
+  const units = state.unitApi?.listUnits() ?? [];
+  setWorldMarkers(units
+    .filter((unit) => unit.placement?.type === "world")
+    .map((unit) => ({
+      id: unit.id,
+      x: unit.placement.position.x,
+      y: unit.placement.position.y,
+      label: getDefinition(unit.definitionId)?.name ?? unit.definitionId
+    })));
+}
 
 function clearUnitSelection() {
   state.selectedUnitId = null;
@@ -351,6 +455,7 @@ function updateSimulationUi() {
   viewportPanel.dataset.inputMode = state.paused ? "paused" : "running";
   worldSizeSelect.disabled = !state.paused;
   gridVisible.disabled = !state.paused;
+  viewportDatabaseButton.disabled = !state.paused || state.placementActive;
   resetCameraButton.disabled = !state.paused;
   pointerStatus.textContent = state.paused
     ? "INSPECTION CURSOR"
@@ -449,6 +554,11 @@ function isInteractiveTarget(target) {
 
 window.addEventListener("keydown", (event) => {
   if (document.body.dataset.currentView !== "dev-lab" || isInteractiveTarget(event.target)) return;
+  if (state.placementActive && event.code === "Escape") {
+    event.preventDefault();
+    cancelPlacement();
+    return;
+  }
   if (event.code === "Space" && !event.repeat && !event.altKey && !event.ctrlKey && !event.metaKey) {
     event.preventDefault();
     toggleSimulationPause();
@@ -518,6 +628,8 @@ window.addEventListener("blur", handleFocusLoss);
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden") handleFocusLoss();
 });
+
+viewportDatabaseButton.addEventListener("click", openViewportDatabase);
 
 quickSelectInfo.addEventListener("click", () => {
   if (!state.paused || !state.selectedObject) return;
