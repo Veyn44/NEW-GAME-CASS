@@ -252,3 +252,42 @@ A test is PASS only after it has actually run and passed. Prepared tests are not
 - Kept future object categories on a generic presentation contract; no fake objects or sprites are created.
 - Updated WHATANDWHY.md and the application-shell architecture with superseding decisions while retaining original decision history.
 - Automated and browser verification: pending.
+
+
+## 11. Current Dev Lab implementation and Phase 2 alignment — 2026-11-12
+
+The Dev Lab viewport has grown beyond the original minimal diagnostic harness. This is intentional supporting tooling for developing and inspecting real gameplay systems; it does not replace or redefine the Phase 2 technical vertical-slice goal.
+
+### Implemented Dev Lab workflow
+
+The current development build includes the following user-confirmed working interactions:
+
+- The in-viewport DATABASE control opens the same canonical Database view/catalog used by the application, not a duplicate catalog.
+- The shared Database inspector exposes SELECT in the Dev Lab placement context for eligible Unit definitions.
+- SELECT closes the Database and starts a paused, cursor-following placement mode with a translucent grid-snapped blueprint.
+- A valid world click creates the Unit through the existing `game.unit-api`; Escape cancels placement.
+- Quick Select provides a compact selected-live-object summary.
+- INFO opens a larger read-only live Unit information card.
+- The world viewport remains the spatial base layer; floating panels are overlays and must not resize/reflow the canvas.
+- Space controls the actual session pause; inspection and placement are paused editing interactions.
+
+These are implementation facts reported as working by the user. They are **not** a claim that every browser interaction has passed an automated or independently recorded manual test. See `docs/testing/PHASE_2_TEST_PLAN.md` for evidence status.
+
+### Alignment with the original Phase 2 plan
+
+The additional Database, placement and inspection work remains inside the Dev Lab host/presentation role. It uses the existing Unit API and Core world/identity services; it does not move gameplay ownership into the UI or authorize changes to Core.
+
+The original Phase 2 goal remains unchanged: finish a minimal, deterministic and testable host → world → Unit/Pawn → movement/control → persistence slice. In particular:
+
+- The placement blueprint is a development editing tool, **not Pawn locomotion**.
+- Selecting and inspecting a Unit is **not** a movement/control path.
+- A working pause toggle proves the host/session pause behavior, but does not prove the full movement simulation path.
+- The current Dev Lab viewport is more polished than the original minimal harness, but final player-facing UI, New Game flow and production save storage remain outside this phase.
+
+### Remaining Phase 2 work
+
+- **2.2 — World and Unit/Pawn foundation:** retain evidence for identity, placement, domain ownership and snapshot/restore contracts; do not infer completion from the UI alone.
+- **2.3 — Locomotion and control:** still outstanding. Implement and test actual Unit/Pawn movement through a gameplay-owned command/API and deterministic Core Scheduler task. The placement cursor is not a substitute.
+- **2.4 — Integration and persistence:** complete the end-to-end host → world → Unit/Pawn → movement path, verify save/restore of identity/domain state/placement, and record lifecycle/failure/manual runtime evidence. The current development in-memory save adapter is not production storage.
+
+**Phase status:** Dev Lab's Database, placement, Quick Select, INFO card, viewport overlay and pause workflow are implemented and user-confirmed. Phase 2 as a whole is still in progress; do not mark it complete or merge it to `main` until the original acceptance checklist and verification gates pass.
