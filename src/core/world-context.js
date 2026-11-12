@@ -10,6 +10,88 @@ export class WorldContextError extends Error {
   }
 }
 
+function cloneSnapshotData(value, path = "snapshot", seen = new Set()) {
+  if (value === null || typeof value === "string" || typeof value === "boolean") return value;
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (!value || typeof value !== "object") {
+    throw new WorldContextError("INVALID_SNAPSHOT", `${path} contains a non-serializable value.`);
+  }
+  if (seen.has(value)) {
+    throw new WorldContextError("INVALID_SNAPSHOT", `${path} contains a circular reference.`);
+  }
+
+  let prototype;
+  let keys;
+  let isArray;
+  try {
+    prototype = Object.getPrototypeOf(value);
+    keys = Reflect.ownKeys(value);
+    isArray = Array.isArray(value);
+  } catch {
+    throw new WorldContextError("INVALID_SNAPSHOT", `${path} could not be inspected safely.`);
+  }
+
+  if (isArray ? prototype !== Array.prototype : prototype !== Object.prototype && prototype !== null) {
+    throw new WorldContextError("INVALID_SNAPSHOT", `${path} must contain only plain objects and arrays.`);
+  }
+
+  seen.add(value);
+  try {
+    if (isArray) {
+      const lengthDescriptor = Object.getOwnPropertyDescriptor(value, "length");
+      const length = lengthDescriptor?.value;
+      if (!Number.isSafeInteger(length) || length < 0) {
+        throw new WorldContextError("INVALID_SNAPSHOT", `${path} has an invalid array length.`);
+      }
+      const copy = new Array(length);
+      const indices = new Set();
+      for (const key of keys) {
+        if (key === "length") continue;
+        if (typeof key !== "string") {
+          throw new WorldContextError("INVALID_SNAPSHOT", `${path} contains a symbol-keyed array property.`);
+        }
+        const index = Number(key);
+        if (!Number.isSafeInteger(index) || index < 0 || index >= length || String(index) !== key) {
+          throw new WorldContextError("INVALID_SNAPSHOT", `${path} contains an unsupported array property.`);
+        }
+        const descriptor = Object.getOwnPropertyDescriptor(value, key);
+        if (!descriptor?.enumerable || !Object.hasOwn(descriptor, "value")) {
+          throw new WorldContextError("INVALID_SNAPSHOT", `${path} contains an accessor or hidden array property.`);
+        }
+        indices.add(index);
+        copy[index] = cloneSnapshotData(descriptor.value, `${path}[${index}]`, seen);
+      }
+      if (indices.size !== length) {
+        throw new WorldContextError("INVALID_SNAPSHOT", `${path} contains a sparse array.`);
+      }
+      return copy;
+    }
+
+    const copy = Object.create(prototype);
+    for (const key of keys) {
+      if (typeof key !== "string") {
+        throw new WorldContextError("INVALID_SNAPSHOT", `${path} contains a symbol-keyed property.`);
+      }
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (!descriptor?.enumerable || !Object.hasOwn(descriptor, "value")) {
+        throw new WorldContextError("INVALID_SNAPSHOT", `${path} contains an accessor or hidden property.`);
+      }
+      Object.defineProperty(copy, key, {
+        value: cloneSnapshotData(descriptor.value, `${path}.${key}`, seen),
+        enumerable: true,
+        writable: true,
+        configurable: true
+      });
+    }
+    return copy;
+  } catch (error) {
+    if (error instanceof WorldContextError) throw error;
+    throw new WorldContextError("INVALID_SNAPSHOT", `${path} could not be copied safely.`);
+  } finally {
+    seen.delete(value);
+  }
+}
+
 function assertId(value, label) {
   if (typeof value !== "string" || !ID_PATTERN.test(value)) {
     throw new WorldContextError("INVALID_ID", `${label} must be a stable ID.`, { value });
@@ -200,7 +282,11 @@ export class WorldContext {
   }
 
   prepareRestore(snapshot, { deferReferenceValidation = false } = {}) {
-    const next = this.#parseSnapshot(snapshot, { validateReferences: !deferReferenceValidation });
+    // Detach untrusted input once. The same immutable-by-ownership copy is
+    // validated and later committed, preventing getters and prepare/commit
+    // time mutation from changing the staged restore.
+    const stableSnapshot = cloneSnapshotData(snapshot);
+    this.#parseSnapshot(stableSnapshot, { validateReferences: !deferReferenceValidation });
     const previous = this.#placements;
     let committed = false;
     return Object.freeze({
@@ -208,8 +294,8 @@ export class WorldContext {
         if (committed) throw new WorldContextError("RESTORE_ALREADY_COMMITTED", "World Context restore transaction was already committed.");
         // Cross-registry references are validated at commit time, after the
         // entity and world participants have committed their staged snapshots.
-        this.#parseSnapshot(snapshot, { validateReferences: true });
-        this.#placements = next;
+        const validatedPlacements = this.#parseSnapshot(stableSnapshot, { validateReferences: true });
+        this.#placements = validatedPlacements;
         committed = true;
       },
       rollback: () => {
