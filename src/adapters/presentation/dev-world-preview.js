@@ -10,13 +10,13 @@ const worldStatus = document.querySelector("#world-status");
 const viewStatus = document.querySelector("#view-status");
 
 let worldMarkers = [];
-let placementAnimationFrame = null;
 let selectionEnabled = false;
 let onMarkerSelect = null;
 let selectedMarkerId = null;
 
 export function setWorldInteraction({ paused = false, onSelect = null } = {}) {
-  selectionEnabled = Boolean(paused);
+  state.paused = Boolean(paused);
+  selectionEnabled = state.paused;
   onMarkerSelect = typeof onSelect === "function" ? onSelect : null;
   render();
 }
@@ -24,31 +24,6 @@ export function setWorldInteraction({ paused = false, onSelect = null } = {}) {
 export function setSelectedWorldMarker(entityId) {
   selectedMarkerId = entityId ?? null;
   render();
-}
-
-export function beginUnitPlacement({ label, onPlace, onCancel } = {}) {
-  if (typeof onPlace !== "function") throw new TypeError("Unit placement requires an onPlace callback.");
-  cancelUnitPlacement();
-  state.placement = { label: String(label ?? "Unit"), onPlace, onCancel, tile: null, valid: false };
-  canvas.style.cursor = "crosshair";
-  animatePlacement();
-}
-
-export function cancelUnitPlacement() {
-  const placement = state.placement;
-  if (!placement) return;
-  state.placement = null;
-  canvas.style.cursor = "";
-  if (placementAnimationFrame !== null) cancelAnimationFrame(placementAnimationFrame);
-  placementAnimationFrame = null;
-  render();
-  placement.onCancel?.();
-}
-
-function animatePlacement() {
-  if (!state.placement) return;
-  render();
-  placementAnimationFrame = requestAnimationFrame(animatePlacement);
 }
 
 export function setWorldMarkers(markers) {
@@ -68,7 +43,7 @@ const state = {
   dragging: false,
   pointerX: 0,
   pointerY: 0,
-  placement: null
+  paused: true
 };
 
 function resizeCanvas() {
@@ -190,31 +165,6 @@ function render() {
     }
   }
 
-  if (state.placement?.tile) {
-    const { x, y, valid } = state.placement.tile;
-    const ghostX = (x + 0.5 - left) * cellWidth;
-    const ghostY = (y + 0.5 - top) * cellHeight;
-    const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 220);
-    const radius = Math.max(5, Math.min(12, cellWidth * (0.28 + pulse * 0.08)));
-    context.save();
-    context.globalAlpha = valid ? 0.28 + pulse * 0.28 : 0.18;
-    context.fillStyle = valid ? "#38d6c5" : "#ff5d70";
-    context.strokeStyle = valid ? "#8ffff0" : "#ff8a98";
-    context.lineWidth = 2;
-    context.fillRect((x - left) * cellWidth, (y - top) * cellHeight, cellWidth, cellHeight);
-    context.beginPath();
-    context.arc(ghostX, ghostY, radius, 0, Math.PI * 2);
-    context.fill();
-    context.globalAlpha = 1;
-    context.stroke();
-    context.font = "11px sans-serif";
-    context.textAlign = "left";
-    context.textBaseline = "bottom";
-    context.fillStyle = valid ? "#d7fff9" : "#ffd6dc";
-    context.fillText(state.placement.label, ghostX + radius + 5, ghostY - 3);
-    context.restore();
-  }
-
   const visibleColumns = Math.max(0, Math.min(state.worldSize, right) - Math.max(0, left));
   const visibleRows = Math.max(0, Math.min(state.worldSize, bottom) - Math.max(0, top));
   worldStatus.textContent = `World: ${state.worldSize} × ${state.worldSize}`;
@@ -241,6 +191,7 @@ function updateZoom(value, anchor = { x: 0.5, y: 0.5 }) {
 }
 
 sizeSelect.addEventListener("change", () => {
+  if (!state.paused) return;
   state.worldSize = Number(sizeSelect.value);
   state.cameraX = state.worldSize / 2;
   state.cameraY = state.worldSize / 2;
@@ -248,12 +199,14 @@ sizeSelect.addEventListener("change", () => {
 });
 
 gridToggle.addEventListener("change", () => {
+  if (!state.paused) return;
   state.gridVisible = gridToggle.checked;
   render();
 });
 
 canvas.addEventListener("wheel", (event) => {
   event.preventDefault();
+  if (!state.paused) return;
   const bounds = canvas.getBoundingClientRect();
   const anchor = {
     x: (event.clientX - bounds.left) / bounds.width,
@@ -264,48 +217,15 @@ canvas.addEventListener("wheel", (event) => {
 }, { passive: false });
 
 resetButton.addEventListener("click", () => {
+  if (!state.paused) return;
   state.cameraX = state.worldSize / 2;
   state.cameraY = state.worldSize / 2;
   updateZoom(1);
   render();
 });
 
-function tileFromPointer(event) {
-  const bounds = canvas.getBoundingClientRect();
-  const view = visibleDimensions();
-  const cellWidth = bounds.width / view.columns;
-  const cellHeight = bounds.height / view.rows;
-  const left = state.cameraX - view.columns / 2;
-  const top = state.cameraY - view.rows / 2;
-  return {
-    x: Math.floor(left + (event.clientX - bounds.left) / cellWidth),
-    y: Math.floor(top + (event.clientY - bounds.top) / cellHeight)
-  };
-}
-
-function updatePlacementPointer(event) {
-  if (!state.placement) return;
-  const tile = tileFromPointer(event);
-  tile.valid = tile.x >= 0 && tile.y >= 0 && tile.x < state.worldSize && tile.y < state.worldSize;
-  state.placement.tile = tile;
-  state.placement.valid = tile.valid;
-  render();
-}
-
 canvas.addEventListener("pointerdown", (event) => {
-  if (event.button === 2 && state.placement) {
-    event.preventDefault();
-    cancelUnitPlacement();
-    return;
-  }
-  if (event.button === 0 && state.placement) {
-    event.preventDefault();
-    updatePlacementPointer(event);
-    if (state.placement?.valid) {
-      state.placement.onPlace({ x: state.placement.tile.x, y: state.placement.tile.y });
-    }
-    return;
-  }
+  if (!state.paused) return;
   if (event.button === 0 && selectionEnabled && onMarkerSelect) {
     const bounds = canvas.getBoundingClientRect();
     const view = visibleDimensions();
@@ -324,7 +244,7 @@ canvas.addEventListener("pointerdown", (event) => {
     return;
   }
   // Middle mouse remains dedicated to camera panning.
-  if (event.button !== 1) return;
+  if (event.button !== 1 || !state.paused) return;
   state.dragging = true;
   state.pointerX = event.clientX;
   state.pointerY = event.clientY;
@@ -334,14 +254,8 @@ canvas.addEventListener("pointerdown", (event) => {
 canvas.addEventListener("auxclick", (event) => {
   if (event.button === 1) event.preventDefault();
 });
-canvas.addEventListener("contextmenu", (event) => {
-  if (state.placement) event.preventDefault();
-});
-window.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && state.placement) cancelUnitPlacement();
-});
-
 canvas.addEventListener("pointermove", (event) => {
+  if (!state.paused) return;
   if (state.dragging) {
     const bounds = canvas.getBoundingClientRect();
     const view = visibleDimensions();
@@ -353,16 +267,8 @@ canvas.addEventListener("pointermove", (event) => {
     state.pointerY = event.clientY;
     clampCamera();
   }
-  if (state.placement) updatePlacementPointer(event);
-  else if (state.dragging) render();
+  if (state.dragging) render();
 });
-canvas.addEventListener("pointerleave", () => {
-  if (state.placement) {
-    state.placement.tile = null;
-    render();
-  }
-});
-
 function stopDragging() { state.dragging = false; }
 canvas.addEventListener("pointerup", stopDragging);
 canvas.addEventListener("pointercancel", stopDragging);

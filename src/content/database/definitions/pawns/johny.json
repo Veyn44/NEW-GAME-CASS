@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "pawn.johny",
+  "name": "Johny",
+  "category": "Pawns",
+  "description": "A known human entity whose origin and role have not yet been established. Johny is not the player's protagonist.",
+  "entityType": "human",
+  "attributes": {
+    "species": "Human",
+    "age": 32,
+    "role": null,
+    "origin": null
+  },
+  "artwork": null,
+  "spawnableAs": ["unit"]
+}
