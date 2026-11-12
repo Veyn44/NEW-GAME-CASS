@@ -10,13 +10,14 @@ CASSANDRA3 is an architectural reference, not an implementation mandate. The Cor
 
 - Repository: `Veyn44/NEW-GAME-CASS`
 - Branch: `main`
-- Verified commit: `7295c2e28d0b67dc085d560c6977ebfd659e5681`
+- Core implementation verification commit: `7295c2e28d0b67dc085d560c6977ebfd659e5681`
+- Latest documentation commit: `98ff3bb15702ba1b271903f07d69ac22a318378b`
 - CI workflow: `Core tests`
 - Runtime: Node.js 20.20.2
 - Result: **180/180 passed; 0 failed**
 - Suites: Clock + Scheduler (22), Core Registry (13), Entity Registry (23), Event Bus (18), Lifecycle + Bootstrap (13), Persistence + Logger (19), World Registry (27), World Context (23), Core Integration (22).
 
-This is a real GitHub Actions execution, not a count inferred from test files. The HTML/browser test pages are separate harnesses and were not exercised by this CI run.
+This is a real GitHub Actions execution, not a count inferred from test files. The same 180/180 result was confirmed again on the latest documentation commit above. The HTML/browser test pages are separate harnesses and were not exercised by this CI run.
 
 ## Core inventory
 
@@ -45,7 +46,9 @@ The original Phase 1 plan mentioned an adapter preserving the old prototype UI a
 1. Complete a module-by-module contract review against the CASSANDRA3 Core integration reference, treating it as a reference rather than a law.
 2. Review compatibility and migration behavior for legacy entity/world/save metadata.
 3. Review failure and recovery paths across Event Bus, Scheduler, Bootstrap and Persistence as one runtime.
-4. Finish public API and host-integration documentation, including a minimal host example.
+4. Complete the final integrated review and decide whether any remaining browser-only checks add coverage beyond the Node contract suites.
 5. Re-run the complete CI suite after any code changes and inspect the final commit/check result.
+
+Public API documentation and a minimal host-system example are now present in `src/core/README.md`.
 
 Phase 1 is not declared complete until this review is finished and the final integrated test run passes. No gameplay systems should be added as a substitute for finishing the Core foundation.
