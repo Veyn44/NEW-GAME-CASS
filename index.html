@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="cs">
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#11151b">
+    <meta name="theme-color" content="#0b1220">
     <title>Cassandra — World Preview</title>
     <link rel="stylesheet" href="./src/adapters/presentation/dev-world-preview.css">
   </head>
@@ -30,11 +30,9 @@
           <input id="grid-visible" type="checkbox" checked>
           <span>Show grid</span>
         </label>
-        <label class="control zoom-control">
-          <span>Zoom <output id="zoom-value">100%</output></span>
-          <input id="zoom" type="range" min="50" max="200" step="10" value="100">
-        </label>
+        <span class="control zoom-readout">Zoom <output id="zoom-value">100%</output></span>
         <button id="reset-camera" type="button">Reset camera</button>
+        <span class="dev-note">Mouse wheel: zoom · Drag: pan</span>
       </section>
 
       <section class="viewport-panel" aria-label="World viewport">
@@ -46,7 +44,7 @@
       <footer class="status-bar">
         <span id="world-status">World: 128 × 128</span>
         <span id="view-status">View: calculating…</span>
-        <span>Drag to pan</span>
+        <span>Free camera</span>
       </footer>
     </main>
     <script type="module" src="./src/adapters/presentation/dev-world-preview.js"></script>
