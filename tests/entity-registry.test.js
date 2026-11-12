@@ -258,6 +258,15 @@ test("scoped sequence resumes from restored records", () => {
   equal(next.id, "scope:resume:2");
 });
 
+test("metadata descriptor Proxy traps are normalized to INVALID_METADATA", () => {
+  const registry = makeRegistry();
+  const hostile = new Proxy({ value: 1 }, {
+    getOwnPropertyDescriptor() { throw new Error("descriptor trap failed"); }
+  });
+  throwsCode(() => registry.registerPersistent({
+    id: "entity:proxy-descriptor-trap", kind: "pawn", metadata: hostile
+  }), "INVALID_METADATA");
+});
 export async function runEntityRegistryTests() {
   const results = [];
   for (const item of tests) {
