@@ -12,6 +12,7 @@ Canonical documentation for the active development phase.
 - [Game Systems Architecture](architecture/GAME_SYSTEMS_ARCHITECTURE.md) — ownership, dependencies and communication.
 - [Phase 2 System Contracts](architecture/PHASE_2_SYSTEM_CONTRACTS.md) — actual Core integration contracts for host, world, Pawn and locomotion.
 - [Repository Structure](architecture/REPOSITORY_STRUCTURE.md) — directory layout and phase-to-main merge map.
+- [World Geometry](architecture/WORLD_GEOMETRY.md) — approved square world dimensions, coordinate rules and initial camera/viewport test settings.
 
 ## Standards
 
