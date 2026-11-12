@@ -158,4 +158,6 @@ The input controller separates physical input state from permission to apply gam
 
 Focus loss clears all held input state and forces the viewport into pause. This prevents stuck movement or firing after switching applications or tabs.
 
+The application composition root injects the viewport controller into the host-side `game.input` system. Gameplay systems consume its read-only `game.input-api` service rather than reaching into DOM events or the application shell.
+
 Pointer Lock is browser-mediated and may be denied. The viewport retains a focused-canvas fallback and reports lock failure in its presentation state; actual gameplay input must continue to respect the controller's running/paused gate.
