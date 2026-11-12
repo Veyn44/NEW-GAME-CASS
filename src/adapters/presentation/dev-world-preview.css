@@ -90,6 +90,9 @@ select, button {
 }
 button { cursor: pointer; }
 button:hover, select:hover { border-color: var(--color-accent-turquoise); }
+.zoom-readout { display: flex; align-items: center; gap: 8px; min-height: 32px; }
+.zoom-readout output { color: var(--color-accent-burgundy); font-size: 13px; }
+
 .toggle-control {
   display: flex;
   align-items: center;
