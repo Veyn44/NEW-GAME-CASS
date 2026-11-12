@@ -10,14 +10,13 @@ CASSANDRA3 is an architectural reference, not an implementation mandate. The Cor
 
 - Repository: `Veyn44/NEW-GAME-CASS`
 - Branch: `main`
-- Core implementation verification commit: `7295c2e28d0b67dc085d560c6977ebfd659e5681`
-- Latest documentation commit: `98ff3bb15702ba1b271903f07d69ac22a318378b`
+- Latest verified implementation commit: `46e83bc90f561dcb8b16a0ea084c19b124c04ff6`
 - CI workflow: `Core tests`
 - Runtime: Node.js 20.20.2
-- Result: **180/180 passed; 0 failed**
-- Suites: Clock + Scheduler (22), Core Registry (13), Entity Registry (23), Event Bus (18), Lifecycle + Bootstrap (13), Persistence + Logger (19), World Registry (27), World Context (23), Core Integration (22).
+- Result: **184/184 passed; 0 failed**
+- Suites: Clock + Scheduler (22), Core Registry (13), Entity Registry (23), Event Bus (18), Lifecycle + Bootstrap (13), Persistence + Logger (19), World Registry (27), World Context (26), Core Integration (23).
 
-This is a real GitHub Actions execution, not a count inferred from test files. The same 180/180 result was confirmed again on the latest documentation commit above. The HTML/browser test pages are separate harnesses and were not exercised by this CI run.
+This is a real GitHub Actions execution, not a count inferred from test files. The latest run also exercised the new World Context snapshot-hardening and asynchronous-persistence boundary tests. The HTML/browser test pages are separate harnesses and were not exercised by this CI run.
 
 ## Core inventory
 
@@ -35,7 +34,9 @@ The current `src/core` contains the shared runtime modules:
 
 The assembly requires an explicit save adapter. The in-memory adapter is for tests/development only; durable storage belongs to the host application.
 
-The Core source has no gameplay implementation for Cassandra-specific systems. The Entity Registry retains a narrow legacy migration path for old encounter-scoped identity records; new records use generic scoped identities.
+The Core source has no gameplay implementation for Cassandra-specific systems. The Entity Registry retains a narrow legacy migration path for old encounter-scoped identity records; new records use generic scoped identities. World Context now detaches snapshot input before staging, rejects accessors/hostile proxy inspection, and validates the detached state again at commit so caller mutation cannot alter the transaction.
+
+The Core Assembly now holds an independent `core.persistence` clock pause across asynchronous save/load storage work. This prevents the host frame loop from advancing simulation while a persistence transaction is in flight and preserves unrelated pause reasons.
 
 ## Intentional adaptation from CASSANDRA3
 
@@ -43,11 +44,10 @@ The original Phase 1 plan mentioned an adapter preserving the old prototype UI a
 
 ## Remaining Phase 1 work
 
-1. Complete a module-by-module contract review against the CASSANDRA3 Core integration reference, treating it as a reference rather than a law.
-2. Review compatibility and migration behavior for legacy entity/world/save metadata.
-3. Review failure and recovery paths across Event Bus, Scheduler, Bootstrap and Persistence as one runtime.
-4. Complete the final integrated review and decide whether any remaining browser-only checks add coverage beyond the Node contract suites.
-5. Re-run the complete CI suite after any code changes and inspect the final commit/check result.
+1. Finish the module-by-module contract review against the CASSANDRA3 Core integration reference, treating it as a reference rather than a law.
+2. Complete the final integrated failure/recovery review across Event Bus, Scheduler, Bootstrap and Persistence.
+3. Decide whether remaining browser-only harnesses add coverage beyond the Node contract suites.
+4. Run the final CI suite after any remaining code changes and inspect the final commit/check result.
 
 Public API documentation and a minimal host-system example are now present in `src/core/README.md`.
 
