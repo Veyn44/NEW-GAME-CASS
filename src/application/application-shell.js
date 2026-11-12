@@ -394,6 +394,10 @@ function inspectUnit(entityId) {
     "Tile X": unit.placement?.position?.x ?? "—",
     "Tile Y": unit.placement?.position?.y ?? "—"
   });
+  appendAttributeRows(details, {
+    "Entity type": definition?.entityType ?? "—",
+    "Canonical attributes": definition?.attributes ?? {}
+  });
   const hint = document.createElement("p");
   hint.className = "dev-note";
   hint.textContent = "Instance data is read from the live Unit and World services.";
@@ -533,12 +537,23 @@ canvas.addEventListener("pointermove", (event) => {
   if (!state.paused) inputController.pointerMove(event.movementX || 0, event.movementY || 0);
 });
 
+let pointerLockWasAcquired = false;
 document.addEventListener("pointerlockchange", () => {
   const locked = document.pointerLockElement === canvas;
   viewportPanel.dataset.pointerLocked = String(locked);
+  if (locked) pointerLockWasAcquired = true;
   pointerStatus.textContent = state.paused
     ? "INSPECTION CURSOR"
     : locked ? "POINTER LOCKED" : "CLICK MAP TO CAPTURE POINTER";
+
+  // Escape or browser-driven Pointer Lock loss must not leave active gameplay
+  // running with an unrestricted pointer.
+  if (!locked && pointerLockWasAcquired && !state.paused) {
+    inputController.pause();
+    state.clock?.pause("player");
+    state.paused = true;
+    updateSimulationUi();
+  }
 });
 
 function handleFocusLoss() {
