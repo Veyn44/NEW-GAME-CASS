@@ -10,11 +10,11 @@ CASSANDRA3 is an architectural reference, not an implementation mandate. The Cor
 
 - Repository: `Veyn44/NEW-GAME-CASS`
 - Branch: `main`
-- Latest verified implementation commit: `46e83bc90f561dcb8b16a0ea084c19b124c04ff6`
+- Latest verified implementation commit: `22b2fa02f49bc61f4dbd9488e401e91d039cd45b`
 - CI workflow: `Core tests`
 - Runtime: Node.js 20.20.2
-- Result: **184/184 passed; 0 failed**
-- Suites: Clock + Scheduler (22), Core Registry (13), Entity Registry (23), Event Bus (18), Lifecycle + Bootstrap (13), Persistence + Logger (19), World Registry (27), World Context (26), Core Integration (23).
+- Result: **185/185 passed; 0 failed**
+- Suites: Clock + Scheduler (22), Core Registry (13), Entity Registry (23), Event Bus (18), Lifecycle + Bootstrap (13), Persistence + Logger (19), World Registry (27), World Context (26), Core Integration (24).
 
 This is a real GitHub Actions execution, not a count inferred from test files. The latest run also exercised the new World Context snapshot-hardening and asynchronous-persistence boundary tests. The HTML/browser test pages are separate harnesses and were not exercised by this CI run.
 
@@ -36,7 +36,7 @@ The assembly requires an explicit save adapter. The in-memory adapter is for tes
 
 The Core source has no gameplay implementation for Cassandra-specific systems. The Entity Registry retains a narrow legacy migration path for old encounter-scoped identity records; new records use generic scoped identities. World Context now detaches snapshot input before staging, rejects accessors/hostile proxy inspection, and validates the detached state again at commit so caller mutation cannot alter the transaction.
 
-The Core Assembly now holds an independent `core.persistence` clock pause across asynchronous save/load storage work. This prevents the host frame loop from advancing simulation while a persistence transaction is in flight and preserves unrelated pause reasons.
+The Core Assembly now serializes overlapping save/load transactions and holds an independent `core.persistence` clock pause until the queue drains. This prevents save-slot/participant races, prevents the host frame loop from advancing simulation during storage work, preserves unrelated pause reasons, and allows later queued operations to continue after an earlier storage failure.
 
 ## Intentional adaptation from CASSANDRA3
 
