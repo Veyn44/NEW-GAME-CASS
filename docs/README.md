@@ -9,7 +9,9 @@ Canonical documentation for the active development phase.
 
 ## Architecture
 
-- [Core Audit — Phase 2](architecture/CORE_AUDIT_PHASE_2.md) — source-level review of Core ownership, API constraints, test evidence and the proposed World/Pawn integration.\n- [Game Systems Architecture](architecture/GAME_SYSTEMS_ARCHITECTURE.md) — ownership, dependencies and communication.
+- [Core Audit — Phase 2](architecture/CORE_AUDIT_PHASE_2.md) — source-level review of Core ownership, API constraints, test evidence and the proposed World/Pawn integration.
+- [World Lifecycle](architecture/WORLD_LIFECYCLE.md) — approved persistent/temporary world model, simulation gating and transition constraints.
+- [Game Systems Architecture](architecture/GAME_SYSTEMS_ARCHITECTURE.md) — ownership, dependencies and communication.
 - [Phase 2 System Contracts](architecture/PHASE_2_SYSTEM_CONTRACTS.md) — actual Core integration contracts for host, world, Pawn and locomotion.
 - [Repository Structure](architecture/REPOSITORY_STRUCTURE.md) — directory layout and phase-to-main merge map.
 - [World Geometry](architecture/WORLD_GEOMETRY.md) — approved square world dimensions, coordinate rules and initial camera/viewport test settings.
