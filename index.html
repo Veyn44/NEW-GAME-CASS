@@ -4,49 +4,58 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#0b1220">
-    <title>Cassandra — World Preview</title>
+    <title>Cassandra</title>
     <link rel="stylesheet" href="./src/adapters/presentation/dev-world-preview.css">
   </head>
   <body>
-    <main class="dev-shell">
-      <header class="dev-header">
-        <div>
-          <p class="eyebrow">CASSANDRA / DEVELOPMENT</p>
-          <h1>World preview</h1>
+    <main class="application-shell">
+      <section class="app-view main-menu" data-view="menu">
+        <header class="brand-block">
+          <p class="eyebrow">DEEP SPACE / SURVIVAL SIMULATION</p>
+          <h1>CASSANDRA</h1>
+          <p class="brand-subtitle">A world waiting to be built.</p>
+        </header>
+        <nav class="main-menu-list" aria-label="Main menu">
+          <button class="menu-entry" type="button" disabled><span><strong>NEW GAME</strong><small>Create a new expedition</small></span><b>COMING SOON</b></button>
+          <button class="menu-entry menu-entry-active" type="button" data-navigate="dev-lab"><span><strong>DEV LAB</strong><small>Development and testing environment</small></span><b>ENTER</b></button>
+          <button class="menu-entry" type="button" disabled><span><strong>SETTINGS</strong><small>Application configuration</small></span><b>COMING SOON</b></button>
+          <button class="menu-entry" type="button" disabled><span><strong>SAVE / LOAD</strong><small>Saved game management</small></span><b>COMING SOON</b></button>
+          <button class="menu-entry menu-entry-available" type="button" data-navigate="database"><span><strong>DATABASE</strong><small>Inspectable game definitions and attributes</small></span><b>OPEN</b></button>
+          <button class="menu-entry" type="button" disabled><span><strong>ARCHIVE</strong><small>Records and history</small></span><b>COMING SOON</b></button>
+        </nav>
+        <footer class="app-footer"><span> CASSANDRA / APPLICATION </span><span>PHASE 2 · DEVELOPMENT BUILD</span></footer>
+      </section>
+
+      <section class="app-view database-view" data-view="database" hidden>
+        <header class="section-header">
+          <div><p class="eyebrow">CASSANDRA / KNOWLEDGE</p><h1>Database</h1><p class="dev-note">Canonical definitions registered by gameplay systems</p></div>
+          <button type="button" class="secondary-button" data-back-menu>← Main menu</button>
+        </header>
+        <div class="database-toolbar">
+          <label class="database-search">Search definitions<input id="database-search" type="search" placeholder="Pawn, enemy, wall, material…"></label>
+          <label class="database-filter">Category<select id="database-category"><option value="all">All categories</option></select></label>
         </div>
-        <p class="dev-note">Temporary spatial test harness · not the final game UI</p>
-      </header>
-
-      <section class="toolbar" aria-label="World preview controls">
-        <label class="control">
-          <span>World size</span>
-          <select id="world-size">
-            <option value="64">64 × 64</option>
-            <option value="128" selected>128 × 128</option>
-            <option value="256">256 × 256</option>
-          </select>
-        </label>
-        <label class="toggle-control" for="grid-visible">
-          <input id="grid-visible" type="checkbox" checked>
-          <span>Show grid</span>
-        </label>
-        <span class="control zoom-readout">Zoom <output id="zoom-value">100%</output></span>
-        <button id="reset-camera" type="button">Reset camera</button>
-        <span class="dev-note">Mouse wheel: zoom · Middle-button drag: pan</span>
+        <div id="database-list" class="database-list" aria-live="polite"></div>
+        <p class="database-footnote">The catalog contains definitions, not live unit instances. Runtime condition and current health will be shown through a separate inspection view when those systems exist.</p>
       </section>
 
-      <section class="viewport-panel" aria-label="World viewport">
-        <canvas id="world-canvas" aria-label="Empty square world with optional coordinate grid">
-          Your browser does not support canvas.
-        </canvas>
+      <section class="app-view dev-lab-view" data-view="dev-lab" hidden>
+        <header class="dev-header">
+          <div><p class="eyebrow">CASSANDRA / DEVELOPMENT</p><h1>Dev Lab</h1></div>
+          <div class="dev-header-actions"><span class="dev-note">Development environment · isolated from game UI</span><button type="button" class="secondary-button" data-back-menu>← Main menu</button></div>
+        </header>
+        <section class="toolbar" aria-label="World preview controls">
+          <label class="control"><span>World size</span><select id="world-size"><option value="64">64 × 64</option><option value="128" selected>128 × 128</option><option value="256">256 × 256</option></select></label>
+          <label class="toggle-control" for="grid-visible"><input id="grid-visible" type="checkbox" checked><span>Show grid</span></label>
+          <span class="control zoom-readout">Zoom <output id="zoom-value">100%</output></span>
+          <button id="reset-camera" type="button">Reset camera</button>
+          <span class="dev-note">Mouse wheel: zoom · Middle-button drag: pan</span>
+        </section>
+        <section class="viewport-panel" aria-label="World viewport"><canvas id="world-canvas" aria-label="Empty square world with optional coordinate grid">Your browser does not support canvas.</canvas></section>
+        <footer class="status-bar"><span id="world-status">World: 128 × 128</span><span id="view-status">View: calculating…</span><span>Free camera</span></footer>
+        <aside class="dev-tools-panel"><div><p class="eyebrow">DEVELOPMENT TOOLS</p><strong>Spawn Unit</strong><p class="dev-note">Will become available when the Pawn/unit system is implemented.</p></div><button type="button" disabled>Spawn Unit · NOT AVAILABLE</button></aside>
       </section>
-
-      <footer class="status-bar">
-        <span id="world-status">World: 128 × 128</span>
-        <span id="view-status">View: calculating…</span>
-        <span>Free camera</span>
-      </footer>
     </main>
-    <script type="module" src="./src/adapters/presentation/dev-world-preview.js"></script>
+    <script type="module" src="./src/application/application-shell.js"></script>
   </body>
 </html>
