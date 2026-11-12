@@ -1,4 +1,4 @@
-import { getVisibleDimensions, clampCameraPosition, MIN_ZOOM, MAX_ZOOM } from "./world-preview-model.js";
+import { getVisibleDimensions, clampCameraPosition, MIN_ZOOM, MAX_ZOOM, CAMERA_VERTICAL_OVERSCAN_TILES } from "./world-preview-model.js";
 
 const canvas = document.querySelector("#world-canvas");
 const context = canvas.getContext("2d");
@@ -44,7 +44,8 @@ function clampCamera() {
   const position = clampCameraPosition(
     { x: state.cameraX, y: state.cameraY },
     state.worldSize,
-    visibleDimensions()
+    visibleDimensions(),
+    CAMERA_VERTICAL_OVERSCAN_TILES
   );
   state.cameraX = position.x;
   state.cameraY = position.y;
@@ -167,10 +168,16 @@ resetButton.addEventListener("click", () => {
 });
 
 canvas.addEventListener("pointerdown", (event) => {
+  // The middle mouse button is reserved for camera panning. Left click remains available to gameplay.
+  if (event.button !== 1) return;
   state.dragging = true;
   state.pointerX = event.clientX;
   state.pointerY = event.clientY;
   canvas.setPointerCapture(event.pointerId);
+});
+
+canvas.addEventListener("auxclick", (event) => {
+  if (event.button === 1) event.preventDefault();
 });
 
 canvas.addEventListener("pointermove", (event) => {
