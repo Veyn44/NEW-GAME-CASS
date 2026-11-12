@@ -245,3 +245,25 @@ canvas:active { cursor: grabbing; }
 /* Dev Lab test Unit marker */
 .dev-tool-copy { max-width: min(60%, 760px); }
 @media(max-width:640px) { .dev-tool-copy { max-width:100%; } }
+
+
+/* Runtime controls and live Unit inspector */
+#simulation-status { color: #f3c969; font-weight: 700; }
+#simulation-status[data-state="running"] { color: #38d6c5; }
+.unit-inspector {
+  flex: 1 1 100%;
+  min-width: 240px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #101d2d;
+}
+.unit-inspector h3 { margin: 3px 0 8px; color: var(--color-text); }
+.unit-instance-details {
+  display: grid;
+  grid-template-columns: minmax(110px, 1fr) minmax(150px, 2fr);
+  gap: 5px 14px;
+  margin: 0;
+}
+.unit-instance-details dt { color: var(--color-muted); }
+.unit-instance-details dd { margin: 0; color: var(--color-text); overflow-wrap: anywhere; }
