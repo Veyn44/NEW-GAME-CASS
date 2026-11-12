@@ -113,3 +113,34 @@ A test marked PASS must have actually run. Source inspection, a prepared test fi
 - Change back to a spawnable Unit; verify the shared SELECT action becomes available again.
 - Activate SELECT and verify the Database closes and the existing paused world-placement flow begins.
 - Open the Database in main-menu browse mode; verify the selection action remains hidden.\n- User confirms the shared Database/SELECT/placement flow currently works in Dev Lab; automated/browser evidence is still pending.
+
+
+## Colony Leader Draft and locomotion checks (2026-11-12)
+
+Automated evidence at commit `793a47c89aba826e1b3945047995310e0b0bac68`:
+- Core regression: 198/198 passed.
+- Host/unit suite: 38/38 passed.
+- Browser entry-point syntax checks passed.
+- CI: [GitHub Actions run 43313238282](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43313238282).
+
+Automated coverage now includes:
+- Current leader is resolved by stable Unit ID, independently of viewport selection.
+- Drafted leader moves at 4 world tiles per game-time second.
+- Diagonal movement is normalized.
+- No movement occurs while Draft is inactive.
+- Fractional Unit positions survive persistence restore.
+- Movement clamps at world boundaries.
+- Colony Leader ID and Draft state survive persistence restore.
+
+Manual browser checks still required:
+- Place Johny through Dev Lab Database and verify the first placed Johny becomes leader; verify no Unit exists before placement.
+- Press F while paused; verify Draft toggles and status updates.
+- Resume and move with WASD; verify only Johny moves smoothly at the intended speed.
+- Verify diagonal movement does not exceed cardinal speed.
+- Pause and resume while Draft is active; verify Draft remains active and movement resumes.
+- Pan the camera while paused, resume, then issue WASD; verify camera reacquires and follows the leader without selecting the marker.
+- Verify no camera movement occurs from Draft alone when no movement key is held.
+- Move against all four world edges; verify the Pawn stops at the boundary without faulting the scheduler.
+- Verify selection/INFO remains inspection-only and never changes the Draft target.
+
+Do not mark Phase 2.3 or 2.4 complete until these browser checks and the full integration/persistence acceptance path are recorded.
