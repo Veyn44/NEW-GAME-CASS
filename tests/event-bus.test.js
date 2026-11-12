@@ -212,5 +212,15 @@ export function runEventBusTests() {
     assert(bus.sequence === 0, "Rejected arrays must not consume sequence numbers.");
   });
 
+
+  test("normalizes revoked Proxy payload inspection failures", () => {
+    const bus = new EventBus({ sources: ["pawn"] });
+    const { proxy, revoke } = Proxy.revocable({}, {});
+    revoke();
+    const error = expectCode(() => bus.publish({ type: "pawn.data", source: "pawn", payload: proxy }), "INVALID_PAYLOAD");
+    assert(error.message.includes("could not be inspected"), "Revoked Proxy should produce the stable payload contract error.");
+    assert(bus.sequence === 0, "Rejected revoked Proxy payload must not consume a sequence number.");
+  });
+
   return results;
 }
