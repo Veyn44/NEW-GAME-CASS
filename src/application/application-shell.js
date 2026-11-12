@@ -26,8 +26,14 @@ const databaseInspector = document.querySelector("#database-inspector");
 const databaseModeLabel = document.querySelector("#database-mode-label");
 const simulationStatus = document.querySelector("#simulation-status");
 const pointerStatus = document.querySelector("#pointer-status");
-const unitInspector = document.querySelector("#unit-inspector");
-const entityStatus = document.querySelector("#entity-status");
+const quickSelect = document.querySelector("#quick-select");
+const quickSelectKind = document.querySelector("#quick-select-kind");
+const quickSelectArtwork = document.querySelector("#quick-select-artwork");
+const quickSelectArtworkEmpty = document.querySelector("#quick-select-artwork-empty");
+const quickSelectName = document.querySelector("#quick-select-name");
+const quickSelectSummary = document.querySelector("#quick-select-summary");
+const quickSelectInfo = document.querySelector("#quick-select-info");
+const quickSelectDetails = document.querySelector("#quick-select-details");
 const viewportPanel = document.querySelector(".viewport-panel");
 const canvas = document.querySelector("#world-canvas");
 const worldSizeSelect = document.querySelector("#world-size");
@@ -42,10 +48,11 @@ const state = {
   detailRequest: 0,
   unitApi: null,
   inputApi: null,
-  johnyId: null,
   clock: null,
+  worldRegistry: null,
   paused: true,
   selectedUnitId: null,
+  selectedObject: null,
   animationFrame: null,
   lastFrameTime: null
 };
@@ -271,9 +278,18 @@ databaseCategory.addEventListener("change", renderDatabase);
 
 function clearUnitSelection() {
   state.selectedUnitId = null;
+  state.selectedObject = null;
   setSelectedWorldMarker(null);
-  unitInspector.hidden = true;
-  unitInspector.replaceChildren();
+  quickSelect.hidden = true;
+  quickSelectInfo.disabled = true;
+  quickSelectInfo.textContent = "INFO";
+  quickSelectDetails.hidden = true;
+  quickSelectDetails.replaceChildren();
+  quickSelectArtwork.hidden = true;
+  quickSelectArtwork.removeAttribute("src");
+  quickSelectArtworkEmpty.hidden = false;
+  quickSelectName.textContent = "No selection";
+  quickSelectSummary.textContent = "Select an object in the paused world.";
 }
 
 function inspectUnit(entityId) {
@@ -289,16 +305,24 @@ function inspectUnit(entityId) {
     return;
   }
   state.selectedUnitId = unit.id;
+  state.selectedObject = { id: unit.id, kind: "UNIT", unit };
   setSelectedWorldMarker(unit.id);
   const definition = getDefinition(unit.definitionId);
-  unitInspector.replaceChildren();
-  const eyebrow = document.createElement("p");
-  eyebrow.className = "eyebrow";
-  eyebrow.textContent = "SELECTED UNIT";
-  const title = document.createElement("h3");
-  title.textContent = definition?.name ?? "Unknown definition";
+  quickSelectKind.textContent = "UNIT";
+  quickSelectName.textContent = definition?.name ?? "Unknown definition";
+  quickSelectSummary.textContent = definition?.description ?? "Live world instance.";
+  quickSelectArtwork.hidden = !definition?.artwork;
+  quickSelectArtworkEmpty.hidden = Boolean(definition?.artwork);
+  if (definition?.artwork) {
+    quickSelectArtwork.src = definition.artwork;
+    quickSelectArtwork.alt = definition.name;
+  } else {
+    quickSelectArtwork.removeAttribute("src");
+  }
+  quickSelectInfo.disabled = false;
+  quickSelectDetails.replaceChildren();
   const details = document.createElement("dl");
-  details.className = "attribute-list unit-instance-details";
+  details.className = "attribute-list quick-select-attributes";
   appendAttributeRows(details, {
     "Instance ID": unit.id,
     "Definition": definition?.name ?? unit.definitionId,
@@ -313,9 +337,9 @@ function inspectUnit(entityId) {
   });
   const hint = document.createElement("p");
   hint.className = "dev-note";
-  hint.textContent = "Instance data is read from the live Unit and World services.";
-  unitInspector.append(eyebrow, title, details, hint);
-  unitInspector.hidden = false;
+  hint.textContent = "Live instance data supplied by Unit and World services.";
+  quickSelectDetails.append(details, hint);
+  quickSelect.hidden = false;
 }
 
 function updateSimulationUi() {
@@ -495,6 +519,19 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden") handleFocusLoss();
 });
 
+quickSelectInfo.addEventListener("click", () => {
+  if (!state.paused || !state.selectedObject) return;
+  quickSelectDetails.hidden = !quickSelectDetails.hidden;
+  quickSelectInfo.textContent = quickSelectDetails.hidden ? "INFO" : "HIDE INFO";
+});
+
+worldSizeSelect.addEventListener("change", () => {
+  if (!state.paused || !state.worldRegistry) return;
+  const size = Number(worldSizeSelect.value);
+  state.worldRegistry.activateWorld(`dev-lab-world-${size}`);
+  clearUnitSelection();
+});
+
 async function startDevLabRuntime() {
   const runtime = createGameRuntime({
     saveAdapter: new MemorySaveAdapter(),
@@ -506,27 +543,15 @@ async function startDevLabRuntime() {
   try {
     const context = await runtime.start();
     const worlds = context.getService("core.world-registry");
-    worlds.registerWorld({
-      worldId: "dev-lab-world",
-      type: "dev-lab-test",
-      dimensions: { width: 128, height: 128 },
-      coordinateSystem: "tiles"
-    });
-    worlds.activateWorld("dev-lab-world");
+    for (const size of [64, 128, 256]) {
+      worlds.registerWorld({ worldId: `dev-lab-world-${size}`, type: "dev-lab-test", dimensions: { width: size, height: size }, coordinateSystem: "tiles" });
+    }
+    worlds.activateWorld(`dev-lab-world-${Number(worldSizeSelect.value)}`);
+    state.worldRegistry = worlds;
     state.unitApi = context.getService("game.unit-api");
     state.inputApi = context.getService("game.input-api");
-    state.johnyId = state.unitApi.createUnit({
-      definitionId: "pawn.johny",
-      worldId: "dev-lab-world",
-      position: { x: 64, y: 64 }
-    }).id;
-    setWorldMarkers(state.unitApi.listUnits().map((unit) => ({
-      x: unit.placement.position.x,
-      y: unit.placement.position.y,
-      id: unit.id,
-      label: getDefinition(unit.definitionId)?.name ?? unit.definitionId
-    })));
-    entityStatus.textContent = "Canonical Human · age 32 · role unknown. Select Johny while paused to inspect the live entity.";
+    setWorldMarkers([]);
+    clearUnitSelection();
     state.clock = context.getService("core.game-clock");
     advanceRuntime = (deltaSeconds) => runtime.advance(deltaSeconds);
     state.clock.pause("player");
