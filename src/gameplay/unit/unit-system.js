@@ -115,8 +115,16 @@ export function createUnitSystem({ definitionLookup } = {}) {
       if (!current || current.type !== "world") {
         throw new UnitSystemError("UNIT_NOT_IN_WORLD", `Unit "${id}" has no world placement.`, { entityId: id });
       }
+      const world = worlds.get(current.worldId);
+      if (!world || world.status === "closed") {
+        throw new UnitSystemError("UNKNOWN_OR_CLOSED_WORLD", `World "${current.worldId}" is not available.`, { worldId: current.worldId });
+      }
+      const bounded = Object.freeze({
+        x: Math.min(target.x, world.dimensions.width - Number.EPSILON * world.dimensions.width),
+        y: Math.min(target.y, world.dimensions.height - Number.EPSILON * world.dimensions.height)
+      });
       try {
-        worldContext.moveEntity(id, { type: "world", worldId: current.worldId, position: target });
+        worldContext.moveEntity(id, { type: "world", worldId: current.worldId, position: bounded });
       } catch (error) {
         throw new UnitSystemError(error.code ?? "UNIT_MOVE_FAILED", error.message, { entityId: id, position: target });
       }
