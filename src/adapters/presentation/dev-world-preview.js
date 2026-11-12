@@ -163,6 +163,7 @@ resetButton.addEventListener("click", () => {
   state.cameraX = state.worldSize / 2;
   state.cameraY = state.worldSize / 2;
   updateZoom(1);
+  render();
 });
 
 canvas.addEventListener("pointerdown", (event) => {
