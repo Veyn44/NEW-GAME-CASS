@@ -50,3 +50,20 @@ This file is the canonical log for accepted game and presentation decisions. It 
 - **BEHAVIOR:** Camera bounds extend by at most 20 tiles beyond the left, right, top and bottom edges. If the viewport is too large to preserve both bounds on an axis, the camera centers on that axis.
 - **SCOPE:** Camera positioning in the world preview and future follow-camera framing. This is a camera visibility margin, not additional playable world area or new world tiles.
 - **STATUS:** Approved and implemented as symmetric bounded camera overscan. Pawn-follow framing still requires a real Pawn and later gameplay integration.
+
+
+## Decision: First gameplay test-world dimensions
+
+- **WHAT:** The first authoritative gameplay test world uses a square extent of 128 × 128 integer tile coordinates.
+- **WHY:** 128 × 128 is large enough to exercise meaningful world space while remaining manageable for the first real World/Pawn integration. It is a practical test configuration, not a commitment that every Cassandra world has this size.
+- **BEHAVIOR:** The initial World/Pawn integration creates a 128 × 128 world descriptor and validates tile positions as integer coordinates inside its bounds. The preview's zoom and viewport settings remain independent of world dimensions.
+- **SCOPE:** First authoritative gameplay test world only. The permanent home/base world size, future temporary-world sizes and any world-specific shape/content remain separate decisions.
+- **STATUS:** Approved; implementation pending.
+
+## Decision: One persistent world and at most one active temporary world
+
+- **WHAT:** Cassandra has one persistent world. The game may enter a temporary world, but no more than one temporary world is active at a time. At any moment, only one world is active for simulation: either the persistent world or the current temporary world.
+- **WHY:** The persistent world represents the continuing game state. Temporary worlds provide isolated contexts for activities such as expeditions or encounters without running the persistent simulation in the background. This keeps simulation behavior predictable and avoids unnecessary parallel world updates.
+- **BEHAVIOR:** When entering a temporary world, the persistent world remains registered and retains its state but becomes inactive; its world simulation must not advance. The temporary world becomes the sole active world and is the only world whose world-scoped simulation advances. On return, the temporary world is ended or retained according to its later-defined purpose, and the persistent world is reactivated and resumes from its preserved state. World existence, registry activation and simulation execution are distinct concepts.
+- **SCOPE:** World lifecycle/session architecture and world-scoped simulation scheduling. This does not yet decide whether multiple inactive temporary-world records may be retained, nor the creation, save, discard or reuse policy for each temporary-world type.
+- **STATUS:** Approved architecture; implementation pending.
