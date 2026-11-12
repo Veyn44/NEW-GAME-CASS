@@ -48,6 +48,7 @@ const state = {
   selectedDefinition: null,
   detailRequest: 0,
   unitApi: null,
+  inputApi: null,
   spawnCount: 0,
   placementActive: false,
   clock: null,
