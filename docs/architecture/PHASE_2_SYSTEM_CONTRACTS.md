@@ -80,8 +80,8 @@ A Unit outside the player's control is not a Pawn merely because it is mobile, i
 These concepts are separate gameplay relationships/states and must not be collapsed into the Pawn role:
 
 - **Pawn:** a Unit belonging in any way to player control.
-- **Leader:** the Pawn currently holding the colony leadership role. The colony records the leader by stable Unit/Entity ID; leadership is not a special Core identity kind.
-- **Draft:** temporary direct player control of one eligible Pawn. Draft can be enabled or disabled independently of the simulation pause. The current Phase 2 scope permits direct Draft only for the current leader; do not hard-code the temporary test character ID as the eligibility rule.
+- **Colony Leader / protagonist:** the Pawn currently selected as the colony's protagonist and leader. The colony records this role by stable Unit/Entity ID; leadership is not a special Core identity kind. After a leader is lost, a future succession process may select a different Pawn as protagonist.
+- **Draft:** activation of direct player control for the current Colony Leader. Draft does not target whichever Unit happens to be selected in the viewport. The control system resolves the current leader ID and makes that Unit the sole direct-control target for this Phase 2 slice. Do not add general-purpose Draft eligibility for arbitrary Pawns yet; whether that restriction remains permanent is an open future design choice.
 - **Colony Control:** the player's ability to influence and direct colony-level activity through mechanisms other than direct WASD control. The colony remains controllable and its Pawns remain autonomous actors if no leader is currently available.
 
 The current Phase 2 slice uses Johny as a temporary test leader. This is test content, not a permanent protagonist, lore commitment or identity rule.
@@ -182,12 +182,13 @@ Core accepts fractional world coordinates. If Cassandra uses tile-step movement,
 
 ### Phase 2 direct-control movement contract
 
-- The temporary test leader Johny is directly controllable only while Draft is active.
-- Draft activation/deactivation is an explicit input action and is independent of pause state. Pausing freezes simulation but does not silently change the Draft relationship.
+- The temporary test leader Johny is the initial Colony Leader and the only direct-control target. Draft always resolves the current Colony Leader; it is not tied to viewport selection and does not require selecting the Pawn.
+- Pressing F while paused toggles Draft on/off for the current Colony Leader. Draft state survives ordinary simulation pause/resume; pausing freezes movement but does not silently undraft the leader. A future succession flow can change the Colony Leader reference, after which Draft must target the newly selected protagonist.
 - WASD movement is smooth top-down movement at approximately 4 world tiles per game-time second. Diagonal input is normalized to preserve the same maximum speed.
 - The movement system changes authoritative Core World Context placement through the Unit/gameplay API. Rendering is a projection of authoritative fractional world coordinates, never a second movement simulation.
 - Movement is deterministic fixed-step gameplay logic. It uses the scheduler's game-time `deltaSeconds`, not frame delta or render cadence. Do not change Core's global fixed step solely to tune Pawn movement; configure or structure gameplay timing at the host/gameplay boundary only when justified by tests.
-- Draft input is ignored for movement when no eligible Pawn is drafted. Non-drafted Pawns remain under their future AI/colony-control behavior; Phase 2 does not invent that AI.
+- The player may freely pan/look away from the leader. When WASD movement is issued while Draft is active, the camera reacquires the current Colony Leader and follows/locks to that Pawn during direct movement. The player does not need to reselect the Pawn. Free camera movement alone does not cancel Draft.
+- Draft input is ignored for movement when no Colony Leader is drafted. Non-leader Pawns remain under their future AI/colony-control behavior; Phase 2 does not invent that AI.
 - Collision, tile occupancy, pathfinding, attacks, aiming and multi-Pawn direct control are out of scope unless separately approved.
 
 ## 7. Events
