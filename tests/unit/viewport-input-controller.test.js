@@ -6,6 +6,7 @@ test("a plain pause preserves held keys and mouse buttons until resume", () => {
   const input = createViewportInputController();
   input.resume();
   input.keyDown("KeyW");
+  input.keyDown("KeyE");
   input.pointerDown(0);
 
   input.pause();
@@ -14,7 +15,7 @@ test("a plain pause preserves held keys and mouse buttons until resume", () => {
   assert.equal(input.getState().resumePending, true);
 
   input.resume();
-  assert.deepEqual(input.getState().keys, ["KeyW"]);
+  assert.deepEqual(input.getState().keys, ["KeyE", "KeyW"]);
   assert.deepEqual(input.getState().buttons, [0]);
 });
 
@@ -89,4 +90,15 @@ test("focus loss clears all held inputs and pending resume state", () => {
   assert.deepEqual(input.getState().keys, []);
   assert.deepEqual(input.getState().buttons, []);
   assert.equal(input.getState().resumePending, false);
+});
+
+test("a paused left click enters inspection and discards held gameplay input", () => {
+  const input = createViewportInputController();
+  input.resume();
+  input.keyDown("KeyW");
+  input.pause();
+  input.pointerDown(0);
+  assert.equal(input.getState().resumePending, false);
+  input.resume();
+  assert.deepEqual(input.getState().keys, []);
 });
