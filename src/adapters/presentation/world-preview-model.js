@@ -3,7 +3,7 @@ export const BASE_VIEW_COLUMNS = 64;
 export const BASE_VIEW_ROWS = 32;
 export const MIN_ZOOM = 0.5;
 export const MAX_ZOOM = 2;
-export const CAMERA_VERTICAL_OVERSCAN_TILES = 20;
+export const CAMERA_OVERSCAN_TILES = 20;
 
 export function createWorldDescriptor(size) {
   if (!Number.isInteger(size) || size <= 0) {
@@ -26,22 +26,25 @@ export function clampCameraPosition(
   camera,
   worldSize,
   view,
-  verticalOverscan = 0
+  overscan = CAMERA_OVERSCAN_TILES
 ) {
-  if (!Number.isFinite(verticalOverscan) || verticalOverscan < 0) {
-    throw new TypeError("Vertical camera overscan must be a non-negative finite number.");
+  if (!Number.isFinite(overscan) || overscan < 0) {
+    throw new TypeError("Camera overscan must be a non-negative finite number.");
   }
 
-  const halfColumns = Math.min(view.columns, worldSize) / 2;
-  const minY = -verticalOverscan + view.rows / 2;
-  const maxY = worldSize + verticalOverscan - view.rows / 2;
-  const centeredY = worldSize / 2;
-  const canUseOverscan = minY <= maxY;
+  const halfColumns = view.columns / 2;
+  const halfRows = view.rows / 2;
+  const minX = -overscan + halfColumns;
+  const maxX = worldSize + overscan - halfColumns;
+  const minY = -overscan + halfRows;
+  const maxY = worldSize + overscan - halfRows;
 
   return {
-    x: Math.max(halfColumns, Math.min(worldSize - halfColumns, camera.x)),
-    y: canUseOverscan
+    x: minX <= maxX
+      ? Math.max(minX, Math.min(maxX, camera.x))
+      : worldSize / 2,
+    y: minY <= maxY
       ? Math.max(minY, Math.min(maxY, camera.y))
-      : centeredY
+      : worldSize / 2
   };
 }
