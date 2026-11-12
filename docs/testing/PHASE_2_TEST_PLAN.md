@@ -1,6 +1,6 @@
 # Phase 2 — Test Plan
 
-**Status:** planned; no Phase 2 gameplay tests exist yet.
+**Status:** Phase 2.1 host runtime tests implemented and verified; Pawn/gameplay test layers remain planned.
 
 ## Test layers
 
@@ -22,6 +22,14 @@ For every substep, record:
 - manual browser checks separately from automated results;
 - known limitations and tests deliberately deferred.
 
+## Verified runs
+
+| Date | Commit | Command | Result | Evidence |
+|---|---|---|---|---|
+| 2026-11-12 | `62ee4748cd779f8468b67d6a6ce13468b518109c` | `npm run test:all` | Core 198/198 passed; host 6/6 passed; 0 failures | [GitHub Actions run 43198861177](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43198861177) |
+
+The host suite is currently `tests/unit/host-runtime.test.js`; run it with `npm run test:host`. The full regression command is `npm run test:all`.
+
 ## Phase 2 gates
 
 ### 2.0 — Architecture
@@ -30,6 +38,8 @@ For every substep, record:
 - Verify no planned dependency requires changing Core.
 
 ### 2.1 — Host runtime
+
+**Verified:** 6/6 automated host tests pass in the CI run above. These cover explicit adapter requirement, startup/shutdown, scheduler advancement, pause/resume, startup failure cleanup and lifecycle guards.
 - Valid composition starts and destroys cleanly.
 - Invalid composition fails before partial gameplay startup.
 - Failure during startup cleans up already initialized systems.
