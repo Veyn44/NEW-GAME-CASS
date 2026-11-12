@@ -16,7 +16,8 @@ let onMarkerSelect = null;
 let selectedMarkerId = null;
 
 export function setWorldInteraction({ paused = false, onSelect = null } = {}) {
-  selectionEnabled = Boolean(paused);
+  state.paused = Boolean(paused);
+  selectionEnabled = state.paused;
   onMarkerSelect = typeof onSelect === "function" ? onSelect : null;
   render();
 }
@@ -68,7 +69,8 @@ const state = {
   dragging: false,
   pointerX: 0,
   pointerY: 0,
-  placement: null
+  placement: null,
+  paused: true
 };
 
 function resizeCanvas() {
@@ -241,6 +243,7 @@ function updateZoom(value, anchor = { x: 0.5, y: 0.5 }) {
 }
 
 sizeSelect.addEventListener("change", () => {
+  if (!state.paused) return;
   state.worldSize = Number(sizeSelect.value);
   state.cameraX = state.worldSize / 2;
   state.cameraY = state.worldSize / 2;
@@ -248,12 +251,14 @@ sizeSelect.addEventListener("change", () => {
 });
 
 gridToggle.addEventListener("change", () => {
+  if (!state.paused) return;
   state.gridVisible = gridToggle.checked;
   render();
 });
 
 canvas.addEventListener("wheel", (event) => {
   event.preventDefault();
+  if (!state.paused) return;
   const bounds = canvas.getBoundingClientRect();
   const anchor = {
     x: (event.clientX - bounds.left) / bounds.width,
@@ -264,6 +269,7 @@ canvas.addEventListener("wheel", (event) => {
 }, { passive: false });
 
 resetButton.addEventListener("click", () => {
+  if (!state.paused) return;
   state.cameraX = state.worldSize / 2;
   state.cameraY = state.worldSize / 2;
   updateZoom(1);
@@ -293,6 +299,7 @@ function updatePlacementPointer(event) {
 }
 
 canvas.addEventListener("pointerdown", (event) => {
+  if (!state.paused) return;
   if (event.button === 2 && state.placement) {
     event.preventDefault();
     cancelUnitPlacement();
@@ -324,7 +331,7 @@ canvas.addEventListener("pointerdown", (event) => {
     return;
   }
   // Middle mouse remains dedicated to camera panning.
-  if (event.button !== 1) return;
+  if (event.button !== 1 || !state.paused) return;
   state.dragging = true;
   state.pointerX = event.clientX;
   state.pointerY = event.clientY;
@@ -335,13 +342,14 @@ canvas.addEventListener("auxclick", (event) => {
   if (event.button === 1) event.preventDefault();
 });
 canvas.addEventListener("contextmenu", (event) => {
-  if (state.placement) event.preventDefault();
+  if (state.paused && state.placement) event.preventDefault();
 });
 window.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && state.placement) cancelUnitPlacement();
 });
 
 canvas.addEventListener("pointermove", (event) => {
+  if (!state.paused) return;
   if (state.dragging) {
     const bounds = canvas.getBoundingClientRect();
     const view = visibleDimensions();
