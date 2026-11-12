@@ -5,7 +5,7 @@ import {
   createWorldDescriptor,
   getVisibleDimensions,
   clampCameraPosition,
-  CAMERA_VERTICAL_OVERSCAN_TILES
+  CAMERA_OVERSCAN_TILES
 } from "../../src/adapters/presentation/world-preview-model.js";
 
 test("primary world sizes are square and use the agreed dimensions", () => {
@@ -55,14 +55,14 @@ test("invalid zoom values are rejected", () => {
   assert.throws(() => getVisibleDimensions(Number.NaN), TypeError);
 });
 
-test("camera allows up to 20 tiles of vertical overscan beyond world bounds", () => {
-  assert.equal(CAMERA_VERTICAL_OVERSCAN_TILES, 20);
+test("camera allows up to 20 tiles of overscan beyond all four world edges", () => {
+  assert.equal(CAMERA_OVERSCAN_TILES, 20);
   assert.deepEqual(
     clampCameraPosition(
       { x: 64, y: -100 },
       128,
       { columns: 64, rows: 32 },
-      CAMERA_VERTICAL_OVERSCAN_TILES
+      CAMERA_OVERSCAN_TILES
     ),
     { x: 64, y: -4 }
   );
@@ -71,19 +71,37 @@ test("camera allows up to 20 tiles of vertical overscan beyond world bounds", ()
       { x: 64, y: 300 },
       128,
       { columns: 64, rows: 32 },
-      CAMERA_VERTICAL_OVERSCAN_TILES
+      CAMERA_OVERSCAN_TILES
     ),
     { x: 64, y: 148 }
   );
+  assert.deepEqual(
+    clampCameraPosition(
+      { x: -100, y: 64 },
+      128,
+      { columns: 64, rows: 32 },
+      CAMERA_OVERSCAN_TILES
+    ),
+    { x: -4, y: 64 }
+  );
+  assert.deepEqual(
+    clampCameraPosition(
+      { x: 300, y: 64 },
+      128,
+      { columns: 64, rows: 32 },
+      CAMERA_OVERSCAN_TILES
+    ),
+    { x: 148, y: 64 }
+  );
 });
 
-test("camera centers vertically when viewport is taller than world plus overscan", () => {
+test("camera centers on an axis when viewport exceeds world plus overscan", () => {
   assert.deepEqual(
     clampCameraPosition(
       { x: 32, y: -100 },
       64,
-      { columns: 64, rows: 128 },
-      CAMERA_VERTICAL_OVERSCAN_TILES
+      { columns: 128, rows: 128 },
+      CAMERA_OVERSCAN_TILES
     ),
     { x: 32, y: 32 }
   );
