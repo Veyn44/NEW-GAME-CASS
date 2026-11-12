@@ -34,6 +34,7 @@ export class SystemBootstrap {
   #started = [];
   #state = "created";
   #cleanupErrors = [];
+  #lifecycleQueue = Promise.resolve();
 
   constructor({ systems, infrastructure = {}, logger = null } = {}) {
     if (!Array.isArray(systems) || systems.length === 0) {
@@ -73,7 +74,11 @@ export class SystemBootstrap {
     return Object.freeze([...this.#cleanupErrors]);
   }
 
-  async start() {
+  start() {
+    return this.#enqueueLifecycle(() => this.#start());
+  }
+
+  async #start() {
     if (this.#state !== "created") {
       throw new RegistryError("INVALID_BOOTSTRAP_STATE", `Cannot start bootstrap from state "${this.#state}".`, { state: this.#state });
     }
@@ -107,7 +112,11 @@ export class SystemBootstrap {
     }
   }
 
-  async pause() {
+  pause() {
+    return this.#enqueueLifecycle(() => this.#pause());
+  }
+
+  async #pause() {
     if (this.#state !== "running") {
       throw new RegistryError("INVALID_BOOTSTRAP_STATE", `Cannot pause bootstrap from state "${this.#state}".`, { state: this.#state });
     }
@@ -133,7 +142,11 @@ export class SystemBootstrap {
     }
   }
 
-  async resume() {
+  resume() {
+    return this.#enqueueLifecycle(() => this.#resume());
+  }
+
+  async #resume() {
     if (this.#state !== "paused") {
       throw new RegistryError("INVALID_BOOTSTRAP_STATE", `Cannot resume bootstrap from state "${this.#state}".`, { state: this.#state });
     }
@@ -157,7 +170,11 @@ export class SystemBootstrap {
     }
   }
 
-  async destroy() {
+  destroy() {
+    return this.#enqueueLifecycle(() => this.#destroy());
+  }
+
+  async #destroy() {
     if (this.#state === "destroyed") return;
     if (this.#state === "created") {
       this.#state = "destroyed";
@@ -165,6 +182,12 @@ export class SystemBootstrap {
     }
     await this.#cleanupInitialized();
     this.#state = "destroyed";
+  }
+
+  #enqueueLifecycle(operation) {
+    const queued = this.#lifecycleQueue.then(operation);
+    this.#lifecycleQueue = queued.then(() => undefined, () => undefined);
+    return queued;
   }
 
   #publishDeclaredServices(system, publicApis) {
