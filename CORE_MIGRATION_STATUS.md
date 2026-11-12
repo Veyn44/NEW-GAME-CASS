@@ -48,7 +48,7 @@ The original Phase 1 plan mentioned an adapter preserving the old prototype UI a
 
 1. Finish the module-by-module contract review against the CASSANDRA3 Core integration reference, treating it as a reference rather than a law.
 2. Complete the final integrated failure/recovery review across Event Bus, Scheduler, Bootstrap and Persistence.
-3. Decide whether remaining browser-only harnesses add coverage beyond the Node contract suites.
+3. Browser harness review: the HTML pages call the same JavaScript contract-test modules as Node; they add a convenient manual browser runner, but no distinct browser-only Core execution path. Keep them as manual diagnostics; a separate browser CI layer is not justified for this domain-neutral Core until browser-specific host integration exists.
 4. Run the final CI suite after any remaining code changes and inspect the final commit/check result.
 
 Public API documentation and a minimal host-system example are now present in `src/core/README.md`.
