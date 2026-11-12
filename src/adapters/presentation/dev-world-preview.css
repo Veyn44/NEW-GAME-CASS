@@ -455,3 +455,24 @@ canvas:active { cursor: grabbing; }
   .unit-profile-body { padding: 12px; }
   .unit-profile-portrait { min-height: 180px; }
 }
+
+
+/* Shared database actions live in the database header, not in definition details. */
+.database-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px;
+  flex: 0 0 auto;
+}
+.database-header-actions .database-select-button {
+  min-width: 112px;
+  min-height: 36px;
+  margin: 0;
+}
+.database-header-actions .database-select-button[hidden] { display: none !important; }
+.database-header-actions .secondary-button { min-height: 36px; }
+.database-selection-actions { display: none; }
+@media(max-width:640px) {
+  .database-header-actions { width: 100%; justify-content: flex-end; }
+}
