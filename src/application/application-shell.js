@@ -137,6 +137,8 @@ function beginWorldPlacement(definition) {
   closeViewportDatabase();
   clearUnitSelection();
   state.placementActive = true;
+  viewportDatabaseButton.disabled = true;
+  canvas.focus({ preventScroll: true });
   setWorldPlacement({
     label: definition.name,
     artwork: definition.artwork,
@@ -148,6 +150,7 @@ function beginWorldPlacement(definition) {
           position: { x, y }
         });
         state.placementActive = false;
+        viewportDatabaseButton.disabled = !state.paused;
         setWorldPlacement(null);
         refreshWorldMarkers();
         inspectUnit(unit.id);
@@ -164,6 +167,7 @@ function beginWorldPlacement(definition) {
 function cancelPlacement() {
   if (!state.placementActive) return;
   state.placementActive = false;
+  viewportDatabaseButton.disabled = !state.paused;
   cancelWorldPlacement();
   simulationStatus.textContent = "PAUSED · PLACEMENT CANCELLED";
 }
@@ -553,12 +557,13 @@ function isInteractiveTarget(target) {
 }
 
 window.addEventListener("keydown", (event) => {
-  if (document.body.dataset.currentView !== "dev-lab" || isInteractiveTarget(event.target)) return;
+  if (document.body.dataset.currentView !== "dev-lab") return;
   if (state.placementActive && event.code === "Escape") {
     event.preventDefault();
     cancelPlacement();
     return;
   }
+  if (isInteractiveTarget(event.target)) return;
   if (event.code === "Space" && !event.repeat && !event.altKey && !event.ctrlKey && !event.metaKey) {
     event.preventDefault();
     toggleSimulationPause();
