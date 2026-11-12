@@ -212,7 +212,13 @@ export class EventBus {
     if (!Number.isSafeInteger(version) || version < 1) {
       throw new EventBusError("INVALID_VERSION", "Event version must be a positive integer.", { version, type });
     }
-    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    let payloadIsArray = false;
+    try {
+      payloadIsArray = payload !== null && typeof payload === "object" && Array.isArray(payload);
+    } catch {
+      invalidPayload("payload", "could not be inspected as plain data.");
+    }
+    if (!payload || typeof payload !== "object" || payloadIsArray) {
       throw new EventBusError("INVALID_PAYLOAD", "Event payload must be a data object.", { type });
     }
 
