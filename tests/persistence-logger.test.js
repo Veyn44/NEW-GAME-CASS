@@ -80,6 +80,28 @@ export async function runPersistenceLoggerTests() {
     expectCodeSync(() => logger.info("bad", { circular }), "INVALID_LOG_DATA", LoggerError);
   });
 
+  await test("Logger rejects accessors and hostile Proxy inspection without executing getters", () => {
+    const logger = new Logger();
+    let getterCalls = 0;
+    const accessorDetails = {};
+    Object.defineProperty(accessorDetails, "danger", {
+      enumerable: true,
+      get() { getterCalls += 1; return "unexpected"; }
+    });
+    expectCodeSync(() => logger.info("accessor", accessorDetails), "INVALID_LOG_DATA", LoggerError);
+    equal(getterCalls, 0, "Logger must not invoke detail getters");
+
+    const hostileNested = new Proxy({ value: 1 }, {
+      getOwnPropertyDescriptor() { throw new Error("nested descriptor trap"); }
+    });
+    expectCodeSync(() => logger.info("nested proxy", { hostileNested }), "INVALID_LOG_DATA", LoggerError);
+
+    const hostileDetails = new Proxy({ value: 1 }, {
+      getOwnPropertyDescriptor() { throw new Error("top-level descriptor trap"); }
+    });
+    expectCodeSync(() => logger.info("top-level proxy", hostileDetails), "INVALID_LOG_DATA", LoggerError);
+  });
+
   await test("Persistence requires an explicit safe-boundary coordinator", () => {
     expectCodeSync(() => new Persistence({ adapter: new MemorySaveAdapter() }), "INVALID_BOUNDARY", PersistenceError);
   });
