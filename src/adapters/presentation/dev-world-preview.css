@@ -342,3 +342,47 @@ canvas:active { cursor: grabbing; }
 .quick-select-attributes dd{overflow-wrap:anywhere;text-align:right}
 .viewport-panel[data-input-mode=running] .quick-select{pointer-events:auto;opacity:.45}
 @media(max-width:640px){.quick-select{top:8px;left:8px;width:min(240px,calc(100% - 16px));min-height:220px}}
+
+
+/* The viewport reuses the canonical Database DOM as a modal presentation layer. */
+.database-view.database-overlay {
+  position: absolute;
+  inset: 10px;
+  z-index: 20;
+  width: auto;
+  height: auto;
+  min-height: 0;
+  padding: 14px;
+  gap: 10px;
+  overflow: hidden;
+  border: 1px solid var(--color-accent-turquoise);
+  border-radius: 8px;
+  background: rgba(11, 18, 32, .98);
+  box-shadow: 0 18px 56px rgba(0, 0, 0, .62);
+}
+.database-overlay .section-header h1 { font-size: 21px; }
+.database-overlay .section-header { min-height: 36px; }
+.database-overlay .database-toolbar { padding: 9px; }
+.database-overlay .database-workspace { min-height: 0; }
+.database-selection-actions {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 22px;
+  padding: 12px 0 4px;
+  border-top: 1px solid var(--color-border);
+}
+.database-select-button {
+  min-width: 112px;
+  min-height: 38px;
+  border-color: var(--color-accent-turquoise);
+  color: #071b1b;
+  background: var(--color-accent-turquoise);
+  font-weight: 800;
+  letter-spacing: .1em;
+}
+.database-select-button:hover { background: #68e7d9; }
+#open-viewport-database { border-color: var(--color-accent-turquoise); }
+#open-viewport-database:disabled { opacity: .45; cursor: not-allowed; }
+@media(max-width:640px) {
+  .database-view.database-overlay { inset: 5px; padding: 8px; }
+}
