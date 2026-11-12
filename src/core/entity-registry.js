@@ -34,13 +34,14 @@ function cloneData(value, path = "metadata", seen = new Set()) {
 
   let prototype;
   let keys;
+  let isArray;
   try {
     prototype = Object.getPrototypeOf(value);
     keys = Reflect.ownKeys(value);
+    isArray = Array.isArray(value);
   } catch {
     throw new EntityRegistryError("INVALID_METADATA", `${path} could not be inspected safely.`);
   }
-  const isArray = Array.isArray(value);
   if (isArray ? prototype !== Array.prototype : prototype !== Object.prototype && prototype !== null) {
     throw new EntityRegistryError("INVALID_METADATA", `${path} must contain only plain objects and arrays.`);
   }
