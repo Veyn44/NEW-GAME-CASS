@@ -340,5 +340,5 @@ canvas:active { cursor: grabbing; }
 .quick-select-details[hidden]{display:none!important}
 .quick-select-attributes{grid-template-columns:minmax(80px,.8fr) minmax(0,1.2fr);font-size:10px}
 .quick-select-attributes dd{overflow-wrap:anywhere;text-align:right}
-.viewport-panel[data-input-mode=running] .quick-select{pointer-events:none;opacity:.45}
+.viewport-panel[data-input-mode=running] .quick-select{pointer-events:auto;opacity:.45}
 @media(max-width:640px){.quick-select{top:8px;left:8px;width:min(240px,calc(100% - 16px));min-height:220px}}
