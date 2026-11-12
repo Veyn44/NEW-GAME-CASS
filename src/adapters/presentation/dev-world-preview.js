@@ -1,4 +1,4 @@
-import { getVisibleDimensions, clampCameraPosition, MIN_ZOOM, MAX_ZOOM, CAMERA_VERTICAL_OVERSCAN_TILES } from "./world-preview-model.js";
+import { getVisibleDimensions, clampCameraPosition, MIN_ZOOM, MAX_ZOOM, CAMERA_OVERSCAN_TILES } from "./world-preview-model.js";
 
 const canvas = document.querySelector("#world-canvas");
 const context = canvas.getContext("2d");
