@@ -1,9 +1,9 @@
 # Phase 2 — Initial System Contracts
 
-**Status:** Architecture proposal for Phase 2.0; not implementation.  
-**Authority:** Actual public Core source and `src/core/README.md` on `main`.
+**Status:** Architecture proposal; no Unit gameplay implementation is implied.  
+**Authority:** Accepted decisions in `WHATANDWHY.md`, current Core source and `src/core/README.md`.
 
-This document defines the smallest technical contracts needed for the first runnable slice. It deliberately leaves game-design values and Pawn identity details open where they should be chosen from the game's intended experience.
+This document defines the smallest technical contracts needed for the first runnable gameplay slice. It separates Core identity, Unit domain state and world placement. It deliberately leaves game-design fields open where they should be chosen from actual gameplay needs.
 
 ## 1. Host Runtime
 
@@ -18,17 +18,17 @@ The host is the application boundary, not a gameplay system and not a second Cor
 - Route diagnostics to a development view without making that view authoritative.
 
 ### Actual Core API
+
 `createCoreAssembly({ saveAdapter, hostSystems, simulationTasks, eventSources, ...configuration })`
 
 The returned assembly exposes:
 - `start()` — starts the complete system assembly and returns Game Context.
-- `context` — the runtime context after successful start.
+- `context` — runtime context after successful start.
 - `state` and `initializationOrder` — runtime diagnostics.
 - `pause()`, `resume()`, `destroy()` — serialized lifecycle operations.
 
-A valid host must provide `saveAdapter.read(slotId)` and `saveAdapter.writeAtomic(slotId, data)`. The test `MemorySaveAdapter` is not a production storage solution. The storage adapter belongs to the host, while each system owns its own snapshot schema.
+A valid host must provide `saveAdapter.read(slotId)` and `saveAdapter.writeAtomic(slotId, data)`. The test `MemorySaveAdapter` is not a production storage solution. Storage belongs to the host; each system owns its own snapshot schema.
 
-### Boundary
 No browser global, DOM node, renderer, input device or game-specific object belongs in Core.
 
 ## 2. World Foundation
@@ -37,114 +37,165 @@ No browser global, DOM node, renderer, input device or game-specific object belo
 - `core.world-registry`: `registerWorld({ worldId?, type, dimensions, coordinateSystem?, metadata? })`, `activateWorld(worldId)`, `deactivateWorld(worldId)`, `get(worldId)`, `getActiveWorld()`.
 - `core.world-context`: `placeEntity(entityId, worldId, position)`, `getPlacement(entityId)`, `listPlacements(...)`, `moveEntity(entityId, target)`, `removePlacement(entityId)`.
 
-Core validates world dimensions, lifecycle, coordinate bounds and exclusive entity placement. It does not provide map tiles, collision geometry, navigation, world generation or movement policy.
+Core validates positive finite world dimensions, world lifecycle, coordinate bounds and exclusive entity placement. It does not provide map tiles, collision geometry, navigation, world generation or movement policy.
 
 ### Phase 2 usage
 - Start with one host-defined test world.
-- World dimensions and coordinate convention are configuration for this test, not a permanent game-wide restriction.
+- The first authoritative gameplay test world is 128 × 128 integer tile coordinates. This is a test configuration, not a permanent size rule for every Cassandra world.
 - Register and activate the world through Core's public services.
+- Cassandra must enforce integer tile coordinates at its own gameplay boundary; Core accepts finite fractional coordinates.
 - Do not introduce a generic map/scene framework until a second concrete world or reusable behavior requires it.
 
-Whether world registration is a small host bootstrap operation or a tiny `game.world` system is an implementation detail to resolve in 2.1/2.2. Do not create a permanent system whose only purpose is forwarding Core methods.
+World registration may be a small host bootstrap operation or part of a concrete world system. Do not create a permanent system whose only purpose is forwarding Core methods.
 
-## 3. Pawn Foundation
+## 3. Domain vocabulary
 
-### Candidate system
-- **System ID:** `game.pawn`
-- **Candidate service ID:** `game.pawn-api`
-- **Status:** proposed; public method names and Pawn domain fields are not yet frozen.
+### Entity — Core identity
+
+Core Entity Registry owns stable generic identity, `kind`, scope, generic lifecycle status and generic metadata. It does not own Unit/Pawn domain state, appearance, inventory, behavior or placement.
+
+The proposed Core Entity `kind` for the first Unit foundation is `unit`. This is a generic identity classification only.
+
+### Unit — gameplay domain instance
+
+Unit is a Cassandra gameplay-domain instance backed by exactly one Core Entity identity. The Unit gameplay system owns its domain record, schema and public API. A Unit instance references a canonical Unit Definition and may have one placement managed by Core World Context.
+
+The Unit record must not duplicate:
+- Core Entity ID or generic lifecycle as separately authoritative fields;
+- world position or placement state;
+- canonical definition data that should be referenced by stable definition ID.
+
+The first implementation must not invent attributes such as health, age, needs, skills, jobs, inventory, equipment, personality, combat stats or appearance before their concrete requirements are established.
+
+### Pawn — Unit specialization
+
+Pawn is a gameplay specialization/role within the Unit domain, not a Core primitive, independent identity registry or parallel entity lifecycle. It uses the Unit identity and Unit instance record. Pawn-specific fields or behavior are introduced only when a concrete gameplay requirement defines them.
+
+The exact player-facing meaning of Pawn remains open. Do not introduce `kind: "pawn"` in Core or a separate `game.pawn` system as the default foundation.
+
+### Definition and instance
+
+- **Unit Definition:** immutable canonical content, owned by the gameplay content/system owner. It is not a runtime Entity and is not registered in Core Entity Registry.
+- **Unit Instance:** one actual game instance, backed by a Core Entity ID and referencing a Unit Definition by stable ID.
+
+The application Database reads canonical definitions from their owning systems. It is not a second definition store and does not own runtime instances.
+
+## 4. Candidate Unit system contract
+
+- **System ID:** `game.unit`
+- **Candidate service ID:** `game.unit-api`
+- **Status:** proposed; exact public method names and minimum data shape are to be finalized immediately before implementation.
 
 ### Ownership
-The Pawn system owns Pawn-specific domain records and their lifecycle. It does not own generic identity or world placement.
+The Unit system owns:
+- Unit instance domain records;
+- references from instances to canonical Unit Definitions;
+- Unit-specific domain lifecycle and validation;
+- any minimal Unit-owned movement intent/state required by the first playable slice, until a separate movement owner is justified.
 
-Core ownership remains:
-- Entity Registry owns stable identity and generic identity lifecycle.
-- World Context owns exclusive placement and coordinates.
-- Pawn system owns the domain record and its schema.
+It does not own:
+- generic identity or generic identity lifecycle;
+- world registry or world placement;
+- map tiles or collision policy;
+- input devices, renderer or UI;
+- Database navigation/presentation.
 
 ### Required Core services
-- `core.entity-registry` — allocate stable identity with `registerPersistent({ kind: "pawn", metadata })`; query with `get/list`; retire with `remove`.
-- `core.world-context` — place and query the Pawn's active world position.
-- `core.event-bus` — announce completed Pawn lifecycle facts.
-- `core.persistence` — register the Pawn system's own persistence participant.
+- `core.entity-registry` — allocate and query generic identity; first Unit identity uses `registerPersistent({ kind: "unit", metadata })`; retire with `remove`.
+- `core.world-context` — place/query/move/remove placement through its validated public API.
+- `core.event-bus` — publish completed Unit lifecycle facts only when consumers need them.
+- `core.persistence` — register the Unit-owned snapshot participant.
 
-Direct dependency on `core.world-registry` is not needed if the Pawn system uses World Context's validated placement API. Avoid redundant dependencies.
+Do not require `core.world-registry` if the Unit system can meet its needs through World Context. Avoid redundant dependencies.
 
 ### Candidate public operations
-The first public service should stay narrow:
-- create a Pawn and place it in a registered world;
-- query one Pawn and list Pawns;
-- remove/retire a Pawn safely;
-- expose only immutable/detached domain records and documented placement queries.
 
-Exact method names, Pawn fields and creation options remain to be confirmed during 2.2. Do not invent health, age, needs, skills, jobs, inventory, appearance or personality fields for the technical foundation.
+Keep the first API narrow. Likely operations:
+- create a Unit from a known definition and a valid world position;
+- query one Unit and list Units;
+- remove/retire a Unit safely;
+- request movement only if the first vertical slice includes movement.
 
-### Identity and placement lifecycle
-Creation is a coordinated operation: register the identity, prepare the domain record, and establish exactly one valid world placement. If placement fails after identity allocation, the system must safely retire the allocated identity and leave no live orphan Pawn.
+These are capability requirements, not frozen method names. Return detached/immutable domain records and documented placement queries. Validate arguments at the public boundary and expose stable error behavior.
 
-Removal must clear the placement and retire the identity without allowing ID reuse. Stored/encounter lifecycles are not required for the first slice.
+### Creation and removal consistency
 
-### Persistence
-- **Participant ID:** `game.pawn`
+Creation is a coordinated operation:
+1. Validate the definition reference and requested position before allocating identity.
+2. Allocate one Core Entity identity.
+3. Prepare the Unit-owned domain record.
+4. Place the identity through World Context.
+5. Publish the Unit domain record only when all required steps succeed.
+6. If a later step fails after identity allocation, remove any placement created and retire the identity. Never leave a live orphan or publish a partial Unit.
+
+Removal must clear placement and retire the Core identity without allowing ID reuse. Define failure ordering against actual Core API behavior and test it. Stored/encounter lifecycles are not required for the first slice.
+
+## 5. Unit persistence contract
+
+- **Participant ID:** `game.unit`
 - **Initial schema version:** 1
-- Snapshot contains Pawn-owned domain records only.
-- Core Entity Registry and World Context continue to snapshot their own data independently.
-- Restore preparation validates detached Pawn data without mutating runtime state.
-- Commit verifies required Core identities/placements after their earlier Core participants have committed, then replaces the Pawn domain state.
-- Rollback restores the previous Pawn domain state.
-- Do not duplicate Core identity or placement snapshots inside the Pawn snapshot.
+- Snapshot contains Unit-owned domain records and stable definition references only.
+- Core Entity Registry and World Context snapshot their own data independently.
+- Restore preparation validates and detaches Unit-owned data without mutating runtime state.
+- Commit validates that each Unit references an appropriate restored Core identity and required placement after Core participants have committed.
+- Rollback restores the previous Unit domain state.
+- Do not duplicate Core identity or placement snapshots in the Unit snapshot.
+- Add explicit tests for missing references, malformed records, duplicate Unit IDs, failed commit and rollback.
 
-## 4. Minimal Locomotion and Control
+The exact definition availability/load order must be specified before persistence implementation. A saved Unit referencing a missing definition must fail validation or use an explicitly designed migration; it must not silently invent a replacement.
 
-### Initial ownership decision
-Do not create a separate Locomotion system merely for architectural appearance. Start with a small movement module owned by `game.pawn`, unless implementation shows that movement has an independent lifecycle, data model or public contract that justifies `game.locomotion`.
+## 6. Minimal movement and control (conditional)
 
-### Control path
-1. Input adapter captures a device/browser input.
-2. Adapter translates it into a small movement request through the public Pawn service.
-3. The system stores the pending intent; the adapter does not mutate authoritative position.
+Do not create a separate Locomotion system merely for architectural appearance. Begin with a small Unit-owned movement module if the first playable slice needs movement. Extract `game.locomotion` only if it gains an independent data model, lifecycle or public contract.
+
+Control path:
+1. Input adapter captures device/browser input.
+2. Adapter translates it into a movement request through the public Unit service.
+3. The owning system stores pending intent; the adapter does not mutate authoritative position.
 4. A declared synchronous simulation task consumes intent.
 5. The system computes a candidate position and asks World Context to apply the validated placement update.
-6. A completed movement event may be published after the state transition succeeds.
-7. Presentation reads state and renders it; it does not write simulation state.
+6. A movement event may be published after successful state transition.
+7. Presentation reads authoritative services and renders; it does not write simulation state.
 
-### Scheduler contract
-The Core scheduler executes synchronous fixed-step tasks. A task is declared with a registered host system ID and an `update(step)` function. The step provides both `deltaSeconds` and `realDeltaSeconds`; the movement model must explicitly choose the appropriate time basis when its game rule is decided. Promise-returning simulation tasks are invalid.
+Core Scheduler tasks are synchronous fixed-step operations. The task receives `deltaSeconds` and `realDeltaSeconds`; the movement model must explicitly choose the relevant time basis when the game rule is decided. Promise-returning simulation tasks are invalid.
 
-### Initial limits
-- One Pawn, one world and one control path are enough to prove the vertical slice.
-- Boundary validation is required.
-- Collision geometry is not a Core feature. Add a minimal host/gameplay collision rule only if the first playable test needs it.
-- No pathfinding, animation, combat, AI or navigation framework is part of this substep.
+Core accepts fractional world coordinates. If Cassandra uses tile-step movement, Unit/world gameplay boundaries must validate integer tile positions and any tile occupancy rules.
 
-## 5. Events
+## 7. Events
 
 Events announce facts after successful state changes. Candidate event types:
-- `pawn.created`
-- `pawn.removed`
-- `pawn.moved`
+- `unit.created`
+- `unit.removed`
+- `unit.moved`
 
-Each event uses the existing Core event envelope and a versioned, detached payload. These are candidates, not a requirement to emit every event if no consumer needs it. Never use Event Bus as a command queue.
+These are candidates, not a requirement to emit every event if no consumer needs it. Use the existing Core event envelope, versioned detached payloads and immutable data. Never use Event Bus as a command queue. Pawn-specific event names should wait until Pawn semantics are defined.
 
-## 6. Deliberately open game-design decisions
+## 8. Simulation and world activation
 
-The following are not technical decisions for the architecture to guess:
-- What makes one Pawn meaningfully different from another at creation?
-- Which identity/display fields should a Pawn have from the player's perspective?
-- What is the intended movement feel and time basis?
-- What kind of first test environment best represents the intended game?
-- Which player-facing controls should exist in the first visible slice?
+Core Scheduler runs declared tasks globally. Activating a different world in World Registry does not automatically pause or filter world-scoped tasks.
 
-I will request your input only when one of these decisions becomes necessary. Until then, technical contracts should stay minimal and reversible.
+Cassandra must provide a centralized world-session/simulation gate so only the currently active world's world-scoped simulation advances. Do not scatter active-world checks across unrelated systems or assume Core handles this.
 
-## 7. Phase 2.0 verification
+## 9. Deliberately open game-design decisions
+
+- What makes one Pawn meaningfully different from another Unit?
+- Which player-facing identity/display fields should the first Unit have?
+- Which Unit Definition fields are genuinely required by the first concrete content?
+- Is movement part of the first vertical slice, and if so what is its feel/time basis?
+- What first test environment and visual representation should be used?
+
+Do not invent answers to these for convenience. Ask for user input when a decision becomes necessary.
+
+## 10. Phase 2 verification status
 
 - [x] Core service IDs and public methods checked against current Core source.
 - [x] Host composition and mandatory save adapter checked against Core Assembly.
 - [x] Entity identity and world placement ownership separated.
-- [x] Persistence participant contract checked against Core Persistence.
+- [x] Persistence participant order and transaction model checked.
 - [x] Scheduler synchronous task and time-step contract checked.
-- [x] Core protection rule and initial system boundaries documented.
-- [ ] User review of the game-facing direction when a concrete Pawn/gameplay decision is needed.
+- [x] Core source compared between `main` and `next-step/phase-2`; no Core differences.
+- [x] Entity → Unit → Pawn vocabulary and data ownership documented.
+- [ ] Unit public API and minimal data schema finalized for implementation.
+- [ ] Unit code and tests implemented.
 
-**No gameplay code has been added as part of this architecture proposal.**
+**No gameplay code has been added by this architecture update.**
