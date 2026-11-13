@@ -105,7 +105,16 @@ export class LocalFileSaveAdapter {
     this.#assertSlot(slotId);
     if (this.#directoryHandle) {
       await this.#ensurePermission("read");
-      const fileHandle = await this.#directoryHandle.getFileHandle(this.#fileName, { create: false });
+      let fileHandle;
+      try {
+        fileHandle = await this.#directoryHandle.getFileHandle(this.#fileName, { create: false });
+      } catch (cause) {
+        if (cause?.name !== "NotFoundError") throw cause;
+        const error = new Error(`The selected folder does not contain ${this.#fileName}.`);
+        error.code = "SAVE_FILE_NOT_FOUND";
+        error.cause = cause;
+        throw error;
+      }
       const file = await fileHandle.getFile();
       return parseEnvelope(await file.text());
     }
