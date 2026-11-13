@@ -5,7 +5,6 @@ const context = canvas.getContext("2d");
 const sizeSelect = document.querySelector("#world-size");
 const gridToggle = document.querySelector("#grid-visible");
 const zoomValue = document.querySelector("#zoom-value");
-const resetButton = document.querySelector("#reset-camera");
 const worldStatus = document.querySelector("#world-status");
 const viewStatus = document.querySelector("#view-status");
 
@@ -85,16 +84,17 @@ export function clearCameraFollowTarget() {
 }
 
 export function resetCameraToWorld(worldWidth = state.worldSize) {
-  if (!Number.isFinite(worldWidth) || worldWidth <= 0) {
-    throw new TypeError("Camera reset requires a positive world width.");
-  }
-  cameraFollowTargetId = null;
-  state.worldSize = worldWidth;
-  state.cameraX = worldWidth / 2;
-  state.cameraY = worldWidth / 2;
+  const size = Number(worldWidth);
+  if (!Number.isFinite(size) || size <= 0) return false;
+
+  state.worldSize = size;
+  state.cameraX = size / 2;
+  state.cameraY = size / 2;
   state.zoom = 1;
+  cameraFollowTargetId = null;
   clampCamera();
   render();
+  return true;
 }
 
 export function moveCameraBy(deltaX, deltaY) {
@@ -328,8 +328,6 @@ canvas.addEventListener("wheel", (event) => {
   const factor = event.deltaY < 0 ? 1.12 : 1 / 1.12;
   updateZoom(state.zoom * factor, anchor);
 }, { passive: false });
-
-resetButton.addEventListener("click", () => resetCameraToWorld());
 
 canvas.addEventListener("pointerdown", (event) => {
   if (event.button === 0 && state.paused && state.placement) {

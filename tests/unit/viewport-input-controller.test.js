@@ -1,0 +1,132 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { createViewportInputController } from "../../src/application/input/viewport-input-controller.js";
+
+test("a plain pause preserves held keys and mouse buttons until resume", () => {
+  const input = createViewportInputController();
+  input.resume();
+  input.keyDown("KeyW");
+  input.keyDown("KeyE");
+  input.pointerDown(0);
+  input.pointerDown(2);
+
+  input.pause();
+  assert.deepEqual(input.getState().keys, []);
+  assert.deepEqual(input.getState().buttons, []);
+  assert.equal(input.getState().resumePending, true);
+
+  input.resume();
+  assert.deepEqual(input.getState().keys, ["KeyE", "KeyW"]);
+  assert.deepEqual(input.getState().buttons, [0, 2]);
+});
+
+test("releasing an input during pause removes only that input from the resume snapshot", () => {
+  const input = createViewportInputController();
+  input.resume();
+  input.keyDown("KeyW");
+  input.keyDown("KeyA");
+  input.pointerDown(0);
+  input.pause();
+
+  input.keyUp("KeyW");
+  input.pointerUp(0);
+  input.resume();
+
+  assert.deepEqual(input.getState().keys, ["KeyA"]);
+  assert.deepEqual(input.getState().buttons, []);
+});
+
+test("starting inspection discards the resume snapshot and suppresses held inputs until release", () => {
+  const input = createViewportInputController();
+  input.resume();
+  input.keyDown("KeyW");
+  input.pointerDown(0);
+  input.pause();
+
+  input.beginInspection();
+  assert.equal(input.getState().resumePending, false);
+  input.resume();
+
+  assert.deepEqual(input.getState().keys, []);
+  assert.deepEqual(input.getState().buttons, []);
+  input.keyUp("KeyW");
+  input.pointerUp(0);
+  input.keyDown("KeyW");
+  input.pointerDown(0);
+
+  assert.deepEqual(input.getState().keys, ["KeyW"]);
+  assert.deepEqual(input.getState().buttons, [0]);
+});
+
+test("movement keys pressed during a plain pause become active after resume", () => {
+  const input = createViewportInputController();
+  input.pause();
+  input.keyDown("KeyW");
+  input.keyDown("KeyA");
+  input.keyDown("KeyD");
+  input.resume();
+  assert.deepEqual(input.getState().keys, ["KeyA", "KeyD", "KeyW"]);
+
+  input.keyUp("KeyA");
+  assert.deepEqual(input.getState().keys, ["KeyD", "KeyW"]);
+});
+
+test("movement keys pressed during inspection remain suppressed until released", () => {
+  const input = createViewportInputController();
+  input.pause();
+  input.beginInspection();
+  input.keyDown("KeyA");
+  input.resume();
+  assert.deepEqual(input.getState().keys, []);
+
+  input.keyUp("KeyA");
+  input.keyDown("KeyA");
+  assert.deepEqual(input.getState().keys, ["KeyA"]);
+});
+test("pointer movement is consumed only while running and resets per frame", () => {
+  const input = createViewportInputController();
+  assert.equal(input.pointerMove(10, 5), false);
+  input.resume();
+  assert.equal(input.pointerMove(10, -4), true);
+  assert.deepEqual(input.consumeFrameInput().pointerDelta, { x: 10, y: -4 });
+  assert.deepEqual(input.consumeFrameInput().pointerDelta, { x: 0, y: 0 });
+});
+
+test("overlay suspension clears stale keys but allows fresh movement input after resume", () => {
+  const input = createViewportInputController();
+  input.resume();
+  input.keyDown("KeyW");
+  input.keyDown("KeyA");
+  input.suspendForOverlay();
+  assert.deepEqual(input.getState().keys, []);
+  assert.equal(input.getState().paused, true);
+
+  input.resume();
+  for (const code of ["KeyW", "KeyA", "KeyS", "KeyD"]) input.keyDown(code);
+  assert.deepEqual(input.getState().keys, ["KeyA", "KeyD", "KeyS", "KeyW"]);
+});
+
+test("focus loss clears all held inputs and pending resume state", () => {
+  const input = createViewportInputController();
+  input.resume();
+  input.keyDown("KeyW");
+  input.pointerDown(0);
+  input.pause();
+  input.clearForFocusLoss();
+  input.resume();
+
+  assert.deepEqual(input.getState().keys, []);
+  assert.deepEqual(input.getState().buttons, []);
+  assert.equal(input.getState().resumePending, false);
+});
+
+test("a paused left click enters inspection and discards held gameplay input", () => {
+  const input = createViewportInputController();
+  input.resume();
+  input.keyDown("KeyW");
+  input.pause();
+  input.pointerDown(0);
+  assert.equal(input.getState().resumePending, false);
+  input.resume();
+  assert.deepEqual(input.getState().keys, []);
+});
