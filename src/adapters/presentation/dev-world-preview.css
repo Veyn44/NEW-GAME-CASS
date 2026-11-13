@@ -212,7 +212,6 @@ canvas:active { cursor: grabbing; }
  .database-workspace { grid-template-columns:1fr; grid-template-rows:minmax(130px,.75fr) minmax(0,1.25fr); }
  .database-inspector-heading h2 { font-size:18px; }
 }
-@media(max-width:640px) { }
 
 
 /* Runtime controls and live Unit inspector */
