@@ -79,17 +79,17 @@
           <span class="control zoom-readout">Zoom <output id="zoom-value">100%</output></span>
           <button id="reset-camera" type="button">Reset camera</button>
           <button id="open-viewport-database" type="button">DATABASE</button>
-          <button id="save-workspace" type="button">SAVE</button>
-          <button id="save-workspace-as" type="button">SAVE AS</button>
-          <button id="load-workspace" type="button">LOAD</button>
           <input id="workspace-file-input" type="file" accept=".cass,application/vnd.cassandra.save+json" hidden>
-          <span id="workspace-save-status" class="workspace-save-status" aria-live="polite">NO SAVE FOLDER SELECTED</span>
           <span class="dev-note">WASD: move Pawn / camera · Wheel: zoom · Middle drag: pan</span>
         </section>
         <section class="viewport-panel" aria-label="World viewport" data-paused="true" data-input-mode="paused"><canvas id="world-canvas" tabindex="0" aria-label="World viewport. Press Space to pause or resume.">Your browser does not support canvas.</canvas><div class="viewport-crosshair" aria-hidden="true"></div>
           <aside id="pause-menu" class="pause-menu" aria-label="Pause menu" hidden>
             <p class="eyebrow">CASSANDRA / PAUSED</p><h2>Pause Menu</h2>
             <button id="pause-resume" type="button" class="primary-action">RESUME</button>
+            <button id="pause-save" type="button">SAVE</button>
+            <button id="pause-save-as" type="button">SAVE AS</button>
+            <button id="pause-load" type="button">LOAD</button>
+            <span id="workspace-save-status" class="workspace-save-status" aria-live="polite">NO SAVE SELECTED</span>
             <button id="pause-settings" type="button">SETTINGS</button>
             <button id="pause-main-menu" type="button" class="secondary-button">MAIN MENU</button>
           </aside><aside id="quick-select" class="quick-select" aria-label="Quick Select" hidden><div class="quick-select-heading"><span class="eyebrow">QUICK SELECT</span><span id="quick-select-kind">OBJECT</span></div><div class="quick-select-preview"><img id="quick-select-artwork" alt="" hidden><span id="quick-select-artwork-empty">NO SPRITE</span></div><h2 id="quick-select-name">No selection</h2><p id="quick-select-summary">Select an object in the paused world.</p><button id="quick-select-info" type="button" disabled>INFO</button><section id="quick-select-details" class="quick-select-details" hidden></section></aside>
