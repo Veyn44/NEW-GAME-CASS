@@ -92,6 +92,20 @@ test("pointer movement is consumed only while running and resets per frame", () 
   assert.deepEqual(input.consumeFrameInput().pointerDelta, { x: 0, y: 0 });
 });
 
+test("overlay suspension clears stale keys but allows fresh movement input after resume", () => {
+  const input = createViewportInputController();
+  input.resume();
+  input.keyDown("KeyW");
+  input.keyDown("KeyA");
+  input.suspendForOverlay();
+  assert.deepEqual(input.getState().keys, []);
+  assert.equal(input.getState().paused, true);
+
+  input.resume();
+  for (const code of ["KeyW", "KeyA", "KeyS", "KeyD"]) input.keyDown(code);
+  assert.deepEqual(input.getState().keys, ["KeyA", "KeyD", "KeyS", "KeyW"]);
+});
+
 test("focus loss clears all held inputs and pending resume state", () => {
   const input = createViewportInputController();
   input.resume();
