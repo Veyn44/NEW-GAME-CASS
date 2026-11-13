@@ -268,3 +268,10 @@ When continuing this work in a new conversation:
 The first manual browser pass exposed a UX mismatch: the folder-based single-file workflow made Save As equivalent to Save and offered no named save slots. The host adapter now uses `showSaveFilePicker` for Save As and `showOpenFilePicker` for Load. The chosen file handle becomes the current Save target, so Save overwrites that file while another Save As can create a separate named save. Browsers without these APIs retain the import/export fallback, with a user-provided filename for Save As. Save, Save As and Load have been moved out of the Dev Lab toolbar and into the ESC pause menu.
 
 The previous folder-picker acceptance steps are superseded. Verify: create two differently named saves using Save As; change the world between them; Load each file and confirm the corresponding state; then use Save to overwrite only the currently selected file. Repeat after a page reload by choosing the desired file through Load. The `.cass` extension is explicitly offered by the browser picker and validated by the adapter; it is not used as a folder lookup key.
+
+
+## Manual acceptance evidence — named save/load
+
+The user manually confirmed that Save and Load work in the browser, including saves made in different runtime/control combinations (running without Draft and paused with Draft). A save created while running is restored paused; this is now an explicit restore contract, not an incidental behavior.
+
+A further presentation-state issue was observed: after loading a different workspace, the camera retained its previous position. Camera position/zoom remain excluded from authoritative saves. The host now explicitly clears camera-follow state and resets the camera to the center/default zoom of the restored active world. Restore also clears transient held input and selection state, pauses the Game Clock/input, and refreshes the UI in the paused state. Manual browser verification of this final camera-reset adjustment is still pending.
