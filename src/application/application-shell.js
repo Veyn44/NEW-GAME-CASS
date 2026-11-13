@@ -782,19 +782,25 @@ async function persistWorkspace({ chooseFolder = false } = {}) {
   if (!state.persistenceApi || !state.saveAdapter) return;
   try {
     if (chooseFolder) {
-      const folderName = await state.saveAdapter.selectDirectory();
-      if (!folderName) return;
-      workspaceSaveStatus.textContent = `FOLDER · ${folderName}/save.cass`;
+      try {
+        const folderName = await state.saveAdapter.selectDirectory();
+        if (!folderName) return;
+        workspaceSaveStatus.textContent = `FOLDER · ${folderName}/save.cass`;
+      } catch (error) {
+        if (error?.code !== "DIRECTORY_ACCESS_UNAVAILABLE") throw error;
+        workspaceSaveStatus.textContent = "DIRECT FOLDER ACCESS UNAVAILABLE · EXPORTING SAVE FILE";
+      }
     }
     const metadata = await state.persistenceApi.save(DEV_LAB_SAVE_SLOT, {
       stateId: "cassandra-dev-lab-workspace",
       kind: "manual"
     });
-    const location = state.saveAdapter.selectedDirectoryName
+    const hasDirectory = Boolean(state.saveAdapter.selectedDirectoryName);
+    const location = hasDirectory
       ? `${state.saveAdapter.selectedDirectoryName}/save.cass`
       : "save.cass · browser download";
-    workspaceSaveStatus.textContent = `SAVED · ${location}`;
-    simulationStatus.textContent = `WORKSPACE SAVED · ${metadata.createdAt}`;
+    workspaceSaveStatus.textContent = `${hasDirectory ? "SAVED" : "EXPORTED"} · ${location}`;
+    simulationStatus.textContent = `${hasDirectory ? "WORKSPACE SAVED" : "WORKSPACE EXPORTED"} · ${metadata.createdAt}`;
   } catch (error) {
     if (error?.name === "AbortError") return;
     workspaceSaveStatus.textContent = `SAVE FAILED · ${error.message}`;
