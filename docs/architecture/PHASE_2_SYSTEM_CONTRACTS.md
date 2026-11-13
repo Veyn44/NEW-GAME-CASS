@@ -187,7 +187,9 @@ Core accepts fractional world coordinates. If Cassandra uses tile-step movement,
 - WASD movement is smooth top-down movement at approximately 4 world tiles per game-time second. Diagonal input is normalized to preserve the same maximum speed.
 - The movement system changes authoritative Core World Context placement through the Unit/gameplay API. Rendering is a projection of authoritative fractional world coordinates, never a second movement simulation.
 - Movement is deterministic fixed-step gameplay logic. It uses the scheduler's game-time `deltaSeconds`, not frame delta or render cadence. Do not change Core's global fixed step solely to tune Pawn movement; configure or structure gameplay timing at the host/gameplay boundary only when justified by tests.
-- The player may freely pan/look away from the leader. When WASD movement is issued while Draft is active, the camera reacquires the current Colony Leader and follows/locks to that Pawn during direct movement. The player does not need to reselect the Pawn. Free camera movement alone does not cancel Draft.
+- The player may freely pan/look away from the leader, including zooming to inspect elsewhere. When WASD movement is issued while Draft is active, the camera reacquires the current Colony Leader and follows/locks to that Pawn during direct movement. The player does not need to reselect the Pawn. Free camera movement alone does not cancel Draft.
+- Pointer remains free across world viewport and HUD. It is never pointer-locked or confined. The pointer presentation distinguishes world-viewport targeting (a crosshair that tracks the actual pointer position) from native pointer interaction over HUD controls.
+- World inspection is available while the simulation is running when Draft is OFF. Draft ON locks the inspection target to the Colony Leader. The larger INFO profile remains pause-only; Quick Select is available during running and does not continuously refresh the full profile card.
 - Draft input is ignored for movement when no Colony Leader is drafted. Non-leader Pawns remain under their future AI/colony-control behavior; Phase 2 does not invent that AI.
 - Collision, tile occupancy, pathfinding, attacks, aiming and multi-Pawn direct control are out of scope unless separately approved.
 
@@ -246,3 +248,15 @@ The first direct-control implementation is owned by `game.colony-control` and ex
 - Colony Leader ID and Draft state are saved by a separate `game.colony-control` persistence participant. Unit and Core participants retain their own state ownership.
 
 The initial automated checks cover movement speed, diagonal normalization, leader targeting, no movement while undrafted, fractional Unit persistence, world-edge clamping and Colony Control persistence. Manual browser verification remains required before Phase 2.3/2.4 acceptance.
+
+
+## 12. Unified simulation, pointer and inspection behavior
+
+- Pause is a simulation-clock state, not a separate viewport input mode. The same pointer and camera interaction path remains available while paused and running.
+- The existing `resumeSnapshot` behavior is retained: gameplay inputs held at pause can be restored on resume unless released or invalidated by inspection/focus-loss rules.
+- World camera controls (wheel zoom and middle-button drag) are available in both simulation states.
+- Left-click inspection is independent of pause when Draft is OFF. Unit selection/Quick Select can be used while running. The INFO profile remains available only while paused.
+- Draft is an independent player-control state, toggled with F in either simulation state. With Draft ON, Quick Select is forced to the Colony Leader and cannot be redirected to another Pawn. With Draft OFF, the current Quick Select target is cleared; no prior selection is restored.
+- Enabling Draft immediately moves the camera to the Colony Leader only when the Leader is placed in the active world. While Draft remains active, wheel zoom/free look is allowed; the next WASD movement tick reacquires the Leader and recenters the camera. Draft OFF leaves the camera at its current position.
+- The pointer is never confined or locked. Over the world viewport while running, a custom crosshair follows the actual pointer coordinates. Over HUD controls, the native system cursor is visible. This is presentation only and does not change pointer event routing.
+- No changes to Core are required or permitted for this behavior.
