@@ -59,7 +59,7 @@ export class LocalFileSaveAdapter {
   get selectedFileName() { return this.#fileName ?? null; }
 
   setDownloadFileName(fileName) {
-    if (typeof fileName !== "string" || !/^[a-zA-Z0-9._ -]+\\.cass$/i.test(fileName)) {
+    if (typeof fileName !== "string" || !/^[a-zA-Z0-9._ -]+\.cass$/i.test(fileName)) {
       throw new TypeError("Save file name must be a simple .cass filename.");
     }
     this.#fileName = fileName;
