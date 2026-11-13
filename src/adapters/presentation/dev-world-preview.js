@@ -18,9 +18,9 @@ let placementImage = null;
 let placementImageReady = false;
 let cameraFollowTargetId = null;
 
-export function setWorldInteraction({ paused = false, onSelect = null } = {}) {
+export function setWorldInteraction({ paused = false, inspectionEnabled = false, onSelect = null } = {}) {
   state.paused = Boolean(paused);
-  selectionEnabled = state.paused;
+  selectionEnabled = Boolean(inspectionEnabled);
   onMarkerSelect = typeof onSelect === "function" ? onSelect : null;
   render();
 }
@@ -291,7 +291,6 @@ sizeSelect.addEventListener("change", () => {
 });
 
 gridToggle.addEventListener("change", () => {
-  if (!state.paused) return;
   state.gridVisible = gridToggle.checked;
   render();
 });
@@ -315,7 +314,6 @@ resetButton.addEventListener("click", () => {
 });
 
 canvas.addEventListener("pointerdown", (event) => {
-  if (!state.paused) return;
   if (event.button === 0 && state.paused && state.placement) {
     const tile = screenPointToTile(event.clientX, event.clientY);
     if (tile?.valid) {
@@ -325,7 +323,7 @@ canvas.addEventListener("pointerdown", (event) => {
     event.preventDefault();
     return;
   }
-  if (event.button === 0 && state.paused && selectionEnabled && onMarkerSelect) {
+  if (event.button === 0 && selectionEnabled && onMarkerSelect) {
     const bounds = canvas.getBoundingClientRect();
     const view = visibleDimensions();
     const cellWidth = bounds.width / view.columns;
@@ -355,6 +353,16 @@ canvas.addEventListener("auxclick", (event) => {
   if (event.button === 1) event.preventDefault();
 });
 canvas.addEventListener("pointermove", (event) => {
+  const panel = canvas.closest(".viewport-panel");
+  if (panel) {
+    const bounds = panel.getBoundingClientRect();
+    const crosshair = panel.querySelector(".viewport-crosshair");
+    if (crosshair) {
+      crosshair.style.left = `${event.clientX - bounds.left}px`;
+      crosshair.style.top = `${event.clientY - bounds.top}px`;
+    }
+    panel.dataset.pointerInside = "true";
+  }
   if (state.paused && state.placement) {
     state.placement.tile = screenPointToTile(event.clientX, event.clientY);
     state.placement.valid = Boolean(state.placement.tile?.valid);
@@ -375,6 +383,8 @@ canvas.addEventListener("pointermove", (event) => {
   if (state.dragging) render();
 });
 canvas.addEventListener("pointerleave", () => {
+  const panel = canvas.closest(".viewport-panel");
+  if (panel) panel.dataset.pointerInside = "false";
   if (state.placement) {
     state.placement.tile = null;
     state.placement.valid = false;
