@@ -5,7 +5,6 @@ const context = canvas.getContext("2d");
 const sizeSelect = document.querySelector("#world-size");
 const gridToggle = document.querySelector("#grid-visible");
 const zoomValue = document.querySelector("#zoom-value");
-const resetButton = document.querySelector("#reset-camera");
 const worldStatus = document.querySelector("#world-status");
 const viewStatus = document.querySelector("#view-status");
 
@@ -329,13 +328,6 @@ canvas.addEventListener("wheel", (event) => {
   const factor = event.deltaY < 0 ? 1.12 : 1 / 1.12;
   updateZoom(state.zoom * factor, anchor);
 }, { passive: false });
-
-resetButton.addEventListener("click", () => {
-  state.cameraX = state.worldSize / 2;
-  state.cameraY = state.worldSize / 2;
-  updateZoom(1);
-  render();
-});
 
 canvas.addEventListener("pointerdown", (event) => {
   if (event.button === 0 && state.paused && state.placement) {
