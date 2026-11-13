@@ -1,4 +1,4 @@
-import { getVisibleDimensions, clampCameraPosition, MIN_ZOOM, MAX_ZOOM, CAMERA_OVERSCAN_TILES, UNIT_MARKER_RADIUS_TILES, SELECTED_MARKER_OUTLINE_RADIUS_TILES } from "./world-preview-model.js";
+import { clampCameraPosition, MIN_ZOOM, MAX_ZOOM, CAMERA_OVERSCAN_TILES, UNIT_MARKER_RADIUS_TILES, SELECTED_MARKER_OUTLINE_RADIUS_TILES } from "./world-preview-model.js";
 
 const canvas = document.querySelector("#world-canvas");
 const context = canvas.getContext("2d");
@@ -15,8 +15,6 @@ let selectedMarkerId = null;
 let placementArtwork = null;
 let placementImage = null;
 let placementImageReady = false;
-let cameraFollowTargetId = null;
-
 export function setWorldInteraction({ paused = false, inspectionEnabled = false, onSelect = null } = {}) {
   state.paused = Boolean(paused);
   selectionEnabled = Boolean(inspectionEnabled);
@@ -70,17 +68,12 @@ export function cancelWorldPlacement() {
 }
 
 export function setCameraFollowTarget(entityId, position) {
-  cameraFollowTargetId = entityId ?? null;
-  if (cameraFollowTargetId && position && Number.isFinite(position.x) && Number.isFinite(position.y)) {
+  if (entityId && position && Number.isFinite(position.x) && Number.isFinite(position.y)) {
     state.cameraX = position.x + 0.5;
     state.cameraY = position.y + 0.5;
     clampCamera();
     render();
   }
-}
-
-export function clearCameraFollowTarget() {
-  cameraFollowTargetId = null;
 }
 
 export function resetCameraToWorld(worldWidth = state.worldSize) {
@@ -91,7 +84,6 @@ export function resetCameraToWorld(worldWidth = state.worldSize) {
   state.cameraX = size / 2;
   state.cameraY = size / 2;
   state.zoom = 1;
-  cameraFollowTargetId = null;
   clampCamera();
   render();
   return true;
@@ -99,7 +91,6 @@ export function resetCameraToWorld(worldWidth = state.worldSize) {
 
 export function moveCameraBy(deltaX, deltaY) {
   if (!Number.isFinite(deltaX) || !Number.isFinite(deltaY)) return false;
-  cameraFollowTargetId = null;
   state.cameraX += deltaX;
   state.cameraY += deltaY;
   clampCamera();
@@ -358,7 +349,6 @@ canvas.addEventListener("pointerdown", (event) => {
   }
   // Middle mouse remains available for camera panning in both pause states.
   if (event.button !== 1) return;
-  cameraFollowTargetId = null;
   state.dragging = true;
   state.pointerX = event.clientX;
   state.pointerY = event.clientY;
@@ -385,7 +375,6 @@ canvas.addEventListener("pointermove", (event) => {
     render();
   }
   if (state.dragging) {
-    cameraFollowTargetId = null;
     const bounds = canvas.getBoundingClientRect();
     const view = visibleDimensions();
     const cellWidth = bounds.width / view.columns;

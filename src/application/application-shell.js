@@ -5,7 +5,6 @@ import {
   setWorldPlacement,
   cancelWorldPlacement,
   setCameraFollowTarget,
-  clearCameraFollowTarget,
   moveCameraBy,
   resetCameraToWorld
 } from "../adapters/presentation/dev-world-preview.js";
@@ -610,14 +609,18 @@ function runtimeAdvance(deltaSeconds) {
   advanceRuntime?.(deltaSeconds);
 }
 
-function updatePausedFreeCamera(deltaSeconds) {
-  if (state.pauseMenuOpen || state.colonyControlApi?.getState().drafted || !heldMovementKeys.size) return;
+function applyFreeCameraInput(deltaSeconds) {
   let x = Number(heldMovementKeys.has("KeyD")) - Number(heldMovementKeys.has("KeyA"));
   let y = Number(heldMovementKeys.has("KeyS")) - Number(heldMovementKeys.has("KeyW"));
   if (!x && !y) return;
   const length = Math.hypot(x, y);
   const speed = 30;
   moveCameraBy((x / length) * speed * deltaSeconds, (y / length) * speed * deltaSeconds);
+}
+
+function updatePausedFreeCamera(deltaSeconds) {
+  if (state.pauseMenuOpen || state.colonyControlApi?.getState().drafted || !heldMovementKeys.size) return;
+  applyFreeCameraInput(deltaSeconds);
 }
 
 function isTextEntryTarget(target) {
@@ -669,7 +672,6 @@ window.addEventListener("keydown", (event) => {
         setCameraFollowTarget(leader.id, leader.placement.position);
       }
     } else {
-      clearCameraFollowTarget();
       clearUnitSelection();
     }
     updateSimulationUi();
@@ -708,7 +710,6 @@ function handleFocusLoss() {
     state.paused = true;
   }
   inputController.clearForFocusLoss();
-  clearCameraFollowTarget();
   updateSimulationUi();
 }
 
@@ -800,7 +801,6 @@ resetLabButton.addEventListener("click", () => {
   state.colonyControlApi.setLeader(null);
   clearUnitSelection();
   refreshWorldMarkers();
-  clearCameraFollowTarget();
 
   const activeWorld = state.worldRegistry.getActiveWorld();
   if (activeWorld?.dimensions) {
@@ -908,7 +908,6 @@ function synchronizeRestoredWorkspace() {
   inputController.clearForFocusLoss();
   state.clock?.pause("player");
   state.paused = true;
-  clearCameraFollowTarget();
 
   const activeWorld = state.worldRegistry?.get(state.worldRegistry.activeWorldId);
   if (activeWorld?.dimensions?.width && activeWorld?.dimensions?.height) {
@@ -973,12 +972,7 @@ async function startDevLabRuntime() {
           }
           return;
         }
-        let x = Number(heldMovementKeys.has("KeyD")) - Number(heldMovementKeys.has("KeyA"));
-        let y = Number(heldMovementKeys.has("KeyS")) - Number(heldMovementKeys.has("KeyW"));
-        if (!x && !y) return;
-        const length = Math.hypot(x, y);
-        const speed = 30;
-        moveCameraBy((x / length) * speed * deltaSeconds, (y / length) * speed * deltaSeconds);
+        applyFreeCameraInput(deltaSeconds);
       }
     }]
   });
@@ -1002,7 +996,7 @@ async function startDevLabRuntime() {
     state.paused = true;
     updateSimulationUi();
     state.animationFrame = requestAnimationFrame(simulationFrame);
-    workspaceSaveStatus.textContent = LocalFileSaveAdapter.supportsDirectoryAccess
+    workspaceSaveStatus.textContent = LocalFileSaveAdapter.supportsFileAccess
       ? "NO SAVE FOLDER SELECTED"
       : "FOLDER ACCESS UNAVAILABLE · LOAD .CASS / EXPORT DOWNLOAD";
 
