@@ -58,7 +58,6 @@ function envelope(data = sampleSave) {
 test("local file adapter reads and writes the Cassandra save envelope in the selected folder", async () => {
   const adapter = new LocalFileSaveAdapter();
   const directory = createDirectoryHandle();
-  adapter.setDirectoryHandle;
   // Inject the selected handle through the public directory-picker seam.
   const originalWindow = globalThis.window;
   globalThis.window = { showDirectoryPicker: async () => directory };
