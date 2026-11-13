@@ -778,6 +778,11 @@ worldSizeSelect.addEventListener("change", () => {
   if (!state.paused || !state.worldRegistry) return;
   const size = Number(worldSizeSelect.value);
   state.worldRegistry.activateWorld(`dev-lab-world-${size}`);
+  const leaderId = state.colonyControlApi?.getState().leaderId;
+  const leader = leaderId ? state.unitApi?.getUnit(leaderId) : null;
+  if (leader?.placement && leader.placement.worldId !== state.worldRegistry.activeWorldId) {
+    state.colonyControlApi.setDrafted(false);
+  }
   clearUnitSelection();
   refreshWorldMarkers();
 });

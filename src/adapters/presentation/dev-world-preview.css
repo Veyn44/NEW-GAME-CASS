@@ -32,16 +32,6 @@ body {
   color: var(--color-text);
 }
 
-.dev-shell {
-  width: 100%;
-  height: 100dvh;
-  min-height: 0;
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
-  gap: 0;
-  padding: 18px 22px 10px;
-}
-
 .dev-header, .toolbar, .status-bar {
   display: flex;
   align-items: center;
@@ -129,7 +119,6 @@ canvas:active { cursor: grabbing; }
 .status-bar span + span { padding-left: 14px; border-left: 1px solid #35485c; }
 
 @media (max-width: 640px) {
-  .dev-shell { padding: 10px; }
   .dev-header { align-items: flex-start; flex-direction: column; gap: 3px; margin-bottom: 8px; }
   .dev-note { margin: 0; }
   .toolbar { gap: 8px 14px; }
@@ -171,20 +160,12 @@ canvas:active { cursor: grabbing; }
 .database-empty { min-height:180px; display:grid; align-content:center; justify-items:center; gap:10px; padding:28px; border:1px dashed var(--color-border); border-radius:8px; color:var(--color-text-muted); text-align:center; }
 .database-empty strong { color:var(--color-accent-turquoise); font-size:15px; }
 .database-empty span { max-width:520px; font-size:12px; line-height:1.6; }
-.database-entry { padding:15px; border:1px solid var(--color-border); border-radius:8px; background:var(--color-panel); }
-.database-entry-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; }
-.database-entry h3 { margin:0; font-size:15px; }
-.database-type { color:var(--color-accent-turquoise); font-size:10px; text-transform:uppercase; }
-.database-entry p { color:var(--color-text-muted); font-size:12px; line-height:1.5; }
 .attribute-list { display:grid; grid-template-columns:1fr auto; gap:7px 14px; margin:12px 0 0; padding-top:10px; border-top:1px solid var(--color-border); font-size:11px; }
 .attribute-list dt { color:var(--color-text-muted); }
 .attribute-list dd { margin:0; text-align:right; font-variant-numeric:tabular-nums; }
 .database-footnote { color:var(--color-text-muted); font-size:10px; line-height:1.5; }
 .dev-lab-view { display:grid; grid-template-rows:auto auto minmax(0,1fr) auto auto; gap:0; padding:18px 22px 10px; }
 .dev-lab-view .dev-header { margin-bottom:12px; }
-.dev-tools-panel { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:10px 12px; border:1px solid var(--color-border); border-top:0; border-radius:0 0 8px 8px; background:var(--color-panel); }
-.dev-tools-panel p { margin:4px 0 0; }
-.dev-tools-panel button:disabled { opacity:.5; cursor:not-allowed; }
 @media(max-width:640px) {
  .database-view { padding:14px 10px; }
  .section-header,.database-toolbar { align-items:stretch; flex-direction:column; }
@@ -219,55 +200,24 @@ canvas:active { cursor: grabbing; }
 .database-detail-attributes dd { overflow-wrap:anywhere; text-align:left; white-space:pre-wrap; }
 .database-footer { display:flex; align-items:center; justify-content:space-between; gap:14px; min-height:50px; padding:8px 12px; border:1px solid var(--color-border); border-radius:8px; background:var(--color-panel); }
 .database-footnote { margin:0; max-width:780px; }
-.database-footer-actions,.dev-tool-actions { display:flex; align-items:center; gap:8px; }
 .primary-action { min-width:110px; border-color:var(--color-accent-turquoise); background:#16433f; font-weight:650; }
 .primary-action:disabled { opacity:.45; cursor:not-allowed; }
-.database-view[data-mode="browse"] .database-footer-actions { display:none; }
-.dev-tools-panel { min-height:68px; }
-.dev-tool-copy { min-width:0; }
-.dev-tool-actions { flex-wrap:wrap; justify-content:flex-end; }
-.dev-tool-actions button:disabled { opacity:.5; cursor:not-allowed; }
-.dev-selected-unit { margin:5px 0 0; color:var(--color-accent-turquoise); font-size:11px; }
 @media(max-width:760px) {
  .database-view { padding:10px; }
  .database-workspace { grid-template-columns:minmax(0, .9fr) minmax(0, 1.1fr); }
  .database-panel-heading span { display:none; }
  .database-footer { align-items:flex-start; flex-direction:column; }
- .database-footer-actions { width:100%; justify-content:flex-end; }
- .dev-tools-panel { align-items:flex-start; flex-direction:column; }
- .dev-tool-actions { width:100%; justify-content:flex-start; }
 }
 @media(max-width:520px) {
  .database-workspace { grid-template-columns:1fr; grid-template-rows:minmax(130px,.75fr) minmax(0,1.25fr); }
  .database-inspector-heading h2 { font-size:18px; }
 }
-
-/* Dev Lab test Unit marker */
-.dev-tool-copy { max-width: min(60%, 760px); }
-@media(max-width:640px) { .dev-tool-copy { max-width:100%; } }
+@media(max-width:640px) { }
 
 
 /* Runtime controls and live Unit inspector */
 #simulation-status { color: #f3c969; font-weight: 700; }
 #simulation-status[data-state="running"] { color: #38d6c5; }
-.dev-tools-panel { flex-wrap: wrap; }
-.unit-inspector {
-  flex: 1 1 100%;
-  min-width: 240px;
-  padding: 10px 12px;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: #101d2d;
-}
-.unit-inspector h3 { margin: 3px 0 8px; color: var(--color-text); }
-.unit-instance-details {
-  display: grid;
-  grid-template-columns: minmax(110px, 1fr) minmax(150px, 2fr);
-  gap: 5px 14px;
-  margin: 0;
-}
-.unit-instance-details dt { color: var(--color-muted); }
-.unit-instance-details dd { margin: 0; color: var(--color-text); overflow-wrap: anywhere; }
 
 
 /* The pause indicator belongs to the map viewport, never the application shell. */
@@ -363,13 +313,6 @@ canvas:active { cursor: grabbing; }
 .database-overlay .section-header { min-height: 36px; }
 .database-overlay .database-toolbar { padding: 9px; }
 .database-overlay .database-workspace { min-height: 0; }
-.database-selection-actions {
-  display: flex;
-  justify-content: flex-start;
-  margin-top: 22px;
-  padding: 12px 0 4px;
-  border-top: 1px solid var(--color-border);
-}
 .database-select-button {
   min-width: 112px;
   min-height: 38px;
@@ -471,7 +414,6 @@ canvas:active { cursor: grabbing; }
 }
 .database-header-actions .database-select-button[hidden] { display: none !important; }
 .database-header-actions .secondary-button { min-height: 36px; }
-.database-selection-actions { display: none; }
 @media(max-width:640px) {
   .database-header-actions { width: 100%; justify-content: flex-end; }
 }
