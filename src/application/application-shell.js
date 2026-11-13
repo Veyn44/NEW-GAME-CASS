@@ -491,7 +491,6 @@ function updateSimulationUi() {
     inspectionEnabled: true,
     onSelect: inspectUnit
   });
-  const controlState = state.colonyControlApi?.getState();
   if (controlState?.drafted && controlState.leaderId) {
     inspectUnit(controlState.leaderId);
   } else if (state.selectedUnitId) {
