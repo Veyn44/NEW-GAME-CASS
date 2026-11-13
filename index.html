@@ -79,6 +79,11 @@
           <span class="control zoom-readout">Zoom <output id="zoom-value">100%</output></span>
           <button id="reset-camera" type="button">Reset camera</button>
           <button id="open-viewport-database" type="button">DATABASE</button>
+          <button id="save-workspace" type="button">SAVE</button>
+          <button id="save-workspace-as" type="button">SAVE AS</button>
+          <button id="load-workspace" type="button">LOAD</button>
+          <input id="workspace-file-input" type="file" accept=".cass,application/vnd.cassandra.save+json" hidden>
+          <span id="workspace-save-status" class="workspace-save-status" aria-live="polite">NO SAVE FOLDER SELECTED</span>
           <span class="dev-note">WASD: move Pawn / camera · Wheel: zoom · Middle drag: pan</span>
         </section>
         <section class="viewport-panel" aria-label="World viewport" data-paused="true" data-input-mode="paused"><canvas id="world-canvas" tabindex="0" aria-label="World viewport. Press Space to pause or resume.">Your browser does not support canvas.</canvas><div class="viewport-crosshair" aria-hidden="true"></div>
