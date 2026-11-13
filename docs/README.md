@@ -1,12 +1,16 @@
 # Project Documentation
 
-Canonical documentation for the active development phase.
+Canonical project documentation and phase records.
 
-## Current phase
+## Completed phase awaiting merge review
 
-- [Phase 2 plan](phases/PHASE_2.md) — scope, substeps, responsibilities, acceptance criteria and merge procedure.
-- [Phase 2.4 Persistence and Dev Lab Workspace Plan](phases/PHASE_2_4_PERSISTENCE_PLAN.md) — audit findings, agreed reusable persistence architecture, local-file storage direction, implementation sequence and handoff instructions.
-- [Phase 2 test plan](testing/PHASE_2_TEST_PLAN.md) — automated/manual test layers and evidence rules.
+- [Phase 2 plan](phases/PHASE_2.md) — implementation and acceptance complete; final branch review and explicit merge approval remain.
+- [Phase 2.4 Persistence and Dev Lab Workspace Plan](phases/PHASE_2_4_PERSISTENCE_PLAN.md) — final accepted persistence contract, browser verification and deferred items.
+- [Phase 2 test plan](testing/PHASE_2_TEST_PLAN.md) — automated/manual test layers and final acceptance evidence.
+
+## Next phase discovery
+
+No canonical Phase 3 plan exists yet. The strongest already-approved architectural input for the next planning discussion is [World Lifecycle](architecture/WORLD_LIFECYCLE.md), which defines one persistent world and at most one active temporary world, but explicitly leaves implementation pending. This is a candidate direction, not an approved Phase 3 scope.
 
 ## Architecture
 
