@@ -5,6 +5,7 @@ Canonical documentation for the active development phase.
 ## Current phase
 
 - [Phase 2 plan](phases/PHASE_2.md) — scope, substeps, responsibilities, acceptance criteria and merge procedure.
+- [Phase 2.4 Persistence and Dev Lab Workspace Plan](phases/PHASE_2_4_PERSISTENCE_PLAN.md) — audit findings, agreed reusable persistence architecture, local-file storage direction, implementation sequence and handoff instructions.
 - [Phase 2 test plan](testing/PHASE_2_TEST_PLAN.md) — automated/manual test layers and evidence rules.
 
 ## Architecture
