@@ -6,7 +6,7 @@ A modular game-engine foundation with Cassandra as its first host application.
 
 Core baseline history and current Cassandra integration status: [CORE_MIGRATION_STATUS.md](CORE_MIGRATION_STATUS.md).
 
-The reusable, domain-neutral runtime lives in [`src/core`](src/core/README.md). Host games provide their own systems and synchronous simulation tasks to the Core Assembly. Cassandra-specific demo wiring exists only in test fixtures.
+The reusable, domain-neutral runtime lives in [`src/core`](src/core/README.md). Cassandra's host runtime and gameplay systems live outside Core and compose it through its public contracts. Core owns generic runtime infrastructure; Cassandra owns Unit/Pawn, world/gameplay rules, presentation and host integration.
 
 ## Development documentation
 
@@ -18,6 +18,8 @@ Requires Node.js 20 or newer.
 
 ```sh
 npm run test:core
+npm run test:host
+npm run test:all
 ```
 
-The test runner executes the Core contract suites. A passing local run should be recorded only after actually running the command in the target environment.
+`test:core` runs the Core regression suite, `test:host` runs the host/gameplay unit tests, and `test:all` runs both. A passing local run should be recorded only after actually running the command in the target environment.
