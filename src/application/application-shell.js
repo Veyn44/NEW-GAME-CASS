@@ -799,6 +799,7 @@ resetLabButton.addEventListener("click", () => {
   }
   state.colonyControlApi.setLeader(null);
   clearUnitSelection();
+  refreshWorldMarkers();
   clearCameraFollowTarget();
 
   const activeWorld = state.worldRegistry.getActiveWorld();
