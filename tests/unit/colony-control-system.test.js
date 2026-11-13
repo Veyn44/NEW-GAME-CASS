@@ -110,7 +110,11 @@ test("Draft handles overlapping WASD combinations and independent key release", 
 
     state.inputController.keyDown("KeyD");
     moved = state.control.update(0.25);
-    assert.deepEqual(moved.position, { x: 19 - Math.SQRT1_2, y: 20 - Math.SQRT1_2 });
+    assert.equal(moved, null);
+    assert.deepEqual(state.units.getUnit(state.leader.id).placement.position, {
+      x: 19 - Math.SQRT1_2,
+      y: 20 - Math.SQRT1_2
+    });
   } finally {
     await state.runtime.destroy();
     clearDefinitionsForTests();
