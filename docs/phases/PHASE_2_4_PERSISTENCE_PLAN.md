@@ -201,22 +201,11 @@ A newly opened application must not assume it has permission to overwrite a file
 
 ### Step 3 — Complete platform-neutral snapshot/restore integration
 
-- [x] Inspect Core Persistence coordinator and adapter interface.
-- [x] Inspect Core Assembly safe-boundary and participant registration.
-- [x] Inspect Entity Registry, World Registry and World Context snapshots.
-- [x] Inspect Unit and Colony Control participants.
-- [x] Identify current application adapter wiring.
-- [x] Identify currently missing gameplay-owned world-object persistence.
-- [x] Record findings and agreed plan in this document.
-- [x] Complete code-level checks needed before adapter implementation, including browser file access API and staged replacement behavior.
-
-### Step 3 — Complete platform-neutral snapshot/restore integration
-
-- Verify all currently registered participants round-trip together.
-- Add end-to-end tests for World + Entity + placement + Unit + Colony Control.
-- Verify stable identity restoration and absence of duplicate/autospawned Johny.
-- Verify rollback when a later participant fails.
-- Keep MemorySaveAdapter for deterministic automated tests.
+- [ ] Verify all currently registered participants round-trip together.
+- [ ] Add end-to-end tests for World + Entity + placement + Unit + Colony Control.
+- [ ] Verify stable identity restoration and absence of duplicate/autospawned Johny.
+- [ ] Verify rollback when a later participant fails.
+- [x] Keep MemorySaveAdapter for deterministic automated tests.
 
 ### Step 4 — Implement local file adapter
 
@@ -266,9 +255,9 @@ When continuing this work in a new conversation:
 1. Read this file first.
 2. Confirm the current branch is `next-step/phase-2` and inspect its latest commit; do not assume the audit baseline is still HEAD.
 3. Read `src/core/persistence.js`, `src/core/core-assembly.js`, `src/core/entity-registry.js`, `src/core/world-registry.js`, `src/core/world-context.js`, `src/gameplay/unit/unit-system.js`, `src/gameplay/colony/colony-control-system.js`, `src/host/create-game-runtime.js` and the current application composition before editing.
-4. Continue with Step 2 only after checking whether code/contracts changed since the recorded audit.
+4. Continue with Step 3 (round-trip integration tests) after checking whether code/contracts changed since the recorded audit.
 5. Keep all changes on `next-step/phase-2`; never modify `main` without explicit approval.
 6. Do not claim tests or browser checks passed unless they were actually run.
 7. Preserve the governing rule: Dev Lab and normal game consume the same gameplay/runtime mechanics; only host composition and presentation differ.
 
-**Last confirmed audit result:** Persistence foundations and Core/Unit/Colony Control participants exist; the browser application still injects `MemorySaveAdapter`; no local-file save adapter or Dev Lab Save/Load UI has been implemented by this plan.
+**Last confirmed implementation result:** Core/Unit/Colony Control persistence participants remain the authoritative snapshot owners. The browser Dev Lab now injects `LocalFileSaveAdapter`; direct folder access stores `save.cass` in the folder selected by the user, and browsers without folder access use explicit import/export fallback. Dev Lab Save / Save As / Load controls are wired to the shared `core.persistence` service. Automated tests and real-browser acceptance are still pending.
