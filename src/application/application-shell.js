@@ -604,7 +604,7 @@ function runtimeAdvance(deltaSeconds) {
 }
 
 function updatePausedFreeCamera(deltaSeconds) {
-  if (state.colonyControlApi?.getState().drafted || !heldMovementKeys.size) return;
+  if (state.pauseMenuOpen || state.colonyControlApi?.getState().drafted || !heldMovementKeys.size) return;
   let x = Number(heldMovementKeys.has("KeyD")) - Number(heldMovementKeys.has("KeyA"));
   let y = Number(heldMovementKeys.has("KeyS")) - Number(heldMovementKeys.has("KeyW"));
   if (!x && !y) return;
@@ -632,6 +632,7 @@ window.addEventListener("keydown", (event) => {
   if (isInteractiveTarget(event.target)) return;
   if (/^Key[WASD]$/.test(event.code)) {
     heldMovementKeys.add(event.code);
+    inputController.keyDown(event.code);
     if (state.paused) {
       event.preventDefault();
       return;
@@ -660,7 +661,7 @@ window.addEventListener("keydown", (event) => {
     updateSimulationUi();
     return;
   }
-  if (!state.paused) {
+  if (!state.paused && !/^Key[WASD]$/.test(event.code)) {
     inputController.keyDown(event.code);
     if (/^(Key[A-Z]|Digit[0-9]|Arrow(Up|Down|Left|Right))$/.test(event.code)) event.preventDefault();
   }
