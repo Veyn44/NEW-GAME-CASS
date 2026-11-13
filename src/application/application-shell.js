@@ -535,6 +535,7 @@ function closePauseMenu() {
   state.pauseMenuOpen = false;
   pauseMenu.hidden = true;
   if (!state.paused) inputController.resume();
+  canvas.focus({ preventScroll: true });
   updateSimulationUi();
 }
 
