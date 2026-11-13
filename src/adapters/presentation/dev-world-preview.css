@@ -475,19 +475,3 @@ canvas:active { cursor: grabbing; }
 @media(max-width:640px) {
   .database-header-actions { width: 100%; justify-content: flex-end; }
 }
-
-/* Pause menu and read-only controls reference */
-.pause-menu{position:absolute;z-index:30;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:rgba(4,9,16,.78);backdrop-filter:blur(5px)}
-.pause-menu[hidden]{display:none!important}
-.pause-menu h2{margin:0 0 12px;font-size:clamp(26px,4vw,40px)}
-.pause-menu button{width:min(260px,70%);min-height:42px}
-.pause-menu .eyebrow{color:var(--color-accent-turquoise)}
-.settings-view{display:flex;flex-direction:column;gap:20px;padding:clamp(16px,4vw,42px);overflow:auto}
-.settings-view[hidden]{display:none!important}
-.controls-reference{display:grid;gap:18px;width:min(760px,100%);margin:0 auto}
-.controls-group{display:grid;gap:8px;padding:16px;border:1px solid var(--color-border);border-radius:8px;background:var(--color-panel)}
-.controls-group h2{margin:0 0 6px;color:var(--color-accent-turquoise);font-size:11px;letter-spacing:.14em}
-.control-reference-row{display:flex;align-items:center;gap:6px;min-height:38px;padding:6px 0;border-top:1px solid var(--color-border)}
-.control-reference-row span{flex:1;color:var(--color-text-muted);font-size:12px}
-.control-reference-row kbd{min-width:30px;padding:6px 8px;border:1px solid #526477;border-radius:4px;background:#0a1421;color:var(--color-text);font:600 10px/1.2 inherit;text-align:center}
-@media(max-width:520px){.control-reference-row{flex-wrap:wrap}.control-reference-row span{flex-basis:100%}}
