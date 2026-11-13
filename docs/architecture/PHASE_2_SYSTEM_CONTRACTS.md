@@ -1,6 +1,6 @@
 # Phase 2 — Initial System Contracts
 
-**Status:** Unit foundation, Dev Lab Database/placement/inspection, Colony Leader Draft and fixed-step locomotion are implemented on the Phase 2 branch; full end-to-end Phase 2 acceptance and manual browser verification remain outstanding.  
+**Status:** Unit foundation, Dev Lab Database/placement/inspection, Colony Leader Draft, fixed-step locomotion and persistence are implemented and user-accepted as Phase 2. The complete phase was merged into `main` on 2026-11-13. See [Phase 2 acceptance](../phases/PHASE_2.md) and [test evidence](../testing/PHASE_2_TEST_PLAN.md).  
 **Authority:** Accepted decisions in `WHATANDWHY.md`, current Core source and `src/core/README.md`.
 
 This document defines the smallest technical contracts needed for the first runnable gameplay slice. It separates Core identity, Unit domain state and world placement. It deliberately leaves game-design fields open where they should be chosen from actual gameplay needs.
