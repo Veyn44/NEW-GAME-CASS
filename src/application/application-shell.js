@@ -60,9 +60,9 @@ const canvas = document.querySelector("#world-canvas");
 const worldSizeSelect = document.querySelector("#world-size");
 const gridVisible = document.querySelector("#grid-visible");
 const resetCameraButton = document.querySelector("#reset-camera");
-const saveWorkspaceButton = document.querySelector("#save-workspace");
-const saveWorkspaceAsButton = document.querySelector("#save-workspace-as");
-const loadWorkspaceButton = document.querySelector("#load-workspace");
+const saveWorkspaceButton = document.querySelector("#pause-save");
+const saveWorkspaceAsButton = document.querySelector("#pause-save-as");
+const loadWorkspaceButton = document.querySelector("#pause-load");
 const workspaceFileInput = document.querySelector("#workspace-file-input");
 const workspaceSaveStatus = document.querySelector("#workspace-save-status");
 const inputController = createViewportInputController();
@@ -778,34 +778,36 @@ worldSizeSelect.addEventListener("change", () => {
 });
 
 
-async function persistWorkspace({ chooseFolder = false } = {}) {
+async function persistWorkspace({ chooseFile = false } = {}) {
   if (!state.persistenceApi || !state.saveAdapter) return;
-  if (!chooseFolder && LocalFileSaveAdapter.supportsDirectoryAccess
-    && !state.saveAdapter.selectedDirectoryName) {
-    workspaceSaveStatus.textContent = "NO SAVE FOLDER · USE SAVE AS FIRST";
-    return;
-  }
   try {
-    if (chooseFolder) {
-      try {
-        const folderName = await state.saveAdapter.selectDirectory();
-        if (!folderName) return;
-        workspaceSaveStatus.textContent = `FOLDER · ${folderName}/save.cass`;
-      } catch (error) {
-        if (error?.code !== "DIRECTORY_ACCESS_UNAVAILABLE") throw error;
-        workspaceSaveStatus.textContent = "DIRECT FOLDER ACCESS UNAVAILABLE · EXPORTING SAVE FILE";
+    if (chooseFile) {
+      if (LocalFileSaveAdapter.supportsFileAccess) {
+        const fileName = await state.saveAdapter.selectSaveFile();
+        if (!fileName) return;
+        workspaceSaveStatus.textContent = `SAVING AS · ${fileName}`;
+      } else {
+        const requestedName = window.prompt("Name this Cassandra save:", state.saveAdapter.selectedFileName || "save.cass");
+        if (requestedName === null) return;
+        const safeName = requestedName.trim().endsWith(".cass") ? requestedName.trim() : `${requestedName.trim()}.cass`;
+        if (!/^[a-zA-Z0-9._ -]+\.cass$/i.test(safeName)) {
+          workspaceSaveStatus.textContent = "SAVE FAILED · USE A SIMPLE FILE NAME";
+          return;
+        }
+        state.saveAdapter.setDownloadFileName(safeName);
       }
+    } else if (!state.saveAdapter.selectedFileName && LocalFileSaveAdapter.supportsFileAccess) {
+      workspaceSaveStatus.textContent = "NO SAVE SELECTED · USE SAVE AS FIRST";
+      return;
     }
+
     const metadata = await state.persistenceApi.save(DEV_LAB_SAVE_SLOT, {
       stateId: "cassandra-dev-lab-workspace",
       kind: "manual"
     });
-    const hasDirectory = Boolean(state.saveAdapter.selectedDirectoryName);
-    const location = hasDirectory
-      ? `${state.saveAdapter.selectedDirectoryName}/save.cass`
-      : "save.cass · browser download";
-    workspaceSaveStatus.textContent = `${hasDirectory ? "SAVED" : "EXPORTED"} · ${location}`;
-    simulationStatus.textContent = `${hasDirectory ? "WORKSPACE SAVED" : "WORKSPACE EXPORTED"} · ${metadata.createdAt}`;
+    const fileName = state.saveAdapter.selectedFileName || "save.cass";
+    workspaceSaveStatus.textContent = `SAVED · ${fileName}`;
+    simulationStatus.textContent = `WORKSPACE SAVED · ${metadata.createdAt}`;
   } catch (error) {
     if (error?.name === "AbortError") return;
     workspaceSaveStatus.textContent = `SAVE FAILED · ${error.message}`;
@@ -816,10 +818,10 @@ async function persistWorkspace({ chooseFolder = false } = {}) {
 async function restoreWorkspace() {
   if (!state.persistenceApi || !state.saveAdapter) return;
   try {
-    if (LocalFileSaveAdapter.supportsDirectoryAccess) {
-      const folderName = await state.saveAdapter.selectDirectory();
-      if (!folderName) return;
-      workspaceSaveStatus.textContent = `LOADING · ${folderName}/save.cass`;
+    if (LocalFileSaveAdapter.supportsFileAccess) {
+      const fileName = await state.saveAdapter.selectLoadFile();
+      if (!fileName) return;
+      workspaceSaveStatus.textContent = `LOADING · ${fileName}`;
     } else {
       workspaceFileInput.click();
       return;
@@ -828,7 +830,7 @@ async function restoreWorkspace() {
       stateId: "cassandra-dev-lab-workspace"
     });
     synchronizeRestoredWorkspace();
-    workspaceSaveStatus.textContent = `LOADED · ${state.saveAdapter.selectedDirectoryName}/save.cass`;
+    workspaceSaveStatus.textContent = `LOADED · ${state.saveAdapter.selectedFileName}`;
     simulationStatus.textContent = "WORKSPACE RESTORED";
   } catch (error) {
     if (error?.name === "AbortError") return;
@@ -849,7 +851,7 @@ function synchronizeRestoredWorkspace() {
 }
 
 saveWorkspaceButton.addEventListener("click", () => persistWorkspace());
-saveWorkspaceAsButton.addEventListener("click", () => persistWorkspace({ chooseFolder: true }));
+saveWorkspaceAsButton.addEventListener("click", () => persistWorkspace({ chooseFile: true }));
 loadWorkspaceButton.addEventListener("click", () => restoreWorkspace());
 workspaceFileInput.addEventListener("change", async () => {
   const file = workspaceFileInput.files?.[0];
@@ -861,7 +863,7 @@ workspaceFileInput.addEventListener("change", async () => {
       stateId: "cassandra-dev-lab-workspace"
     });
     synchronizeRestoredWorkspace();
-    workspaceSaveStatus.textContent = `IMPORTED · ${file.name}`;
+    workspaceSaveStatus.textContent = `LOADED · ${file.name}`;
     simulationStatus.textContent = "WORKSPACE RESTORED";
   } catch (error) {
     workspaceSaveStatus.textContent = `LOAD FAILED · ${error.message}`;
