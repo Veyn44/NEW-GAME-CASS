@@ -65,6 +65,33 @@ test("Draft targets the Colony Leader by stable Unit ID and moves at four tiles 
   }
 });
 
+test("Draft supports all four cardinal directions", async () => {
+  const state = await setup();
+  try {
+    state.control.setLeader(state.leader.id);
+    state.control.setDrafted(true);
+    state.inputController.resume();
+
+    const cases = [
+      ["KeyW", { x: 20, y: 19 }],
+      ["KeyS", { x: 20, y: 21 }],
+      ["KeyA", { x: 19, y: 20 }],
+      ["KeyD", { x: 21, y: 20 }]
+    ];
+
+    for (const [key, expected] of cases) {
+      state.units.moveUnit(state.leader.id, { x: 20, y: 20 });
+      state.inputController.keyDown(key);
+      const moved = state.control.update(0.25);
+      assert.deepEqual(moved.position, expected, key);
+      state.inputController.keyUp(key);
+    }
+  } finally {
+    await state.runtime.destroy();
+    clearDefinitionsForTests();
+  }
+});
+
 test("Diagonal Draft movement is normalized and an inactive Draft does not move", async () => {
   const state = await setup();
   try {
