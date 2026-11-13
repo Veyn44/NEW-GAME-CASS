@@ -253,3 +253,25 @@ This file is the canonical log for accepted game and presentation decisions. It 
 - **BEHAVIOR:** The current Phase 2 test uses Johny as a temporary leader and the only direct-control target. Pressing F while paused toggles Draft for the current leader. Draft persists through ordinary pause/resume. WASD controls the leader at approximately 4 tiles per second, with normalized diagonal movement. The player may pan the camera away; when WASD movement resumes, the camera automatically reacquires and follows/locks to the current leader. The player never has to select the leader in the viewport to control them. A leader can exist without being drafted. The colony can continue to operate and remain player-influenceable while leadership is vacant. A future succession process may involve retreat to base, recovery of the leader's body, a colony meeting and selection of a new leader.
 - **SCOPE:** Domain vocabulary and architectural constraints for Unit/Pawn, leadership, direct control, camera reacquisition and future colony control. Phase 2 implements only the minimal current-leader reference, Draft toggle, direct movement and camera-follow behavior needed for its playable slice. Whether any non-leader Pawn can ever be drafted remains open. AI, evacuation, body recovery, colony meetings, succession, leader selection UI and detailed colony command mechanics are deferred. No separate Core identity kind or registry is introduced for these concepts.
 - **STATUS:** Approved by the user on 2026-11-12; implementation of the Phase 2 subset follows separately.
+
+
+---
+
+## Phase 2 integration status and Phase 3 direction — 2026-11-13
+
+The decisions above were recorded incrementally while the project was being designed. Their original status lines are historical snapshots and should not be read as the current repository-wide implementation status.
+
+### Phase 2 closure
+
+Phase 2 (host runtime, Core-backed Unit foundation, Dev Lab Database/placement/inspection, Colony Leader Draft/locomotion and persistence) was user-accepted and merged into `NEW-GAME-CASS/main` on 2026-11-13 at commit `31c1cd4bb5f4e9e85bfbb98b863903f57c1f518f`. The complete Phase 2 result made no changes to `src/core/`. The original `next-step/phase-2` branch remains retained pending a separate cleanup decision.
+
+### Decision: Phase 3 — Living & Intelligent Units Foundation
+
+- **WHAT:** Phase 3 is centered on a universal foundation for living and intelligent Units. The model must accommodate mobile and stationary entities, including biological beings, robots and other intelligent entities. Units may expose optional traits/capabilities rather than being forced to share every attribute or behavior. The agreed work direction includes attributes/statistics, perception, inventory/equipment, interactions/actions and foundational movement/control, with Dev Lab able to exercise any eligible mobile entity.
+- **WHY:** The first Unit/Pawn slice proved identity, placement, persistence and a single direct-control path. The next step is to make the Unit model reusable across different kinds of entities without hard-coding the Phase 2 test Pawn or prematurely building autonomous behavior.
+- **BEHAVIOR:** Core Entity remains the generic identity/lifecycle anchor. Cassandra Unit owns gameplay instance data. Pawn remains a player-control relationship/specialization, not a second identity system. Optional capabilities must have explicit ownership and public contracts. Dev Lab remains a test host and must not own gameplay rules.
+- **SCOPE:** Universal Unit classes, optional capabilities, attribute/stat foundations, perception foundations, inventory/equipment foundations, reusable interactions/actions, and generalizing direct control to eligible mobile Units. Foundational combat/action interfaces may be designed only as required by concrete use cases; a complete combat simulation is not implied.
+- **EXPLICIT DEFERRAL:** Autonomous behavior and AI are deferred. Perception may provide inputs for future AI but does not include decision-making. Full colony automation, jobs, complete combat, crafting/economy, galaxy/navigation, world generation and temporary-world lifecycle are not automatically part of Phase 3.
+- **STATUS:** Accepted working direction. Detailed system boundaries, data schemas, dependencies, implementation order and acceptance tests must be refined before coding. See [docs/phases/PHASE_3.md](docs/phases/PHASE_3.md).
+
+The approved persistent-world/temporary-world model in `docs/architecture/WORLD_LIFECYCLE.md` remains a separate architectural constraint. It is not silently substituted for the accepted Unit-focused Phase 3 direction.
