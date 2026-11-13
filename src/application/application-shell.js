@@ -5,7 +5,8 @@ import {
   setWorldPlacement,
   cancelWorldPlacement,
   setCameraFollowTarget,
-  clearCameraFollowTarget
+  clearCameraFollowTarget,
+  moveCameraBy
 } from "../adapters/presentation/dev-world-preview.js";
 import { createGameRuntime } from "../host/create-game-runtime.js";
 import { MemorySaveAdapter } from "../core/persistence.js";
@@ -77,7 +78,9 @@ const state = {
   viewportDatabaseOpen: false,
   placementActive: false,
   animationFrame: null,
-  lastFrameTime: null
+  lastFrameTime: null,
+  pauseMenuOpen: false,
+  settingsReturnView: "menu"
 };
 
 function showView(name) {
@@ -381,9 +384,26 @@ function refreshDatabase() {
 for (const button of navButtons) {
   button.addEventListener("click", () => {
     if (button.dataset.navigate === "database") openDatabase();
+    else if (button.dataset.navigate === "settings") openSettings("menu");
     else showView(button.dataset.navigate);
   });
 }
+const pauseMenu = document.querySelector("#pause-menu");
+document.querySelector("#pause-resume").addEventListener("click", closePauseMenu);
+document.querySelector("#pause-settings").addEventListener("click", () => openSettings("dev-lab"));
+document.querySelector("#pause-main-menu").addEventListener("click", () => {
+  state.pauseMenuOpen = false;
+  showView("menu");
+});
+document.querySelector("#settings-back").addEventListener("click", () => {
+  const returnView = state.settingsReturnView;
+  showView(returnView);
+  if (returnView === "dev-lab") {
+    state.pauseMenuOpen = true;
+    pauseMenu.hidden = false;
+    updateSimulationUi();
+  }
+});
 document.querySelectorAll("[data-back-menu]").forEach((button) =>
   button.addEventListener("click", () => {
     if (button === databaseBackButton && state.viewportDatabaseOpen) closeViewportDatabase();
@@ -485,7 +505,7 @@ function updateSimulationUi() {
   gridVisible.disabled = false;
   viewportDatabaseButton.disabled = !state.paused || state.placementActive;
   resetCameraButton.disabled = false;
-  pointerStatus.textContent = state.paused ? "INSPECTION CURSOR" : "GAMEPLAY CURSOR";
+  pointerStatus.textContent = state.paused ? "INSPECTION CURSOR" : (state.colonyControlApi?.getState().drafted ? "PAWN CONTROL" : "FREE CAMERA");
   setWorldInteraction({
     paused: state.paused,
     inspectionEnabled: true,
@@ -496,6 +516,32 @@ function updateSimulationUi() {
   } else if (state.selectedUnitId) {
     inspectUnit(state.selectedUnitId);
   }
+}
+
+function openPauseMenu() {
+  if (state.pauseMenuOpen || document.body.dataset.currentView !== "dev-lab") return;
+  if (!state.paused) {
+    inputController.pause();
+    state.clock?.pause("player");
+    state.paused = state.clock?.paused ?? true;
+  }
+  inputController.clearForFocusLoss();
+  closeUnitProfile();
+  state.pauseMenuOpen = true;
+  pauseMenu.hidden = false;
+  updateSimulationUi();
+}
+
+function closePauseMenu() {
+  if (!state.pauseMenuOpen) return;
+  state.pauseMenuOpen = false;
+  pauseMenu.hidden = true;
+  if (state.paused) toggleSimulationPause();
+}
+
+function openSettings(returnView) {
+  state.settingsReturnView = returnView;
+  showView("settings");
 }
 
 function toggleSimulationPause() {
@@ -562,22 +608,16 @@ function isInteractiveTarget(target) {
 
 window.addEventListener("keydown", (event) => {
   if (document.body.dataset.currentView !== "dev-lab") return;
-  if (state.placementActive && event.code === "Escape") {
+  if (event.code === "Escape" && !event.repeat) {
     event.preventDefault();
-    cancelPlacement();
+    if (state.placementActive) { cancelPlacement(); return; }
+    if (!unitProfile.hidden) { closeUnitProfile(); return; }
+    if (state.viewportDatabaseOpen) { closeViewportDatabase(); return; }
+    if (state.pauseMenuOpen) { closePauseMenu(); return; }
+    openPauseMenu();
     return;
   }
-  if (!unitProfile.hidden && event.code === "Escape") {
-    event.preventDefault();
-    closeUnitProfile();
-    return;
-  }
-  if (state.viewportDatabaseOpen && event.code === "Escape") {
-    event.preventDefault();
-    closeViewportDatabase();
-    return;
-  }
-  if (isInteractiveTarget(event.target)) return;
+  if (state.pauseMenuOpen || isInteractiveTarget(event.target)) return;
   if (event.code === "Space" && !event.repeat && !event.altKey && !event.ctrlKey && !event.metaKey) {
     event.preventDefault();
     toggleSimulationPause();
@@ -602,9 +642,7 @@ window.addEventListener("keydown", (event) => {
   }
   if (!state.paused) {
     inputController.keyDown(event.code);
-    if (/^(Key[A-Z]|Digit[0-9]|Arrow(Up|Down|Left|Right))$/.test(event.code)) {
-      event.preventDefault();
-    }
+    if (/^(Key[A-Z]|Digit[0-9]|Arrow(Up|Down|Left|Right))$/.test(event.code)) event.preventDefault();
   }
 });
 
@@ -716,8 +754,20 @@ async function startDevLabRuntime() {
     simulationTasks: [{
       systemId: "game.colony-control",
       update({ deltaSeconds, context }) {
-        const moved = context.getService("game.colony-control-api").update(deltaSeconds);
-        if (moved) setCameraFollowTarget(moved.entityId, moved.position);
+        const control = context.getService("game.colony-control-api");
+        const controlState = control.getState();
+        if (controlState.drafted) {
+          const moved = control.update(deltaSeconds);
+          if (moved) setCameraFollowTarget(moved.entityId, moved.position);
+          return;
+        }
+        const keys = new Set(context.getService("game.input-api").getState().keys);
+        let x = Number(keys.has("KeyD")) - Number(keys.has("KeyA"));
+        let y = Number(keys.has("KeyS")) - Number(keys.has("KeyW"));
+        if (!x && !y) return;
+        const length = Math.hypot(x, y);
+        const speed = 20;
+        moveCameraBy((x / length) * speed * deltaSeconds, (y / length) * speed * deltaSeconds);
       }
     }]
   });
