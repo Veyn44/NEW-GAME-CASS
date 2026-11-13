@@ -314,4 +314,4 @@ Automated evidence on final implementation commit `e700d22968b1978d9b5e07d7343c8
 
 The user explicitly agreed not to require a separate fault-injection/rollback acceptance test for this phase. Core Persistence's existing staged restore and rollback implementation remains unchanged; the additional test is deferred, not represented as completed.
 
-**Phase 2 outcome:** implementation and user acceptance complete. The only remaining gate is review and explicit approval of the full branch before merging to `main`.
+**Phase 2 outcome:** implementation and user acceptance complete; merged into `main` on 2026-11-13 at `31c1cd4bb5f4e9e85bfbb98b863903f57c1f518f`. No Phase 2 acceptance gate remains open. The original `next-step/phase-2` branch is retained pending the user's separate cleanup decision.
