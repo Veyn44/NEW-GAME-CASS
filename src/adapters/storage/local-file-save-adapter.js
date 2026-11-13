@@ -129,6 +129,7 @@ export class LocalFileSaveAdapter {
     const text = JSON.stringify(makeEnvelope(saveData), null, 2);
     if (!this.#directoryHandle) {
       this.#download(text, this.#fileName);
+      this.#importedData = saveData;
       return true;
     }
 
