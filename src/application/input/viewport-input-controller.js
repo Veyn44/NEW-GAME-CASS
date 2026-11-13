@@ -107,7 +107,12 @@ export function createViewportInputController({
     if (code === PAUSE_KEY || (allowedKeys && !allowedKeys.has(code)) || physicalKeys.has(code)) return false;
     physicalKeys.add(code);
     if (paused) {
-      blockedKeys.add(code);
+      if (inspecting) {
+        blockedKeys.add(code);
+      } else {
+        if (!resumeSnapshot) resumeSnapshot = { keys: new Set(), buttons: new Set() };
+        resumeSnapshot.keys.add(code);
+      }
       return false;
     }
     if (blockedKeys.has(code)) return false;
