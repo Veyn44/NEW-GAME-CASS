@@ -780,6 +780,11 @@ worldSizeSelect.addEventListener("change", () => {
 
 async function persistWorkspace({ chooseFolder = false } = {}) {
   if (!state.persistenceApi || !state.saveAdapter) return;
+  if (!chooseFolder && LocalFileSaveAdapter.supportsDirectoryAccess
+    && !state.saveAdapter.selectedDirectoryName) {
+    workspaceSaveStatus.textContent = "NO SAVE FOLDER · USE SAVE AS FIRST";
+    return;
+  }
   try {
     if (chooseFolder) {
       try {
