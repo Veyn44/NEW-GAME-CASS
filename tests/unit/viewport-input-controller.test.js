@@ -58,18 +58,31 @@ test("starting inspection discards the resume snapshot and suppresses held input
   assert.deepEqual(input.getState().buttons, [0]);
 });
 
-test("new key presses during pause do not become gameplay input after resume", () => {
+test("movement keys pressed during a plain pause become active after resume", () => {
   const input = createViewportInputController();
   input.pause();
   input.keyDown("KeyW");
+  input.keyDown("KeyA");
+  input.keyDown("KeyD");
+  input.resume();
+  assert.deepEqual(input.getState().keys, ["KeyA", "KeyD", "KeyW"]);
+
+  input.keyUp("KeyA");
+  assert.deepEqual(input.getState().keys, ["KeyD", "KeyW"]);
+});
+
+test("movement keys pressed during inspection remain suppressed until released", () => {
+  const input = createViewportInputController();
+  input.pause();
+  input.beginInspection();
+  input.keyDown("KeyA");
   input.resume();
   assert.deepEqual(input.getState().keys, []);
 
-  input.keyUp("KeyW");
-  input.keyDown("KeyW");
-  assert.deepEqual(input.getState().keys, ["KeyW"]);
+  input.keyUp("KeyA");
+  input.keyDown("KeyA");
+  assert.deepEqual(input.getState().keys, ["KeyA"]);
 });
-
 test("pointer movement is consumed only while running and resets per frame", () => {
   const input = createViewportInputController();
   assert.equal(input.pointerMove(10, 5), false);
