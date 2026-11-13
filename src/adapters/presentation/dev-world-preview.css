@@ -504,3 +504,13 @@ canvas:active { cursor: grabbing; }
 }
 #save-workspace, #save-workspace-as, #load-workspace { border-color: var(--color-accent-turquoise); }
 #save-workspace:disabled, #save-workspace-as:disabled, #load-workspace:disabled { opacity: .45; cursor: not-allowed; }
+
+
+/* Save feedback inside the vertical ESC pause menu. */
+.pause-menu .workspace-save-status {
+  flex: 0 0 auto;
+  width: min(320px, 80%);
+  min-width: 0;
+  text-align: center;
+  line-height: 1.5;
+}
