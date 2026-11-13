@@ -286,13 +286,13 @@ The original Phase 2 goal remains unchanged: finish a minimal, deterministic and
 - A working pause toggle proves the host/session pause behavior, but does not prove the full movement simulation path.
 - The current Dev Lab viewport is more polished than the original minimal harness, but final player-facing UI, New Game flow and production save storage remain outside this phase.
 
-### Remaining Phase 2 work
+### Final status
 
-- **2.2 — World and Unit/Pawn foundation:** retain evidence for identity, placement, domain ownership and snapshot/restore contracts; do not infer completion from the UI alone.
-- **2.3 — Locomotion and control:** still outstanding. Implement and test actual Unit/Pawn movement through a gameplay-owned command/API and deterministic Core Scheduler task. The placement cursor is not a substitute.
-- **2.4 — Integration and persistence:** complete the end-to-end host → world → Unit/Pawn → movement path, verify save/restore of identity/domain state/placement, and record lifecycle/failure/manual runtime evidence. The current development in-memory save adapter is not production storage.
+The “remaining work” list in the original 2026-11-12 implementation snapshot is historical and has been superseded by the final acceptance record in Section 12. Substeps 2.2, 2.3 and 2.4 were subsequently implemented and manually accepted by the user on 2026-11-13.
 
-**Phase status:** Dev Lab's Database, placement, Quick Select, INFO card, viewport overlay and pause workflow are implemented and user-confirmed. Phase 2 as a whole is still in progress; do not mark it complete or merge it to `main` until the original acceptance checklist and verification gates pass.
+The placement blueprint remains a Dev Lab editing tool, distinct from Pawn locomotion. The actual locomotion path is implemented separately through the gameplay-owned movement API and deterministic Core Scheduler task.
+
+**Phase status:** Phase 2 implementation and acceptance are complete on `next-step/phase-2`. Final branch review and explicit approval to merge into `main` remain.
 
 
 ## 12. Final Phase 2 acceptance — 2026-11-13
