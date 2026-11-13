@@ -201,10 +201,9 @@ A newly opened application must not assume it has permission to overwrite a file
 
 ### Step 3 — Complete platform-neutral snapshot/restore integration
 
-- [ ] Verify all currently registered participants round-trip together.
-- [ ] Add end-to-end tests for World + Entity + placement + Unit + Colony Control.
-- [ ] Verify stable identity restoration and absence of duplicate/autospawned Johny.
-- [ ] Verify rollback when a later participant fails.
+- [x] Add an end-to-end MemorySaveAdapter round-trip test for World + Entity + placement + Unit + Colony Leader.
+- [x] Verify stable identity restoration, removal of post-save entities and absence of duplicate Unit instances in that integration test.
+- [ ] Add explicit end-to-end rollback/fault-injection coverage for a later participant failure.
 - [x] Keep MemorySaveAdapter for deterministic automated tests.
 
 ### Step 4 — Implement local file adapter
@@ -214,7 +213,8 @@ A newly opened application must not assume it has permission to overwrite a file
 - [x] Provide explicit file import/export fallback.
 - [x] Use staged writable replacement and abort on failure.
 - [x] Add adapter tests with injected/mock file handles.
-- [ ] Run adapter tests and verify against actual browser file picker behavior.
+- [x] Run adapter tests in the full automated suite (GitHub Actions success on commit `342b6b1`).
+- [ ] Verify actual browser file picker behavior manually.
 
 ### Step 5 — Add Dev Lab controls
 
@@ -260,4 +260,4 @@ When continuing this work in a new conversation:
 6. Do not claim tests or browser checks passed unless they were actually run.
 7. Preserve the governing rule: Dev Lab and normal game consume the same gameplay/runtime mechanics; only host composition and presentation differ.
 
-**Last confirmed implementation result:** Core/Unit/Colony Control persistence participants remain the authoritative snapshot owners. The browser Dev Lab now injects `LocalFileSaveAdapter`; direct folder access stores `save.cass` in the folder selected by the user, and browsers without folder access use explicit import/export fallback. Dev Lab Save / Save As / Load controls are wired to the shared `core.persistence` service. Automated tests and real-browser acceptance are still pending.
+**Last confirmed implementation result:** Core/Unit/Colony Control persistence participants remain the authoritative snapshot owners. The browser Dev Lab now injects `LocalFileSaveAdapter`; direct folder access stores `save.cass` in the folder selected by the user, and browsers without folder access use explicit import/export fallback. Dev Lab Save / Save As / Load controls are wired to the shared `core.persistence` service. The adapter and integrated workspace round-trip tests passed in GitHub Actions (`npm run test:all` and browser entry-point syntax check succeeded on commit `342b6b1`). Real-browser file picker and reload acceptance remains outstanding.
