@@ -92,6 +92,7 @@ test("local file adapter imports .cass files for browsers without direct directo
   assert.equal(downloads.length, 1);
   assert.equal(downloads[0].fileName, "save.cass");
   assert.deepEqual(JSON.parse(downloads[0].text).data, sampleSave);
+  assert.deepEqual(await adapter.read(DEV_LAB_SAVE_SLOT), sampleSave);
 });
 
 test("local file adapter rejects malformed, incompatible and non-Cassandra files", async () => {
