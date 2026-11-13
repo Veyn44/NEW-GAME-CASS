@@ -8,6 +8,7 @@ function freezeState(leaderId, drafted) {
 export function createColonyControlSystem() {
   let units;
   let input;
+  let worlds;
   let state = freezeState(null, false);
   let unregisterPersistence = null;
 
@@ -31,6 +32,15 @@ export function createColonyControlSystem() {
     },
     update(deltaSeconds) {
       if (!state.drafted || !state.leaderId || !Number.isFinite(deltaSeconds) || deltaSeconds <= 0) return null;
+      const leader = units.getUnit(state.leaderId);
+      if (!leader?.placement || leader.placement.type !== "world") {
+        state = freezeState(null, false);
+        return null;
+      }
+      if (leader.placement.worldId !== worlds.activeWorldId) {
+        state = freezeState(state.leaderId, false);
+        return null;
+      }
       const keys = new Set(input.getState().keys);
       let x = Number(keys.has("KeyD")) - Number(keys.has("KeyA"));
       let y = Number(keys.has("KeyS")) - Number(keys.has("KeyW"));
@@ -38,11 +48,6 @@ export function createColonyControlSystem() {
       const length = Math.hypot(x, y);
       x /= length;
       y /= length;
-      const leader = units.getUnit(state.leaderId);
-      if (!leader?.placement || leader.placement.type !== "world") {
-        state = freezeState(null, false);
-        return null;
-      }
       const position = leader.placement.position;
       const moved = units.moveUnit(leader.id, {
         x: position.x + x * MOVE_SPEED_TILES_PER_SECOND * deltaSeconds,
@@ -92,10 +97,11 @@ export function createColonyControlSystem() {
   return Object.freeze({
     id: "game.colony-control",
     provides: ["game.colony-control-api"],
-    requires: ["game.unit-api", "game.input-api", "core.persistence"],
+    requires: ["game.unit-api", "game.input-api", "core.world-registry", "core.persistence"],
     initialize(context) {
       units = context.getService("game.unit-api");
       input = context.getService("game.input-api");
+      worlds = context.getService("core.world-registry");
       unregisterPersistence = context.getService("core.persistence").registerParticipant(persistenceParticipant);
       return { "game.colony-control-api": api };
     },

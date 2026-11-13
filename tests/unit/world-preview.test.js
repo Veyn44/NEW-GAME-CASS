@@ -35,10 +35,12 @@ test("invalid world dimensions are rejected", () => {
   assert.throws(() => createWorldDescriptor(-64), TypeError);
 });
 
-test("base viewport shows 64 by 32 fields and zoom changes only the view", () => {
-  assert.deepEqual(getVisibleDimensions(1), { columns: 64, rows: 32 });
-  assert.deepEqual(getVisibleDimensions(2), { columns: 32, rows: 16 });
-  assert.deepEqual(getVisibleDimensions(0.5), { columns: 128, rows: 64 });
+test("viewport dimensions follow the actual canvas aspect ratio at every zoom", () => {
+  assert.deepEqual(getVisibleDimensions(1, 2), { columns: 64, rows: 32 });
+  assert.deepEqual(getVisibleDimensions(2, 2), { columns: 32, rows: 16 });
+  assert.deepEqual(getVisibleDimensions(0.5, 2), { columns: 128, rows: 64 });
+  assert.deepEqual(getVisibleDimensions(1, 16 / 9), { columns: 64, rows: 36 });
+  assert.deepEqual(getVisibleDimensions(1, 4 / 3), { columns: 64, rows: 48 });
 });
 
 test("camera remains inside the square world and centers small worlds", () => {
@@ -56,7 +58,7 @@ test("Unit marker radius is fixed in world space and slightly under one tile", (
   assert.equal(UNIT_MARKER_RADIUS_TILES, 0.4);
   assert.equal(SELECTED_MARKER_OUTLINE_RADIUS_TILES, 0.48);
   for (const zoom of [0.5, 1, 2]) {
-    const { columns } = getVisibleDimensions(zoom);
+    const { columns } = getVisibleDimensions(zoom, 2);
     const cellWidth = 64 / columns;
     const markerRadiusPixels = cellWidth * UNIT_MARKER_RADIUS_TILES;
     assert.equal(markerRadiusPixels / cellWidth, 0.4);
@@ -64,8 +66,10 @@ test("Unit marker radius is fixed in world space and slightly under one tile", (
 });
 
 test("invalid zoom values are rejected", () => {
-  assert.throws(() => getVisibleDimensions(0), TypeError);
-  assert.throws(() => getVisibleDimensions(Number.NaN), TypeError);
+  assert.throws(() => getVisibleDimensions(0, 2), TypeError);
+  assert.throws(() => getVisibleDimensions(Number.NaN, 2), TypeError);
+  assert.throws(() => getVisibleDimensions(1, 0), TypeError);
+  assert.throws(() => getVisibleDimensions(1, Number.NaN), TypeError);
 });
 
 test("camera allows up to 20 tiles of overscan beyond all four world edges", () => {

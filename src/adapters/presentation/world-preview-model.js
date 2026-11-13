@@ -1,6 +1,5 @@
 export const PRIMARY_WORLD_SIZES = Object.freeze([64, 128, 256]);
 export const BASE_VIEW_COLUMNS = 64;
-export const BASE_VIEW_ROWS = 32;
 export const MIN_ZOOM = 0.5;
 export const MAX_ZOOM = 2;
 export const CAMERA_OVERSCAN_TILES = 20;
@@ -14,13 +13,17 @@ export function createWorldDescriptor(size) {
   return Object.freeze({ width: size, height: size, shape: "square" });
 }
 
-export function getVisibleDimensions(zoom) {
+export function getVisibleDimensions(zoom, aspectRatio) {
   if (!Number.isFinite(zoom) || zoom <= 0) {
     throw new TypeError("Zoom must be a positive finite number.");
   }
+  if (!Number.isFinite(aspectRatio) || aspectRatio <= 0) {
+    throw new TypeError("Viewport aspect ratio must be a positive finite number.");
+  }
+  const columns = BASE_VIEW_COLUMNS / zoom;
   return {
-    columns: BASE_VIEW_COLUMNS / zoom,
-    rows: BASE_VIEW_ROWS / zoom
+    columns,
+    rows: columns / aspectRatio
   };
 }
 
