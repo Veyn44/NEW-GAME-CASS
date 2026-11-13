@@ -1,6 +1,6 @@
 # Phase 2.4 — Persistence and Dev Lab Workspace Plan
 
-**Status:** Steps 1–2 contract finalized; first local-file adapter and Dev Lab Save/Save As/Load integration implemented. Automated and manual acceptance still pending.  
+**Status:** COMPLETE — implementation, CI and user manual acceptance finished on 2026-11-13. See the final acceptance record at the end of this document.  
 **Working branch:** `next-step/phase-2`  
 **Repository:** `Veyn44/NEW-GAME-CASS`  
 **Audit baseline:** branch head `a3337c10cb9dc97665f78d9fb71e06e3b82a66ef`  
@@ -275,3 +275,35 @@ The previous folder-picker acceptance steps are superseded. Verify: create two d
 The user manually confirmed that Save and Load work in the browser, including saves made in different runtime/control combinations (running without Draft and paused with Draft). A save created while running is restored paused; this is now an explicit restore contract, not an incidental behavior.
 
 A further presentation-state issue was observed: after loading a different workspace, the camera retained its previous position. Camera position/zoom remain excluded from authoritative saves. The host now explicitly clears camera-follow state and resets the camera to the center/default zoom of the restored active world. Restore also clears transient held input and selection state, pauses the Game Clock/input, and refreshes the UI in the paused state. Manual browser verification of this final camera-reset adjustment is still pending.
+
+
+## 9. Final acceptance — 2026-11-13
+
+**Status: COMPLETE and user-accepted.** This final record supersedes earlier pending/manual-verification notes in the historical sections above.
+
+### User-confirmed browser acceptance
+
+- Save, Save As and Load work with multiple separately named `.cass` files.
+- Different saved worlds can be loaded; Units are restored at their saved positions with stable identities and without duplicate instances.
+- Draft and No Draft states are restored correctly.
+- A save made while the simulation was running is restored paused. This is an intentional safe-load contract.
+- The camera resets to the center/default view of the restored world rather than retaining a stale position from another session.
+- A malformed JSON save is rejected and the Pause Menu displays a clear `LOAD FAILED · INVALID_SAVE_FILE` message. The existing world remains available; ESC/Main Menu navigation remains usable.
+- Reset Lab clears the current Dev Lab session, including live Units, Colony Leader, Draft, selection and transient placement/input state, and leaves the lab paused.
+- Reset Lab does not delete or overwrite saved `.cass` files. The user explicitly confirmed that a save remains loadable after Reset Lab.
+- The browser workflow was tested repeatedly with different save files and state combinations.
+
+### Automated evidence
+
+Final implementation commit: `e700d22968b1978d9b5e07d7343c8d3439bc26ae`.
+
+- Core and host tests: [GitHub Actions run 43426757709](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43426757709) — success.
+- GitHub Pages deployment: [run 43426757277](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43426757277) — success.
+
+### Explicitly deferred
+
+- A separate fault-injection test that forces a later persistence participant to fail during restore was not required for this milestone by user decision. The existing Core Persistence staged-restore/rollback implementation was not changed.
+- Full validation of every possible semantically malformed but syntactically valid save is not claimed. The tested corrupted-JSON case is rejected by the existing adapter validation; system snapshot validators continue to own semantic validation.
+- Autosave, cloud sync, production player-facing save UI and native desktop storage remain out of scope.
+
+**Acceptance result:** Phase 2.4 is complete. The full Phase 2 branch remains subject to its documented review and explicit merge approval; this document does not authorize a merge to `main`.
