@@ -15,40 +15,40 @@ Phase 3 broadens that foundation from the first technical Unit/Pawn slice into a
 
 The following topics define the accepted Phase 3 direction. Their exact schemas, ownership boundaries, APIs, dependencies and order of implementation remain design work.
 
-### 3.1 Universal Unit model
+### 2.1 Universal Unit model
 
 - Support both mobile and stationary Unit classes.
 - Allow the model to represent biological beings, robots and other intelligent entities without creating a separate identity/lifecycle system for each category.
 - Keep the existing separation: Core Entity provides generic identity/lifecycle, Cassandra Unit owns gameplay instance data, and Pawn describes a Unit's relationship to player control.
 - Avoid a rigid inheritance tree where optional capabilities or traits are more appropriate.
 
-### 3.2 Optional traits and capabilities
+### 2.2 Optional traits and capabilities
 
 - Define how Units acquire optional capabilities/components rather than assuming every Unit has every property.
 - A capability should have a clear owner, lifecycle and public contract.
 - Mobile capability must not be assumed for stationary Units; perception, inventory, equipment and interaction capabilities may likewise be present only where appropriate.
 - Do not build a generic plugin/component framework without concrete requirements. Keep the model proportional to the first real Unit use cases.
 
-### 3.3 Attributes and statistics
+### 2.3 Attributes and statistics
 
 - Establish the foundation for canonical definition values, mutable instance values and derived/effective values.
 - Preserve the distinction between base values and runtime changes/modifiers.
 - Keep attribute ownership and calculations in the responsible gameplay systems; the Database/inspector presents supplied data and does not become the gameplay authority.
 - Do not invent a final exhaustive attribute list or progression model before concrete Unit types require it.
 
-### 3.4 Perception foundation
+### 2.4 Perception foundation
 
 - Define how a Unit can receive or query relevant information about its surroundings.
 - Keep perception data and its access boundaries distinct from decision-making.
 - Perception is a foundation for later behavior and AI; it does not itself authorize autonomous decision logic in this phase.
 
-### 3.5 Inventory and equipment foundations
+### 2.5 Inventory and equipment foundations
 
 - Establish the data and ownership model needed for Units that can carry items or use equipment.
 - Keep inventory/equipment optional capabilities rather than mandatory fields on every Unit.
 - Define only the minimum contracts needed for the agreed Unit foundation; full crafting, economy, item progression and balancing are not implied.
 
-### 3.6 Interactions, actions and control
+### 2.6 Interactions, actions and control
 
 - Establish reusable interaction/action concepts that can be invoked by the player or later systems through explicit gameplay contracts.
 - Keep action execution out of UI and presentation code.
@@ -56,7 +56,7 @@ The following topics define the accepted Phase 3 direction. Their exact schemas,
 - Generalize the Phase 2 movement/control path so Dev Lab can exercise any eligible mobile Unit, rather than relying on the Phase 2 temporary Johny/Colony Leader test arrangement.
 - Stationary Units must not be forced through movement-specific APIs.
 
-### 3.7 Dev Lab integration
+### 2.7 Dev Lab integration
 
 - Dev Lab remains the early integration host for real gameplay systems.
 - Provide a way to create, inspect and test representative mobile and stationary Unit definitions and their available capabilities.
