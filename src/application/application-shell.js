@@ -61,6 +61,7 @@ const worldSizeSelect = document.querySelector("#world-size");
 const gridVisible = document.querySelector("#grid-visible");
 const resetCameraButton = document.querySelector("#reset-camera");
 const inputController = createViewportInputController();
+const pausedCameraKeys = new Set();
 
 const state = {
   databaseMode: "browse",
@@ -571,6 +572,7 @@ function simulationFrame(timestamp) {
       // The Core scheduler and Game Clock are the authoritative simulation gate.
       // Rendering and input remain responsive while the clock is paused.
       runtimeAdvance(elapsedSeconds);
+      if (state.paused) updatePausedFreeCamera(elapsedSeconds);
       const clockPaused = state.clock?.paused ?? true;
       if (clockPaused !== state.paused) {
         if (clockPaused) {
@@ -601,6 +603,16 @@ function runtimeAdvance(deltaSeconds) {
   advanceRuntime?.(deltaSeconds);
 }
 
+function updatePausedFreeCamera(deltaSeconds) {
+  if (state.colonyControlApi?.getState().drafted || !pausedCameraKeys.size) return;
+  let x = Number(pausedCameraKeys.has("KeyD")) - Number(pausedCameraKeys.has("KeyA"));
+  let y = Number(pausedCameraKeys.has("KeyS")) - Number(pausedCameraKeys.has("KeyW"));
+  if (!x && !y) return;
+  const length = Math.hypot(x, y);
+  const speed = 30;
+  moveCameraBy((x / length) * speed * deltaSeconds, (y / length) * speed * deltaSeconds);
+}
+
 function isInteractiveTarget(target) {
   return target instanceof HTMLElement && (target.isContentEditable
     || ["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(target.tagName));
@@ -617,7 +629,13 @@ window.addEventListener("keydown", (event) => {
     openPauseMenu();
     return;
   }
-  if (state.pauseMenuOpen || isInteractiveTarget(event.target)) return;
+  if (isInteractiveTarget(event.target)) return;
+  if (/^Key[WASD]$/.test(event.code) && state.paused) {
+    pausedCameraKeys.add(event.code);
+    event.preventDefault();
+    return;
+  }
+  if (state.pauseMenuOpen) return;
   if (event.code === "Space" && !event.repeat && !event.altKey && !event.ctrlKey && !event.metaKey) {
     event.preventDefault();
     toggleSimulationPause();
@@ -647,6 +665,7 @@ window.addEventListener("keydown", (event) => {
 });
 
 window.addEventListener("keyup", (event) => {
+  pausedCameraKeys.delete(event.code);
   inputController.keyUp(event.code);
 });
 
@@ -665,6 +684,7 @@ canvas.addEventListener("pointermove", (event) => {
 });
 
 function handleFocusLoss() {
+  pausedCameraKeys.clear();
   if (!state.paused && state.clock) {
     inputController.pause();
     state.clock.pause("player");
