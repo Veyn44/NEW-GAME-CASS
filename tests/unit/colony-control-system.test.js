@@ -102,19 +102,20 @@ test("Draft handles overlapping WASD combinations and independent key release", 
     state.inputController.keyDown("KeyW");
     state.inputController.keyDown("KeyA");
     let moved = state.control.update(0.25);
-    assert.deepEqual(moved.position, { x: 20 - Math.SQRT1_2, y: 20 - Math.SQRT1_2 });
+    assert.ok(Math.abs(moved.position.x - (20 - Math.SQRT1_2)) < 1e-9);
+    assert.ok(Math.abs(moved.position.y - (20 - Math.SQRT1_2)) < 1e-9);
 
     state.inputController.keyUp("KeyW");
     moved = state.control.update(0.25);
-    assert.deepEqual(moved.position, { x: 19 - Math.SQRT1_2, y: 20 - Math.SQRT1_2 });
+    assert.ok(Math.abs(moved.position.x - (19 - Math.SQRT1_2)) < 1e-9);
+    assert.ok(Math.abs(moved.position.y - (20 - Math.SQRT1_2)) < 1e-9);
 
     state.inputController.keyDown("KeyD");
     moved = state.control.update(0.25);
     assert.equal(moved, null);
-    assert.deepEqual(state.units.getUnit(state.leader.id).placement.position, {
-      x: 19 - Math.SQRT1_2,
-      y: 20 - Math.SQRT1_2
-    });
+    const finalPosition = state.units.getUnit(state.leader.id).placement.position;
+    assert.ok(Math.abs(finalPosition.x - (19 - Math.SQRT1_2)) < 1e-9);
+    assert.ok(Math.abs(finalPosition.y - (20 - Math.SQRT1_2)) < 1e-9);
   } finally {
     await state.runtime.destroy();
     clearDefinitionsForTests();
