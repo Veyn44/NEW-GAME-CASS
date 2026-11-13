@@ -785,6 +785,7 @@ worldSizeSelect.addEventListener("change", () => {
   }
   clearUnitSelection();
   refreshWorldMarkers();
+  updateSimulationUi();
 });
 
 resetLabButton.addEventListener("click", () => {
