@@ -195,7 +195,7 @@ A newly opened application must not assume it has permission to overwrite a file
 
 - [x] Define the logical workspace slot and folder-to-file mapping.
 - [x] Define the `.cass` envelope and independent file format version.
-- [x] Define direct folder picker and import/export fallback behavior.
+- [x] Define named file save/open pickers and import/export fallback behavior.
 - [x] Define safe write replacement and failed-write abort behavior.
 - [x] Confirm canonical definitions are loaded before interactive restore.
 
@@ -209,7 +209,7 @@ A newly opened application must not assume it has permission to overwrite a file
 ### Step 4 — Implement local file adapter
 
 - [x] Implement under `src/adapters/storage/`; no browser APIs in Core/gameplay.
-- [x] Support user-selected folder and same-session Save/Load of `save.cass`.
+- [x] Support user-selected named `.cass` files and same-session Save/Load against the selected file.
 - [x] Provide explicit file import/export fallback.
 - [x] Use staged writable replacement and abort on failure.
 - [x] Add adapter tests with injected/mock file handles.
@@ -218,9 +218,9 @@ A newly opened application must not assume it has permission to overwrite a file
 
 ### Step 5 — Add Dev Lab controls
 
-- [x] Add Save, Save As and Load controls to the Dev Lab toolbar.
+- [x] Add Save, Save As and Load controls to the Dev Lab ESC pause menu; keep the world HUD/toolbar free of persistence actions.
 - [x] Connect them to the shared `core.persistence` service.
-- [x] Show current folder/file status and operation failures.
+- [x] Show current file status and operation failures in the pause menu.
 - [x] Do not add Dev Lab-specific authoritative data models.
 - [ ] Manually verify the workflow in the target browser.
 
@@ -260,4 +260,11 @@ When continuing this work in a new conversation:
 6. Do not claim tests or browser checks passed unless they were actually run.
 7. Preserve the governing rule: Dev Lab and normal game consume the same gameplay/runtime mechanics; only host composition and presentation differ.
 
-**Last confirmed implementation result:** Core/Unit/Colony Control persistence participants remain the authoritative snapshot owners. The browser Dev Lab now injects `LocalFileSaveAdapter`; direct folder access stores `save.cass` in the folder selected by the user, and browsers without folder access use explicit import/export fallback. Dev Lab Save / Save As / Load controls are wired to the shared `core.persistence` service. The adapter and integrated workspace round-trip tests passed in GitHub Actions (`npm run test:all` and browser entry-point syntax check succeeded on commit `e4b77e9`). Real-browser file picker and reload acceptance remains outstanding.
+**Last confirmed implementation result:** Core/Unit/Colony Control persistence participants remain the authoritative snapshot owners. The browser Dev Lab injects `LocalFileSaveAdapter`; Save As chooses a named `.cass` file, Save overwrites that selected file, and Load chooses an existing `.cass` file. Browsers without file picker support use explicit import/export fallback. Save / Save As / Load controls live in the ESC pause menu and call the shared `core.persistence` service. The adapter and integrated workspace round-trip tests passed in GitHub Actions (`npm run test:all` and browser entry-point syntax check succeeded on commit `e4b77e9`). Real-browser file picker and reload acceptance remains outstanding.
+
+
+## Follow-up correction — named save files and pause-menu placement
+
+The first manual browser pass exposed a UX mismatch: the folder-based single-file workflow made Save As equivalent to Save and offered no named save slots. The host adapter now uses `showSaveFilePicker` for Save As and `showOpenFilePicker` for Load. The chosen file handle becomes the current Save target, so Save overwrites that file while another Save As can create a separate named save. Browsers without these APIs retain the import/export fallback, with a user-provided filename for Save As. Save, Save As and Load have been moved out of the Dev Lab toolbar and into the ESC pause menu.
+
+The previous folder-picker acceptance steps are superseded. Verify: create two differently named saves using Save As; change the world between them; Load each file and confirm the corresponding state; then use Save to overwrite only the currently selected file. Repeat after a page reload by choosing the desired file through Load. The `.cass` extension is explicitly offered by the browser picker and validated by the adapter; it is not used as a folder lookup key.
