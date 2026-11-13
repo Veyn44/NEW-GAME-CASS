@@ -1,5 +1,7 @@
 # Core Audit — Phase 2 Architecture Review
 
+**Document status:** Historical source/API audit performed during Phase 2 development. Its branch and revision references identify the exact reviewed snapshot, not the current working branch. The Phase 2 implementation was subsequently completed and merged into `main` on 2026-11-13; see the current status note at the end of this document.
+
 **Reviewed revision:** `4dfafb66a7d5d03c2fd082c3738315d499c13753`  
 **Branch:** `next-step/phase-2`  
 **Review type:** Source/API inspection, architecture-document consistency review and CI evidence review. No Core source was modified.
@@ -154,3 +156,12 @@ The Colony Leader / Draft / locomotion slice was added entirely in the host/game
 **Core source changes: none.**  
 **Host-specific configuration:** Dev Lab uses a 1/60-second fixed step; this does not alter Core defaults.  
 **Remaining verification:** manual browser checks for Draft toggle, movement feel, camera reacquisition and pause/resume behavior.
+
+
+## Current integration status — 2026-11-13
+
+The audit conclusions were carried through the accepted Phase 2 implementation. Phase 2 added the host runtime, Unit foundation, Dev Lab integration, Colony Leader Draft/locomotion and persistence without modifying `src/core/`. The complete result was merged into `NEW-GAME-CASS/main` at [`31c1cd4`](https://github.com/Veyn44/NEW-GAME-CASS/commit/31c1cd4bb5f4e9e85bfbb98b863903f57c1f518f).
+
+The archived Core baseline is preserved separately in [`CassandraCoreRuntimefoundation`](https://github.com/Veyn44/CassandraCoreRuntimefoundation), whose snapshot corresponds to that Phase 2 merge commit. This repository's `src/core/` is the integrated working copy; the archive is the reference baseline. Any future Core change remains exceptional and must follow the Core protection rule in the Phase 2 plan.
+
+The old audit's proposed “World/Pawn Foundation” target describes the pre-Phase-2 planning state and is superseded by the accepted Phase 2 implementation. The next accepted planning direction is [Phase 3 — Living & Intelligent Units Foundation](../phases/PHASE_3.md); the separate [World Lifecycle](WORLD_LIFECYCLE.md) architecture remains approved but is not automatically Phase 3 scope.
