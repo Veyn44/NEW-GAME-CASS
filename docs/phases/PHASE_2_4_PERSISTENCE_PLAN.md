@@ -250,6 +250,9 @@ A newly opened application must not assume it has permission to overwrite a file
 
 ## 8. Handoff / resume instructions
 
+> **Historical note:** This handoff checklist was written before Phase 2 was accepted and merged. Its instructions to stay on `next-step/phase-2` and avoid modifying `main` are superseded by the completion record at the end of this document. The checklist is retained only as historical context for the original work session.
+
+
 When continuing this work in a new conversation:
 
 1. Read this file first.
