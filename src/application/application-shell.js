@@ -60,7 +60,7 @@ const viewportPanel = document.querySelector(".viewport-panel");
 const canvas = document.querySelector("#world-canvas");
 const worldSizeSelect = document.querySelector("#world-size");
 const gridVisible = document.querySelector("#grid-visible");
-const resetCameraButton = document.querySelector("#reset-camera");
+const resetLabButton = document.querySelector("#reset-lab");
 const saveWorkspaceButton = document.querySelector("#pause-save");
 const saveWorkspaceAsButton = document.querySelector("#pause-save-as");
 const loadWorkspaceButton = document.querySelector("#pause-load");
@@ -514,7 +514,7 @@ function updateSimulationUi() {
   worldSizeSelect.disabled = !state.paused || state.placementActive;
   gridVisible.disabled = false;
   viewportDatabaseButton.disabled = !state.paused || state.placementActive;
-  resetCameraButton.disabled = false;
+  resetLabButton.disabled = false;
   pointerStatus.textContent = state.paused ? "INSPECTION CURSOR" : (state.colonyControlApi?.getState().drafted ? "PAWN CONTROL" : "FREE CAMERA");
   setWorldInteraction({
     paused: state.paused,
@@ -778,6 +778,46 @@ worldSizeSelect.addEventListener("change", () => {
   clearUnitSelection();
 });
 
+resetLabButton.addEventListener("click", () => {
+  if (!state.unitApi || !state.colonyControlApi || !state.worldRegistry) return;
+  const confirmed = window.confirm(
+    "Reset Dev Lab? All current Units and unsaved session state will be cleared. Saved .cass files will not be deleted."
+  );
+  if (!confirmed) return;
+
+  heldMovementKeys.clear();
+  inputController.pause();
+  inputController.clearForFocusLoss();
+  state.clock?.pause("player");
+  state.paused = true;
+  cancelPlacement();
+  closeViewportDatabase();
+  closeUnitProfile();
+
+  for (const unit of state.unitApi.listUnits()) {
+    state.unitApi.removeUnit(unit.id);
+  }
+  state.colonyControlApi.setLeader(null);
+  clearUnitSelection();
+  clearCameraFollowTarget();
+
+  const activeWorld = state.worldRegistry.getActiveWorld();
+  if (activeWorld?.dimensions) {
+    const { width, height } = activeWorld.dimensions;
+    worldSizeSelect.value = String(width);
+    document.querySelector("#world-status").textContent = `World: ${width} × ${height}`;
+    resetCameraToWorld(Math.min(width, height));
+  } else {
+    resetCameraToWorld();
+  }
+
+  state.saveAdapter?.clearSelection();
+  workspaceSaveStatus.textContent = "LAB RESET · NO SAVE SELECTED";
+  simulationStatus.textContent = "EMPTY LAB · PAUSED";
+  updateSimulationUi();
+  canvas.focus({ preventScroll: true });
+});
+
 
 async function persistWorkspace({ chooseFile = false } = {}) {
   if (!state.persistenceApi || !state.saveAdapter) return;
@@ -816,6 +856,25 @@ async function persistWorkspace({ chooseFile = false } = {}) {
   }
 }
 
+function describeLoadFailure(error) {
+  const code = error?.code ?? "LOAD_FAILED";
+  const descriptions = {
+    INVALID_SAVE_FILE: "The file is not valid JSON.",
+    INCOMPATIBLE_SAVE_FILE: "This is not a supported Cassandra save file.",
+    INCOMPATIBLE_SAVE_FORMAT: "The save format version is not supported.",
+    STATE_MISMATCH: "The save belongs to a different workspace.",
+    MISSING_REQUIRED_SNAPSHOT: "The save is missing required system data.",
+    INVALID_SAVE: "The save is missing required data.",
+    SCHEMA_MISMATCH: "A saved system schema is incompatible.",
+    INVALID_SNAPSHOT: "A saved system rejected its data.",
+    RESTORE_COMMIT_FAILED: "A system failed while restoring the save. The restore was rolled back where possible.",
+    SAVE_NOT_FOUND: "No save data was found.",
+    SAVE_SOURCE_NOT_SELECTED: "No save file is selected."
+  };
+  const detail = descriptions[code] ?? error?.message ?? "The save could not be loaded.";
+  return `LOAD FAILED · ${code} · ${detail}`;
+}
+
 async function restoreWorkspace() {
   if (!state.persistenceApi || !state.saveAdapter) return;
   try {
@@ -835,8 +894,9 @@ async function restoreWorkspace() {
     simulationStatus.textContent = "WORKSPACE RESTORED";
   } catch (error) {
     if (error?.name === "AbortError") return;
-    workspaceSaveStatus.textContent = `LOAD FAILED · ${error.message}`;
-    simulationStatus.textContent = `LOAD FAILED · ${error.message}`;
+    const message = describeLoadFailure(error);
+    workspaceSaveStatus.textContent = message;
+    simulationStatus.textContent = message;
   }
 }
 
