@@ -942,8 +942,9 @@ workspaceFileInput.addEventListener("change", async () => {
     workspaceSaveStatus.textContent = `LOADED · ${file.name}`;
     simulationStatus.textContent = "WORKSPACE RESTORED";
   } catch (error) {
-    workspaceSaveStatus.textContent = `LOAD FAILED · ${error.message}`;
-    simulationStatus.textContent = `LOAD FAILED · ${error.message}`;
+    const message = describeLoadFailure(error);
+    workspaceSaveStatus.textContent = message;
+    simulationStatus.textContent = message;
   }
 });
 
