@@ -102,6 +102,15 @@ test("local file adapter rejects malformed, incompatible and non-Cassandra files
   );
 });
 
+test("clearSelection forgets the current save target and imported data", async () => {
+  const adapter = new LocalFileSaveAdapter();
+  await adapter.importFile({ name: "current.cass", async text() { return envelope(); } });
+  assert.equal(adapter.selectedFileName, "current.cass");
+  adapter.clearSelection();
+  assert.equal(adapter.selectedFileName, null);
+  await assert.rejects(adapter.read(DEV_LAB_SAVE_SLOT), (error) => error.code === "SAVE_SOURCE_NOT_SELECTED");
+});
+
 test("local file adapter refuses unsupported slots and missing save sources", async () => {
   const adapter = new LocalFileSaveAdapter();
   await assert.rejects(adapter.read(DEV_LAB_SAVE_SLOT), (error) => error.code === "SAVE_SOURCE_NOT_SELECTED");
