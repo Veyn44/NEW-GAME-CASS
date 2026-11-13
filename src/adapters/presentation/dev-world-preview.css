@@ -491,3 +491,16 @@ canvas:active { cursor: grabbing; }
 .control-reference-row span{flex:1;color:var(--color-text-muted);font-size:12px}
 .control-reference-row kbd{min-width:30px;padding:6px 8px;border:1px solid #526477;border-radius:4px;background:#0a1421;color:var(--color-text);font:600 10px/1.2 inherit;text-align:center}
 @media(max-width:520px){.control-reference-row{flex-wrap:wrap}.control-reference-row span{flex-basis:100%}}
+
+
+/* Dev Lab workspace persistence controls */
+.workspace-save-status {
+  flex: 1 1 100%;
+  min-width: 220px;
+  color: var(--color-accent-turquoise);
+  font-size: 10px;
+  letter-spacing: .08em;
+  overflow-wrap: anywhere;
+}
+#save-workspace, #save-workspace-as, #load-workspace { border-color: var(--color-accent-turquoise); }
+#save-workspace:disabled, #save-workspace-as:disabled, #load-workspace:disabled { opacity: .45; cursor: not-allowed; }
