@@ -92,6 +92,31 @@ test("Draft supports all four cardinal directions", async () => {
   }
 });
 
+test("Draft handles overlapping WASD combinations and independent key release", async () => {
+  const state = await setup();
+  try {
+    state.control.setLeader(state.leader.id);
+    state.control.setDrafted(true);
+    state.inputController.resume();
+
+    state.inputController.keyDown("KeyW");
+    state.inputController.keyDown("KeyA");
+    let moved = state.control.update(0.25);
+    assert.deepEqual(moved.position, { x: 20 - Math.SQRT1_2, y: 20 - Math.SQRT1_2 });
+
+    state.inputController.keyUp("KeyW");
+    moved = state.control.update(0.25);
+    assert.deepEqual(moved.position, { x: 19 - Math.SQRT1_2, y: 20 - Math.SQRT1_2 });
+
+    state.inputController.keyDown("KeyD");
+    moved = state.control.update(0.25);
+    assert.deepEqual(moved.position, { x: 19 - Math.SQRT1_2, y: 20 - Math.SQRT1_2 });
+  } finally {
+    await state.runtime.destroy();
+    clearDefinitionsForTests();
+  }
+});
+
 test("Diagonal Draft movement is normalized and an inactive Draft does not move", async () => {
   const state = await setup();
   try {
