@@ -2,15 +2,15 @@
 
 Canonical project documentation and phase records.
 
-## Completed phase awaiting merge review
+## Completed phases
 
-- [Phase 2 plan](phases/PHASE_2.md) — implementation and acceptance complete; final branch review and explicit merge approval remain.
+- [Phase 2 plan](phases/PHASE_2.md) — implemented, user-accepted and merged into `main` on 2026-11-13 (merge commit `31c1cd4`).
 - [Phase 2.4 Persistence and Dev Lab Workspace Plan](phases/PHASE_2_4_PERSISTENCE_PLAN.md) — final accepted persistence contract, browser verification and deferred items.
 - [Phase 2 test plan](testing/PHASE_2_TEST_PLAN.md) — automated/manual test layers and final acceptance evidence.
 
-## Next phase discovery
+## Next phase
 
-No canonical Phase 3 plan exists yet. The strongest already-approved architectural input for the next planning discussion is [World Lifecycle](architecture/WORLD_LIFECYCLE.md), which defines one persistent world and at most one active temporary world, but explicitly leaves implementation pending. This is a candidate direction, not an approved Phase 3 scope.
+A Phase 3 working scope has already been accepted: [Phase 3 — Living & Intelligent Units Foundation](phases/PHASE_3.md). It builds on the approved Unit/Pawn architecture and covers universal mobile/stationary Units, optional capabilities, attributes, perception, inventory/equipment, interactions and player control through Dev Lab. The document distinguishes accepted direction from details that still need design. [World Lifecycle](architecture/WORLD_LIFECYCLE.md) remains a separate approved architecture constraint; its implementation is not automatically part of Phase 3.
 
 ## Architecture
 
