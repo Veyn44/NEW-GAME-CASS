@@ -1,4 +1,4 @@
-import { getVisibleDimensions, clampCameraPosition, MIN_ZOOM, MAX_ZOOM, CAMERA_OVERSCAN_TILES } from "./world-preview-model.js";
+import { getVisibleDimensions, clampCameraPosition, MIN_ZOOM, MAX_ZOOM, CAMERA_OVERSCAN_TILES, UNIT_MARKER_RADIUS_TILES, SELECTED_MARKER_OUTLINE_RADIUS_TILES } from "./world-preview-model.js";
 
 const canvas = document.querySelector("#world-canvas");
 const context = canvas.getContext("2d");
@@ -220,14 +220,14 @@ function render() {
     context.fillStyle = marker.id === selectedMarkerId ? "#f3c969" : "#38d6c5";
     context.strokeStyle = marker.id === selectedMarkerId ? "#fff0bd" : "#07131c";
     context.lineWidth = marker.id === selectedMarkerId ? 3 : 2;
-    context.arc(markerX, markerY, Math.max(4, Math.min(9, cellWidth * 0.32)), 0, Math.PI * 2);
+    context.arc(markerX, markerY, cellWidth * UNIT_MARKER_RADIUS_TILES, 0, Math.PI * 2);
     context.fill();
     context.stroke();
     if (marker.id === selectedMarkerId) {
       context.beginPath();
       context.strokeStyle = "rgba(243, 201, 105, 0.8)";
       context.lineWidth = 1.5;
-      context.arc(markerX, markerY, Math.max(8, Math.min(14, cellWidth * 0.48)), 0, Math.PI * 2);
+      context.arc(markerX, markerY, cellWidth * SELECTED_MARKER_OUTLINE_RADIUS_TILES, 0, Math.PI * 2);
       context.stroke();
     }
     if (cellWidth >= 12) {
