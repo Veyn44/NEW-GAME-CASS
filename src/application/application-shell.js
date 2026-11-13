@@ -6,7 +6,8 @@ import {
   cancelWorldPlacement,
   setCameraFollowTarget,
   clearCameraFollowTarget,
-  moveCameraBy
+  moveCameraBy,
+  resetCameraToWorld
 } from "../adapters/presentation/dev-world-preview.js";
 import { createGameRuntime } from "../host/create-game-runtime.js";
 import { LocalFileSaveAdapter, DEV_LAB_SAVE_SLOT } from "../adapters/storage/local-file-save-adapter.js";
@@ -840,14 +841,29 @@ async function restoreWorkspace() {
 }
 
 function synchronizeRestoredWorkspace() {
+  // A loaded session always enters a safe, paused inspection state.
+  heldMovementKeys.clear();
+  inputController.pause();
+  inputController.clearForFocusLoss();
+  state.clock?.pause("player");
+  state.paused = true;
+  clearCameraFollowTarget();
+
   const activeWorld = state.worldRegistry?.get(state.worldRegistry.activeWorldId);
-  if (activeWorld?.dimensions?.width) {
-    worldSizeSelect.value = String(activeWorld.dimensions.width);
-    document.querySelector("#world-status").textContent =
-      `World: ${activeWorld.dimensions.width} × ${activeWorld.dimensions.height}`;
+  if (activeWorld?.dimensions?.width && activeWorld?.dimensions?.height) {
+    const { width, height } = activeWorld.dimensions;
+    worldSizeSelect.value = String(width);
+    document.querySelector("#world-status").textContent = `World: ${width} × ${height}`;
+    // The preview currently represents square worlds; center on the active
+    // world's valid bounds rather than retaining a camera from the old world.
+    resetCameraToWorld(Math.min(width, height));
+  } else {
+    resetCameraToWorld();
   }
+
   clearUnitSelection();
   refreshWorldMarkers();
+  updateSimulationUi();
 }
 
 saveWorkspaceButton.addEventListener("click", () => persistWorkspace());
