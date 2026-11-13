@@ -9,7 +9,7 @@ import {
   moveCameraBy
 } from "../adapters/presentation/dev-world-preview.js";
 import { createGameRuntime } from "../host/create-game-runtime.js";
-import { MemorySaveAdapter } from "../core/persistence.js";
+import { LocalFileSaveAdapter, DEV_LAB_SAVE_SLOT } from "../adapters/storage/local-file-save-adapter.js";
 import { createUnitSystem } from "../gameplay/unit/unit-system.js";
 import { createGameInputSystem } from "../gameplay/input/game-input-system.js";
 import { createColonyControlSystem } from "../gameplay/colony/colony-control-system.js";
@@ -60,6 +60,11 @@ const canvas = document.querySelector("#world-canvas");
 const worldSizeSelect = document.querySelector("#world-size");
 const gridVisible = document.querySelector("#grid-visible");
 const resetCameraButton = document.querySelector("#reset-camera");
+const saveWorkspaceButton = document.querySelector("#save-workspace");
+const saveWorkspaceAsButton = document.querySelector("#save-workspace-as");
+const loadWorkspaceButton = document.querySelector("#load-workspace");
+const workspaceFileInput = document.querySelector("#workspace-file-input");
+const workspaceSaveStatus = document.querySelector("#workspace-save-status");
 const inputController = createViewportInputController();
 const heldMovementKeys = new Set();
 
@@ -73,6 +78,8 @@ const state = {
   colonyControlApi: null,
   clock: null,
   worldRegistry: null,
+  persistenceApi: null,
+  saveAdapter: null,
   paused: true,
   selectedUnitId: null,
   selectedObject: null,
@@ -770,9 +777,91 @@ worldSizeSelect.addEventListener("change", () => {
   clearUnitSelection();
 });
 
+
+async function persistWorkspace({ chooseFolder = false } = {}) {
+  if (!state.persistenceApi || !state.saveAdapter) return;
+  try {
+    if (chooseFolder) {
+      const folderName = await state.saveAdapter.selectDirectory();
+      if (!folderName) return;
+      workspaceSaveStatus.textContent = `FOLDER · ${folderName}/save.cass`;
+    }
+    const metadata = await state.persistenceApi.save(DEV_LAB_SAVE_SLOT, {
+      stateId: "cassandra-dev-lab-workspace",
+      kind: "manual"
+    });
+    const location = state.saveAdapter.selectedDirectoryName
+      ? `${state.saveAdapter.selectedDirectoryName}/save.cass`
+      : "save.cass · browser download";
+    workspaceSaveStatus.textContent = `SAVED · ${location}`;
+    simulationStatus.textContent = `WORKSPACE SAVED · ${metadata.createdAt}`;
+  } catch (error) {
+    if (error?.name === "AbortError") return;
+    workspaceSaveStatus.textContent = `SAVE FAILED · ${error.message}`;
+    simulationStatus.textContent = `SAVE FAILED · ${error.message}`;
+  }
+}
+
+async function restoreWorkspace() {
+  if (!state.persistenceApi || !state.saveAdapter) return;
+  try {
+    if (LocalFileSaveAdapter.supportsDirectoryAccess) {
+      const folderName = await state.saveAdapter.selectDirectory();
+      if (!folderName) return;
+      workspaceSaveStatus.textContent = `LOADING · ${folderName}/save.cass`;
+    } else {
+      workspaceFileInput.click();
+      return;
+    }
+    await state.persistenceApi.load(DEV_LAB_SAVE_SLOT, {
+      stateId: "cassandra-dev-lab-workspace"
+    });
+    synchronizeRestoredWorkspace();
+    workspaceSaveStatus.textContent = `LOADED · ${state.saveAdapter.selectedDirectoryName}/save.cass`;
+    simulationStatus.textContent = "WORKSPACE RESTORED";
+  } catch (error) {
+    if (error?.name === "AbortError") return;
+    workspaceSaveStatus.textContent = `LOAD FAILED · ${error.message}`;
+    simulationStatus.textContent = `LOAD FAILED · ${error.message}`;
+  }
+}
+
+function synchronizeRestoredWorkspace() {
+  const activeWorld = state.worldRegistry?.get(state.worldRegistry.activeWorldId);
+  if (activeWorld?.dimensions?.width) {
+    worldSizeSelect.value = String(activeWorld.dimensions.width);
+    document.querySelector("#world-status").textContent =
+      `World: ${activeWorld.dimensions.width} × ${activeWorld.dimensions.height}`;
+  }
+  clearUnitSelection();
+  refreshWorldMarkers();
+}
+
+saveWorkspaceButton.addEventListener("click", () => persistWorkspace());
+saveWorkspaceAsButton.addEventListener("click", () => persistWorkspace({ chooseFolder: true }));
+loadWorkspaceButton.addEventListener("click", () => restoreWorkspace());
+workspaceFileInput.addEventListener("change", async () => {
+  const file = workspaceFileInput.files?.[0];
+  workspaceFileInput.value = "";
+  if (!file || !state.persistenceApi || !state.saveAdapter) return;
+  try {
+    await state.saveAdapter.importFile(file);
+    await state.persistenceApi.load(DEV_LAB_SAVE_SLOT, {
+      stateId: "cassandra-dev-lab-workspace"
+    });
+    synchronizeRestoredWorkspace();
+    workspaceSaveStatus.textContent = `IMPORTED · ${file.name}`;
+    simulationStatus.textContent = "WORKSPACE RESTORED";
+  } catch (error) {
+    workspaceSaveStatus.textContent = `LOAD FAILED · ${error.message}`;
+    simulationStatus.textContent = `LOAD FAILED · ${error.message}`;
+  }
+});
+
 async function startDevLabRuntime() {
+  state.saveAdapter = new LocalFileSaveAdapter();
   const runtime = createGameRuntime({
-    saveAdapter: new MemorySaveAdapter(),
+    saveAdapter: state.saveAdapter,
     fixedStepSeconds: 1 / 60,
     maxStepsPerFrame: 120,
     hostSystems: [
@@ -810,6 +899,7 @@ async function startDevLabRuntime() {
     }
     worlds.activateWorld(`dev-lab-world-${Number(worldSizeSelect.value)}`);
     state.worldRegistry = worlds;
+    state.persistenceApi = context.getService("core.persistence");
     state.unitApi = context.getService("game.unit-api");
     state.inputApi = context.getService("game.input-api");
     state.colonyControlApi = context.getService("game.colony-control-api");
@@ -821,6 +911,9 @@ async function startDevLabRuntime() {
     state.paused = true;
     updateSimulationUi();
     state.animationFrame = requestAnimationFrame(simulationFrame);
+    workspaceSaveStatus.textContent = LocalFileSaveAdapter.supportsDirectoryAccess
+      ? "NO SAVE FOLDER SELECTED"
+      : "FOLDER ACCESS UNAVAILABLE · LOAD .CASS / EXPORT DOWNLOAD";
 
   } catch (error) {
     simulationStatus.textContent = `DEV LAB STARTUP FAILED · ${error.message}`;
