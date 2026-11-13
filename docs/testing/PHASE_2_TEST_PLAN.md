@@ -1,6 +1,6 @@
 # Phase 2 — Test Plan
 
-**Status:** Phase 2.1 host runtime tests have recorded CI evidence. Dev Lab Database, placement, Quick Select and INFO workflows are implemented and user-confirmed; their browser checks remain manual/pending evidence. Locomotion and full Phase 2 integration tests remain outstanding.
+**Status:** Phase 2 implementation and user acceptance complete on 2026-11-13. Historical checklists below record the original test procedures; final user-confirmed results and final CI evidence are recorded in the acceptance section at the end.
 
 ## Test layers
 
@@ -174,3 +174,24 @@ Manual browser checks required:
 - Verify pause/resume retains existing `resumeSnapshot` semantics for held gameplay inputs.
 
 Do not mark browser acceptance complete based only on automated CI.
+
+
+## Final Phase 2 acceptance evidence — 2026-11-13
+
+The user manually confirmed the complete current browser workflow:
+
+- Dev Lab Database selection and Unit placement work.
+- Johny locomotion, Draft/No Draft, pause/resume and camera reacquisition work.
+- Save/Save As/Load work across multiple named files and different saved states.
+- Stable Unit identity and position are restored without duplicates.
+- Draft state is restored; a save made while running loads paused.
+- Camera resets to the restored world's center on Load.
+- Corrupted JSON is rejected with a visible error in the Pause Menu; the existing session remains navigable.
+- Reset Lab clears the current session and does not delete or overwrite saved files; the user reloaded an existing save after reset.
+
+Final implementation commit: `e700d22968b1978d9b5e07d7343c8d3439bc26ae`.
+
+- Core and host tests: [GitHub Actions run 43426757709](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43426757709) — success.
+- Pages deployment: [GitHub Actions run 43426757277](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43426757277) — success.
+
+The user chose not to require a separate restore fault-injection/rollback test for Phase 2 acceptance. This is a deliberate deferral, not a passing test. The older manual checklists above remain useful regression procedures, but their historical “pending” wording is superseded by this final acceptance record.
