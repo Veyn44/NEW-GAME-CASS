@@ -161,3 +161,34 @@ test("Draft state is independent of viewport selection and persists with the Col
     clearDefinitionsForTests();
   }
 });
+
+test("Draft automatically disengages while its leader belongs to an inactive world", async () => {
+  const state = await setup();
+  try {
+    const worlds = state.context.getService("core.world-registry");
+    worlds.registerWorld({
+      worldId: "colony-test-world-secondary",
+      type: "test",
+      dimensions: { width: 64, height: 64 },
+      coordinateSystem: "tiles"
+    });
+    state.control.setLeader(state.leader.id);
+    state.control.setDrafted(true);
+    state.inputController.resume();
+    state.inputController.keyDown("KeyD");
+
+    worlds.activateWorld("colony-test-world-secondary");
+    assert.equal(state.control.update(0.25), null);
+    assert.deepEqual(state.control.getState(), { leaderId: state.leader.id, drafted: false });
+    assert.deepEqual(state.units.getUnit(state.leader.id).placement.position, { x: 20, y: 20 });
+
+    worlds.activateWorld("colony-test-world");
+    state.control.setDrafted(true);
+    const moved = state.control.update(0.25);
+    assert.equal(moved.entityId, state.leader.id);
+    assert.deepEqual(moved.position, { x: 21, y: 20 });
+  } finally {
+    await state.runtime.destroy();
+    clearDefinitionsForTests();
+  }
+});

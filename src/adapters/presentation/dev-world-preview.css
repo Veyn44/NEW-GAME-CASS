@@ -502,8 +502,6 @@ canvas:active { cursor: grabbing; }
   letter-spacing: .08em;
   overflow-wrap: anywhere;
 }
-#save-workspace, #save-workspace-as, #load-workspace { border-color: var(--color-accent-turquoise); }
-#save-workspace:disabled, #save-workspace-as:disabled, #load-workspace:disabled { opacity: .45; cursor: not-allowed; }
 
 
 /* Save feedback inside the vertical ESC pause menu. */

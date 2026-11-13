@@ -1,4 +1,4 @@
-import { clampCameraPosition, MIN_ZOOM, MAX_ZOOM, CAMERA_OVERSCAN_TILES, UNIT_MARKER_RADIUS_TILES, SELECTED_MARKER_OUTLINE_RADIUS_TILES } from "./world-preview-model.js";
+import { clampCameraPosition, getVisibleDimensions, MIN_ZOOM, MAX_ZOOM, CAMERA_OVERSCAN_TILES, UNIT_MARKER_RADIUS_TILES, SELECTED_MARKER_OUTLINE_RADIUS_TILES } from "./world-preview-model.js";
 
 const canvas = document.querySelector("#world-canvas");
 const context = canvas.getContext("2d");
@@ -136,12 +136,7 @@ function resizeCanvas() {
 function visibleDimensions() {
   const bounds = canvas.getBoundingClientRect();
   const aspectRatio = bounds.width / Math.max(1, bounds.height);
-  const baseColumns = 64;
-  const baseRows = baseColumns / aspectRatio;
-  return {
-    columns: baseColumns / state.zoom,
-    rows: baseRows / state.zoom
-  };
+  return getVisibleDimensions(state.zoom, aspectRatio);
 }
 
 function clampCamera() {

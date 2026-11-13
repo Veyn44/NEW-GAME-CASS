@@ -424,8 +424,10 @@ databaseCategory.addEventListener("change", renderDatabase);
 
 function refreshWorldMarkers() {
   const units = state.unitApi?.listUnits() ?? [];
+  const activeWorldId = state.worldRegistry?.activeWorldId;
   setWorldMarkers(units
-    .filter((unit) => unit.placement?.type === "world")
+    .filter((unit) => unit.placement?.type === "world"
+      && unit.placement.worldId === activeWorldId)
     .map((unit) => ({
       id: unit.id,
       x: unit.placement.position.x,
@@ -777,6 +779,7 @@ worldSizeSelect.addEventListener("change", () => {
   const size = Number(worldSizeSelect.value);
   state.worldRegistry.activateWorld(`dev-lab-world-${size}`);
   clearUnitSelection();
+  refreshWorldMarkers();
 });
 
 resetLabButton.addEventListener("click", () => {
@@ -997,8 +1000,8 @@ async function startDevLabRuntime() {
     updateSimulationUi();
     state.animationFrame = requestAnimationFrame(simulationFrame);
     workspaceSaveStatus.textContent = LocalFileSaveAdapter.supportsFileAccess
-      ? "NO SAVE FOLDER SELECTED"
-      : "FOLDER ACCESS UNAVAILABLE · LOAD .CASS / EXPORT DOWNLOAD";
+      ? "NO SAVE SELECTED"
+      : "FILE PICKER UNAVAILABLE · LOAD .CASS / EXPORT DOWNLOAD";
 
   } catch (error) {
     simulationStatus.textContent = `DEV LAB STARTUP FAILED · ${error.message}`;
