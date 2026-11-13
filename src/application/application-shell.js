@@ -61,7 +61,7 @@ const worldSizeSelect = document.querySelector("#world-size");
 const gridVisible = document.querySelector("#grid-visible");
 const resetCameraButton = document.querySelector("#reset-camera");
 const inputController = createViewportInputController();
-const pausedCameraKeys = new Set();
+const heldMovementKeys = new Set();
 
 const state = {
   databaseMode: "browse",
@@ -604,9 +604,9 @@ function runtimeAdvance(deltaSeconds) {
 }
 
 function updatePausedFreeCamera(deltaSeconds) {
-  if (state.colonyControlApi?.getState().drafted || !pausedCameraKeys.size) return;
-  let x = Number(pausedCameraKeys.has("KeyD")) - Number(pausedCameraKeys.has("KeyA"));
-  let y = Number(pausedCameraKeys.has("KeyS")) - Number(pausedCameraKeys.has("KeyW"));
+  if (state.colonyControlApi?.getState().drafted || !heldMovementKeys.size) return;
+  let x = Number(heldMovementKeys.has("KeyD")) - Number(heldMovementKeys.has("KeyA"));
+  let y = Number(heldMovementKeys.has("KeyS")) - Number(heldMovementKeys.has("KeyW"));
   if (!x && !y) return;
   const length = Math.hypot(x, y);
   const speed = 30;
@@ -630,10 +630,12 @@ window.addEventListener("keydown", (event) => {
     return;
   }
   if (isInteractiveTarget(event.target)) return;
-  if (/^Key[WASD]$/.test(event.code) && state.paused) {
-    pausedCameraKeys.add(event.code);
-    event.preventDefault();
-    return;
+  if (/^Key[WASD]$/.test(event.code)) {
+    heldMovementKeys.add(event.code);
+    if (state.paused) {
+      event.preventDefault();
+      return;
+    }
   }
   if (state.pauseMenuOpen) return;
   if (event.code === "Space" && !event.repeat && !event.altKey && !event.ctrlKey && !event.metaKey) {
@@ -665,7 +667,7 @@ window.addEventListener("keydown", (event) => {
 });
 
 window.addEventListener("keyup", (event) => {
-  pausedCameraKeys.delete(event.code);
+  heldMovementKeys.delete(event.code);
   inputController.keyUp(event.code);
 });
 
@@ -684,7 +686,7 @@ canvas.addEventListener("pointermove", (event) => {
 });
 
 function handleFocusLoss() {
-  pausedCameraKeys.clear();
+  heldMovementKeys.clear();
   if (!state.paused && state.clock) {
     inputController.pause();
     state.clock.pause("player");
@@ -781,9 +783,8 @@ async function startDevLabRuntime() {
           if (moved) setCameraFollowTarget(moved.entityId, moved.position);
           return;
         }
-        const keys = new Set(context.getService("game.input-api").getState().keys);
-        let x = Number(keys.has("KeyD")) - Number(keys.has("KeyA"));
-        let y = Number(keys.has("KeyS")) - Number(keys.has("KeyW"));
+        let x = Number(heldMovementKeys.has("KeyD")) - Number(heldMovementKeys.has("KeyA"));
+        let y = Number(heldMovementKeys.has("KeyS")) - Number(heldMovementKeys.has("KeyW"));
         if (!x && !y) return;
         const length = Math.hypot(x, y);
         const speed = 30;
