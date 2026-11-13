@@ -4,26 +4,20 @@ const DEFAULT_FILE_NAME = "save.cass";
 const SLOT_ID = "dev-lab-workspace";
 
 function makeEnvelope(saveData) {
-  return {
-    format: FILE_FORMAT,
-    fileFormatVersion: FILE_FORMAT_VERSION,
-    data: saveData
-  };
+  return { format: FILE_FORMAT, fileFormatVersion: FILE_FORMAT_VERSION, data: saveData };
 }
 
 function parseEnvelope(text) {
   let envelope;
-  try {
-    envelope = JSON.parse(text);
-  } catch (error) {
-    const wrapped = new Error("The selected file is not valid JSON.");
-    wrapped.code = "INVALID_SAVE_FILE";
-    wrapped.cause = error;
-    throw wrapped;
+  try { envelope = JSON.parse(text); }
+  catch (cause) {
+    const error = new Error("The selected file is not valid JSON.");
+    error.code = "INVALID_SAVE_FILE";
+    error.cause = cause;
+    throw error;
   }
   if (!envelope || typeof envelope !== "object" || Array.isArray(envelope)
-    || envelope.format !== FILE_FORMAT
-    || envelope.fileFormatVersion !== FILE_FORMAT_VERSION
+    || envelope.format !== FILE_FORMAT || envelope.fileFormatVersion !== FILE_FORMAT_VERSION
     || !envelope.data || typeof envelope.data !== "object" || Array.isArray(envelope.data)) {
     const error = new Error("The selected file is not a supported Cassandra save file.");
     error.code = "INCOMPATIBLE_SAVE_FILE";
@@ -42,51 +36,66 @@ function downloadSave(text, fileName) {
   URL.revokeObjectURL(url);
 }
 
-/**
- * Host-side adapter for one user-selected workspace directory.
- * The directory contains one authoritative file: save.cass.
- * Browser file APIs never leak into Core or gameplay systems.
- */
+function pickerTypes() {
+  return [{ description: "Cassandra save", accept: { "application/vnd.cassandra.save+json": [".cass"] } }];
+}
+
 export class LocalFileSaveAdapter {
-  #directoryHandle = null;
-  #fileName;
+  #fileHandle = null;
+  #fileName = null;
   #download;
   #importedData = null;
 
-  constructor({ fileName = DEFAULT_FILE_NAME, download = downloadSave } = {}) {
-    if (typeof fileName !== "string" || !/^[a-zA-Z0-9._-]+\.cass$/.test(fileName)) {
-      throw new TypeError("Save file name must be a simple .cass filename.");
-    }
+  constructor({ download = downloadSave } = {}) {
     if (typeof download !== "function") throw new TypeError("download must be a function.");
-    this.#fileName = fileName;
     this.#download = download;
   }
 
-  static get supportsDirectoryAccess() {
-    return typeof globalThis.window?.showDirectoryPicker === "function";
+  static get supportsFileAccess() {
+    return typeof globalThis.window?.showSaveFilePicker === "function"
+      && typeof globalThis.window?.showOpenFilePicker === "function";
   }
 
-  get selectedDirectoryName() {
-    return this.#directoryHandle?.name ?? null;
-  }
+  get selectedFileName() { return this.#fileName ?? null; }
 
-  get fileName() {
+  async selectSaveFile() {
+    const picker = globalThis.window?.showSaveFilePicker;
+    if (typeof picker !== "function") {
+      const error = new Error("Save file picker is not supported by this browser.");
+      error.code = "FILE_PICKER_UNAVAILABLE";
+      throw error;
+    }
+    const handle = await picker.call(globalThis.window, {
+      suggestedName: DEFAULT_FILE_NAME,
+      types: pickerTypes(),
+      excludeAcceptAllOption: true
+    });
+    if (!handle) return null;
+    this.#fileHandle = handle;
+    this.#fileName = handle.name ?? DEFAULT_FILE_NAME;
+    this.#importedData = null;
+    await this.#ensurePermission("readwrite");
     return this.#fileName;
   }
 
-  async selectDirectory() {
-    const picker = globalThis.window?.showDirectoryPicker;
+  async selectLoadFile() {
+    const picker = globalThis.window?.showOpenFilePicker;
     if (typeof picker !== "function") {
-      const error = new Error("Direct folder access is not supported by this browser. Use file import/export instead.");
-      error.code = "DIRECTORY_ACCESS_UNAVAILABLE";
+      const error = new Error("Open file picker is not supported by this browser.");
+      error.code = "FILE_PICKER_UNAVAILABLE";
       throw error;
     }
-    const handle = await picker.call(globalThis.window, { mode: "readwrite" });
+    const [handle] = await picker.call(globalThis.window, {
+      multiple: false,
+      types: pickerTypes(),
+      excludeAcceptAllOption: true
+    });
     if (!handle) return null;
-    this.#directoryHandle = handle;
+    this.#fileHandle = handle;
+    this.#fileName = handle.name ?? DEFAULT_FILE_NAME;
     this.#importedData = null;
-    await this.#ensurePermission("readwrite");
-    return handle.name ?? "Selected folder";
+    await this.#ensurePermission("read");
+    return this.#fileName;
   }
 
   async importFile(file) {
@@ -97,29 +106,20 @@ export class LocalFileSaveAdapter {
       throw error;
     }
     this.#importedData = parseEnvelope(await file.text());
-    this.#directoryHandle = null;
-    return Object.freeze({ fileName: file.name || this.#fileName, imported: true });
+    this.#fileHandle = null;
+    this.#fileName = file.name || DEFAULT_FILE_NAME;
+    return Object.freeze({ fileName: this.#fileName, imported: true });
   }
 
   async read(slotId) {
     this.#assertSlot(slotId);
-    if (this.#directoryHandle) {
+    if (this.#fileHandle) {
       await this.#ensurePermission("read");
-      let fileHandle;
-      try {
-        fileHandle = await this.#directoryHandle.getFileHandle(this.#fileName, { create: false });
-      } catch (cause) {
-        if (cause?.name !== "NotFoundError") throw cause;
-        const error = new Error(`The selected folder does not contain ${this.#fileName}.`);
-        error.code = "SAVE_FILE_NOT_FOUND";
-        error.cause = cause;
-        throw error;
-      }
-      const file = await fileHandle.getFile();
+      const file = await this.#fileHandle.getFile();
       return parseEnvelope(await file.text());
     }
     if (this.#importedData) return this.#importedData;
-    const error = new Error("Choose a save folder or import a .cass file before loading.");
+    const error = new Error("Choose a Cassandra .cass file before loading.");
     error.code = "SAVE_SOURCE_NOT_SELECTED";
     throw error;
   }
@@ -127,36 +127,36 @@ export class LocalFileSaveAdapter {
   async writeAtomic(slotId, saveData) {
     this.#assertSlot(slotId);
     const text = JSON.stringify(makeEnvelope(saveData), null, 2);
-    if (!this.#directoryHandle) {
-      this.#download(text, this.#fileName);
+    if (!this.#fileHandle) {
+      const fileName = this.#fileName || DEFAULT_FILE_NAME;
+      this.#download(text, fileName);
+      this.#fileName = fileName;
       this.#importedData = saveData;
       return true;
     }
-
     await this.#ensurePermission("readwrite");
-    const fileHandle = await this.#directoryHandle.getFileHandle(this.#fileName, { create: true });
-    const writable = await fileHandle.createWritable({ keepExistingData: false });
+    const writable = await this.#fileHandle.createWritable({ keepExistingData: false });
     try {
       await writable.write(text);
-      // File System Access API commits the replacement when close() succeeds.
       await writable.close();
+      this.#importedData = saveData;
       return true;
     } catch (error) {
-      try { await writable.abort(); } catch { /* Preserve the original write error. */ }
+      try { await writable.abort(); } catch { /* Preserve original error. */ }
       throw error;
     }
   }
 
   async #ensurePermission(mode) {
-    const handle = this.#directoryHandle;
-    if (!handle) throw new Error("No save folder is selected.");
+    const handle = this.#fileHandle;
+    if (!handle) throw new Error("No save file is selected.");
     if (typeof handle.queryPermission !== "function") return;
     let permission = await handle.queryPermission({ mode });
     if (permission !== "granted" && typeof handle.requestPermission === "function") {
       permission = await handle.requestPermission({ mode });
     }
     if (permission !== "granted") {
-      const error = new Error("Permission to access the selected save folder was not granted.");
+      const error = new Error("Permission to access the selected save file was not granted.");
       error.code = "SAVE_PERMISSION_DENIED";
       throw error;
     }
