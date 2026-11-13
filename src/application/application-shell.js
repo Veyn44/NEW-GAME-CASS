@@ -89,14 +89,15 @@ function showView(name) {
   if (document.body.dataset.currentView === "dev-lab" && name !== "dev-lab") cancelPlacement();
   const currentView = document.body.dataset.currentView;
   if (currentView === "dev-lab" && name !== "dev-lab") {
-    if (!state.paused) {
-      inputController.pause();
-      state.clock?.pause("player");
-      state.paused = true;
+    if (!state.pauseMenuOpen) {
+      if (!state.paused) {
+        inputController.pause();
+        state.clock?.pause("player");
+        state.paused = true;
+      }
+      inputController.clearForFocusLoss();
+      if (state.clock && !state.clock.hasPauseReason("player")) state.clock.pause("player");
     }
-    inputController.clearForFocusLoss();
-    if (state.clock && !state.clock.hasPauseReason("player")) state.clock.pause("player");
-
     updateSimulationUi();
   }
   for (const view of views) view.hidden = view.dataset.view !== name;
@@ -521,12 +522,8 @@ function updateSimulationUi() {
 
 function openPauseMenu() {
   if (state.pauseMenuOpen || document.body.dataset.currentView !== "dev-lab") return;
-  if (!state.paused) {
-    inputController.pause();
-    state.clock?.pause("player");
-    state.paused = state.clock?.paused ?? true;
-  }
-  inputController.clearForFocusLoss();
+  heldMovementKeys.clear();
+  inputController.suspendForOverlay();
   closeUnitProfile();
   state.pauseMenuOpen = true;
   pauseMenu.hidden = false;
@@ -537,7 +534,8 @@ function closePauseMenu() {
   if (!state.pauseMenuOpen) return;
   state.pauseMenuOpen = false;
   pauseMenu.hidden = true;
-  if (state.paused) toggleSimulationPause();
+  if (!state.paused) inputController.resume();
+  updateSimulationUi();
 }
 
 function openSettings(returnView) {
@@ -571,7 +569,7 @@ function simulationFrame(timestamp) {
     try {
       // The Core scheduler and Game Clock are the authoritative simulation gate.
       // Rendering and input remain responsive while the clock is paused.
-      runtimeAdvance(elapsedSeconds);
+      if (!state.pauseMenuOpen) runtimeAdvance(elapsedSeconds);
       if (state.paused) updatePausedFreeCamera(elapsedSeconds);
       const clockPaused = state.clock?.paused ?? true;
       if (clockPaused !== state.paused) {
@@ -630,6 +628,7 @@ window.addEventListener("keydown", (event) => {
     return;
   }
   if (isInteractiveTarget(event.target)) return;
+  if (state.pauseMenuOpen) return;
   if (/^Key[WASD]$/.test(event.code)) {
     heldMovementKeys.add(event.code);
     inputController.keyDown(event.code);
