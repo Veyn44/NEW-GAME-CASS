@@ -1,16 +1,17 @@
-# Cassandra Engine
+# Cassandra — Universal 2D Engine Development
 
-A modular game-engine foundation with Cassandra as its first host application.
+Cassandra is the first game project through which we are building and validating our own **universal 2D engine**. The engine should remain useful beyond Cassandra; Cassandra's game rules and content stay in its own layer.
 
-## Core
+## Project memory
 
-Core baseline history and current Cassandra integration status: [CORE_MIGRATION_STATUS.md](CORE_MIGRATION_STATUS.md).
+- [Next Steps and Development Handoff](NEXT_STEPS.md) — current direction, workflow and what to do next. Read this first when resuming work.
+- [Project History](PROJECT_HISTORY.md) — verified milestones, implementation outcomes and archival record.
+- [Cassandra Vision](CASSANDRA_VISION.md) — game-specific ideas and design inspiration, not an engine specification.
 
-The reusable, domain-neutral runtime lives in [`src/core`](src/core/README.md). Cassandra's host runtime and gameplay systems live outside Core and compose it through its public contracts. Core owns generic runtime infrastructure; Cassandra owns Unit/Pawn, world/gameplay rules, presentation and host integration.
+## Runtime documentation
 
-## Development documentation
-
-The phase plans, architecture, system standards and test procedures are indexed in [docs/README.md](docs/README.md). Phase 2 is complete and merged into `main`; its original `next-step/phase-2` branch is retained pending a separate cleanup decision. The accepted Phase 3 working scope is documented in [docs/phases/PHASE_3.md](docs/phases/PHASE_3.md).
+- [Core runtime API and responsibilities](src/core/README.md)
+- [Host runtime API and responsibilities](src/host/README.md)
 
 ## Development
 
@@ -22,4 +23,4 @@ npm run test:host
 npm run test:all
 ```
 
-`test:core` runs the Core regression suite, `test:host` runs the host/gameplay unit tests, and `test:all` runs both. A passing local run should be recorded only after actually running the command in the target environment.
+Dev Lab is a development/testing environment for real reusable systems. It may be hidden or omitted from a final player-facing build, but it is a central tool during engine development.
