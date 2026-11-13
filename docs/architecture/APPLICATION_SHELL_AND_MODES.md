@@ -1,6 +1,6 @@
 # Application Shell and Mode Architecture
 
-**Status:** Architecture implemented in the current Phase 2 development branch; the current Dev Lab workflow is user-confirmed. Automated/browser verification and full Phase 2 acceptance remain tracked separately.  
+**Status:** Application shell and Dev Lab composition are implemented as part of Phase 2, and the current Dev Lab workflow was user-confirmed during Phase 2 acceptance. Phase 2 was merged into `main` on 2026-11-13. New Game, Settings, Save/Load and Archive remain separate application flows and are not implied to be implemented merely because their menu entries exist.  
 **Decision record:** `/WHATANDWHY.md` — “Application shell and isolated development/game modes”, “Dev Lab is a development host for real gameplay systems” and “Future player-accessible Dev Lab compatibility”.
 
 ## 1. Purpose
@@ -179,3 +179,8 @@ The Dev Lab DATABASE control reuses the canonical Database view node and its exi
 A selectable definition exposes a contextual SELECT action in the Database header only when its canonical `spawnableAs` contract includes the currently supported Unit instance kind. SELECT closes the Database overlay and enters a paused-only placement mode. The presentation adapter renders a grid-snapped, translucent one-tile blueprint at the cursor. A valid in-world tile click calls the existing `game.unit-api.createUnit({ definitionId, worldId, position })` service. The current placement workflow is user-confirmed as working; automated/browser evidence remains separate. Successful placement refreshes world markers and selects the new instance. Escape cancels placement without creating an instance. Placement is a paused Dev Lab editing action, not a Pawn movement mechanic.
 
 The renderer owns only cursor-to-tile projection and blueprint presentation. It does not create entities, validate canonical definitions or mutate world placement. Core identity and placement remain owned by the existing Core services through the Unit system.
+
+
+## Current implementation status — 2026-11-13
+
+The initial shell and Dev Lab workflow described above are part of the accepted Phase 2 result now present on `main`. The user confirmed the integrated Dev Lab workflow, including Database selection, Unit placement, live Unit inspection, locomotion/Draft, pause/resume and save/load. This does not mark the separate New Game generator, production game setup, Settings, Archive or full player-facing UI as implemented. The approved New Game direction remains a separate mode: its setup is expected to include starting-asteroid generation and a map preview before a game session is created. The exact generator and world-content design remain future work.
