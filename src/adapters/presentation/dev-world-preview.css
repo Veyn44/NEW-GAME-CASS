@@ -286,20 +286,19 @@ canvas:active { cursor: grabbing; }
 }
 .viewport-panel[data-paused="false"] { border-color: var(--color-border); animation: none; }
 .viewport-panel[data-input-mode="running"] canvas { cursor: none; }
-.viewport-panel[data-input-mode="running"][data-pointer-locked="false"] canvas { cursor: crosshair; }
 .viewport-panel[data-input-mode="paused"] canvas { cursor: grab; }
 .viewport-panel[data-input-mode="paused"] canvas:active { cursor: grabbing; }
 .viewport-crosshair {
   position: absolute;
-  z-index: 2;
-  top: 50%;
-  left: 50%;
-  width: 18px;
-  height: 18px;
+  z-index: 4;
+  top: 0;
+  left: 0;
+  width: 20px;
+  height: 20px;
   display: none;
   transform: translate(-50%, -50%);
   pointer-events: none;
-  opacity: .9;
+  opacity: .95;
 }
 .viewport-crosshair::before,
 .viewport-crosshair::after {
@@ -312,9 +311,9 @@ canvas:active { cursor: grabbing; }
   box-shadow: 0 0 3px rgba(0, 0, 0, .9);
   transform: translate(-50%, -50%);
 }
-.viewport-crosshair::before { width: 16px; height: 1px; }
-.viewport-crosshair::after { width: 1px; height: 16px; }
-.viewport-panel[data-input-mode="running"] .viewport-crosshair { display: block; }
+.viewport-crosshair::before { width: 18px; height: 2px; }
+.viewport-crosshair::after { width: 2px; height: 18px; }
+.viewport-panel[data-input-mode="running"][data-pointer-inside="true"] .viewport-crosshair { display: block; }
 @media (prefers-reduced-motion: reduce) {
   .viewport-panel[data-paused="true"] { animation: none; }
 }
@@ -340,7 +339,7 @@ canvas:active { cursor: grabbing; }
 .quick-select-details[hidden]{display:none!important}
 .quick-select-attributes{grid-template-columns:minmax(80px,.8fr) minmax(0,1.2fr);font-size:10px}
 .quick-select-attributes dd{overflow-wrap:anywhere;text-align:right}
-.viewport-panel[data-input-mode=running] .quick-select{pointer-events:auto;opacity:.45}
+.viewport-panel[data-input-mode=running] .quick-select{pointer-events:auto;opacity:1}
 @media(max-width:640px){.quick-select{top:8px;left:8px;width:min(240px,calc(100% - 16px));min-height:220px}}
 
 
