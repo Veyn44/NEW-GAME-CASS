@@ -144,3 +144,33 @@ Manual browser checks still required:
 - Verify selection/INFO remains inspection-only and never changes the Draft target.
 
 Do not mark Phase 2.3 or 2.4 complete until these browser checks and the full integration/persistence acceptance path are recorded.
+
+
+## Unified pointer, inspection and Draft checks (2026-11-13)
+
+Implementation contract:
+- Pause controls simulation time only; it does not switch the world viewport to a separate mouse/camera interaction layer.
+- Wheel zoom and middle-button camera drag work while paused and running.
+- The pointer is free over the viewport and HUD. No pointer lock or confinement is used.
+- While running over the world, a crosshair follows the actual pointer position. Over HUD controls, the native system cursor remains visible.
+- Left-click can inspect/select Units while running when Draft is OFF. Quick Select remains available; the larger INFO profile remains pause-only.
+- F toggles Draft both paused and running.
+- Draft ON forces Quick Select to the Colony Leader and blocks switching inspection to another Pawn. If the Leader is in the active world, the camera immediately centers on it.
+- With Draft ON, wheel zoom/free look can move the view away. The next WASD movement tick reacquires and follows the Leader.
+- Draft OFF clears the forced Quick Select target without restoring a previously inspected Unit and without moving the camera.
+
+Manual browser checks required:
+- Verify pointer visibly tracks the actual mouse on the world canvas while running.
+- Move the pointer over HUD controls; verify the native cursor appears and HUD controls remain clickable.
+- Verify no pointer lock or pointer confinement occurs.
+- Verify wheel zoom and middle-button drag behave identically paused/running.
+- While running with Draft OFF, click several Pawns and verify Quick Select switches to each.
+- Verify INFO is disabled while running and becomes available after pausing; verify the profile displays current Unit data when opened.
+- Press F while running; verify Draft turns ON, Quick Select switches to Colony Leader and the camera jumps to the leader if it is in the active world.
+- While Draft is ON, click another Pawn; verify Quick Select remains on the Colony Leader.
+- With Draft ON, use wheel zoom to look elsewhere; verify the camera stays there until WASD is pressed, then reacquires the leader.
+- Press F again; verify Draft turns OFF at the current camera position, Quick Select clears, and no previous inspection selection is restored.
+- Repeat Draft toggles while paused and verify behavior is the same except simulation time is stopped.
+- Verify pause/resume retains existing `resumeSnapshot` semantics for held gameplay inputs.
+
+Do not mark browser acceptance complete based only on automated CI.
