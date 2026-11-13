@@ -766,7 +766,7 @@ async function startDevLabRuntime() {
         let y = Number(keys.has("KeyS")) - Number(keys.has("KeyW"));
         if (!x && !y) return;
         const length = Math.hypot(x, y);
-        const speed = 20;
+        const speed = 30;
         moveCameraBy((x / length) * speed * deltaSeconds, (y / length) * speed * deltaSeconds);
       }
     }]
