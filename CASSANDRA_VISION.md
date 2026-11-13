@@ -48,6 +48,20 @@ Earlier accepted Cassandra presentation decisions included:
 
 These notes preserve the direction and reasoning behind the early prototype. They do not require every future game or engine host to use Cassandra's visual style, controls or world model.
 
+## Earlier candidate gameplay foundations
+
+A previous Phase 3 working direction proposed a broad Unit foundation. These ideas are retained as candidates for later Cassandra design, not as a frozen feature list or an instruction to implement them all:
+
+- Mobile and stationary Units, including biological beings, robots and other intelligent entities.
+- Optional traits and capabilities, so Units do not all need the same attributes or behavior.
+- Attributes and statistics, with their final model determined by actual gameplay needs.
+- Perception as a way for Units/systems to obtain relevant world information; this does not itself imply AI or autonomous decision-making.
+- Inventory and equipment foundations where they make sense for a Unit.
+- Interactions, actions and player control for eligible Units.
+- Dev Lab scenarios for creating, inspecting and testing these capabilities.
+
+The old Phase 3 proposal explicitly deferred AI/autonomous behavior and did not commit to a complete combat, colony automation, jobs, crafting/economy, galaxy/navigation or world-generation implementation. Revisit the scope after the universal-engine direction and the upcoming audit have been reviewed.
+
 ## Design status rule
 
 Treat this document as a source of remembered ideas, not as a binding implementation contract. Before turning an idea into work:
