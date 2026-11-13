@@ -171,6 +171,21 @@ export function createViewportInputController({
     return frame;
   }
 
+  function suspendForOverlay() {
+    physicalKeys.clear();
+    physicalButtons.clear();
+    blockedKeys.clear();
+    blockedButtons.clear();
+    activeKeys.clear();
+    activeButtons.clear();
+    resumeSnapshot = null;
+    inspecting = false;
+    pointerDeltaX = 0;
+    pointerDeltaY = 0;
+    paused = true;
+    notify();
+  }
+
   function clearForFocusLoss() {
     physicalKeys.clear();
     physicalButtons.clear();
@@ -196,6 +211,7 @@ export function createViewportInputController({
     pointerMove,
     consumeFrameInput,
     clearForFocusLoss,
+    suspendForOverlay,
     getState
   });
 }
