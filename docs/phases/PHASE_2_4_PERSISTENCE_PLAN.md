@@ -1,6 +1,6 @@
 # Phase 2.4 — Persistence and Dev Lab Workspace Plan
 
-**Status:** Step 1 audit complete; implementation not started.  
+**Status:** Steps 1–2 contract finalized; first local-file adapter and Dev Lab Save/Save As/Load integration implemented. Automated and manual acceptance still pending.  
 **Working branch:** `next-step/phase-2`  
 **Repository:** `Veyn44/NEW-GAME-CASS`  
 **Audit baseline:** branch head `a3337c10cb9dc97665f78d9fb71e06e3b82a66ef`  
@@ -109,18 +109,37 @@ Presentation-only state such as camera position/zoom may be considered optional 
 
 The user's preference is physical local disk storage with an explicit choice of destination. Do not use browser localStorage/sessionStorage or an in-memory cache as the primary user save location.
 
-### First host implementation target
+The current application is browser-hosted. The implemented first host adapter lives at `src/adapters/storage/local-file-save-adapter.js` and uses the browser's user-mediated File System Access API where supported.
 
-The current application is browser-hosted. Implement the disk adapter at the host/adapter boundary using the browser's user-mediated file access capability where supported:
+**Chosen folder/file layout:** the user selects a folder (for example, a folder named `1`); Cassandra reads/writes one file named `save.cass` inside it. The application does not create numbered folders or choose a destination on the user's behalf.
 
-- Save As: ask the user to choose a destination and filename.
-- Load: ask the user to choose an existing Cassandra save file.
-- Save: write to the currently selected file when its handle/permission is available.
-- If the browser cannot provide persistent direct file access, provide an explicit export/download and import/upload fallback rather than silently changing the storage model.
+- **Save As:** opens the folder picker, selects the target folder and writes `save.cass`.
+- **Save:** writes to the currently selected folder.
+- **Load:** opens the folder picker and reads `save.cass` from that folder.
+- The selected folder handle exists only in the current application session; after a reload, the user selects the folder again.
+- If direct folder access is unavailable, Load uses a `.cass` file input and Save/Save As exports a `save.cass` download. This fallback does not silently pretend to overwrite a selected folder.
 
-Browser file access is permission-based and browser-dependent. A previously selected file handle/permission may need to be reacquired after reload. The UI must communicate this honestly and must not assume a remembered file handle always survives a new browser session.
+The adapter uses `createWritable({ keepExistingData: false })`, writes the complete replacement and commits on `close()`; a failed write attempts `abort()`. The File System Access API stages writable changes and commits them on close. The adapter is host-side only; Core and gameplay remain unaware of browser APIs.
 
-The file extension will be `.cass`. The exact on-disk envelope must be designed against the existing Persistence metadata/snapshot format; avoid duplicating or transforming participant-owned snapshots unnecessarily.
+### On-disk file envelope
+
+A `.cass` file is Cassandra's own application save format, not a pre-existing third-party format. Version 1 is UTF-8 JSON with this envelope:
+
+```json
+{
+  "format": "cassandra.save",
+  "fileFormatVersion": 1,
+  "data": {
+    "metadata": {},
+    "schemas": {},
+    "snapshots": {}
+  }
+}
+```
+
+The `data` property is the unchanged save payload produced by Core Persistence. The adapter validates the file envelope, then returns `data` to Persistence. Core continues to validate its own save format, participant schemas and snapshots. The file envelope version is separate from `metadata.formatVersion` managed by Core Persistence.
+
+The first adapter deliberately supports one Dev Lab workspace slot per selected folder: `dev-lab-workspace` maps to `save.cass`. This keeps the user-facing folder workflow explicit. A future general player-save adapter may introduce a multi-slot filename policy without changing gameplay participants.
 
 ### Future native host compatibility
 
@@ -161,7 +180,7 @@ A newly opened application must not assume it has permission to overwrite a file
 
 ## 6. Ordered implementation plan
 
-### Step 1 — Audit current contracts (this step)
+### Step 1 — Audit current contracts
 
 - [x] Inspect Core Persistence coordinator and adapter interface.
 - [x] Inspect Core Assembly safe-boundary and participant registration.
@@ -170,16 +189,26 @@ A newly opened application must not assume it has permission to overwrite a file
 - [x] Identify current application adapter wiring.
 - [x] Identify currently missing gameplay-owned world-object persistence.
 - [x] Record findings and agreed plan in this document.
-- [ ] Complete any additional code-level checks needed before adapter implementation (especially browser file access support and atomic replacement semantics).
+- [x] Check that canonical definition loading is synchronous and completes before the user can initiate a restore.
 
 ### Step 2 — Finalize a persistence/file contract
 
-- Define the logical-slot-to-selected-file mapping.
-- Define the `.cass` envelope, metadata and compatibility/version policy.
-- Define Load/Save As permission and fallback behavior.
-- Define safe handling for invalid files, missing definitions and failed writes.
-- Confirm canonical definition loading happens before domain restore.
-- Add/update architecture documentation before implementation if any contract changes.
+- [x] Define the logical workspace slot and folder-to-file mapping.
+- [x] Define the `.cass` envelope and independent file format version.
+- [x] Define direct folder picker and import/export fallback behavior.
+- [x] Define safe write replacement and failed-write abort behavior.
+- [x] Confirm canonical definitions are loaded before interactive restore.
+
+### Step 3 — Complete platform-neutral snapshot/restore integration
+
+- [x] Inspect Core Persistence coordinator and adapter interface.
+- [x] Inspect Core Assembly safe-boundary and participant registration.
+- [x] Inspect Entity Registry, World Registry and World Context snapshots.
+- [x] Inspect Unit and Colony Control participants.
+- [x] Identify current application adapter wiring.
+- [x] Identify currently missing gameplay-owned world-object persistence.
+- [x] Record findings and agreed plan in this document.
+- [x] Complete code-level checks needed before adapter implementation, including browser file access API and staged replacement behavior.
 
 ### Step 3 — Complete platform-neutral snapshot/restore integration
 
@@ -191,18 +220,20 @@ A newly opened application must not assume it has permission to overwrite a file
 
 ### Step 4 — Implement local file adapter
 
-- Implement under `src/adapters/` or the approved host adapter location; no browser APIs in Core/gameplay.
-- Support user-selected `.cass` files and same-session Save.
-- Provide explicit browser-compatible import/export fallback where needed.
-- Verify the adapter's write/replace behavior against the Persistence atomic-write contract.
-- Add adapter tests with injected/mock file handles where practical.
+- [x] Implement under `src/adapters/storage/`; no browser APIs in Core/gameplay.
+- [x] Support user-selected folder and same-session Save/Load of `save.cass`.
+- [x] Provide explicit file import/export fallback.
+- [x] Use staged writable replacement and abort on failure.
+- [x] Add adapter tests with injected/mock file handles.
+- [ ] Run adapter tests and verify against actual browser file picker behavior.
 
 ### Step 5 — Add Dev Lab controls
 
-- Add Save, Save As and Load as development-host controls.
-- Connect them to the same `core.persistence` service used by the normal game.
-- Show clear success/failure and current save-file status.
-- Do not add Dev Lab-specific authoritative data models.
+- [x] Add Save, Save As and Load controls to the Dev Lab toolbar.
+- [x] Connect them to the shared `core.persistence` service.
+- [x] Show current folder/file status and operation failures.
+- [x] Do not add Dev Lab-specific authoritative data models.
+- [ ] Manually verify the workflow in the target browser.
 
 ### Step 6 — Acceptance and Phase 2.4 evidence
 
