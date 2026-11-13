@@ -4,6 +4,8 @@ export const BASE_VIEW_ROWS = 32;
 export const MIN_ZOOM = 0.5;
 export const MAX_ZOOM = 2;
 export const CAMERA_OVERSCAN_TILES = 20;
+export const UNIT_MARKER_RADIUS_TILES = 0.4;
+export const SELECTED_MARKER_OUTLINE_RADIUS_TILES = 0.48;
 
 export function createWorldDescriptor(size) {
   if (!Number.isInteger(size) || size <= 0) {
