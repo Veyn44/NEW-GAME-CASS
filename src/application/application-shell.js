@@ -419,12 +419,12 @@ function clearUnitSelection() {
   quickSelectArtwork.removeAttribute("src");
   quickSelectArtworkEmpty.hidden = false;
   quickSelectName.textContent = "No selection";
-  quickSelectSummary.textContent = "Select an object in the paused world.";
+  quickSelectSummary.textContent = "Select an object in the world.";
 }
 
 function inspectUnit(entityId) {
-  if (!state.paused) return;
-  inputController.beginInspection();
+  const controlState = state.colonyControlApi?.getState();
+  if (controlState?.drafted && controlState.leaderId) entityId = controlState.leaderId;
   if (!entityId) {
     clearUnitSelection();
     return;
@@ -450,7 +450,7 @@ function inspectUnit(entityId) {
   } else {
     quickSelectArtwork.removeAttribute("src");
   }
-  quickSelectInfo.disabled = false;
+  quickSelectInfo.disabled = !state.paused;
   quickSelectDetails.replaceChildren();
   const details = document.createElement("dl");
   details.className = "attribute-list quick-select-attributes";
@@ -486,8 +486,17 @@ function updateSimulationUi() {
   viewportDatabaseButton.disabled = !state.paused || state.placementActive;
   resetCameraButton.disabled = false;
   pointerStatus.textContent = state.paused ? "INSPECTION CURSOR" : "GAMEPLAY CURSOR";
-  setWorldInteraction({ paused: state.paused, onSelect: inspectUnit });
-  if (!state.paused) clearUnitSelection();
+  setWorldInteraction({
+    paused: state.paused,
+    inspectionEnabled: true,
+    onSelect: inspectUnit
+  });
+  const controlState = state.colonyControlApi?.getState();
+  if (controlState?.drafted && controlState.leaderId) {
+    inspectUnit(controlState.leaderId);
+  } else if (state.selectedUnitId) {
+    inspectUnit(state.selectedUnitId);
+  }
 }
 
 function toggleSimulationPause() {
@@ -575,9 +584,20 @@ window.addEventListener("keydown", (event) => {
     toggleSimulationPause();
     return;
   }
-  if (event.code === "KeyF" && state.paused && !event.repeat && state.colonyControlApi) {
+  if (event.code === "KeyF" && !event.repeat && state.colonyControlApi) {
     event.preventDefault();
-    state.colonyControlApi.toggleDraft();
+    const next = state.colonyControlApi.toggleDraft();
+    if (next.drafted && next.leaderId) {
+      const leader = state.unitApi?.getUnit(next.leaderId);
+      inspectUnit(next.leaderId);
+      if (leader?.placement?.type === "world"
+        && leader.placement.worldId === state.worldRegistry?.activeWorldId) {
+        setCameraFollowTarget(leader.id, leader.placement.position);
+      }
+    } else {
+      clearCameraFollowTarget();
+      clearUnitSelection();
+    }
     updateSimulationUi();
     return;
   }
