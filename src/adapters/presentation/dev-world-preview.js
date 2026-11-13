@@ -84,6 +84,16 @@ export function clearCameraFollowTarget() {
   cameraFollowTargetId = null;
 }
 
+export function moveCameraBy(deltaX, deltaY) {
+  if (!Number.isFinite(deltaX) || !Number.isFinite(deltaY)) return false;
+  cameraFollowTargetId = null;
+  state.cameraX += deltaX;
+  state.cameraY += deltaY;
+  clampCamera();
+  render();
+  return true;
+}
+
 export function setSelectedWorldMarker(entityId) {
   selectedMarkerId = entityId ?? null;
   render();
