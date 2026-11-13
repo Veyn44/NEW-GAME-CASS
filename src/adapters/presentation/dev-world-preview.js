@@ -84,6 +84,20 @@ export function clearCameraFollowTarget() {
   cameraFollowTargetId = null;
 }
 
+export function resetCameraToWorld(worldWidth = state.worldSize) {
+  const size = Number(worldWidth);
+  if (!Number.isFinite(size) || size <= 0) return false;
+
+  state.worldSize = size;
+  state.cameraX = size / 2;
+  state.cameraY = size / 2;
+  state.zoom = 1;
+  cameraFollowTargetId = null;
+  clampCamera();
+  render();
+  return true;
+}
+
 export function moveCameraBy(deltaX, deltaY) {
   if (!Number.isFinite(deltaX) || !Number.isFinite(deltaY)) return false;
   cameraFollowTargetId = null;
