@@ -1,7 +1,7 @@
 # Phase 2.4 — Persistence and Dev Lab Workspace Plan
 
 **Status:** COMPLETE — implementation, CI and user manual acceptance finished on 2026-11-13. See the final acceptance record at the end of this document.  
-**Working branch:** `next-step/phase-2`  
+**Historical implementation branch:** `next-step/phase-2` (Phase 2 was merged into `main` on 2026-11-13; this branch reference records where the work was developed).  
 **Repository:** `Veyn44/NEW-GAME-CASS`  
 **Audit baseline:** branch head `a3337c10cb9dc97665f78d9fb71e06e3b82a66ef`  
 **Purpose:** Record the agreed architecture, current implementation facts, decisions, risks and ordered work so a later session can continue without relying on chat history.
@@ -306,4 +306,4 @@ Final implementation commit: `e700d22968b1978d9b5e07d7343c8d3439bc26ae`.
 - Full validation of every possible semantically malformed but syntactically valid save is not claimed. The tested corrupted-JSON case is rejected by the existing adapter validation; system snapshot validators continue to own semantic validation.
 - Autosave, cloud sync, production player-facing save UI and native desktop storage remain out of scope.
 
-**Acceptance result:** Phase 2.4 is complete. The full Phase 2 branch remains subject to its documented review and explicit merge approval; this document does not authorize a merge to `main`.
+**Acceptance result:** Phase 2.4 is complete and user-accepted. The complete Phase 2 result was reviewed and merged into `main` on 2026-11-13 at commit `31c1cd4bb5f4e9e85bfbb98b863903f57c1f518f`. The earlier handoff instructions in this historical plan that say not to modify `main` applied before acceptance and are superseded by the merge record.
