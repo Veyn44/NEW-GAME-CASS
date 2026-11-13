@@ -1,6 +1,6 @@
 # Phase 2 — First Testable Game Layer
 
-**Status:** 2.0 technical architecture complete; 2.1 Host Runtime Shell implemented and verified in CI. The Unit foundation and substantial Dev Lab tooling (shared Database, placement, Quick Select, INFO card and pause/viewport workflow) are implemented. Phase 2 remains in progress: actual Unit/Pawn locomotion and full end-to-end persistence/integration acceptance are still outstanding.  
+**Status:** Phase 2 implementation and acceptance complete on `next-step/phase-2`; final branch review and explicit approval to merge into `main` remain. Substeps 2.0–2.4 are implemented and accepted. Core/host CI and Pages deployment passed on commit `e700d22`; the user manually verified locomotion, save/load, corrupted-JSON rejection, Reset Lab and preservation of saved files.  
 **Working branch:** `next-step/phase-2`  
 **Base:** `main` at the Phase 1 Core baseline plus project documentation.  
 **Purpose:** Build the smallest real host-game slice that proves the Core can support a running Cassandra game layer, without guessing the full future game.
@@ -221,14 +221,16 @@ A test is PASS only after it has actually run and passed. Prepared tests are not
 ## 8. Phase completion checklist
 
 - [x] 2.0 technical architecture and system contracts documented and checked against the actual Core API.
-- [x] 2.1 host runtime composition, scheduler bridge, pause/resume and failure cleanup implemented; 6/6 host tests and 198/198 Core tests passed in CI.
-- [ ] 2.2 world and Pawn identity/placement contracts pass.
-- [ ] 2.3 movement/control path passes deterministic tests.
-- [ ] 2.4 persistence and full integration pass.
-- [ ] Existing Core regression suite passes unchanged.
-- [ ] No Core change was made without the exceptional review described above.
-- [ ] Documentation reflects implemented behavior, not intended behavior.
-- [ ] Phase branch reviewed and explicitly accepted before merge to `main`.
+- [x] 2.1 host runtime composition, scheduler bridge, pause/resume and failure cleanup implemented and verified.
+- [x] 2.2 World and Unit/Pawn identity, placement, ownership and persistence foundation implemented and verified.
+- [x] 2.3 Locomotion and control path implemented; user manually confirmed Johny movement, Draft behavior, pause/resume and camera reacquisition.
+- [x] 2.4 Persistence and full integration accepted; see [Phase 2.4 final acceptance](PHASE_2_4_PERSISTENCE_PLAN.md).
+- [x] Core/host CI regression workflow passed on final implementation commit.
+- [x] No Core changes were made in this phase.
+- [x] Documentation updated to reflect implemented behavior and deferred work.
+- [ ] Final full-branch review and explicit user approval before merge to `main`.
+
+Phase 2 is functionally complete and accepted. It is not merged into `main`; the merge gate remains explicit and unchanged.
 
 ## 9. Change log
 
@@ -291,3 +293,25 @@ The original Phase 2 goal remains unchanged: finish a minimal, deterministic and
 - **2.4 — Integration and persistence:** complete the end-to-end host → world → Unit/Pawn → movement path, verify save/restore of identity/domain state/placement, and record lifecycle/failure/manual runtime evidence. The current development in-memory save adapter is not production storage.
 
 **Phase status:** Dev Lab's Database, placement, Quick Select, INFO card, viewport overlay and pause workflow are implemented and user-confirmed. Phase 2 as a whole is still in progress; do not mark it complete or merge it to `main` until the original acceptance checklist and verification gates pass.
+
+
+## 12. Final Phase 2 acceptance — 2026-11-13
+
+The user confirmed the complete Phase 2 development workflow in the browser:
+
+- Johny can be created, directly controlled and moved through the gameplay-owned simulation path.
+- Draft/No Draft state behaves as intended across pause/resume and is preserved by save/load.
+- Multiple named saves can be created, selected and loaded without duplicating Units or losing their stable identity/position.
+- A save made while running is restored in a paused safe state.
+- Camera resets to the restored world's center after Load.
+- A deliberately corrupted JSON save is rejected with a visible `LOAD FAILED · INVALID_SAVE_FILE` message; the existing world remains usable and the user can return to Main Menu.
+- Reset Lab clears the current test session, including Johny, while keeping the session paused.
+- Reset Lab does not overwrite or delete existing `.cass` files; a previously saved file can be loaded again after reset.
+
+Automated evidence on final implementation commit `e700d22968b1978d9b5e07d7343c8d3439bc26ae`:
+- Core and host tests: [GitHub Actions run 43426757709](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43426757709) — success.
+- GitHub Pages deployment: [run 43426757277](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43426757277) — success.
+
+The user explicitly agreed not to require a separate fault-injection/rollback acceptance test for this phase. Core Persistence's existing staged restore and rollback implementation remains unchanged; the additional test is deferred, not represented as completed.
+
+**Phase 2 outcome:** implementation and user acceptance complete. The only remaining gate is review and explicit approval of the full branch before merging to `main`.
