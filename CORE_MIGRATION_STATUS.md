@@ -1,6 +1,8 @@
-# Core Migration Status
+# Core Migration and Integration Status
 
-## Current scope
+> **Current repository status (2026-11-13):** The original Core-only Phase 1 is closed. Cassandra Phase 2 has since been implemented and merged into `NEW-GAME-CASS/main` at [`31c1cd4`](https://github.com/Veyn44/NEW-GAME-CASS/commit/31c1cd4bb5f4e9e85bfbb98b863903f57c1f518f). The separate [`CassandraCoreRuntimefoundation`](https://github.com/Veyn44/CassandraCoreRuntimefoundation) repository preserves a snapshot of that integrated main commit as the reference Core baseline. The sections below retain the original Core migration record; they are not a statement that Phase 2 is still pending.
+
+## Original Core scope (Phase 1, closed)
 
 This repository is the domain-neutral Core runtime for the next Cassandra host game. The first development phase is the shared engine foundation only. Gameplay systems such as Pawn Life, construction, environment, combat, mining, economy, galaxy generation, navigation and expedition rules are intentionally outside this phase.
 
@@ -58,3 +60,17 @@ The original Phase 1 plan mentioned an adapter preserving the old prototype UI a
 Public API documentation and a minimal host-system example are present in `src/core/README.md`.
 
 Phase 1 closure criteria are met. The shared Core foundation is ready for the next phase, where work can move into host/gameplay systems without expanding the responsibilities of Core.
+
+
+## Cassandra Phase 2 integration — COMPLETE
+
+- **Host repository:** `Veyn44/NEW-GAME-CASS`.
+- **Stable branch:** `main`.
+- **Phase 2 merge commit:** `31c1cd4bb5f4e9e85bfbb98b863903f57c1f518f` (2026-11-13).
+- **Phase 2 implementation branch:** `next-step/phase-2`, retained after merge pending a separate branch-cleanup decision.
+- **Archived reference repository:** `Veyn44/CassandraCoreRuntimefoundation`.
+- **Archive snapshot commit:** `e94d8b59b7e29599174c260baf1e7d989e61c051`, whose commit message identifies the source `NEW-GAME-CASS/main` commit above.
+
+Phase 2 established the host runtime, Core-backed Unit identity/placement, Dev Lab Database/placement/inspection, Colony Leader Draft and fixed-step locomotion, and persistence/save-load integration. The user accepted the browser workflow; the automated Core/host and Pages CI evidence is recorded in [the Phase 2 test plan](docs/testing/PHASE_2_TEST_PLAN.md) and [Phase 2.4 acceptance record](docs/phases/PHASE_2_4_PERSISTENCE_PLAN.md).
+
+No Core source changes were made in Phase 2. The archived repository is a preservation/reference copy, not the active development target. Future Cassandra gameplay work belongs in `NEW-GAME-CASS`; any proposed Core modification requires a separately justified review.
