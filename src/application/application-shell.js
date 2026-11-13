@@ -612,9 +612,13 @@ function updatePausedFreeCamera(deltaSeconds) {
   moveCameraBy((x / length) * speed * deltaSeconds, (y / length) * speed * deltaSeconds);
 }
 
-function isInteractiveTarget(target) {
+function isTextEntryTarget(target) {
   return target instanceof HTMLElement && (target.isContentEditable
-    || ["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(target.tagName));
+    || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
+}
+
+function isInteractiveTarget(target) {
+  return isTextEntryTarget(target) || (target instanceof HTMLElement && target.tagName === "BUTTON");
 }
 
 window.addEventListener("keydown", (event) => {
@@ -628,16 +632,18 @@ window.addEventListener("keydown", (event) => {
     openPauseMenu();
     return;
   }
-  if (isInteractiveTarget(event.target)) return;
+  if (isTextEntryTarget(event.target)) return;
   if (state.pauseMenuOpen) return;
   if (/^Key[WASD]$/.test(event.code)) {
     heldMovementKeys.add(event.code);
     inputController.keyDown(event.code);
+    event.preventDefault();
     if (state.paused) {
       event.preventDefault();
       return;
     }
   }
+  if (isInteractiveTarget(event.target)) return;
   if (state.pauseMenuOpen) return;
   if (event.code === "Space" && !event.repeat && !event.altKey && !event.ctrlKey && !event.metaKey) {
     event.preventDefault();
@@ -781,7 +787,10 @@ async function startDevLabRuntime() {
         const controlState = control.getState();
         if (controlState.drafted) {
           const moved = control.update(deltaSeconds);
-          if (moved) setCameraFollowTarget(moved.entityId, moved.position);
+          if (moved) {
+            refreshWorldMarkers();
+            setCameraFollowTarget(moved.entityId, moved.position);
+          }
           return;
         }
         let x = Number(heldMovementKeys.has("KeyD")) - Number(heldMovementKeys.has("KeyA"));
