@@ -1,7 +1,7 @@
 # Phase 2 — First Testable Game Layer
 
-**Status:** Phase 2 implementation and acceptance complete on `next-step/phase-2`; final branch review and explicit approval to merge into `main` remain. Substeps 2.0–2.4 are implemented and accepted. Core/host CI and Pages deployment passed on commit `e700d22`; the user manually verified locomotion, save/load, corrupted-JSON rejection, Reset Lab and preservation of saved files.  
-**Working branch:** `next-step/phase-2`  
+**Status:** COMPLETE, user-accepted and merged into `main` on 2026-11-13. Substeps 2.0–2.4 are implemented and accepted. Core/host CI and Pages deployment passed on commit `e700d22`; the user manually verified locomotion, save/load, corrupted-JSON rejection, Reset Lab and preservation of saved files. Merge commit: [`31c1cd4`](https://github.com/Veyn44/NEW-GAME-CASS/commit/31c1cd4bb5f4e9e85bfbb98b863903f57c1f518f).  
+**Implementation branch:** `next-step/phase-2` (retained after merge as a historical development branch; it is not the current base for new work).  
 **Base:** `main` at the Phase 1 Core baseline plus project documentation.  
 **Purpose:** Build the smallest real host-game slice that proves the Core can support a running Cassandra game layer, without guessing the full future game.
 
@@ -185,7 +185,7 @@ The phase branch is not merged as a collection of unrelated files. At completion
 | Pawn/world/movement gameplay code | `src/systems/` and `src/worlds/` | Ownership, public contracts, persistence and integration tests pass |
 | New automated tests | `tests/unit/`, `tests/contract/`, `tests/integration/`, `tests/e2e/` | Included in documented runners and CI |
 
-Before merge, I will: (1) inspect the full branch diff against its recorded `main` base; (2) verify no Core files changed without an approved exception; (3) run the complete Core and Phase 2 suites; (4) inspect the final directory tree and imports; (5) verify documentation and test commands; (6) prepare a merge summary and explicit acceptance checklist. Only then will I ask you to approve merging the complete phase into `main`. Until that approval, `main` remains untouched.
+**Completed integration review:** The full Phase 2 result was reviewed against its recorded base, the Core remained unchanged, the documented automated and manual acceptance evidence was checked, and the completed phase was merged into `main` with the merge commit linked above. The resulting `main` is the stable starting point for the next phase. The original `next-step/phase-2` branch is retained for now; branch cleanup is a separate repository-maintenance decision.
 
 The merge should preserve meaningful history. Prefer a normal merge commit for a completed phase so the phase boundary remains visible and auditable; do not squash away the milestone history unless there is a concrete repository-management reason and we agree on it.
 
@@ -228,9 +228,9 @@ A test is PASS only after it has actually run and passed. Prepared tests are not
 - [x] Core/host CI regression workflow passed on final implementation commit.
 - [x] No Core changes were made in this phase.
 - [x] Documentation updated to reflect implemented behavior and deferred work.
-- [ ] Final full-branch review and explicit user approval before merge to `main`.
+- [x] Final full-branch review and explicit user approval completed; Phase 2 merged into `main` on 2026-11-13.
 
-Phase 2 is functionally complete and accepted. It is not merged into `main`; the merge gate remains explicit and unchanged.
+Phase 2 is functionally complete, user-accepted and merged into `main` at `31c1cd4bb5f4e9e85bfbb98b863903f57c1f518f`. The implementation branch remains available as historical context; do not base Phase 3 on it.
 
 ## 9. Change log
 
@@ -292,7 +292,7 @@ The “remaining work” list in the original 2026-11-12 implementation snapshot
 
 The placement blueprint remains a Dev Lab editing tool, distinct from Pawn locomotion. The actual locomotion path is implemented separately through the gameplay-owned movement API and deterministic Core Scheduler task.
 
-**Phase status:** Phase 2 implementation and acceptance are complete on `next-step/phase-2`. Final branch review and explicit approval to merge into `main` remain.
+**Phase status:** Phase 2 implementation and acceptance are complete and merged into `main` on 2026-11-13. Merge commit: `31c1cd4bb5f4e9e85bfbb98b863903f57c1f518f`. The original `next-step/phase-2` branch is retained pending the user's separate cleanup decision.
 
 
 ## 12. Final Phase 2 acceptance — 2026-11-13
