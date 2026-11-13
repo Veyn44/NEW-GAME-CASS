@@ -5,7 +5,9 @@ import {
   createWorldDescriptor,
   getVisibleDimensions,
   clampCameraPosition,
-  CAMERA_OVERSCAN_TILES
+  CAMERA_OVERSCAN_TILES,
+  UNIT_MARKER_RADIUS_TILES,
+  SELECTED_MARKER_OUTLINE_RADIUS_TILES
 } from "../../src/adapters/presentation/world-preview-model.js";
 
 test("primary world sizes are square and use the agreed dimensions", () => {
@@ -48,6 +50,17 @@ test("camera remains inside the square world and centers small worlds", () => {
     clampCameraPosition({ x: 0, y: 0 }, 64, { columns: 128, rows: 64 }),
     { x: 32, y: 32 }
   );
+});
+
+test("Unit marker radius is fixed in world space and slightly under one tile", () => {
+  assert.equal(UNIT_MARKER_RADIUS_TILES, 0.4);
+  assert.equal(SELECTED_MARKER_OUTLINE_RADIUS_TILES, 0.48);
+  for (const zoom of [0.5, 1, 2]) {
+    const { columns } = getVisibleDimensions(zoom);
+    const cellWidth = 64 / columns;
+    const markerRadiusPixels = cellWidth * UNIT_MARKER_RADIUS_TILES;
+    assert.equal(markerRadiusPixels / cellWidth, 0.4);
+  }
 });
 
 test("invalid zoom values are rejected", () => {
