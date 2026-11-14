@@ -318,7 +318,7 @@ window.addEventListener("keydown", (event) => {
     event.preventDefault();
     if (state.placementActive) { cancelPlacement(); return; }
     if (state.gameplayUi?.isProfileOpen()) { state.gameplayUi.closeProfile(); return; }
-    if (navigation.isViewportDatabaseOpen()) { closeViewportDatabase(); return; }
+    if (navigation.isViewportDatabaseOpen()) { navigation.closeViewportDatabase(); return; }
     if (state.pauseMenuOpen) { closePauseMenu(); return; }
     openPauseMenu();
     return;
