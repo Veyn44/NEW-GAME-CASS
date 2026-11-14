@@ -100,7 +100,7 @@ export function createColonyControlSystem() {
     requires: ["game.unit-api", "engine.input-api", "core.world-registry", "core.persistence"],
     initialize(context) {
       units = context.getService("game.unit-api");
-      input = context.getService("game.input-api");
+      input = context.getService("engine.input-api");
       worlds = context.getService("core.world-registry");
       unregisterPersistence = context.getService("core.persistence").registerParticipant(persistenceParticipant);
       return { "game.colony-control-api": api };
