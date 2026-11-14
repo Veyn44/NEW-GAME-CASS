@@ -141,6 +141,8 @@ test("Dev Lab shell delegates viewport and workspace persistence to owned servic
   assert.ok(persistence.includes("persistenceApi.save(saveSlot"));
   assert.ok(shell.includes('stateId: "cassandra-dev-lab-workspace"'));
   assert.ok(shell.includes('saveSlot: "dev-lab-workspace"'));
+  assert.ok(shell.includes('fileExtension: ".cass"'));
+  assert.ok(shell.includes('defaultFileName: "save.cass"'));
 });
 
 
@@ -271,6 +273,8 @@ test("shared presentation and application controllers do not depend on either ap
     assert.equal(source.includes("/cassandra/"), false, path);
   }
   const viewport = await read("../../shared/presentation/world-viewport.js");
+  const persistence = await read("../../shared/application/file-persistence-controller.js");
+  assert.equal(persistence.includes(".cass"), false);
   assert.equal(viewport.includes(".viewport-panel"), false);
   assert.equal(viewport.includes(".viewport-crosshair"), false);
 });
