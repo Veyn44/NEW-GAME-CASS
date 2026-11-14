@@ -18,7 +18,7 @@ export function createDevLabViewNavigationController({
     "views", "navButtons", "databaseView", "databaseHome",
     "databaseModeLabel", "databaseBackButton", "viewportPanel",
     "settingsBackButton", "backMenuButtons", "pauseSettingsButton",
-    "pauseMainMenuButton", "viewportDatabaseButton"
+    "pauseMainMenuButton", "viewportDatabaseButton", "body"
   ];
   if (!elements || required.some((key) => !elements[key])) {
     throw new TypeError("Dev Lab navigation elements are required.");
