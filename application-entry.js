@@ -5,6 +5,7 @@ import { getDefinition } from "./engine/database/definition-registry.js";
 import { createUnitSystem } from "./src/gameplay/unit/unit-system.js";
 import { createColonyControlSystem } from "./src/gameplay/colony/colony-control-system.js";
 import { createCassandraDevLabGameplayController } from "./cassandra/application/dev-lab-gameplay-controller.js";
+import { createCassandraDevLabUnitInspectorUi } from "./cassandra/application/dev-lab-unit-inspector-ui.js";
 import { startDevLab } from "./dev-lab/application/application-shell.js";
 
 /**
@@ -52,15 +53,22 @@ export function createCassandraRuntime({
  * Dev Lab through its application-facing service contract.
  */
 export function resolveCassandraRuntimeServices(context) {
+  const worldRegistry = context.getService("core.world-registry");
+  const gameplayApi = createCassandraDevLabGameplayController({
+    unitApi: context.getService("game.unit-api"),
+    colonyControlApi: context.getService("game.colony-control-api"),
+    worldRegistry
+  });
+  const gameplayUi = createCassandraDevLabUnitInspectorUi({
+    root: document.querySelector("[data-application-gameplay-ui]"),
+    gameplayApi
+  });
   return {
-    worldRegistry: context.getService("core.world-registry"),
+    worldRegistry,
     persistenceApi: context.getService("core.persistence"),
     clock: context.getService("core.game-clock"),
-    gameplayApi: createCassandraDevLabGameplayController({
-      unitApi: context.getService("game.unit-api"),
-      colonyControlApi: context.getService("game.colony-control-api"),
-      worldRegistry: context.getService("core.world-registry")
-    })
+    gameplayApi,
+    gameplayUi
   };
 }
 
