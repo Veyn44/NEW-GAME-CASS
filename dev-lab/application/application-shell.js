@@ -1,13 +1,13 @@
-import { createDevLabViewport } from "../presentation/dev-lab-viewport.js";
+import { createWorldViewport } from "../../shared/presentation/world-viewport.js";
 import { createDevLabRuntime } from "./create-dev-lab-runtime.js";
 import { LocalFileSaveAdapter } from "../../src/adapters/storage/local-file-save-adapter.js";
 import { createWorkspacePersistenceController } from "./workspace-persistence-controller.js";
-import { createDefinitionCatalogController } from "./definition-catalog-controller.js";
+import { createDefinitionCatalogController } from "../../shared/application/definition-catalog-controller.js";
 import { createDevLabViewNavigationController } from "./view-navigation-controller.js";
 import { createDevLabPauseMenuController } from "./pause-menu-controller.js";
 import { createDevLabWorkspaceSessionController } from "./workspace-session-controller.js";
 import { getDefinition, listDefinitionIndex, getCategories, loadDefinitionDetail } from "../../engine/database/definition-registry.js";
-import { createViewportInputController } from "../input/viewport-input-controller.js";
+import { createViewportInputController } from "../../shared/input/viewport-input-controller.js";
 import { createApplicationRuntimeHost } from "../../shared/application/runtime-host.js";
 
 const views = [...document.querySelectorAll("[data-view]")];
@@ -31,13 +31,15 @@ const loadWorkspaceButton = document.querySelector("#pause-load");
 const workspaceFileInput = document.querySelector("#workspace-file-input");
 const workspaceSaveStatus = document.querySelector("#workspace-save-status");
 const pauseMenu = document.querySelector("#pause-menu");
-const viewport = createDevLabViewport({
+const viewport = createWorldViewport({
   canvas,
   sizeSelect: worldSizeSelect,
   gridToggle: gridVisible,
   zoomValue: document.querySelector("#zoom-value"),
   worldStatus: document.querySelector("#world-status"),
-  viewStatus: document.querySelector("#view-status")
+  viewStatus: document.querySelector("#view-status"),
+  pointerOverlay: viewportPanel,
+  pointerCrosshair: document.querySelector(".viewport-crosshair")
 });
 const definitionCatalog = createDefinitionCatalogController({
   elements: {
