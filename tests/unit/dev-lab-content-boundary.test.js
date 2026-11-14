@@ -118,10 +118,10 @@ test("Dev Lab shell delegates viewport and workspace persistence to owned servic
 test("Dev Lab shell delegates definition catalog behavior to its controller", async () => {
   const shell = await read("../../dev-lab/application/application-shell.js");
   const catalog = await read("../../dev-lab/application/definition-catalog-controller.js");
+  const navigation = await read("../../dev-lab/application/view-navigation-controller.js");
   assert.ok(shell.includes("createDefinitionCatalogController"));
-  assert.ok(shell.includes("definitionCatalog.open(\"browse\")"));
-  assert.ok(shell.includes("definitionCatalog.open(\"viewport\")"));
   assert.ok(shell.includes("definitionCatalog.refresh()"));
+  assert.ok(shell.includes("createDevLabViewNavigationController"));
   assert.equal(shell.includes("function renderDatabase"), false);
   assert.equal(shell.includes("function inspectDefinition"), false);
   assert.equal(shell.includes("loadDefinitionDetail"), true);
@@ -130,6 +130,9 @@ test("Dev Lab shell delegates definition catalog behavior to its controller", as
   assert.ok(catalog.includes("getCategories"));
   assert.ok(catalog.includes("loadDefinitionDetail"));
   assert.ok(catalog.includes("onSelectDefinition"));
+  assert.ok(navigation.includes('definitionCatalog.open("browse")'));
+  assert.ok(navigation.includes('definitionCatalog.open("viewport")'));
+  assert.ok(navigation.includes("definitionCatalog.close()"));
 });
 
 
