@@ -20,6 +20,6 @@ test("Engine input system exposes the injected controller through a read-only se
 });
 
 test("game input system rejects a missing or invalid controller", () => {
-  assert.throws(() => createGameInputSystem(), /requires a controller with getState() and consumeFrameInput()/);
-  assert.throws(() => createGameInputSystem({ inputController: {} }), /requires a viewport input controller/);
+  assert.throws(() => createInputSystem(), /requires a controller with getState() and consumeFrameInput()/);
+  assert.throws(() => createInputSystem({ inputController: {} }), /requires a controller with getState() and consumeFrameInput()/);
 });
