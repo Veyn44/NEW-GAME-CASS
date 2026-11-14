@@ -40,9 +40,10 @@ code.
   and the existing `.cass` file adapter remain separate dependencies.
 - The shell delegates screen transitions, menu/back navigation, settings return
   routing, and the definition-catalog overlay lifecycle to
-  `dev-lab/application/view-navigation-controller.js`. Workspace-specific
-  pause, placement cancellation, and pause-menu restoration remain injected
-  callbacks owned by the host shell. Definition catalog filtering, category
+  `dev-lab/application/view-navigation-controller.js`. Pause overlay visibility
+  and its Resume/Controls/Main Menu actions live in
+  `dev-lab/application/pause-menu-controller.js`; runtime pause/resume and
+  placement cancellation remain owned by the host shell. Definition catalog filtering, category
   controls, asynchronous detail inspection, and host-neutral selection live in
   `dev-lab/application/definition-catalog-controller.js`. The viewport service
   still owns its DOM event bindings and rendering loop; it is isolated from the
