@@ -8,7 +8,7 @@ import {
   moveCameraBy,
   resetCameraToWorld
 } from "../adapters/presentation/dev-world-preview.js";
-import { createGameRuntime } from "../engine/runtime/create-game-runtime.js";
+import { createGameRuntime } from "../../engine/runtime/create-game-runtime.js";
 import { LocalFileSaveAdapter, DEV_LAB_SAVE_SLOT } from "../adapters/storage/local-file-save-adapter.js";
 import { createUnitSystem } from "../gameplay/unit/unit-system.js";
 import { createGameInputSystem } from "../gameplay/input/game-input-system.js";
