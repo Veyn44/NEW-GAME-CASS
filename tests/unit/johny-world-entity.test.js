@@ -4,7 +4,7 @@ import { createGameRuntime } from "../../engine/runtime/create-game-runtime.js";
 import { MemorySaveAdapter } from "../../engine/core/persistence.js";
 import { createUnitSystem } from "../../src/gameplay/unit/unit-system.js";
 import { createInputSystem } from "../../engine/input/input-system.js";
-import { createViewportInputController } from "../../dev-lab/input/viewport-input-controller.js";
+import { createViewportInputController } from "../../shared/input/viewport-input-controller.js";
 import { clearDefinitionsForTests, getDefinition } from "../../engine/database/definition-registry.js";
 import { loadCassandraDatabase } from "../../cassandra/database/load-cassandra-database.js";
 
