@@ -127,9 +127,9 @@ test("Dev Lab delegates Unit inspection UI and contains no Cassandra inspector m
 test("Dev Lab shell delegates viewport and workspace persistence to owned services", async () => {
   const shell = await read("../../dev-lab/application/application-shell.js");
   const viewport = await read("../../shared/presentation/world-viewport.js");
-  const persistence = await read("../../dev-lab/application/workspace-persistence-controller.js");
+  const persistence = await read("../../shared/application/file-persistence-controller.js");
   assert.ok(shell.includes("createWorldViewport"));
-  assert.ok(shell.includes("createWorkspacePersistenceController"));
+  assert.ok(shell.includes("createFilePersistenceController"));
   assert.equal(shell.includes('from "../presentation/dev-world-preview.js"'), false);
   assert.equal(shell.includes("DEV_LAB_SAVE_SLOT"), false);
   assert.equal(shell.includes("async function persistWorkspace"), false);
@@ -137,18 +137,20 @@ test("Dev Lab shell delegates viewport and workspace persistence to owned servic
   assert.ok(viewport.includes("setWorldMarkers"));
   assert.ok(viewport.includes("resetCameraToWorld"));
   assert.equal(viewport.includes('document.querySelector("#world-canvas")'), false);
-  assert.ok(persistence.includes("export function createWorkspacePersistenceController"));
-  assert.ok(persistence.includes('stateId: "cassandra-dev-lab-workspace"'));
+  assert.ok(persistence.includes("export function createFilePersistenceController"));
+  assert.ok(persistence.includes("persistenceApi.save(saveSlot"));
+  assert.ok(shell.includes('stateId: "cassandra-dev-lab-workspace"'));
+  assert.ok(shell.includes('saveSlot: "dev-lab-workspace"'));
 });
 
 
 test("Dev Lab shell delegates definition catalog behavior to its controller", async () => {
   const shell = await read("../../dev-lab/application/application-shell.js");
   const catalog = await read("../../shared/application/definition-catalog-controller.js");
-  const navigation = await read("../../dev-lab/application/view-navigation-controller.js");
+  const navigation = await read("../../shared/application/view-navigation-controller.js");
   assert.ok(shell.includes("createDefinitionCatalogController"));
   assert.ok(shell.includes("definitionCatalog.refresh()"));
-  assert.ok(shell.includes("createDevLabViewNavigationController"));
+  assert.ok(shell.includes("createViewNavigationController"));
   assert.equal(shell.includes("function renderDatabase"), false);
   assert.equal(shell.includes("function inspectDefinition"), false);
   assert.equal(shell.includes("loadDefinitionDetail"), true);
@@ -166,7 +168,7 @@ test("Dev Lab shell delegates definition catalog behavior to its controller", as
 test("Dev Lab navigation behavior is owned by its application controller", async () => {
   const shell = await read("../../dev-lab/application/application-shell.js");
   const navigation = await read("../../dev-lab/application/view-navigation-controller.js");
-  assert.ok(shell.includes("createDevLabViewNavigationController"));
+  assert.ok(shell.includes("createViewNavigationController"));
   assert.ok(shell.includes("navigation.showView"));
   assert.ok(shell.includes("navigation.closeViewportDatabase"));
   assert.equal(shell.includes("function showView"), false);
@@ -175,7 +177,7 @@ test("Dev Lab navigation behavior is owned by its application controller", async
   assert.equal(shell.includes("function closeViewportDatabase"), false);
   assert.equal(shell.includes("state.settingsReturnView"), false);
   assert.equal(shell.includes("state.viewportDatabaseOpen"), false);
-  assert.ok(navigation.includes("export function createDevLabViewNavigationController"));
+  assert.ok(navigation.includes("export function createViewNavigationController"));
   assert.equal(navigation.includes("/cassandra/"), false);
   assert.equal(navigation.includes("/src/gameplay/"), false);
 });
@@ -184,8 +186,8 @@ test("Dev Lab navigation behavior is owned by its application controller", async
 test("Dev Lab pause menu behavior is owned by its application controller", async () => {
   const shell = await read("../../dev-lab/application/application-shell.js");
   const navigation = await read("../../dev-lab/application/view-navigation-controller.js");
-  const pauseMenu = await read("../../dev-lab/application/pause-menu-controller.js");
-  assert.ok(shell.includes("createDevLabPauseMenuController"));
+  const pauseMenu = await read("../../shared/application/pause-menu-controller.js");
+  assert.ok(shell.includes("createPauseMenuController"));
   assert.ok(shell.includes("pauseMenuController.isOpen()"));
   assert.ok(shell.includes("pauseMenuController.open()"));
   assert.equal(shell.includes("state.pauseMenuOpen"), false);
@@ -193,9 +195,9 @@ test("Dev Lab pause menu behavior is owned by its application controller", async
   assert.equal(shell.includes("function closePauseMenu"), false);
   assert.equal(navigation.includes("pauseSettingsButton"), false);
   assert.equal(navigation.includes("pauseMainMenuButton"), false);
-  assert.ok(pauseMenu.includes("export function createDevLabPauseMenuController"));
-  assert.ok(pauseMenu.includes("navigation.openSettings(\"dev-lab\")"));
-  assert.ok(pauseMenu.includes('navigation.showView("menu")'));
+  assert.ok(pauseMenu.includes("export function createPauseMenuController"));
+  assert.ok(pauseMenu.includes("navigation.openSettings(workspaceView)"));
+  assert.ok(pauseMenu.includes("navigation.showView(menuView)"));
   assert.equal(pauseMenu.includes("/cassandra/"), false);
   assert.equal(pauseMenu.includes("/src/gameplay/"), false);
 });
@@ -247,17 +249,21 @@ test("Cassandra app shell owns runtime presentation and does not import the Dev 
   assert.ok(shell.includes("createWorldViewport"));
   assert.ok(shell.includes("createDefinitionCatalogController"));
   assert.ok(shell.includes("createDevLabViewNavigationController"));
-  assert.ok(shell.includes("createDevLabPauseMenuController"));
-  assert.ok(shell.includes("createWorkspacePersistenceController"));
+  assert.ok(shell.includes("createPauseMenuController"));
+  assert.ok(shell.includes("createFilePersistenceController"));
   assert.equal(shell.includes("startDevLab"), false);
   assert.equal(shell.includes("createDevLabRuntime"), false);
+  assert.equal(shell.includes("../../dev-lab/"), false);
 });
-test("shared presentation, input, and catalog utilities do not depend on either application", async () => {
+test("shared presentation and application controllers do not depend on either application", async () => {
   const modules = [
     "../../shared/presentation/world-viewport.js",
     "../../shared/presentation/world-viewport-model.js",
     "../../shared/input/viewport-input-controller.js",
-    "../../shared/application/definition-catalog-controller.js"
+    "../../shared/application/definition-catalog-controller.js",
+    "../../shared/application/view-navigation-controller.js",
+    "../../shared/application/pause-menu-controller.js",
+    "../../shared/application/file-persistence-controller.js"
   ];
   for (const path of modules) {
     const source = await read(path);
