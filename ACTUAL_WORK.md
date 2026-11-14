@@ -254,3 +254,142 @@ Continue the read-only inventory:
 - return a concrete module-by-module move/split list for user approval.
 
 Only after that approval should the first source file be moved. No new branch is required for the read-only inventory or this documentation update.
+
+
+## 10. Dependency and composition map — first pass completed
+
+This section is based on the current `main` source and tests inspected on 2026-11-14. It is a direct-import / runtime-service map, not yet a complete static call graph.
+
+### Current runtime composition
+
+`index.html` loads only `src/application/application-shell.js`. The shell is currently the single composition root for the combined menu + Dev Lab + database UI.
+
+The shell directly imports:
+- Dev Lab canvas adapter: `src/adapters/presentation/dev-world-preview.js`
+- Host wrapper: `src/host/create-game-runtime.js`
+- Browser file save adapter: `src/adapters/storage/local-file-save-adapter.js`
+- Cassandra Unit system: `src/gameplay/unit/unit-system.js`
+- Game Input wrapper: `src/gameplay/input/game-input-system.js`
+- Cassandra Colony Control: `src/gameplay/colony/colony-control-system.js`
+- Cassandra definition registry and canonical content loader
+- Viewport input controller
+
+At startup the shell:
+1. Creates a browser local-file save adapter.
+2. Creates an input controller.
+3. Creates a host runtime around Core.
+4. Registers Game Input, Unit and Colony Control as host systems.
+5. Registers a simulation task owned by `game.colony-control`.
+6. Loads Johny's Cassandra definition.
+7. Registers Dev Lab test worlds (64, 128, 256 tiles).
+8. Activates one world and wires UI services.
+9. Starts a browser `requestAnimationFrame` loop.
+
+This confirms that current Dev Lab is not a thin viewer of a separately composed Engine: its shell currently composes the runtime and injects Cassandra gameplay systems into the Dev Lab session.
+
+### Direct dependency graph (current)
+
+```text
+index.html
+  └─ application-shell.js
+      ├─ dev-world-preview.js
+      │   └─ world-preview-model.js
+      ├─ create-game-runtime.js
+      │   └─ core/core-assembly.js
+      │       ├─ Core registries, clock, scheduler, events, persistence, bootstrap
+      │       └─ injected host systems + simulation tasks
+      ├─ local-file-save-adapter.js
+      ├─ viewport-input-controller.js
+      ├─ definition-registry.js
+      ├─ database-loader.js
+      │   ├─ Johny JSON
+      │   └─ definition-registry.js
+      ├─ unit-system.js
+      │   ├─ Core Entity Registry
+      │   ├─ Core World Registry
+      │   ├─ Core World Context
+      │   ├─ Core Persistence
+      │   └─ injected definitionLookup
+      ├─ game-input-system.js
+      │   └─ injected viewport input controller
+      └─ colony-control-system.js
+          ├─ game.unit-api
+          ├─ game.input-api
+          ├─ core.world-registry
+          └─ core.persistence
+```
+
+### What the Colony Control system actually does
+
+Current file: `src/gameplay/colony/colony-control-system.js`.
+
+It is a small Cassandra gameplay system with these responsibilities:
+
+- Stores the current Colony Leader's Unit ID and whether Draft is active.
+- Allows the application/gameplay layer to set a leader, enable/disable Draft, or toggle Draft.
+- While Draft is active, reads the active input state and interprets WASD as movement directions.
+- Normalizes diagonal movement so diagonal travel is not faster than cardinal travel.
+- Moves the leader through the Unit API at a fixed `4 tiles/second`.
+- Refuses to move when Draft is inactive, there is no leader, delta time is invalid, or the leader is not in the active world.
+- Automatically disengages Draft if the leader is missing/not in a world or belongs to a world that is no longer active.
+- Saves/restores the leader ID and Draft flag through a Core Persistence participant.
+
+It does **not** create entities, render the pawn, implement the camera, listen to DOM keyboard events, decide which physical key toggles Draft, or own generic entity possession. Those responsibilities are elsewhere today.
+
+Why it belongs to Cassandra rather than Engine:
+- “Colony Leader” is a game role, not a universal property of every Entity.
+- “Draft” is a Cassandra gameplay concept/command.
+- The current WASD movement and fixed speed are the rules of this specific controllable Pawn, not rules that every engine entity should obey.
+- The decision to stop Draft when the Leader is in a different active world is currently a game policy tied to the colony leader.
+- Another game using the same Engine might have no colony, no leader, no Pawn and no Draft at all.
+
+What should move/generalize into Engine:
+- Generic Control Modes and possession (the capability to direct control toward a selected Entity).
+- Generic input action registration/routing and pause handling.
+- Generic camera coordination/follow behavior where appropriate.
+- Generic movement primitives only if multiple real systems need them and their semantics can be expressed without Cassandra assumptions.
+
+What remains in Cassandra:
+- The concept of Colony Leader.
+- Whether an entity is eligible to be drafted.
+- The Draft action and its binding (currently F).
+- What Draft means for this game.
+- Movement rules/speed/constraints for the controlled Pawn.
+- Any colony-specific state and persistence.
+
+So the future design should not simply rename Colony Control to Engine Control. Instead, Engine provides the reusable mechanism; Cassandra's Colony Control becomes a policy/gameplay system that requests a possession/control mode and supplies the game-specific behavior.
+
+### Existing test coverage mapped to responsibilities
+
+| Test file | What it protects | Proposed future ownership |
+|---|---|---|
+| `tests/*registry*.test.js`, `tests/world-context.test.js`, `tests/event-bus.test.js`, `tests/clock-scheduler.test.js`, `tests/lifecycle-bootstrap.test.js`, `tests/persistence-logger.test.js`, `tests/core-integration.test.js` | Core infrastructure contracts | Engine |
+| `tests/unit/host-runtime.test.js` | Generic host wrapper and runtime composition | Engine runtime / integration |
+| `tests/unit/unit-system.test.js`, `johny-world-entity.test.js` | Cassandra Unit ↔ Core Entity/World integration and Johny content | Cassandra + integration |
+| `tests/unit/colony-control-system.test.js` | Draft, leader state, WASD movement, speed, diagonal normalization, persistence, inactive-world disengage | Cassandra gameplay |
+| `tests/unit/game-input-system.test.js`, `viewport-input-controller.test.js` | Current input service/controller semantics | Split: Engine input contract + host adapter + Cassandra bindings |
+| `tests/unit/database-definition-registry.test.js`, `database-loader.test.js` | Definition registry validation and Cassandra content loading | Split: Engine database mechanism + Cassandra package/content |
+| `tests/unit/local-file-save-adapter.test.js`, `workspace-persistence.test.js` | Browser file adapter and Dev Lab workspace save/load | Dev Lab adapter + Engine persistence integration |
+| `tests/unit/world-preview.test.js` | Camera/preview model math and canvas-facing preview behavior | Dev Lab presentation unless reusable contract is proven |
+| Browser HTML tests | Browser-hosted behavior of Core demos | Engine test harness |
+
+### Newly confirmed architecture risks
+
+1. The generic `createGameRuntime` wrapper currently lives under `src/host`, and its source comment still calls it a “Cassandra host runtime”. The implementation itself wraps Core and injected systems; the comment is stale/domain-branded.
+2. `application-shell.js` has both application composition and large amounts of DOM/UI logic. It should be split by responsibility, not moved wholesale.
+3. The shell contains direct key binding policy: F toggles Draft, WASD changes meaning based on Draft state, Space pauses/resumes. This confirms that key meanings currently live in the Dev Lab shell rather than in a clean Cassandra action map or generic Engine action registry.
+4. Free-camera WASD is currently implemented in the shell (`applyFreeCameraInput`, speed 30), while drafted WASD is implemented in Colony Control (speed 4) and the shell follows the leader camera. The intended Control Modes design should own generic mode/camera/input routing; Cassandra should provide movement/action policy.
+5. The local save adapter uses Cassandra file format/name and Dev Lab workspace slot in one class. Keep it outside Engine until its generic and application-specific parts are separated.
+
+## 11. Current next step
+
+The read-only first pass is complete enough to propose the first safe implementation slice, but it is not a full formal import graph for every line in every module.
+
+Recommended first code slice (pending user approval):
+- Move the existing Core folder and its tests/docs mechanically under `engine/core/` (or first agree whether `engine/core` is the desired path).
+- Move the generic host runtime wrapper under `engine/runtime/`.
+- Update import paths only; do not change Core behavior, APIs, simulation rules, or browser shell behavior.
+- Run `npm run test:all` and browser acceptance.
+- Do not include Unit/Colony/database/input/shell refactors in the same slice.
+
+No source files have been moved by this inventory. This recommendation still awaits user approval before any source-code restructuring.
