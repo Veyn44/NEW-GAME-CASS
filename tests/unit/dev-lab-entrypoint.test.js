@@ -16,6 +16,8 @@ test("Cassandra landing page does not load Dev Lab presentation or runtime modul
   assert.doesNotMatch(html, /src\/dev-lab\//);
   assert.doesNotMatch(html, /application-shell\.js/);
   assert.doesNotMatch(html, /world-canvas/);
+  assert.match(html, /dev-lab\\.html\\?view=settings/);
+  assert.match(html, /dev-lab\\.html\\?view=database/);
 });
 
 test("Dev Lab has its own page and explicit entrypoint", async () => {
