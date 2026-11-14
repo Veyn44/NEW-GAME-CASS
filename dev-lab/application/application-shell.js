@@ -11,7 +11,7 @@ import {
 import { createGameRuntime } from "../../engine/runtime/create-game-runtime.js";
 import { LocalFileSaveAdapter, DEV_LAB_SAVE_SLOT } from "../../src/adapters/storage/local-file-save-adapter.js";
 import { createUnitSystem } from "../../src/gameplay/unit/unit-system.js";
-import { createGameInputSystem } from "../../src/gameplay/input/game-input-system.js";
+import { createInputSystem } from "../../engine/input/input-system.js";
 import { createColonyControlSystem } from "../../src/gameplay/colony/colony-control-system.js";
 import { getDefinition } from "../../engine/database/definition-registry.js";
 import { createViewportInputController } from "../input/viewport-input-controller.js";
@@ -963,7 +963,7 @@ async function startDevLabRuntime() {
     fixedStepSeconds: 1 / 60,
     maxStepsPerFrame: 120,
     hostSystems: [
-      createGameInputSystem({ inputController }),
+      createInputSystem({ inputController }),
       createUnitSystem({ definitionLookup: getDefinition }),
       createColonyControlSystem()
     ],
