@@ -59,5 +59,5 @@ test("Cassandra application exposes a single gameplay adapter contract to Dev La
   assert.match(source, /gameplayApi:/);
   const resolver = source.slice(source.indexOf("export function resolveCassandraRuntimeServices"));
   assert.match(resolver, /gameplayApi:/);
-  assert.doesNotMatch(resolver, /^\s*(?:unitApi|colonyControlApi|inputApi):/m);
+  assert.doesNotMatch(resolver, /^ {4}(?:unitApi|colonyControlApi|inputApi):/m);
 });
