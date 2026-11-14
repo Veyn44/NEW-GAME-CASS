@@ -441,7 +441,7 @@ function updateSimulationUi() {
   setWorldInteraction({
     paused: state.paused,
     inspectionEnabled: true,
-    onSelect: inspectUnit
+    onSelect: inspectGameplayEntity
   });
   if (controlState?.drafted && controlState.leaderId) {
     inspectGameplayEntity(controlState.leaderId);
