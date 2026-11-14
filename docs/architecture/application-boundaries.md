@@ -4,7 +4,9 @@
 
 Cassandra is the game application and owns its composition root, runtime host,
 content package, gameplay systems, game-specific input policy, persistence
-adapter selection, navigation, and application presentation.
+adapter selection and configuration, and application presentation. It composes
+shared navigation, pause-menu, and file-persistence mechanisms with its own
+view identifiers, callbacks, save slot, and state identity.
 
 Its browser entry is `index.html` -> `application-entry.js` ->
 `cassandra/application/cassandra-application-shell.js`. The Cassandra shell
@@ -28,7 +30,11 @@ the generic Engine runtime and starts with no game-owned gameplay systems.
 Engine remains the shared, application-neutral runtime and service layer.
 Neither the standalone Dev Lab entry nor Engine imports Cassandra application
 code. Both applications use `shared/application/runtime-host.js` for runtime
-lifecycle, frame scheduling, clock synchronization, and teardown.
+lifecycle, frame scheduling, clock synchronization, and teardown. The shared
+application layer also provides view navigation, pause-menu behavior, and file
+persistence orchestration. These controllers receive application-specific view
+identifiers, lifecycle callbacks, save adapters, slot/state identifiers, and
+status/prompt copy through dependency injection.
 
 ## Current limits
 
@@ -40,14 +46,17 @@ lifecycle, frame scheduling, clock synchronization, and teardown.
   viewport geometry, physical input-state handling, and definition-catalog
   utilities from shared/. The viewport receives pointer overlay elements from
   the host rather than querying Dev Lab-specific selectors.
-- Navigation, pause-menu, and workspace-persistence controllers remain in
-  dev-lab/application/: they still encode Dev Lab screen names, menu behavior,
-  and the current workspace save identity. Extracting generic variants is a
-  separate future step.
-- The existing `.cass` envelope, save adapter, persistence participant
-  contracts, and workspace state identifier are retained for compatibility.
-  Cassandra-specific save-state identity and ownership will be separated in a
-  later persistence step.
+- Shared navigation, pause-menu, and file-persistence controllers live in
+  `shared/application/`. They contain no imports or hard-coded identifiers for
+  either application; each shell supplies its workspace view and callbacks.
+- The file-persistence controller does not select or own a file format. Each
+  application injects its save adapter, save slot, state identifier, file-picker
+  capability, filename prompt, and UI status copy.
+- The existing `.cass` envelope, local-file adapter, save slot (`dev-lab-workspace`),
+  and state identifier (`cassandra-dev-lab-workspace`) are intentionally
+  unchanged in this slice. Their historical names are retained for save
+  compatibility; a later persistence migration can revise ownership only with
+  an explicit compatibility plan.
 - Dev Lab retains its own shell, runtime factory, viewport composition,
   workspace orchestration, and standalone entry.
 - The known menu-button responsiveness issue has not been independently
