@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createViewportInputController } from "../../dev-lab/input/viewport-input-controller.js";
+import { createViewportInputController } from "../../shared/input/viewport-input-controller.js";
 
 test("a plain pause preserves held keys and mouse buttons until resume", () => {
   const input = createViewportInputController();
