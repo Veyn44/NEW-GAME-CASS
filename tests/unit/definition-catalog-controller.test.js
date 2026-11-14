@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createDefinitionCatalogController } from "../../dev-lab/application/definition-catalog-controller.js";
+import { createDefinitionCatalogController } from "../../shared/application/definition-catalog-controller.js";
 
 class FakeClassList {
   constructor() { this.values = new Set(); }
