@@ -19,4 +19,4 @@ jobs:
         run: |
           node --check dev-lab/application/application-shell.js
           node --check engine/runtime/create-game-runtime.js
-          node --check src/adapters/presentation/dev-world-preview.js
+          node --check dev-lab/presentation/dev-world-preview.js

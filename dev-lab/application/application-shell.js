@@ -7,7 +7,7 @@ import {
   setCameraFollowTarget,
   moveCameraBy,
   resetCameraToWorld
-} from "../../src/adapters/presentation/dev-world-preview.js";
+} from "../presentation/dev-world-preview.js";
 import { createGameRuntime } from "../../engine/runtime/create-game-runtime.js";
 import { LocalFileSaveAdapter, DEV_LAB_SAVE_SLOT } from "../../src/adapters/storage/local-file-save-adapter.js";
 import { createUnitSystem } from "../../src/gameplay/unit/unit-system.js";
