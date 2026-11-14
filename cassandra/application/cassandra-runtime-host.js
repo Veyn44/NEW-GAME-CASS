@@ -69,6 +69,8 @@ export function resolveCassandraRuntimeServices(context) {
  * are injected by Cassandra's application shell; the shared host owns timing.
  */
 export function createCassandraRuntimeHost({
+  createRuntime = createCassandraRuntime,
+  resolveRuntimeServices = resolveCassandraRuntimeServices,
   saveAdapter,
   inputController,
   onUnitMoved,
@@ -82,8 +84,8 @@ export function createCassandraRuntimeHost({
   cancelFrame = globalThis.cancelAnimationFrame
 } = {}) {
   return createApplicationRuntimeHost({
-    createRuntime: (options) => createCassandraRuntime(options),
-    resolveRuntimeServices: resolveCassandraRuntimeServices,
+    createRuntime: (options) => createRuntime(options),
+    resolveRuntimeServices,
     runtimeOptions: { saveAdapter, inputController, onUnitMoved, updateFreeCamera },
     requestFrame,
     cancelFrame,
