@@ -3,11 +3,11 @@ import { createDevLabRuntime } from "./create-dev-lab-runtime.js";
 import { LocalFileSaveAdapter } from "../../src/adapters/storage/local-file-save-adapter.js";
 import { createWorkspacePersistenceController } from "./workspace-persistence-controller.js";
 import { createDefinitionCatalogController } from "./definition-catalog-controller.js";
+import { createDevLabViewNavigationController } from "./view-navigation-controller.js";
 import { getDefinition, listDefinitionIndex, getCategories, loadDefinitionDetail } from "../../engine/database/definition-registry.js";
 import { createViewportInputController } from "../input/viewport-input-controller.js";
 
 const views = [...document.querySelectorAll("[data-view]")];
-const navButtons = [...document.querySelectorAll("[data-navigate]")];
 const databaseView = document.querySelector('[data-view="database"]');
 const databaseHome = document.createComment("database-home");
 databaseView.before(databaseHome);
@@ -27,6 +27,7 @@ const saveWorkspaceAsButton = document.querySelector("#pause-save-as");
 const loadWorkspaceButton = document.querySelector("#pause-load");
 const workspaceFileInput = document.querySelector("#workspace-file-input");
 const workspaceSaveStatus = document.querySelector("#workspace-save-status");
+const pauseMenu = document.querySelector("#pause-menu");
 const viewport = createDevLabViewport({
   canvas,
   sizeSelect: worldSizeSelect,
@@ -61,72 +62,16 @@ const state = {
   workspacePersistence: null,
   paused: true,
   gameplayUi: null,
-  viewportDatabaseOpen: false,
   placementActive: false,
   animationFrame: null,
   lastFrameTime: null,
   pauseMenuOpen: false,
-  settingsReturnView: "menu"
 };
-
-function showView(name) {
-  if (state.viewportDatabaseOpen && name !== "dev-lab") closeViewportDatabase();
-  if (document.body.dataset.currentView === "dev-lab" && name !== "dev-lab") cancelPlacement();
-  const currentView = document.body.dataset.currentView;
-  if (currentView === "dev-lab" && name !== "dev-lab") {
-    if (!state.pauseMenuOpen) {
-      if (!state.paused) {
-        inputController.pause();
-        state.clock?.pause("player");
-        state.paused = true;
-      }
-      inputController.clearForFocusLoss();
-      if (state.clock && !state.clock.hasPauseReason("player")) state.clock.pause("player");
-    }
-    updateSimulationUi();
-  }
-  for (const view of views) view.hidden = view.dataset.view !== name;
-  document.body.dataset.currentView = name;
-  window.scrollTo(0, 0);
-  if (name === "dev-lab") window.dispatchEvent(new Event("resize"));
-}
-
-function openDatabase() {
-  if (state.viewportDatabaseOpen) closeViewportDatabase();
-  databaseView.dataset.mode = "browse";
-  databaseModeLabel.textContent = "CASSANDRA / KNOWLEDGE";
-  definitionCatalog.open("browse");
-  showView("database");
-}
-
-function openViewportDatabase() {
-  if (!state.paused || state.placementActive || state.viewportDatabaseOpen) return;
-  definitionCatalog.open("viewport");
-  databaseView.dataset.mode = "viewport";
-  databaseView.classList.add("database-overlay");
-  databaseModeLabel.textContent = "CASSANDRA / DEV LAB";
-  databaseBackButton.textContent = "CLOSE DATABASE";
-  viewportPanel.append(databaseView);
-  databaseView.hidden = false;
-  state.viewportDatabaseOpen = true;
-}
-
-function closeViewportDatabase() {
-  if (!state.viewportDatabaseOpen) return;
-  databaseHome.after(databaseView);
-  databaseView.hidden = true;
-  databaseView.classList.remove("database-overlay");
-  databaseView.dataset.mode = "browse";
-  databaseBackButton.textContent = "← Main menu";
-  databaseModeLabel.textContent = "CASSANDRA / KNOWLEDGE";
-  state.viewportDatabaseOpen = false;
-  definitionCatalog.close();
-}
 
 function beginWorldPlacement(definition) {
   if (!state.paused || !state.gameplayApi?.canPlaceDefinition(definition)
     || !state.worldRegistry) return;
-  closeViewportDatabase();
+  navigation.closeViewportDatabase();
   clearSelection();
   state.placementActive = true;
   viewportDatabaseButton.disabled = true;
@@ -167,35 +112,50 @@ function cancelPlacement() {
   simulationStatus.textContent = "PAUSED · PLACEMENT CANCELLED";
 }
 
-for (const button of navButtons) {
-  button.addEventListener("click", () => {
-    if (button.dataset.navigate === "database") openDatabase();
-    else if (button.dataset.navigate === "settings") openSettings("menu");
-    else showView(button.dataset.navigate);
-  });
-}
-const pauseMenu = document.querySelector("#pause-menu");
-document.querySelector("#pause-resume").addEventListener("click", closePauseMenu);
-document.querySelector("#pause-settings").addEventListener("click", () => openSettings("dev-lab"));
-document.querySelector("#pause-main-menu").addEventListener("click", () => {
-  state.pauseMenuOpen = false;
-  showView("menu");
-});
-document.querySelector("#settings-back").addEventListener("click", () => {
-  const returnView = state.settingsReturnView;
-  showView(returnView);
-  if (returnView === "dev-lab") {
-    state.pauseMenuOpen = true;
-    pauseMenu.hidden = false;
+const navigation = createDevLabViewNavigationController({
+  elements: {
+    views: [...document.querySelectorAll("[data-view]")],
+    navButtons: [...document.querySelectorAll("[data-navigate]")],
+    databaseView,
+    databaseHome,
+    databaseModeLabel,
+    databaseBackButton,
+    viewportPanel,
+    settingsBackButton: document.querySelector("#settings-back"),
+    backMenuButtons: [...document.querySelectorAll("[data-back-menu]")],
+    pauseSettingsButton: document.querySelector("#pause-settings"),
+    pauseMainMenuButton: document.querySelector("#pause-main-menu"),
+    viewportDatabaseButton,
+    body: document.body
+  },
+  definitionCatalog,
+  canOpenViewportDatabase: () => state.paused && !state.placementActive,
+  beforeLeaveWorkspace() {
+    cancelPlacement();
+    if (!state.pauseMenuOpen) {
+      if (!state.paused) {
+        inputController.pause();
+        state.clock?.pause("player");
+        state.paused = true;
+      }
+      inputController.clearForFocusLoss();
+      if (state.clock && !state.clock.hasPauseReason("player")) state.clock.pause("player");
+    }
     updateSimulationUi();
-  }
+  },
+  onSettingsReturn(returnView) {
+    if (returnView === "dev-lab") {
+      state.pauseMenuOpen = true;
+      pauseMenu.hidden = false;
+      updateSimulationUi();
+    }
+  },
+  onPauseMainMenu() { state.pauseMenuOpen = false; },
+  scrollToTop: () => window.scrollTo(0, 0),
+  dispatchResize: () => window.dispatchEvent(new Event("resize"))
 });
-document.querySelectorAll("[data-back-menu]").forEach((button) =>
-  button.addEventListener("click", () => {
-    if (button === databaseBackButton && state.viewportDatabaseOpen) closeViewportDatabase();
-    else showView("menu");
-  })
-);
+
+document.querySelector("#pause-resume").addEventListener("click", closePauseMenu);
 function refreshWorldMarkers() {
   const units = state.gameplayApi?.listUnits() ?? [];
   const activeWorldId = state.worldRegistry?.activeWorldId;
@@ -269,11 +229,6 @@ function closePauseMenu() {
   if (!state.paused) inputController.resume();
   canvas.focus({ preventScroll: true });
   updateSimulationUi();
-}
-
-function openSettings(returnView) {
-  state.settingsReturnView = returnView;
-  showView("settings");
 }
 
 function toggleSimulationPause() {
@@ -363,7 +318,7 @@ window.addEventListener("keydown", (event) => {
     event.preventDefault();
     if (state.placementActive) { cancelPlacement(); return; }
     if (state.gameplayUi?.isProfileOpen()) { state.gameplayUi.closeProfile(); return; }
-    if (state.viewportDatabaseOpen) { closeViewportDatabase(); return; }
+    if (navigation.isViewportDatabaseOpen()) { closeViewportDatabase(); return; }
     if (state.pauseMenuOpen) { closePauseMenu(); return; }
     openPauseMenu();
     return;
@@ -442,8 +397,6 @@ window.addEventListener("blur", handleFocusLoss);
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden") handleFocusLoss();
 });
-
-viewportDatabaseButton.addEventListener("click", openViewportDatabase);
 
 
 worldSizeSelect.addEventListener("change", () => {
@@ -615,5 +568,5 @@ export async function startDevLab({
   await loadContentPackage();
   definitionCatalog.refresh();
   await startDevLabRuntime({ createRuntime, resolveRuntimeServices });
-  showView("menu");
+  navigation.showView("menu");
 }
