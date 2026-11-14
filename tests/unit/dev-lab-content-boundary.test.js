@@ -4,6 +4,30 @@ import { readFile } from "node:fs/promises";
 
 const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
 
+test("shared application runtime host is independent from application and browser globals", async () => {
+  const host = await read("../../shared/application/runtime-host.js");
+  assert.ok(host.includes("export function createApplicationRuntimeHost"));
+  assert.equal(host.includes("/cassandra/"), false);
+  assert.equal(host.includes("/dev-lab/"), false);
+  assert.equal(host.includes("requestAnimationFrame"), false);
+  assert.equal(host.includes("document."), false);
+});
+
+test("Dev Lab delegates runtime lifecycle and frame scheduling to the shared host", async () => {
+  const shell = await read("../../dev-lab/application/application-shell.js");
+  const host = await read("../../shared/application/runtime-host.js");
+  assert.ok(shell.includes("createApplicationRuntimeHost"));
+  assert.ok(shell.includes("createDevLabRuntimeHost"));
+  assert.ok(shell.includes("runtimeHost.start()"));
+  assert.ok(shell.includes("runtimeHost.pause("));
+  assert.ok(shell.includes("runtimeHost.resume("));
+  assert.equal(shell.includes("function simulationFrame"), false);
+  assert.equal(shell.includes("requestAnimationFrame(simulationFrame)"), false);
+  assert.equal(shell.includes("function runtimeAdvance"), false);
+  assert.ok(host.includes("runtime.advance(deltaSeconds)"));
+  assert.ok(host.includes("runtime.destroy()"));
+});
+
 test("Dev Lab shell has no Cassandra or game-system imports", async () => {
   const source = await read("../../dev-lab/application/application-shell.js");
   assert.equal(source.includes("/cassandra/"), false);
