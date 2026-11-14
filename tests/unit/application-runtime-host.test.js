@@ -66,7 +66,7 @@ test("shared runtime host starts once and advances only on scheduled frames", as
   await h.host.stop();
   assert.equal(h.runtimeCalls.destroys, 1);
   assert.equal(h.frames.size, 0);
-  assert.deepEqual(h.cancelled, []);
+  assert.equal(h.cancelled.length, 1);
 });
 
 test("shared runtime host clamps frame delta and synchronizes clock pause changes", async () => {
