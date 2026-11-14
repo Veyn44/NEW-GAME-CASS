@@ -609,5 +609,7 @@ Move Cassandra's Quick Select and Unit Profile markup, rendering, and DOM event 
 
 ### Verification status
 
-- Source changes and automated tests have been added. GitHub Actions for the final commit must be checked before claiming CI success.
+- Source-level boundary checks confirm that the Dev Lab shell and Dev Lab presentation stylesheet no longer contain the Cassandra Unit inspector markup or styles.
+- The new UI behavior test covers selection, Draft leader redirection, profile toggling, pause gating, and stale-leader cleanup; the test is included by the existing `tests/unit/*.test.js` host-test script.
+- The combined GitHub commit-status query for the final inspected commit returned no check records. CI is therefore **unconfirmed**, not reported as passed or failed.
 - Manual Pages/browser acceptance has not been performed by the assistant.
