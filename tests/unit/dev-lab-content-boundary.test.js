@@ -214,3 +214,44 @@ test("Dev Lab workspace session transitions are owned by the session controller"
   assert.equal(session.includes("/cassandra/"), false);
   assert.equal(session.includes("/src/gameplay/"), false);
 });
+
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+
+const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
+
+test("Cassandra owns its runtime host and no longer starts the Dev Lab application", async () => {
+  const shell = await read("../../cassandra/application/cassandra-application-shell.js");
+  const host = await read("../../cassandra/application/cassandra-runtime-host.js");
+  assert.ok(shell.includes("createCassandraRuntimeHost"));
+  assert.ok(shell.includes("runtimeHost.start()"));
+  assert.equal(shell.includes("startDevLab"), false);
+  assert.equal(shell.includes('from "../../dev-lab/application/application-shell.js"'), false);
+  assert.ok(host.includes("createApplicationRuntimeHost"));
+  assert.ok(host.includes("createCassandraRuntime"));
+  assert.ok(host.includes("resolveCassandraRuntimeServices"));
+  assert.ok(host.includes("runtime.advance") === false);
+});
+
+test("Cassandra runtime host preserves Cassandra gameplay system composition", async () => {
+  const host = await read("../../cassandra/application/cassandra-runtime-host.js");
+  assert.ok(host.includes("createInputSystem"));
+  assert.ok(host.includes("createUnitSystem"));
+  assert.ok(host.includes("createColonyControlSystem"));
+  assert.ok(host.includes("createCassandraDevLabGameplayController"));
+  assert.ok(host.includes("createCassandraDevLabUnitInspectorUi"));
+  assert.ok(host.includes("fixedStepSeconds: 1 / 60"));
+  assert.ok(host.includes("maxStepsPerFrame: 120"));
+});
+
+test("Cassandra app shell owns runtime presentation and does not import the Dev Lab shell", async () => {
+  const shell = await read("../../cassandra/application/cassandra-application-shell.js");
+  assert.ok(shell.includes("createDevLabViewport"));
+  assert.ok(shell.includes("createDefinitionCatalogController"));
+  assert.ok(shell.includes("createDevLabViewNavigationController"));
+  assert.ok(shell.includes("createDevLabPauseMenuController"));
+  assert.ok(shell.includes("createWorkspacePersistenceController"));
+  assert.equal(shell.includes("startDevLab"), false);
+  assert.equal(shell.includes("createDevLabRuntime"), false);
+});
