@@ -92,6 +92,7 @@ test("Cassandra Unit inspector follows the Draft leader and clears stale selecti
   assert.equal(selected.id, "unit-2");
   assert.equal(ui.getSelectedUnitId(), "unit-2");
 
+  units.delete("unit-2");
   assert.equal(ui.inspectUnit("missing"), null);
   assert.equal(ui.getSelectedUnitId(), null);
   assert.equal(elements.quickSelect.hidden, true);
