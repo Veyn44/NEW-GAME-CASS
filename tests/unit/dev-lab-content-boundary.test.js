@@ -131,3 +131,21 @@ test("Dev Lab shell delegates definition catalog behavior to its controller", as
   assert.ok(catalog.includes("loadDefinitionDetail"));
   assert.ok(catalog.includes("onSelectDefinition"));
 });
+
+
+test("Dev Lab navigation behavior is owned by its application controller", async () => {
+  const shell = await read("../../dev-lab/application/application-shell.js");
+  const navigation = await read("../../dev-lab/application/view-navigation-controller.js");
+  assert.ok(shell.includes("createDevLabViewNavigationController"));
+  assert.ok(shell.includes("navigation.showView"));
+  assert.ok(shell.includes("navigation.closeViewportDatabase"));
+  assert.equal(shell.includes("function showView"), false);
+  assert.equal(shell.includes("function openDatabase"), false);
+  assert.equal(shell.includes("function openViewportDatabase"), false);
+  assert.equal(shell.includes("function closeViewportDatabase"), false);
+  assert.equal(shell.includes("state.settingsReturnView"), false);
+  assert.equal(shell.includes("state.viewportDatabaseOpen"), false);
+  assert.ok(navigation.includes("export function createDevLabViewNavigationController"));
+  assert.equal(navigation.includes("/cassandra/"), false);
+  assert.equal(navigation.includes("/src/gameplay/"), false);
+});
