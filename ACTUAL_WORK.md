@@ -381,15 +381,48 @@ So the future design should not simply rename Colony Control to Engine Control. 
 4. Free-camera WASD is currently implemented in the shell (`applyFreeCameraInput`, speed 30), while drafted WASD is implemented in Colony Control (speed 4) and the shell follows the leader camera. The intended Control Modes design should own generic mode/camera/input routing; Cassandra should provide movement/action policy.
 5. The local save adapter uses Cassandra file format/name and Dev Lab workspace slot in one class. Keep it outside Engine until its generic and application-specific parts are separated.
 
-## 11. Current next step
+## 11. Completed implementation slice — content package injection
 
-The read-only first pass is complete enough to propose the first safe implementation slice, but it is not a full formal import graph for every line in every module.
+Approved by the user on 2026-11-14. Implemented on the existing `work` branch only; no new branches were created.
 
-Recommended first code slice (pending user approval):
-- Move the existing Core folder and its tests/docs mechanically under `engine/core/` (or first agree whether `engine/core` is the desired path).
-- Move the generic host runtime wrapper under `engine/runtime/`.
-- Update import paths only; do not change Core behavior, APIs, simulation rules, or browser shell behavior.
-- Run `npm run test:all` and browser acceptance.
-- Do not include Unit/Colony/database/input/shell refactors in the same slice.
+### Goal
 
-No source files have been moved by this inventory. This recommendation still awaits user approval before any source-code restructuring.
+Remove the Dev Lab application's direct dependency on Cassandra's content package while preserving the current Pages application composition and its loaded Johny definition.
+
+### Changes made
+
+- `dev-lab/application/application-shell.js`
+  - Removed the direct import of `cassandra/database/load-cassandra-database.js`.
+  - Removed the direct `loadCassandraDatabase()` startup call.
+  - Exported `startDevLab({ loadContentPackage })`. The content provider is optional and defaults to an async no-op, so Dev Lab itself can initialize without Cassandra content.
+  - The Dev Lab shell still reads definitions through the generic Engine definition registry.
+- `application-entry.js` (new)
+  - Added a temporary top-level composition root.
+  - It imports the Cassandra content loader and passes it to `startDevLab`.
+  - This preserves the current deployed application behavior while keeping Cassandra content wiring outside the Dev Lab application module.
+- `index.html`
+  - Switched the module entry from the Dev Lab shell directly to `application-entry.js`.
+- `tests/unit/dev-lab-content-boundary.test.js` (new)
+  - Checks that the Dev Lab shell no longer imports or invokes the Cassandra database loader.
+  - Checks that the composition root supplies Cassandra content explicitly.
+- `.github/workflows/core-tests.yml`
+  - Added a Node syntax check for `application-entry.js`.
+
+### Intentionally unchanged
+
+- Cassandra definition JSON and the Cassandra package loader.
+- Engine definition registry and package loader behavior.
+- Unit, Colony Control and input systems.
+- Save format, persistence behavior, Core simulation and browser UI logic.
+- `main` branch and all other branches.
+
+### Verification status
+
+- GitHub compare confirms `work` remains ahead of `main`; no changes were made to `main`.
+- The new boundary test is included in `npm run test:host` through the existing wildcard test command.
+- At the time this log was updated, the GitHub Actions status endpoint had not yet reported a result for the latest commit. Do not mark CI or manual Pages/browser acceptance as passed until those results are observed.
+- Manual browser acceptance has not been performed by the assistant.
+
+### Next safe step
+
+Inspect and separate the Cassandra Unit/Colony runtime composition from the Dev Lab workspace. Do not move or generalize those systems until their contracts and current imports have been mapped. Keep the same approval-before-change workflow. The menu click failure remains a separate unresolved defect and is not claimed fixed by this content-boundary change.
