@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { createGameRuntime } from "../../engine/runtime/create-game-runtime.js";
 import { MemorySaveAdapter } from "../../engine/core/persistence.js";
 import { createUnitSystem } from "../../src/gameplay/unit/unit-system.js";
-import { createGameInputSystem } from "../../src/gameplay/input/game-input-system.js";
-import { createViewportInputController } from "../../src/application/input/viewport-input-controller.js";
+import { createInputSystem } from "../../engine/input/input-system.js";
+import { createViewportInputController } from "../../dev-lab/input/viewport-input-controller.js";
 import { clearDefinitionsForTests, getDefinition } from "../../engine/database/definition-registry.js";
 import { loadCassandraDatabase } from "../../cassandra/database/load-cassandra-database.js";
 
@@ -15,7 +15,7 @@ test("Johny exists as a live world Unit backed by his canonical database identit
   const runtime = createGameRuntime({
     saveAdapter: new MemorySaveAdapter(),
     hostSystems: [
-      createGameInputSystem({ inputController: createViewportInputController() }),
+      createInputSystem({ inputController: createViewportInputController() }),
       createUnitSystem({ definitionLookup: getDefinition })
     ]
   });

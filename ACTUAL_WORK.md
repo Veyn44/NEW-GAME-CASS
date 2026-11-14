@@ -557,3 +557,13 @@ Remove direct Unit and Colony Control service coupling and Cassandra-specific ke
 - The stale workspace test imports were corrected.
 - Automated tests and GitHub Actions have not yet been run/confirmed in this environment. Do not claim the test suite or CI passed until a run is observed.
 - Manual Pages/browser acceptance has not been performed.
+
+
+### CI follow-up — stale test paths found after the adapter slice
+
+The first GitHub Actions run for commit `43c2f5d` reported:
+- one over-broad source-boundary assertion that incorrectly matched the internal Cassandra composition root;
+- stale imports in `johny-world-entity.test.js` for the removed input system and moved viewport controller;
+- a stale `world-preview-model.js` import in `world-preview.test.js`.
+
+The assertion was narrowed to the service resolver contract, and both test files now import the current module paths. The follow-up commit's CI result must be checked separately.

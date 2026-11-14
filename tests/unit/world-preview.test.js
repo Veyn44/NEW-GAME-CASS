@@ -8,7 +8,7 @@ import {
   CAMERA_OVERSCAN_TILES,
   UNIT_MARKER_RADIUS_TILES,
   SELECTED_MARKER_OUTLINE_RADIUS_TILES
-} from "../../src/adapters/presentation/world-preview-model.js";
+} from "../../dev-lab/presentation/world-preview-model.js";
 
 test("primary world sizes are square and use the agreed dimensions", () => {
   assert.deepEqual(PRIMARY_WORLD_SIZES, [64, 128, 256]);
