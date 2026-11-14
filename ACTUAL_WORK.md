@@ -567,3 +567,47 @@ The first GitHub Actions run for commit `43c2f5d` reported:
 - a stale `world-preview-model.js` import in `world-preview.test.js`.
 
 The assertion was narrowed to the service resolver contract, and both test files now import the current module paths. The follow-up commit's CI result must be checked separately.
+
+
+## 15. Completed implementation slice — Cassandra-owned Unit inspection UI
+
+Approved by the user on 2026-11-14. Implemented on the existing `work` branch only.
+
+### Goal
+
+Move Cassandra's Quick Select and Unit Profile markup, rendering, and DOM event wiring out of the Dev Lab application shell. Keep Dev Lab responsible only for generic world selection markers and camera presentation.
+
+### Changes made
+
+- Added `cassandra/application/dev-lab-unit-inspector-ui.js`
+  - Owns the Quick Select and Unit Profile markup and DOM event handlers.
+  - Owns Unit definition lookup, artwork, instance details, nested attribute rendering, profile open/close, and paused-state gating for the INFO action.
+  - Exposes a small UI contract: `inspectUnit`, `clearSelection`, `closeProfile`, `isProfileOpen`, `getSelectedUnitId`, and `setPaused`.
+  - Accepts the existing Cassandra gameplay adapter; it does not import Dev Lab presentation or input modules.
+- Added `cassandra/application/dev-lab-unit-inspector-ui.css` and moved the Quick Select and Unit Profile style rules out of the Dev Lab presentation stylesheet.
+- `index.html`
+  - Replaced Cassandra inspector markup with a neutral application UI mount point.
+  - Loads the Cassandra-owned inspector stylesheet separately.
+- `application-entry.js`
+  - Creates the inspector UI at the Cassandra composition boundary and supplies it to Dev Lab as `gameplayUi`.
+- `dev-lab/application/application-shell.js`
+  - No longer queries or renders Quick Select / Unit Profile elements.
+  - No longer stores Unit inspector selection state or binds inspector DOM events.
+  - Uses the injected UI contract and retains world marker selection and camera follow behavior.
+  - Generic definition database attribute rendering remains in the shell and is intentionally separate from the Unit inspector.
+- Added `tests/unit/cassandra-dev-lab-unit-inspector-ui.test.js` for selection, Draft leader redirection, profile toggling, pause gating, and stale-selection cleanup.
+- Expanded `tests/unit/dev-lab-content-boundary.test.js` and added a browser syntax check for the new UI module.
+
+### Intentionally unchanged
+
+- Cassandra gameplay adapter and Unit / Colony Control system implementations.
+- Engine Core, environment simulation, world registry, persistence behavior, and workspace save format.
+- Dev Lab viewport input, generic object marker rendering, camera movement, and world rendering.
+- Generic database definition inspector.
+- The existing menu-button responsiveness issue; it remains separate and is not claimed fixed.
+- `main` and all other branches.
+
+### Verification status
+
+- Source changes and automated tests have been added. GitHub Actions for the final commit must be checked before claiming CI success.
+- Manual Pages/browser acceptance has not been performed by the assistant.
