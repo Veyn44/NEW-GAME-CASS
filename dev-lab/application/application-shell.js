@@ -1,10 +1,10 @@
 import { createWorldViewport } from "../../shared/presentation/world-viewport.js";
 import { createDevLabRuntime } from "./create-dev-lab-runtime.js";
 import { LocalFileSaveAdapter } from "../../src/adapters/storage/local-file-save-adapter.js";
-import { createWorkspacePersistenceController } from "./workspace-persistence-controller.js";
+import { createFilePersistenceController } from "../../shared/application/file-persistence-controller.js";
 import { createDefinitionCatalogController } from "../../shared/application/definition-catalog-controller.js";
-import { createDevLabViewNavigationController } from "./view-navigation-controller.js";
-import { createDevLabPauseMenuController } from "./pause-menu-controller.js";
+import { createViewNavigationController } from "../../shared/application/view-navigation-controller.js";
+import { createPauseMenuController } from "../../shared/application/pause-menu-controller.js";
 import { createDevLabWorkspaceSessionController } from "./workspace-session-controller.js";
 import { getDefinition, listDefinitionIndex, getCategories, loadDefinitionDetail } from "../../engine/database/definition-registry.js";
 import { createViewportInputController } from "../../shared/input/viewport-input-controller.js";
@@ -114,7 +114,9 @@ function cancelPlacement() {
   simulationStatus.textContent = "PAUSED · PLACEMENT CANCELLED";
 }
 
-const navigation = createDevLabViewNavigationController({
+const navigation = createViewNavigationController({
+  workspaceView: "dev-lab",
+  catalogLabels: { browse: "ENGINE / CONTENT CATALOG", viewport: "ENGINE / DEV LAB" },
   elements: {
     views: [...document.querySelectorAll("[data-view]")],
     navButtons: [...document.querySelectorAll("[data-navigate]")],
@@ -154,7 +156,8 @@ const navigation = createDevLabViewNavigationController({
 });
 
 let pauseMenuController;
-pauseMenuController = createDevLabPauseMenuController({
+pauseMenuController = createPauseMenuController({
+  workspaceView: "dev-lab",
   elements: {
     menu: pauseMenu,
     resumeButton: document.querySelector("#pause-resume"),
@@ -432,8 +435,13 @@ function createDevLabRuntimeHost({
     worlds.activateWorld(`dev-lab-world-${Number(worldSizeSelect.value)}`);
     state.worldRegistry = worlds;
     state.persistenceApi = services.persistenceApi;
-    state.workspacePersistence = createWorkspacePersistenceController({
+    state.workspacePersistence = createFilePersistenceController({
       persistenceApi: services.persistenceApi,
+      saveSlot: "dev-lab-workspace",
+      stateId: "cassandra-dev-lab-workspace",
+      supportsFileAccess: () => LocalFileSaveAdapter.supportsFileAccess,
+      requestFileName: ({ currentFileName, defaultFileName }) =>
+        window.prompt("Name this Cassandra save:", currentFileName || defaultFileName),
       saveAdapter: state.saveAdapter,
       fileInput: workspaceFileInput,
       onRestore: workspaceSession.synchronizeRestoredWorkspace,
