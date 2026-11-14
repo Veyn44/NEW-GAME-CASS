@@ -36,11 +36,14 @@ lifecycle, frame scheduling, clock synchronization, and teardown.
   application start-up, runtime-host configuration, navigation, pause handling,
   world selection, viewport coordination, gameplay UI mounting, and input
   policy.
-- Cassandra currently reuses the isolated viewport, input controller, catalog,
-  navigation, pause-menu, and workspace-persistence utilities originally
-  extracted while building Dev Lab. These are utility-level imports; Cassandra
-  does not start the Dev Lab application. Moving generally reusable utilities
-  into neutral shared packages remains a follow-up boundary cleanup.
+- Cassandra and Dev Lab now share application-neutral viewport rendering,
+  viewport geometry, physical input-state handling, and definition-catalog
+  utilities from shared/. The viewport receives pointer overlay elements from
+  the host rather than querying Dev Lab-specific selectors.
+- Navigation, pause-menu, and workspace-persistence controllers remain in
+  dev-lab/application/: they still encode Dev Lab screen names, menu behavior,
+  and the current workspace save identity. Extracting generic variants is a
+  separate future step.
 - The existing `.cass` envelope, save adapter, persistence participant
   contracts, and workspace state identifier are retained for compatibility.
   Cassandra-specific save-state identity and ownership will be separated in a
