@@ -126,14 +126,14 @@ test("Dev Lab delegates Unit inspection UI and contains no Cassandra inspector m
 
 test("Dev Lab shell delegates viewport and workspace persistence to owned services", async () => {
   const shell = await read("../../dev-lab/application/application-shell.js");
-  const viewport = await read("../../dev-lab/presentation/dev-lab-viewport.js");
+  const viewport = await read("../../shared/presentation/world-viewport.js");
   const persistence = await read("../../dev-lab/application/workspace-persistence-controller.js");
-  assert.ok(shell.includes("createDevLabViewport"));
+  assert.ok(shell.includes("createWorldViewport"));
   assert.ok(shell.includes("createWorkspacePersistenceController"));
   assert.equal(shell.includes('from "../presentation/dev-world-preview.js"'), false);
   assert.equal(shell.includes("DEV_LAB_SAVE_SLOT"), false);
   assert.equal(shell.includes("async function persistWorkspace"), false);
-  assert.ok(viewport.includes("export function createDevLabViewport"));
+  assert.ok(viewport.includes("export function createWorldViewport"));
   assert.ok(viewport.includes("setWorldMarkers"));
   assert.ok(viewport.includes("resetCameraToWorld"));
   assert.equal(viewport.includes('document.querySelector("#world-canvas")'), false);
@@ -144,7 +144,7 @@ test("Dev Lab shell delegates viewport and workspace persistence to owned servic
 
 test("Dev Lab shell delegates definition catalog behavior to its controller", async () => {
   const shell = await read("../../dev-lab/application/application-shell.js");
-  const catalog = await read("../../dev-lab/application/definition-catalog-controller.js");
+  const catalog = await read("../../shared/application/definition-catalog-controller.js");
   const navigation = await read("../../dev-lab/application/view-navigation-controller.js");
   assert.ok(shell.includes("createDefinitionCatalogController"));
   assert.ok(shell.includes("definitionCatalog.refresh()"));
@@ -244,11 +244,27 @@ test("Cassandra runtime host preserves Cassandra gameplay system composition", a
 
 test("Cassandra app shell owns runtime presentation and does not import the Dev Lab shell", async () => {
   const shell = await read("../../cassandra/application/cassandra-application-shell.js");
-  assert.ok(shell.includes("createDevLabViewport"));
+  assert.ok(shell.includes("createWorldViewport"));
   assert.ok(shell.includes("createDefinitionCatalogController"));
   assert.ok(shell.includes("createDevLabViewNavigationController"));
   assert.ok(shell.includes("createDevLabPauseMenuController"));
   assert.ok(shell.includes("createWorkspacePersistenceController"));
   assert.equal(shell.includes("startDevLab"), false);
   assert.equal(shell.includes("createDevLabRuntime"), false);
+});
+test("shared presentation, input, and catalog utilities do not depend on either application", async () => {
+  const modules = [
+    "../../shared/presentation/world-viewport.js",
+    "../../shared/presentation/world-viewport-model.js",
+    "../../shared/input/viewport-input-controller.js",
+    "../../shared/application/definition-catalog-controller.js"
+  ];
+  for (const path of modules) {
+    const source = await read(path);
+    assert.equal(source.includes("/dev-lab/"), false, path);
+    assert.equal(source.includes("/cassandra/"), false, path);
+  }
+  const viewport = await read("../../shared/presentation/world-viewport.js");
+  assert.equal(viewport.includes(".viewport-panel"), false);
+  assert.equal(viewport.includes(".viewport-crosshair"), false);
 });
