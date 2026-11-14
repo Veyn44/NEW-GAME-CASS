@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { createDevLabPauseMenuController } from "../../dev-lab/application/pause-menu-controller.js";
+import { createPauseMenuController } from "../../shared/application/pause-menu-controller.js";
 
 class FakeElement {
   constructor(hidden = false) {
@@ -28,7 +28,8 @@ function createHarness({ canOpen = () => true, initiallyOpen = false } = {}) {
     openSettings(view) { calls.settings.push(view); },
     showView(view) { calls.views.push(view); }
   };
-  const controller = createDevLabPauseMenuController({
+  const controller = createPauseMenuController({
+    workspaceView: "dev-lab",
     elements: { menu, resumeButton, settingsButton, mainMenuButton },
     navigation,
     canOpen,
