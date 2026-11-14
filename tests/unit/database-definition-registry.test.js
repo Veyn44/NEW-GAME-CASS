@@ -31,12 +31,10 @@ test("filters selection index by supported instance kind", () => {
   clearDefinitionsForTests();
 });
 
-test("rejects invalid and duplicate definitions while accepting consumer-defined instance kinds", () => {
+test("rejects invalid and duplicate definitions and unsupported instance kinds", () => {
   clearDefinitionsForTests();
   assert.throws(() => registerDefinition({ id: "", name: "Bad", category: "Pawn" }), TypeError);
-  const material = registerDefinition({ id: "material.iron", name: "Iron", category: "Material", spawnableAs: ["material"] });
-  assert.deepEqual(material.spawnableAs, ["material"]);
-  assert.throws(() => registerDefinition({ id: "bad.kind", name: "Bad", category: "Pawn", spawnableAs: [""] }), TypeError);
+  assert.throws(() => registerDefinition({ id: "bad.kind", name: "Bad", category: "Pawn", spawnableAs: ["material"] }), TypeError);
   registerDefinition({ id: "wall.steel", name: "Steel Wall", category: "Structure" });
   assert.throws(() => registerDefinition({ id: "wall.steel", name: "Duplicate", category: "Structure" }), /already registered/);
   clearDefinitionsForTests();

@@ -5,7 +5,7 @@ import { MemorySaveAdapter } from "../../engine/core/persistence.js";
 import { createUnitSystem } from "../../src/gameplay/unit/unit-system.js";
 import { createGameInputSystem } from "../../src/gameplay/input/game-input-system.js";
 import { createViewportInputController } from "../../src/application/input/viewport-input-controller.js";
-import { clearDefinitionsForTests, getDefinition } from "../../src/application/database/definition-registry.js";
+import { clearDefinitionsForTests, getDefinition } from "../../engine/database/definition-registry.js";
 import { loadCanonicalDefinitions } from "../../src/application/database/database-loader.js";
 
 test("Johny exists as a live world Unit backed by his canonical database identity", async () => {

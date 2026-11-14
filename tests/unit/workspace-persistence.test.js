@@ -11,7 +11,7 @@ import {
   clearDefinitionsForTests,
   getDefinition,
   registerDefinition
-} from "../../src/application/database/definition-registry.js";
+} from "../../engine/database/definition-registry.js";
 
 test("workspace round-trip restores world, identity, placement, Unit and Colony Leader without duplicates", async () => {
   clearDefinitionsForTests();
