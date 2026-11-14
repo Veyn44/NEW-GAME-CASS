@@ -6,11 +6,11 @@ import { createUnitSystem } from "../../src/gameplay/unit/unit-system.js";
 import { createGameInputSystem } from "../../src/gameplay/input/game-input-system.js";
 import { createViewportInputController } from "../../src/application/input/viewport-input-controller.js";
 import { clearDefinitionsForTests, getDefinition } from "../../engine/database/definition-registry.js";
-import { loadCanonicalDefinitions } from "../../src/application/database/database-loader.js";
+import { loadCassandraDatabase } from "../../cassandra/database/load-cassandra-database.js";
 
 test("Johny exists as a live world Unit backed by his canonical database identity", async () => {
   clearDefinitionsForTests();
-  loadCanonicalDefinitions();
+  loadCassandraDatabase();
 
   const runtime = createGameRuntime({
     saveAdapter: new MemorySaveAdapter(),
