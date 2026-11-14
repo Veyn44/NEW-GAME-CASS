@@ -43,7 +43,10 @@ code.
   `dev-lab/application/view-navigation-controller.js`. Pause overlay visibility
   and its Resume/Controls/Main Menu actions live in
   `dev-lab/application/pause-menu-controller.js`; runtime pause/resume and
-  placement cancellation remain owned by the host shell. Definition catalog filtering, category
+  placement cancellation remain owned by the host shell. World selection, safe workspace reset,
+  and post-restore session synchronization live in
+  `dev-lab/application/workspace-session-controller.js`; Engine runtime construction and
+  simulation scheduling remain owned by the host shell. Definition catalog filtering, category
   controls, asynchronous detail inspection, and host-neutral selection live in
   `dev-lab/application/definition-catalog-controller.js`. The viewport service
   still owns its DOM event bindings and rendering loop; it is isolated from the
