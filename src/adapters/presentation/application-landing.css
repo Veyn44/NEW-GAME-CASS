@@ -1,0 +1,68 @@
+:root {
+  color-scheme: dark;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #080e18;
+  color: #e7edf5;
+  font-synthesis: none;
+}
+* { box-sizing: border-box; }
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  display: grid;
+  place-items: center;
+  padding: 32px 20px;
+  background: radial-gradient(ellipse at 50% 20%, #14243a 0%, #080e18 62%);
+}
+.landing-shell { width: min(100%, 680px); }
+.brand-block { margin: 0 0 42px; text-align: center; }
+.eyebrow {
+  margin: 0 0 12px;
+  color: #58c8bf;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .22em;
+}
+h1 { margin: 0; font-size: clamp(42px, 9vw, 72px); letter-spacing: .16em; }
+.brand-subtitle { margin: 12px 0 0; color: #91a3b8; font-size: 14px; }
+.main-menu-list { display: grid; gap: 10px; }
+.menu-entry {
+  width: 100%;
+  min-height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 14px 18px;
+  border: 1px solid #26364b;
+  border-radius: 8px;
+  background: rgba(16, 27, 43, .88);
+  color: inherit;
+  text-align: left;
+  text-decoration: none;
+}
+a.menu-entry { cursor: pointer; transition: border-color .15s ease, background .15s ease; }
+a.menu-entry:hover, a.menu-entry:focus-visible {
+  border-color: #42bdb2;
+  background: #172b40;
+  outline: none;
+}
+.menu-entry strong, .menu-entry small { display: block; }
+.menu-entry strong { font-size: 13px; letter-spacing: .08em; }
+.menu-entry small { margin-top: 5px; color: #91a3b8; font-size: 12px; }
+.menu-entry b { color: #58c8bf; font-size: 10px; letter-spacing: .12em; white-space: nowrap; }
+.menu-entry:disabled { opacity: .46; cursor: not-allowed; }
+.menu-note { margin: 4px 2px 8px; color: #8294a9; font-size: 12px; line-height: 1.5; }
+.app-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 36px;
+  color: #71849a;
+  font-size: 9px;
+  letter-spacing: .12em;
+}
+@media (max-width: 480px) {
+  .app-footer { flex-direction: column; align-items: center; }
+}
