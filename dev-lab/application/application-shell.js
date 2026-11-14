@@ -426,7 +426,7 @@ function inspectGameplayEntity(entityId) {
 function updateSimulationUi() {
   const controlState = state.gameplayApi?.getControlState();
   state.gameplayUi?.setPaused(state.paused);
-  const controlLabel = state.gameplayApi?.getDraftStatusLabel() ?? "NO GAME CONTROL";
+  const controlLabel = state.gameplayApi?.getDraftStatusLabel() ?? "FREE CAMERA";
   simulationStatus.textContent = state.paused
     ? `PAUSED · ${controlLabel} · Space to resume`
     : `RUNNING · ${controlLabel} · Space to pause`;
@@ -436,7 +436,7 @@ function updateSimulationUi() {
   worldSizeSelect.disabled = !state.paused || state.placementActive;
   gridVisible.disabled = false;
   viewportDatabaseButton.disabled = !state.paused || state.placementActive;
-  resetLabButton.disabled = !state.gameplayApi;
+  resetLabButton.disabled = !state.worldRegistry;
   pointerStatus.textContent = state.paused ? "INSPECTION CURSOR" : (state.gameplayApi?.getControlModeLabel() ?? "FREE CAMERA");
   setWorldInteraction({
     paused: state.paused,
@@ -662,9 +662,9 @@ worldSizeSelect.addEventListener("change", () => {
 });
 
 resetLabButton.addEventListener("click", () => {
-  if (!state.gameplayApi || !state.worldRegistry) return;
+  if (!state.worldRegistry) return;
   const confirmed = window.confirm(
-    "Reset Dev Lab? All current Units and unsaved session state will be cleared. Saved .cass files will not be deleted."
+    "Reset Dev Lab? All current workspace entities and unsaved session state will be cleared. Saved .cass files will not be deleted."
   );
   if (!confirmed) return;
 
@@ -677,10 +677,10 @@ resetLabButton.addEventListener("click", () => {
   closeViewportDatabase();
   state.gameplayUi?.closeProfile();
 
-  for (const unit of state.gameplayApi.listUnits()) {
+  for (const unit of state.gameplayApi?.listUnits() ?? []) {
     state.gameplayApi.removeUnit(unit.id);
   }
-  state.gameplayApi.setLeader(null);
+  state.gameplayApi?.setLeader(null);
   clearSelection();
   refreshWorldMarkers();
 
