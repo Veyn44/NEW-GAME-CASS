@@ -649,3 +649,46 @@ Remove reusable viewport, input-state, and definition-catalog utilities from the
 - Unit and browser tests have not been run locally in this environment.
 - GitHub Actions must be checked for the resulting commit before claiming automated tests passed.
 - Manual Pages/browser acceptance has not been performed by the assistant.
+
+## 17. Completed implementation slice — shared application navigation, pause, and file persistence
+
+Approved by the user on 2026-11-14 and implemented on the existing `work` branch only.
+
+### Goal
+
+Remove the remaining reusable navigation, pause-menu, and file-persistence orchestration from the Dev Lab-owned directory. Keep application-specific view identifiers, callbacks, save adapters, save slots, state identities, and UI copy in the application composition roots.
+
+### Changes made
+
+- Added `shared/application/view-navigation-controller.js`
+  - Exports `createViewNavigationController`.
+  - Coordinates view switching, catalog browse/overlay lifecycle, settings return navigation, and workspace-leave callbacks.
+  - Receives the workspace view identifier and catalog labels from the application shell; contains no Dev Lab or Cassandra imports or identifiers.
+- Added `shared/application/pause-menu-controller.js`
+  - Exports `createPauseMenuController`.
+  - Owns pause-overlay visibility and delegates open/close, settings, and main-menu effects through injected callbacks and navigation.
+  - Receives workspace/menu view identifiers from the application shell.
+- Added `shared/application/file-persistence-controller.js`
+  - Exports `createFilePersistenceController`.
+  - Coordinates save/load/import through the Engine persistence API without importing a concrete save adapter or assuming a particular application slot/state identity.
+  - Receives save adapter, slot, state identifier, file-picker capability, filename prompt, default filename, and status copy from the application composition root.
+- Updated both Cassandra and Dev Lab shells to compose the shared controllers while preserving the existing visible labels, pause behavior, file prompts, save slot, and state identity.
+- Removed the former Dev Lab-owned navigation, pause-menu, and workspace-persistence controller files.
+- Updated navigation, pause-menu, persistence, and application-boundary tests. Added coverage for injected save identities, fallback filename selection, and native file-picker gating.
+- Corrected the stale `dev-lab/input/viewport-input-controller.js` import in `tests/unit/workspace-persistence.test.js` to the current shared input-controller path.
+- Updated CI syntax checks and `docs/architecture/application-boundaries.md`.
+
+### Compatibility and intentionally unchanged
+
+- The `.cass` file envelope, file format version, local-file adapter, save slot `dev-lab-workspace`, and state identifier `cassandra-dev-lab-workspace` are unchanged.
+- Both application shells continue to display the same existing catalog and save/pause UI copy.
+- Engine Core/runtime, environment simulation, Unit and Colony Control gameplay, viewport rendering, world/session behavior, and browser entry points are unchanged.
+- The known menu-button responsiveness issue remains unresolved and has not been browser-verified.
+- `main` and all other branches were not modified.
+
+### Verification status
+
+- Source changes and import references were inspected through the GitHub repository API on `work`.
+- The new shared modules are included in the application-boundary test and CI syntax-check list.
+- The automated test suite has not been executed locally in this environment. GitHub Actions status for the resulting commits must be checked before reporting CI as passed.
+- Manual Pages/browser acceptance remains pending user verification.
