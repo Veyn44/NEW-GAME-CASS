@@ -5,9 +5,9 @@ import { createGameRuntime } from "../../engine/runtime/create-game-runtime.js";
 import { MemorySaveAdapter } from "../../engine/core/persistence.js";
 import { registerDefinition, getDefinition, clearDefinitionsForTests } from "../../engine/database/definition-registry.js";
 import { createUnitSystem } from "../../src/gameplay/unit/unit-system.js";
-import { createGameInputSystem } from "../../src/gameplay/input/game-input-system.js";
+import { createInputSystem } from "../../engine/input/input-system.js";
 import { createColonyControlSystem } from "../../src/gameplay/colony/colony-control-system.js";
-import { createViewportInputController } from "../../src/application/input/viewport-input-controller.js";
+import { createViewportInputController } from "../../dev-lab/input/viewport-input-controller.js";
 
 async function setup() {
   clearDefinitionsForTests();
@@ -23,7 +23,7 @@ async function setup() {
     saveAdapter: new MemorySaveAdapter(),
     fixedStepSeconds: 1 / 60,
     hostSystems: [
-      createGameInputSystem({ inputController }),
+      createInputSystem({ inputController }),
       createUnitSystem({ definitionLookup: getDefinition }),
       createColonyControlSystem()
     ]
