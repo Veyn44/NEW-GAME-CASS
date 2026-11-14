@@ -167,7 +167,7 @@ test("Dev Lab shell delegates definition catalog behavior to its controller", as
 
 test("Dev Lab navigation behavior is owned by its application controller", async () => {
   const shell = await read("../../dev-lab/application/application-shell.js");
-  const navigation = await read("../../dev-lab/application/view-navigation-controller.js");
+  const navigation = await read("../../shared/application/view-navigation-controller.js");
   assert.ok(shell.includes("createViewNavigationController"));
   assert.ok(shell.includes("navigation.showView"));
   assert.ok(shell.includes("navigation.closeViewportDatabase"));
@@ -185,7 +185,7 @@ test("Dev Lab navigation behavior is owned by its application controller", async
 
 test("Dev Lab pause menu behavior is owned by its application controller", async () => {
   const shell = await read("../../dev-lab/application/application-shell.js");
-  const navigation = await read("../../dev-lab/application/view-navigation-controller.js");
+  const navigation = await read("../../shared/application/view-navigation-controller.js");
   const pauseMenu = await read("../../shared/application/pause-menu-controller.js");
   assert.ok(shell.includes("createPauseMenuController"));
   assert.ok(shell.includes("pauseMenuController.isOpen()"));
@@ -248,7 +248,7 @@ test("Cassandra app shell owns runtime presentation and does not import the Dev 
   const shell = await read("../../cassandra/application/cassandra-application-shell.js");
   assert.ok(shell.includes("createWorldViewport"));
   assert.ok(shell.includes("createDefinitionCatalogController"));
-  assert.ok(shell.includes("createDevLabViewNavigationController"));
+  assert.ok(shell.includes("createViewNavigationController"));
   assert.ok(shell.includes("createPauseMenuController"));
   assert.ok(shell.includes("createFilePersistenceController"));
   assert.equal(shell.includes("startDevLab"), false);
