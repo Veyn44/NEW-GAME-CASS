@@ -671,7 +671,7 @@ Remove the remaining reusable navigation, pause-menu, and file-persistence orche
 - Added `shared/application/file-persistence-controller.js`
   - Exports `createFilePersistenceController`.
   - Coordinates save/load/import through the Engine persistence API without importing a concrete save adapter or assuming a particular application slot/state identity.
-  - Receives save adapter, slot, state identifier, file-picker capability, filename prompt, default filename, and status copy from the application composition root.
+  - Receives save adapter, slot, state identifier, file-picker capability, filename prompt, file extension, default filename, and status copy from the application composition root.
 - Updated both Cassandra and Dev Lab shells to compose the shared controllers while preserving the existing visible labels, pause behavior, file prompts, save slot, and state identity.
 - Removed the former Dev Lab-owned navigation, pause-menu, and workspace-persistence controller files.
 - Updated navigation, pause-menu, persistence, and application-boundary tests. Added coverage for injected save identities, fallback filename selection, and native file-picker gating.
