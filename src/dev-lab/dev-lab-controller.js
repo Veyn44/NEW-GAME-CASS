@@ -404,6 +404,10 @@ document.querySelector("#pause-main-menu").addEventListener("click", () => {
   window.location.assign("./index.html");
 });
 document.querySelector("#settings-back").addEventListener("click", () => {
+  if (new URLSearchParams(window.location.search).get("view") === "settings") {
+    window.location.assign("./index.html");
+    return;
+  }
   const returnView = state.settingsReturnView;
   showView(returnView);
   if (returnView === "dev-lab") {
