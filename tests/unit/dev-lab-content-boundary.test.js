@@ -95,3 +95,21 @@ test("Dev Lab delegates Unit inspection UI and contains no Cassandra inspector m
   assert.ok(ui.includes("getSelectedUnitId"));
   assert.ok(ui.includes("isProfileOpen"));
 });
+
+
+test("Dev Lab shell delegates viewport and workspace persistence to owned services", async () => {
+  const shell = await read("../../dev-lab/application/application-shell.js");
+  const viewport = await read("../../dev-lab/presentation/dev-lab-viewport.js");
+  const persistence = await read("../../dev-lab/application/workspace-persistence-controller.js");
+  assert.ok(shell.includes("createDevLabViewport"));
+  assert.ok(shell.includes("createWorkspacePersistenceController"));
+  assert.equal(shell.includes('from "../presentation/dev-world-preview.js"'), false);
+  assert.equal(shell.includes("DEV_LAB_SAVE_SLOT"), false);
+  assert.equal(shell.includes("async function persistWorkspace"), false);
+  assert.ok(viewport.includes("export function createDevLabViewport"));
+  assert.ok(viewport.includes("setWorldMarkers"));
+  assert.ok(viewport.includes("resetCameraToWorld"));
+  assert.equal(viewport.includes('document.querySelector("#world-canvas")'), false);
+  assert.ok(persistence.includes("export function createWorkspacePersistenceController"));
+  assert.ok(persistence.includes('stateId: "cassandra-dev-lab-workspace"'));
+});
