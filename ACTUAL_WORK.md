@@ -692,3 +692,125 @@ Remove the remaining reusable navigation, pause-menu, and file-persistence orche
 - The new shared modules are included in the application-boundary test and CI syntax-check list.
 - The automated test suite has not been executed locally in this environment. GitHub Actions status for the resulting commits must be checked before reporting CI as passed.
 - Manual Pages/browser acceptance remains pending user verification.
+
+
+## 18. Architecture clarification and audit handoff — 2026-11-14
+
+This section records the user's latest architectural clarification and the
+read-only audit performed before the final documentation/test cleanup.
+
+### The two Dev Lab execution modes must not be confused
+
+There are two different ways to reach a screen labelled "Dev Lab":
+
+1. **Cassandra-hosted Dev Lab workspace — current primary workflow**
+   - Entry: `index.html` -> `application-entry.js` ->
+     `cassandra/application/cassandra-application-shell.js`.
+   - The main menu's DEV LAB button changes the visible view inside the
+     Cassandra application. It does not launch `dev-lab.html` and does not
+     start the standalone Dev Lab shell.
+   - Cassandra loads its content database and constructs its game runtime,
+     gameplay API, and Unit Inspector UI. These are injected into the
+     laboratory workspace.
+   - This is the workflow used for placing and inspecting Cassandra content.
+     The workspace UI originated in Dev Lab, but its current host and game
+     data provider are Cassandra.
+
+2. **Standalone Engine-only Dev Lab — optional secondary workflow**
+   - Entry: `dev-lab.html` -> `dev-lab/application/standalone-entry.js` ->
+     `dev-lab/application/application-shell.js`.
+   - The standalone entry calls `startDevLab()` without a Cassandra content
+     package or gameplay adapter. It starts a generic Engine runtime.
+   - It currently has no Cassandra definition database and no Cassandra
+     gameplay systems. Its content catalog can only show definitions
+     registered by its own host; it should not be expected to contain
+     Cassandra content.
+   - A dedicated standalone Dev Lab database/content package is optional
+     future work, not a current requirement. This standalone tool may remain
+     an Engine-only sandbox, become a generic package host, or eventually be
+     retired. Its completeness is not a prerequisite for using the
+     Cassandra-hosted laboratory workspace.
+
+### User's clarified architectural intent
+
+- Cassandra is the intended game application; the actual game is still early
+  and is not yet a complete playable game. Current Cassandra application
+  infrastructure and gameplay prototypes should not be mistaken for a
+  finished game.
+- Dev Lab is a development/laboratory environment for working on and testing
+  Engine-backed game content. Its current useful mode is hosted by Cassandra,
+  because Cassandra currently owns the database/content package.
+- Engine, Dev Lab, and Cassandra should have real responsibility boundaries,
+  but development-stage code organization is allowed to evolve. A
+  `shared/` layer for mechanisms used by both applications is legitimate.
+- `shared/` is not a sacred permanent layer and does not have to be moved
+  wholesale into Engine. It may later shrink, split, move modules into Engine
+  or applications, or disappear. Revisit it when actual usage and stable
+  contracts justify a change, not simply to force a final folder layout now.
+- The user prefers clear, small responsibility boundaries and accepts that
+  future refactoring is an expected part of development. Avoid both
+  unnecessary consolidation and speculative decomposition without a concrete
+  responsibility or dependency reason.
+- Dev Lab may have capabilities that Cassandra's player-facing game will
+  never need. Do not force feature parity or make Dev Lab's entire UI part of
+  the game.
+- The previous Argon audit is not an authoritative action list. The user
+  believes its author did not receive enough project context; its conclusions
+  should be treated as untrusted hypotheses and independently re-evaluated
+  against the current architecture and actual project goals.
+- The simulation currently has one time flow. There are no selectable 1x,
+  2x, 3x or other time-speed controls. Camera independence from accelerated
+  simulation speed is a future acceptance requirement only when speed
+  multipliers are actually implemented. Do not preemptively refactor camera
+  timing or treat hypothetical 3x camera speed as a current defect.
+- The user manually reported that the menu buttons were responding in the
+  current Pages build during the latest acceptance session. This supersedes
+  the older unresolved note for current manual status, but does not imply
+  automated browser coverage or prove every menu state.
+
+### Read-only audit findings
+
+- The main Cassandra browser entry and standalone Dev Lab entry are distinct
+  and confirmed by source inspection.
+- The Cassandra shell composes Cassandra Unit and Colony Control systems,
+  Cassandra database loading, Cassandra gameplay API and Unit Inspector UI.
+- The standalone Dev Lab shell composes the generic Engine runtime and does
+  not import Cassandra gameplay systems.
+- Both application shells consume shared runtime/presentation/application
+  mechanisms. This is an intentional current boundary.
+- The shared viewport is browser presentation infrastructure (canvas,
+  pointer/resize handling, camera and rendering), not Engine Core simulation.
+- The three remaining `src/` modules inspected are still in use:
+  `src/gameplay/unit/unit-system.js`,
+  `src/gameplay/colony/colony-control-system.js`, and
+  `src/adapters/storage/local-file-save-adapter.js`. The first two are
+  Cassandra domain systems; the latter retains the Cassandra `.cass`
+  envelope and legacy save slot. No move was made in this cleanup.
+- No 1x/2x/3x speed control exists; no camera-speed refactor was made.
+- No gameplay, Engine Core, environment simulation, runtime composition,
+  viewport, persistence format, or HTML entrypoint behavior was changed.
+
+### CI follow-up and narrow cleanup
+
+The observed GitHub Actions run before this cleanup passed 198/198 Core tests
+and 104/106 host tests. The two host failures were both
+`ERR_MODULE_NOT_FOUND` caused by stale imports of
+`../../dev-lab/input/viewport-input-controller.js` in:
+
+- `tests/unit/colony-control-system.test.js`
+- `tests/unit/game-input-system.test.js`
+
+Both test imports have been updated to
+`../../shared/input/viewport-input-controller.js` on the existing `work`
+branch. This is a test-path correction only; the tests' behavior and
+production modules are unchanged.
+
+### Next verification
+
+- Inspect the new GitHub Actions run for the exact resulting `work` HEAD.
+- Confirm Core and host test results and any subsequent workflow steps.
+- Do not infer a passing result from the source edit itself.
+- Manual acceptance of the Cassandra-hosted Dev Lab workspace remains the
+  user's responsibility; the standalone Engine-only Dev Lab is not a required
+  acceptance target unless the user chooses to develop it further.
+- Do not merge to `main` as part of this cleanup.
