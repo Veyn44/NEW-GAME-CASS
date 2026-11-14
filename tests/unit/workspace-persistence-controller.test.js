@@ -26,6 +26,8 @@ test("workspace persistence controller saves through the Engine persistence API"
     stateId: "cassandra-dev-lab-workspace",
     supportsFileAccess: () => false,
     requestFileName: () => "save.cass",
+    fileExtension: ".cass",
+    defaultFileName: "save.cass",
     fileInput: { click() {} },
     onStatus: (status) => statuses.push(status)
   });
@@ -58,6 +60,8 @@ test("workspace persistence controller imports a file and synchronizes the resto
     stateId: "cassandra-dev-lab-workspace",
     supportsFileAccess: () => false,
     requestFileName: () => "save.cass",
+    fileExtension: ".cass",
+    defaultFileName: "save.cass",
     fileInput: { click() {} },
     onRestore: () => { restored += 1; }
   });
@@ -85,6 +89,8 @@ test("workspace persistence controller delegates browser file selection and expo
     stateId: "cassandra-dev-lab-workspace",
     supportsFileAccess: () => false,
     requestFileName: () => "save.cass",
+    fileExtension: ".cass",
+    defaultFileName: "save.cass",
     fileInput: { click() { clicked += 1; } }
   });
 
