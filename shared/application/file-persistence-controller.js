@@ -11,7 +11,8 @@ export function createFilePersistenceController({
   stateId,
   supportsFileAccess = () => false,
   requestFileName = () => null,
-  defaultFileName = "save.cass",
+  fileExtension = ".save",
+  defaultFileName = "save.save",
   onRestore = () => {},
   onStatus = () => {},
   messages = {}
@@ -26,6 +27,42 @@ export function createFilePersistenceController({
   if (typeof supportsFileAccess !== "function" || typeof requestFileName !== "function") {
     throw new TypeError("File persistence requires file-access and filename providers.");
   }
+  if (typeof fileExtension !== "string" || !/^\\.[a-z0-9]+$/i.test(fileExtension)) {
+    throw new TypeError("File persistence requires a simple file extension.");
+  }
+  if (typeof defaultFileName !== "string" || !defaultFileName.toLowerCase().endsWith(fileExtension.toLowerCase())) {
+    throw new TypeError("The default filename must use the configured file extension.");
+  }
+  const escapedExtension = fileExtension.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\  if (typeof supportsFileAccess !== "function" || typeof requestFileName !== "function") {
+    throw new TypeError("File persistence requires file-access and filename providers.");
+  }");
+  const validFileName = new RegExp(`^[a-zA-Z0-9._ -]+${escapedExtension}/**
+ * Coordinates file selection with the Engine persistence API.
+ * Save adapter, slot/state identity, prompts, and UI status copy are supplied
+ * by the application composition root.
+ */
+export function createFilePersistenceController({
+  persistenceApi,
+  saveAdapter,
+  fileInput,
+  saveSlot,
+  stateId,
+  supportsFileAccess = () => false,
+  requestFileName = () => null,
+  fileExtension = ".save",
+  defaultFileName = "save.save",
+  onRestore = () => {},
+  onStatus = () => {},
+  messages = {}
+} = {}) {
+  if (!persistenceApi || !saveAdapter || !fileInput) {
+    throw new TypeError("File persistence requires persistenceApi, saveAdapter and fileInput.");
+  }
+  if (typeof saveSlot !== "string" || !saveSlot
+    || typeof stateId !== "string" || !stateId) {
+    throw new TypeError("File persistence requires saveSlot and stateId identifiers.");
+  }
+, "i");
 
   const copy = {
     savingAs: "SAVING AS",
@@ -38,7 +75,7 @@ export function createFilePersistenceController({
     loaded: "LOADED",
     restored: "WORKSPACE RESTORED",
     initialNoSelection: "NO SAVE SELECTED",
-    filePickerUnavailable: "FILE PICKER UNAVAILABLE · LOAD .CASS / EXPORT DOWNLOAD",
+    filePickerUnavailable: `FILE PICKER UNAVAILABLE · LOAD ${fileExtension.toUpperCase()} / EXPORT DOWNLOAD`,
     ...messages
   };
 
