@@ -38,9 +38,12 @@ code.
   dependencies. The workspace save/load orchestration lives in
   `dev-lab/application/workspace-persistence-controller.js`; Engine persistence
   and the existing `.cass` file adapter remain separate dependencies.
-- The shell still owns navigation, pause state, and application-level
-  coordination. Definition catalog filtering, category controls, asynchronous
-  detail inspection, and host-neutral selection live in
+- The shell delegates screen transitions, menu/back navigation, settings return
+  routing, and the definition-catalog overlay lifecycle to
+  `dev-lab/application/view-navigation-controller.js`. Workspace-specific
+  pause, placement cancellation, and pause-menu restoration remain injected
+  callbacks owned by the host shell. Definition catalog filtering, category
+  controls, asynchronous detail inspection, and host-neutral selection live in
   `dev-lab/application/definition-catalog-controller.js`. The viewport service
   still owns its DOM event bindings and rendering loop; it is isolated from the
   shell but is not yet a headless renderer.
