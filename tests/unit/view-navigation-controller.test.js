@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { createDevLabViewNavigationController } from "../../dev-lab/application/view-navigation-controller.js";
+import { createViewNavigationController } from "../../shared/application/view-navigation-controller.js";
 
 class FakeElement {
   constructor(view = null) {
@@ -56,7 +56,9 @@ function createHarness({ canOpen = () => true } = {}) {
   const callbacks = { beforeLeave: [], settingsReturn: [] };
   let scrolled = 0;
   let resized = 0;
-  const controller = createDevLabViewNavigationController({
+  const controller = createViewNavigationController({
+    workspaceView: "dev-lab",
+    catalogLabels: { browse: "ENGINE / CONTENT CATALOG", viewport: "ENGINE / DEV LAB" },
     elements: {
       views: [menu, workspace, database, settings],
       navButtons: [navWorkspace, navDatabase, navSettings],
