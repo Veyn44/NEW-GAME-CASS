@@ -127,7 +127,8 @@ test("file persistence controller injects save identity and filename selection",
       requested.push(details);
       return "ship-backup";
     },
-    defaultFileName: "default.cass"
+    fileExtension: ".sav",
+    defaultFileName: "default.sav"
   });
 
   assert.equal(await controller.saveAs(), true);
