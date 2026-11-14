@@ -27,42 +27,16 @@ export function createFilePersistenceController({
   if (typeof supportsFileAccess !== "function" || typeof requestFileName !== "function") {
     throw new TypeError("File persistence requires file-access and filename providers.");
   }
-  if (typeof fileExtension !== "string" || !/^\\.[a-z0-9]+$/i.test(fileExtension)) {
+  if (typeof fileExtension !== "string" || !/^\.[a-z0-9]+$/i.test(fileExtension)) {
     throw new TypeError("File persistence requires a simple file extension.");
   }
-  if (typeof defaultFileName !== "string" || !defaultFileName.toLowerCase().endsWith(fileExtension.toLowerCase())) {
+  if (typeof defaultFileName !== "string"
+    || !defaultFileName.toLowerCase().endsWith(fileExtension.toLowerCase())) {
     throw new TypeError("The default filename must use the configured file extension.");
   }
-  const escapedExtension = fileExtension.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\  if (typeof supportsFileAccess !== "function" || typeof requestFileName !== "function") {
-    throw new TypeError("File persistence requires file-access and filename providers.");
-  }");
-  const validFileName = new RegExp(`^[a-zA-Z0-9._ -]+${escapedExtension}/**
- * Coordinates file selection with the Engine persistence API.
- * Save adapter, slot/state identity, prompts, and UI status copy are supplied
- * by the application composition root.
- */
-export function createFilePersistenceController({
-  persistenceApi,
-  saveAdapter,
-  fileInput,
-  saveSlot,
-  stateId,
-  supportsFileAccess = () => false,
-  requestFileName = () => null,
-  fileExtension = ".save",
-  defaultFileName = "save.save",
-  onRestore = () => {},
-  onStatus = () => {},
-  messages = {}
-} = {}) {
-  if (!persistenceApi || !saveAdapter || !fileInput) {
-    throw new TypeError("File persistence requires persistenceApi, saveAdapter and fileInput.");
-  }
-  if (typeof saveSlot !== "string" || !saveSlot
-    || typeof stateId !== "string" || !stateId) {
-    throw new TypeError("File persistence requires saveSlot and stateId identifiers.");
-  }
-, "i");
+
+  const isValidFileName = (name) => name.toLowerCase().endsWith(fileExtension.toLowerCase())
+    && /^[a-zA-Z0-9._ -]+$/.test(name.slice(0, -fileExtension.length));
 
   const copy = {
     savingAs: "SAVING AS",
@@ -75,7 +49,7 @@ export function createFilePersistenceController({
     loaded: "LOADED",
     restored: "WORKSPACE RESTORED",
     initialNoSelection: "NO SAVE SELECTED",
-    filePickerUnavailable: `FILE PICKER UNAVAILABLE · LOAD ${fileExtension.toUpperCase()} / EXPORT DOWNLOAD`,
+    filePickerUnavailable: "FILE PICKER UNAVAILABLE · LOAD " + fileExtension.toUpperCase() + " / EXPORT DOWNLOAD",
     ...messages
   };
 
@@ -100,7 +74,7 @@ export function createFilePersistenceController({
       SAVE_SOURCE_NOT_SELECTED: "No save file is selected."
     };
     const detail = descriptions[code] ?? error?.message ?? "The save could not be loaded.";
-    return `LOAD FAILED · ${code} · ${detail}`;
+    return "LOAD FAILED · " + code + " · " + detail;
   }
 
   async function persist({ chooseFile = false } = {}) {
@@ -109,7 +83,7 @@ export function createFilePersistenceController({
         if (supportsFileAccess()) {
           const fileName = await saveAdapter.selectSaveFile();
           if (!fileName) return false;
-          report(`${copy.savingAs} · ${fileName}`);
+          report(copy.savingAs + " · " + fileName);
         } else {
           const requestedName = await requestFileName({
             currentFileName: saveAdapter.selectedFileName || "",
@@ -117,8 +91,10 @@ export function createFilePersistenceController({
           });
           if (requestedName === null) return false;
           const trimmed = requestedName.trim();
-          const safeName = trimmed.endsWith(".cass") ? trimmed : `${trimmed}.cass`;
-          if (!/^[a-zA-Z0-9._ -]+\.cass$/i.test(safeName)) {
+          const safeName = trimmed.toLowerCase().endsWith(fileExtension.toLowerCase())
+            ? trimmed
+            : trimmed + fileExtension;
+          if (!isValidFileName(safeName)) {
             report(copy.invalidFileName);
             return false;
           }
@@ -134,11 +110,11 @@ export function createFilePersistenceController({
         kind: "manual"
       });
       const fileName = saveAdapter.selectedFileName || defaultFileName;
-      report(`${copy.saved} · ${fileName}`, `${copy.savedDetail} · ${metadata.createdAt}`);
+      report(copy.saved + " · " + fileName, copy.savedDetail + " · " + metadata.createdAt);
       return true;
     } catch (error) {
       if (error?.name === "AbortError") return false;
-      report(`${copy.saveFailed} · ${error.message}`);
+      report(copy.saveFailed + " · " + error.message);
       return false;
     }
   }
@@ -148,14 +124,14 @@ export function createFilePersistenceController({
       if (supportsFileAccess()) {
         const fileName = await saveAdapter.selectLoadFile();
         if (!fileName) return false;
-        report(`${copy.loading} · ${fileName}`);
+        report(copy.loading + " · " + fileName);
       } else {
         fileInput.click();
         return false;
       }
       await persistenceApi.load(saveSlot, { stateId });
       onRestore();
-      report(`${copy.loaded} · ${saveAdapter.selectedFileName}`, copy.restored);
+      report(copy.loaded + " · " + saveAdapter.selectedFileName, copy.restored);
       return true;
     } catch (error) {
       if (error?.name === "AbortError") return false;
@@ -170,7 +146,7 @@ export function createFilePersistenceController({
       await saveAdapter.importFile(file);
       await persistenceApi.load(saveSlot, { stateId });
       onRestore();
-      report(`${copy.loaded} · ${file.name}`, copy.restored);
+      report(copy.loaded + " · " + file.name, copy.restored);
       return true;
     } catch (error) {
       report(describeLoadFailure(error));
