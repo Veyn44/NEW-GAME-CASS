@@ -1,5 +1,5 @@
 import johnyDefinition from "../../content/database/definitions/pawns/johny.json" with { type: "json" };
-import { getDefinition, registerDefinition } from "./definition-registry.js";
+import { getDefinition, registerDefinition } from "../../../engine/database/definition-registry.js";
 
 const CANONICAL_DEFINITIONS = Object.freeze([johnyDefinition]);
 

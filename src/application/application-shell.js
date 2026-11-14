@@ -13,14 +13,14 @@ import { LocalFileSaveAdapter, DEV_LAB_SAVE_SLOT } from "../adapters/storage/loc
 import { createUnitSystem } from "../gameplay/unit/unit-system.js";
 import { createGameInputSystem } from "../gameplay/input/game-input-system.js";
 import { createColonyControlSystem } from "../gameplay/colony/colony-control-system.js";
-import { getDefinition } from "./database/definition-registry.js";
+import { getDefinition } from "../../engine/database/definition-registry.js";
 import { loadCanonicalDefinitions } from "./database/database-loader.js";
 import { createViewportInputController } from "./input/viewport-input-controller.js";
 import {
   listDefinitionIndex,
   getCategories,
   loadDefinitionDetail
-} from "./database/definition-registry.js";
+} from "../../engine/database/definition-registry.js";
 
 const views = [...document.querySelectorAll("[data-view]")];
 const navButtons = [...document.querySelectorAll("[data-navigate]")];

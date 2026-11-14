@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import { createGameRuntime } from "../../engine/runtime/create-game-runtime.js";
 import { MemorySaveAdapter } from "../../engine/core/persistence.js";
-import { registerDefinition, getDefinition, clearDefinitionsForTests } from "../../src/application/database/definition-registry.js";
+import { registerDefinition, getDefinition, clearDefinitionsForTests } from "../../engine/database/definition-registry.js";
 import { createUnitSystem } from "../../src/gameplay/unit/unit-system.js";
 
 function setup() {

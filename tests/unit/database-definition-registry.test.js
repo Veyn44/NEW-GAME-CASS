@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   registerDefinition, getDefinition, listDefinitions, listDefinitionIndex,
   loadDefinitionDetail, getCategories, clearDefinitionsForTests
-} from "../../src/application/database/definition-registry.js";
+} from "../../engine/database/definition-registry.js";
 
 test("registers canonical definitions and exposes a lightweight navigation index", async () => {
   clearDefinitionsForTests();

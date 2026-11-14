@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { clearDefinitionsForTests, getDefinition } from "../../src/application/database/definition-registry.js";
+import { clearDefinitionsForTests, getDefinition } from "../../engine/database/definition-registry.js";
 import { loadCanonicalDefinitions } from "../../src/application/database/database-loader.js";
 
 test("Johny is loaded from a version-controlled canonical human definition", () => {
