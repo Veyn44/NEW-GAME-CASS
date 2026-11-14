@@ -19,7 +19,7 @@ test("Engine input system exposes the injected controller through a read-only se
   assert.deepEqual(api.consumeFrameInput().keys, ["KeyW"]);
 });
 
-test("game input system rejects a missing or invalid controller", () => {
-  assert.throws(() => createInputSystem(), /requires a controller with getState() and consumeFrameInput()/);
-  assert.throws(() => createInputSystem({ inputController: {} }), /requires a controller with getState() and consumeFrameInput()/);
+test("Engine input system rejects a missing or invalid controller", () => {
+  assert.throws(() => createInputSystem(), /requires a controller with getState\(\) and consumeFrameInput\(\)/);
+  assert.throws(() => createInputSystem({ inputController: {} }), /requires a controller with getState\(\) and consumeFrameInput\(\)/);
 });
