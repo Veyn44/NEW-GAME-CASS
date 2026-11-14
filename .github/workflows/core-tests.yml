@@ -29,4 +29,5 @@ jobs:
           node --check dev-lab/presentation/dev-world-preview.js
           node --check dev-lab/presentation/dev-lab-viewport.js
           node --check dev-lab/application/workspace-persistence-controller.js
+          node --check dev-lab/application/definition-catalog-controller.js
           node --check dev-lab/input/viewport-input-controller.js
