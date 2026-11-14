@@ -400,9 +400,14 @@ function resolveDevLabRuntimeServices(context) {
   };
 }
 
-const runtimeHost = createApplicationRuntimeHost({
-  createRuntime: (options) => createDevLabRuntime({ ...options, saveAdapter: state.saveAdapter }),
-  resolveRuntimeServices: resolveDevLabRuntimeServices,
+let runtimeHost = null;
+function createDevLabRuntimeHost({
+  createRuntime = createDevLabRuntime,
+  resolveRuntimeServices = resolveDevLabRuntimeServices
+} = {}) {
+  return createApplicationRuntimeHost({
+  createRuntime: (options) => createRuntime({ ...options, saveAdapter: state.saveAdapter }),
+  resolveRuntimeServices,
   runtimeOptions: {
     inputController,
     onUnitMoved(moved) {
@@ -459,7 +464,8 @@ const runtimeHost = createApplicationRuntimeHost({
     inputController.pause();
     inputController.clearForFocusLoss();
   }
-});
+  });
+}
 
 /**
  * Starts the Dev Lab with an optional content-package provider.
@@ -474,6 +480,7 @@ export async function startDevLab({
   await loadContentPackage();
   definitionCatalog.refresh();
   state.saveAdapter = new LocalFileSaveAdapter();
+  runtimeHost = createDevLabRuntimeHost({ createRuntime, resolveRuntimeServices });
   await runtimeHost.start();
   navigation.showView("menu");
 }
