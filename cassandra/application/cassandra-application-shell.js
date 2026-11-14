@@ -384,6 +384,8 @@ export async function startCassandraApplication() {
         supportsFileAccess: () => LocalFileSaveAdapter.supportsFileAccess,
         requestFileName: ({ currentFileName, defaultFileName }) =>
           window.prompt("Name this Cassandra save:", currentFileName || defaultFileName),
+        fileExtension: ".cass",
+        defaultFileName: "save.cass",
         saveAdapter: state.saveAdapter,
         fileInput,
         onRestore() {
