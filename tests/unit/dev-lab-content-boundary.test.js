@@ -33,5 +33,5 @@ test("Dev Lab has a standalone Engine runtime without Cassandra gameplay imports
   assert.match(source, /createGameRuntime/);
   assert.match(source, /systemId:\s*["']dev-lab\.free-camera["']/);
   assert.doesNotMatch(source, /src\/gameplay\/|cassandra\//);
-  assert.doesNotMatch(source, /hostSystems\s*:/);
+  assert.match(source, /hostSystems:\s*\[\s*\{\s*id:\s*["']dev-lab\.free-camera["']/);
 });
