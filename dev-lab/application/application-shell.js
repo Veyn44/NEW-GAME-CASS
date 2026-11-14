@@ -1,13 +1,4 @@
-import {
-  setWorldMarkers,
-  setWorldInteraction,
-  setSelectedWorldMarker,
-  setWorldPlacement,
-  cancelWorldPlacement,
-  setCameraFollowTarget,
-  moveCameraBy,
-  resetCameraToWorld
-} from "../presentation/dev-world-preview.js";
+import { createDevLabViewport } from "../presentation/dev-lab-viewport.js";
 import { createDevLabRuntime } from "./create-dev-lab-runtime.js";
 import { LocalFileSaveAdapter } from "../../src/adapters/storage/local-file-save-adapter.js";
 import { createWorkspacePersistenceController } from "./workspace-persistence-controller.js";
@@ -44,6 +35,14 @@ const saveWorkspaceAsButton = document.querySelector("#pause-save-as");
 const loadWorkspaceButton = document.querySelector("#pause-load");
 const workspaceFileInput = document.querySelector("#workspace-file-input");
 const workspaceSaveStatus = document.querySelector("#workspace-save-status");
+const viewport = createDevLabViewport({
+  canvas,
+  sizeSelect: worldSizeSelect,
+  gridToggle: gridVisible,
+  zoomValue: document.querySelector("#zoom-value"),
+  worldStatus: document.querySelector("#world-status"),
+  viewStatus: document.querySelector("#view-status")
+});
 const inputController = createViewportInputController();
 const heldMovementKeys = new Set();
 
@@ -149,7 +148,7 @@ function beginWorldPlacement(definition) {
   viewportDatabaseButton.disabled = true;
   worldSizeSelect.disabled = true;
   canvas.focus({ preventScroll: true });
-  setWorldPlacement({
+  viewport.setWorldPlacement({
     label: definition.name,
     artwork: definition.artwork,
     onPlace: (x, y) => {
@@ -162,7 +161,7 @@ function beginWorldPlacement(definition) {
         state.placementActive = false;
         viewportDatabaseButton.disabled = !state.paused;
         worldSizeSelect.disabled = !state.paused;
-        setWorldPlacement(null);
+        viewport.setWorldPlacement(null);
         refreshWorldMarkers();
         inspectGameplayEntity(unit.id);
         return true;
@@ -180,7 +179,7 @@ function cancelPlacement() {
   state.placementActive = false;
   viewportDatabaseButton.disabled = !state.paused;
   worldSizeSelect.disabled = !state.paused;
-  cancelWorldPlacement();
+  viewport.cancelWorldPlacement();
   simulationStatus.textContent = "PAUSED · PLACEMENT CANCELLED";
 }
 
@@ -399,7 +398,7 @@ databaseCategory.addEventListener("change", renderDatabase);
 function refreshWorldMarkers() {
   const units = state.gameplayApi?.listUnits() ?? [];
   const activeWorldId = state.worldRegistry?.activeWorldId;
-  setWorldMarkers(units
+  viewport.setWorldMarkers(units
     .filter((unit) => unit.placement?.type === "world"
       && unit.placement.worldId === activeWorldId)
     .map((unit) => ({
@@ -412,16 +411,16 @@ function refreshWorldMarkers() {
 
 function clearSelection() {
   state.gameplayUi?.clearSelection();
-  setSelectedWorldMarker(null);
+  viewport.setSelectedWorldMarker(null);
 }
 
 function inspectGameplayEntity(entityId) {
   const unit = state.gameplayUi?.inspectUnit(entityId) ?? null;
   if (!unit) {
-    setSelectedWorldMarker(null);
+    viewport.setSelectedWorldMarker(null);
     return null;
   }
-  setSelectedWorldMarker(unit.id);
+  viewport.setSelectedWorldMarker(unit.id);
   return unit;
 }
 
@@ -440,7 +439,7 @@ function updateSimulationUi() {
   viewportDatabaseButton.disabled = !state.paused || state.placementActive;
   resetLabButton.disabled = !state.worldRegistry;
   pointerStatus.textContent = state.paused ? "INSPECTION CURSOR" : (state.gameplayApi?.getControlModeLabel() ?? "FREE CAMERA");
-  setWorldInteraction({
+  viewport.setWorldInteraction({
     paused: state.paused,
     inspectionEnabled: true,
     onSelect: inspectGameplayEntity
@@ -540,7 +539,7 @@ function applyFreeCameraInput(deltaSeconds) {
   if (!x && !y) return;
   const length = Math.hypot(x, y);
   const speed = 30;
-  moveCameraBy((x / length) * speed * deltaSeconds, (y / length) * speed * deltaSeconds);
+  viewport.moveCameraBy((x / length) * speed * deltaSeconds, (y / length) * speed * deltaSeconds);
 }
 
 function updatePausedFreeCamera(deltaSeconds) {
@@ -594,7 +593,7 @@ window.addEventListener("keydown", (event) => {
       inspectGameplayEntity(controlState.leaderId);
       if (leader?.placement?.type === "world"
         && leader.placement.worldId === state.worldRegistry?.activeWorldId) {
-        setCameraFollowTarget(leader.id, leader.placement.position);
+        viewport.setCameraFollowTarget(leader.id, leader.placement.position);
       }
     } else {
       clearSelection();
@@ -691,9 +690,9 @@ resetLabButton.addEventListener("click", () => {
     const { width, height } = activeWorld.dimensions;
     worldSizeSelect.value = String(width);
     document.querySelector("#world-status").textContent = `World: ${width} × ${height}`;
-    resetCameraToWorld(Math.min(width, height));
+    viewport.resetCameraToWorld(Math.min(width, height));
   } else {
-    resetCameraToWorld();
+    viewport.resetCameraToWorld();
   }
 
   state.workspacePersistence?.clearSelection();
@@ -717,9 +716,9 @@ function synchronizeRestoredWorkspace() {
     const { width, height } = activeWorld.dimensions;
     worldSizeSelect.value = String(width);
     document.querySelector("#world-status").textContent = `World: ${width} × ${height}`;
-    resetCameraToWorld(Math.min(width, height));
+    viewport.resetCameraToWorld(Math.min(width, height));
   } else {
-    resetCameraToWorld();
+    viewport.resetCameraToWorld();
   }
 
   clearSelection();
@@ -757,7 +756,7 @@ async function startDevLabRuntime({
     inputController,
     onUnitMoved(moved) {
       refreshWorldMarkers();
-      setCameraFollowTarget(moved.entityId, moved.position);
+      viewport.setCameraFollowTarget(moved.entityId, moved.position);
     },
     updateFreeCamera: applyFreeCameraInput
   });
@@ -790,7 +789,7 @@ async function startDevLabRuntime({
     });
     state.gameplayApi = services.gameplayApi ?? null;
     state.gameplayUi = services.gameplayUi ?? null;
-    setWorldMarkers([]);
+    viewport.setWorldMarkers([]);
     clearSelection();
     state.clock = services.clock;
     advanceRuntime = (deltaSeconds) => runtime.advance(deltaSeconds);
