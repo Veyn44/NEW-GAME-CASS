@@ -9,7 +9,8 @@ import {
   resetCameraToWorld
 } from "../presentation/dev-world-preview.js";
 import { createDevLabRuntime } from "./create-dev-lab-runtime.js";
-import { LocalFileSaveAdapter, DEV_LAB_SAVE_SLOT } from "../../src/adapters/storage/local-file-save-adapter.js";
+import { LocalFileSaveAdapter } from "../../src/adapters/storage/local-file-save-adapter.js";
+import { createWorkspacePersistenceController } from "./workspace-persistence-controller.js";
 import { getDefinition } from "../../engine/database/definition-registry.js";
 import { createViewportInputController } from "../input/viewport-input-controller.js";
 import {
@@ -56,6 +57,7 @@ const state = {
   worldRegistry: null,
   persistenceApi: null,
   saveAdapter: null,
+  workspacePersistence: null,
   paused: true,
   gameplayUi: null,
   viewportDatabaseOpen: false,
@@ -694,94 +696,13 @@ resetLabButton.addEventListener("click", () => {
     resetCameraToWorld();
   }
 
-  state.saveAdapter?.clearSelection();
+  state.workspacePersistence?.clearSelection();
   workspaceSaveStatus.textContent = "LAB RESET · NO SAVE SELECTED";
   simulationStatus.textContent = "EMPTY LAB · PAUSED";
   updateSimulationUi();
   canvas.focus({ preventScroll: true });
 });
 
-
-async function persistWorkspace({ chooseFile = false } = {}) {
-  if (!state.persistenceApi || !state.saveAdapter) return;
-  try {
-    if (chooseFile) {
-      if (LocalFileSaveAdapter.supportsFileAccess) {
-        const fileName = await state.saveAdapter.selectSaveFile();
-        if (!fileName) return;
-        workspaceSaveStatus.textContent = `SAVING AS · ${fileName}`;
-      } else {
-        const requestedName = window.prompt("Name this Cassandra save:", state.saveAdapter.selectedFileName || "save.cass");
-        if (requestedName === null) return;
-        const safeName = requestedName.trim().endsWith(".cass") ? requestedName.trim() : `${requestedName.trim()}.cass`;
-        if (!/^[a-zA-Z0-9._ -]+\.cass$/i.test(safeName)) {
-          workspaceSaveStatus.textContent = "SAVE FAILED · USE A SIMPLE FILE NAME";
-          return;
-        }
-        state.saveAdapter.setDownloadFileName(safeName);
-      }
-    } else if (!state.saveAdapter.selectedFileName && LocalFileSaveAdapter.supportsFileAccess) {
-      workspaceSaveStatus.textContent = "NO SAVE SELECTED · USE SAVE AS FIRST";
-      return;
-    }
-
-    const metadata = await state.persistenceApi.save(DEV_LAB_SAVE_SLOT, {
-      stateId: "cassandra-dev-lab-workspace",
-      kind: "manual"
-    });
-    const fileName = state.saveAdapter.selectedFileName || "save.cass";
-    workspaceSaveStatus.textContent = `SAVED · ${fileName}`;
-    simulationStatus.textContent = `WORKSPACE SAVED · ${metadata.createdAt}`;
-  } catch (error) {
-    if (error?.name === "AbortError") return;
-    workspaceSaveStatus.textContent = `SAVE FAILED · ${error.message}`;
-    simulationStatus.textContent = `SAVE FAILED · ${error.message}`;
-  }
-}
-
-function describeLoadFailure(error) {
-  const code = error?.code ?? "LOAD_FAILED";
-  const descriptions = {
-    INVALID_SAVE_FILE: "The file is not valid JSON.",
-    INCOMPATIBLE_SAVE_FILE: "This is not a supported Cassandra save file.",
-    INCOMPATIBLE_SAVE_FORMAT: "The save format version is not supported.",
-    STATE_MISMATCH: "The save belongs to a different workspace.",
-    MISSING_REQUIRED_SNAPSHOT: "The save is missing required system data.",
-    INVALID_SAVE: "The save is missing required data.",
-    SCHEMA_MISMATCH: "A saved system schema is incompatible.",
-    INVALID_SNAPSHOT: "A saved system rejected its data.",
-    RESTORE_COMMIT_FAILED: "A system failed while restoring the save. The restore was rolled back where possible.",
-    SAVE_NOT_FOUND: "No save data was found.",
-    SAVE_SOURCE_NOT_SELECTED: "No save file is selected."
-  };
-  const detail = descriptions[code] ?? error?.message ?? "The save could not be loaded.";
-  return `LOAD FAILED · ${code} · ${detail}`;
-}
-
-async function restoreWorkspace() {
-  if (!state.persistenceApi || !state.saveAdapter) return;
-  try {
-    if (LocalFileSaveAdapter.supportsFileAccess) {
-      const fileName = await state.saveAdapter.selectLoadFile();
-      if (!fileName) return;
-      workspaceSaveStatus.textContent = `LOADING · ${fileName}`;
-    } else {
-      workspaceFileInput.click();
-      return;
-    }
-    await state.persistenceApi.load(DEV_LAB_SAVE_SLOT, {
-      stateId: "cassandra-dev-lab-workspace"
-    });
-    synchronizeRestoredWorkspace();
-    workspaceSaveStatus.textContent = `LOADED · ${state.saveAdapter.selectedFileName}`;
-    simulationStatus.textContent = "WORKSPACE RESTORED";
-  } catch (error) {
-    if (error?.name === "AbortError") return;
-    const message = describeLoadFailure(error);
-    workspaceSaveStatus.textContent = message;
-    simulationStatus.textContent = message;
-  }
-}
 
 function synchronizeRestoredWorkspace() {
   // A loaded session always enters a safe, paused inspection state.
@@ -796,8 +717,6 @@ function synchronizeRestoredWorkspace() {
     const { width, height } = activeWorld.dimensions;
     worldSizeSelect.value = String(width);
     document.querySelector("#world-status").textContent = `World: ${width} × ${height}`;
-    // The preview currently represents square worlds; center on the active
-    // world's valid bounds rather than retaining a camera from the old world.
     resetCameraToWorld(Math.min(width, height));
   } else {
     resetCameraToWorld();
@@ -808,26 +727,13 @@ function synchronizeRestoredWorkspace() {
   updateSimulationUi();
 }
 
-saveWorkspaceButton.addEventListener("click", () => persistWorkspace());
-saveWorkspaceAsButton.addEventListener("click", () => persistWorkspace({ chooseFile: true }));
-loadWorkspaceButton.addEventListener("click", () => restoreWorkspace());
+saveWorkspaceButton.addEventListener("click", () => state.workspacePersistence?.save());
+saveWorkspaceAsButton.addEventListener("click", () => state.workspacePersistence?.saveAs());
+loadWorkspaceButton.addEventListener("click", () => state.workspacePersistence?.load());
 workspaceFileInput.addEventListener("change", async () => {
   const file = workspaceFileInput.files?.[0];
   workspaceFileInput.value = "";
-  if (!file || !state.persistenceApi || !state.saveAdapter) return;
-  try {
-    await state.saveAdapter.importFile(file);
-    await state.persistenceApi.load(DEV_LAB_SAVE_SLOT, {
-      stateId: "cassandra-dev-lab-workspace"
-    });
-    synchronizeRestoredWorkspace();
-    workspaceSaveStatus.textContent = `LOADED · ${file.name}`;
-    simulationStatus.textContent = "WORKSPACE RESTORED";
-  } catch (error) {
-    const message = describeLoadFailure(error);
-    workspaceSaveStatus.textContent = message;
-    simulationStatus.textContent = message;
-  }
+  if (file) await state.workspacePersistence?.importFile(file);
 });
 
 function resolveDevLabRuntimeServices(context) {
@@ -872,6 +778,16 @@ async function startDevLabRuntime({
     worlds.activateWorld(`dev-lab-world-${Number(worldSizeSelect.value)}`);
     state.worldRegistry = worlds;
     state.persistenceApi = services.persistenceApi;
+    state.workspacePersistence = createWorkspacePersistenceController({
+      persistenceApi: services.persistenceApi,
+      saveAdapter: state.saveAdapter,
+      fileInput: workspaceFileInput,
+      onRestore: synchronizeRestoredWorkspace,
+      onStatus({ saveStatus, simulationStatus: nextSimulationStatus }) {
+        workspaceSaveStatus.textContent = saveStatus;
+        simulationStatus.textContent = nextSimulationStatus;
+      }
+    });
     state.gameplayApi = services.gameplayApi ?? null;
     state.gameplayUi = services.gameplayUi ?? null;
     setWorldMarkers([]);
@@ -882,9 +798,7 @@ async function startDevLabRuntime({
     state.paused = true;
     updateSimulationUi();
     state.animationFrame = requestAnimationFrame(simulationFrame);
-    workspaceSaveStatus.textContent = LocalFileSaveAdapter.supportsFileAccess
-      ? "NO SAVE SELECTED"
-      : "FILE PICKER UNAVAILABLE · LOAD .CASS / EXPORT DOWNLOAD";
+    workspaceSaveStatus.textContent = state.workspacePersistence.initialStatus;
 
   } catch (error) {
     simulationStatus.textContent = `DEV LAB STARTUP FAILED · ${error.message}`;
