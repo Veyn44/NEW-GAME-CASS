@@ -994,7 +994,7 @@ async function startDevLabRuntime() {
     state.worldRegistry = worlds;
     state.persistenceApi = context.getService("core.persistence");
     state.unitApi = context.getService("game.unit-api");
-    state.inputApi = context.getService("game.input-api");
+    state.inputApi = context.getService("engine.input-api");
     state.colonyControlApi = context.getService("game.colony-control-api");
     setWorldMarkers([]);
     clearUnitSelection();
