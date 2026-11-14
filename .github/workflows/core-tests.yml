@@ -20,5 +20,6 @@ jobs:
           node --check application-entry.js
           node --check dev-lab/application/application-shell.js
           node --check engine/runtime/create-game-runtime.js
+          node --check engine/input/input-system.js
           node --check dev-lab/presentation/dev-world-preview.js
           node --check dev-lab/input/viewport-input-controller.js
