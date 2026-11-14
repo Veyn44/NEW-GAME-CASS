@@ -41,9 +41,36 @@ The existing Engine already has world registration and entity placement concepts
 
 Define what the Physical World & Grid capability must enable, what it explicitly will not do, and which requirements come from Cassandra versus the reusable Engine.
 
-Questions to resolve:
-- What does “physical world” mean in this project?
-- Which game/application needs must the generic model support?
+#### Cassandra gameplay requirements (recorded from discussion)
+
+These describe Cassandra's game design. They must not automatically become restrictions inside the reusable Engine.
+
+- Cassandra needs a **main world** containing the colony.
+- Cassandra also needs a **secondary world** for expeditions, events, and encounters where the environment can be damaged and combat can take place.
+- The expected Cassandra runtime arrangement is one main world plus at most one secondary world active at a time. The secondary world will often be around 128×128 cells; 256×256 is also already relevant to the game.
+- The main world is the buildable colony. The secondary world is an expedition/encounter space with different gameplay rules.
+- Much of the game takes place in space. Space will frequently be represented as vacuum, but vacuum is an environmental/gameplay condition, not necessarily a special kind of grid or world geometry.
+
+#### Engine direction (candidate, not yet fully specified)
+
+- The Engine should remain more universal than Cassandra's main-world/secondary-world arrangement.
+- A square grid is the current preferred direction for this project. This is a design preference, not yet a complete grid contract.
+- A coordinate system is required, but its exact representation and semantics remain open.
+- The Engine should not hard-code the Cassandra concepts “colony”, “expedition”, “encounter”, or “vacuum” as world types or core spatial rules.
+
+#### Important architecture observation to investigate
+
+The current World Registry implementation exposes a single `activeWorldId`. Cassandra's desired arrangement may require a main and secondary world to be simultaneously available/active. We must decide whether:
+- “active” in Engine means one globally selected world, while Cassandra separately manages its loaded/participating worlds; or
+- the generic Engine world lifecycle must support multiple simultaneously active worlds; or
+- another explicit distinction is needed (for example loaded, simulated, selected, or focused).
+
+Do not change the existing World Registry contract until this is resolved.
+
+#### Questions to resolve
+
+- What does “physical world” mean in the reusable Engine, independent of Cassandra?
+- Which capabilities are generic spatial infrastructure, and which are Cassandra policies?
 - What is the smallest useful outcome of this phase?
 - What capabilities are deliberately deferred?
 - What must remain compatible with the existing Engine and Cassandra?
@@ -190,9 +217,15 @@ No implementation starts from this section until the complete specification is a
 
 ## Current decisions
 
-_None yet. Decisions will be recorded here as the brainstorm progresses._
+- **Cassandra world roles — Agreed as a game requirement:** Cassandra has a main colony world and a secondary expedition/encounter world. At most one secondary world is expected alongside the main world.
+- **Cassandra world scale — Recorded requirement:** 128×128 is a common secondary-world size; 256×256 must remain supported by the game.
+- **Grid preference — Proposed:** square grid, with an explicit coordinate system. Detailed geometry and grid semantics remain open.
+- **Engine boundary — Agreed principle:** Engine spatial capabilities must be more universal than Cassandra's world roles and gameplay vocabulary.
 
 ## Open questions / investigation notes
 
 - Audit the current uses of World Registry, World Context, Entity Registry, and any existing Cassandra/shared spatial or viewport code before proposing new contracts.
 - Distinguish authoritative world/spatial state from viewport geometry, visual presentation, and input coordinates.
+- Resolve the meaning of “active world” and whether multiple worlds can be loaded, simulated, or selected concurrently.
+- Clarify whether vacuum is solely an environmental state or whether any physical-world representation is needed for empty space.
+- Clarify the lifecycle and ownership of the main colony world and temporary expedition/encounter worlds.
