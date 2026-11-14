@@ -97,7 +97,7 @@ export function createColonyControlSystem() {
   return Object.freeze({
     id: "game.colony-control",
     provides: ["game.colony-control-api"],
-    requires: ["game.unit-api", "game.input-api", "core.world-registry", "core.persistence"],
+    requires: ["game.unit-api", "engine.input-api", "core.world-registry", "core.persistence"],
     initialize(context) {
       units = context.getService("game.unit-api");
       input = context.getService("game.input-api");
