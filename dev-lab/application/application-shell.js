@@ -8,11 +8,8 @@ import {
   moveCameraBy,
   resetCameraToWorld
 } from "../presentation/dev-world-preview.js";
-import { createGameRuntime } from "../../engine/runtime/create-game-runtime.js";
+import { createDevLabRuntime } from "./create-dev-lab-runtime.js";
 import { LocalFileSaveAdapter, DEV_LAB_SAVE_SLOT } from "../../src/adapters/storage/local-file-save-adapter.js";
-import { createUnitSystem } from "../../src/gameplay/unit/unit-system.js";
-import { createInputSystem } from "../../engine/input/input-system.js";
-import { createColonyControlSystem } from "../../src/gameplay/colony/colony-control-system.js";
 import { getDefinition } from "../../engine/database/definition-registry.js";
 import { createViewportInputController } from "../input/viewport-input-controller.js";
 import {
@@ -573,7 +570,7 @@ function toggleSimulationPause() {
 }
 
 function simulationFrame(timestamp) {
-  if (state.lastFrameTime !== null && state.unitApi) {
+  if (state.lastFrameTime !== null && state.clock) {
     const elapsedSeconds = Math.min(0.25, Math.max(0, (timestamp - state.lastFrameTime) / 1000));
     try {
       // The Core scheduler and Game Clock are the authoritative simulation gate.
@@ -956,49 +953,54 @@ workspaceFileInput.addEventListener("change", async () => {
   }
 });
 
-async function startDevLabRuntime() {
+function resolveDevLabRuntimeServices(context) {
+  return {
+    worldRegistry: context.getService("core.world-registry"),
+    persistenceApi: context.getService("core.persistence"),
+    clock: context.getService("core.game-clock"),
+    unitApi: null,
+    inputApi: null,
+    colonyControlApi: null
+  };
+}
+
+async function startDevLabRuntime({
+  createRuntime = createDevLabRuntime,
+  resolveRuntimeServices = resolveDevLabRuntimeServices
+} = {}) {
   state.saveAdapter = new LocalFileSaveAdapter();
-  const runtime = createGameRuntime({
+  const runtime = createRuntime({
     saveAdapter: state.saveAdapter,
-    fixedStepSeconds: 1 / 60,
-    maxStepsPerFrame: 120,
-    hostSystems: [
-      createInputSystem({ inputController }),
-      createUnitSystem({ definitionLookup: getDefinition }),
-      createColonyControlSystem()
-    ],
-    simulationTasks: [{
-      systemId: "game.colony-control",
-      update({ deltaSeconds, context }) {
-        const control = context.getService("game.colony-control-api");
-        const controlState = control.getState();
-        if (controlState.drafted) {
-          const moved = control.update(deltaSeconds);
-          if (moved) {
-            refreshWorldMarkers();
-            setCameraFollowTarget(moved.entityId, moved.position);
-          }
-          return;
-        }
-        applyFreeCameraInput(deltaSeconds);
-      }
-    }]
+    inputController,
+    onUnitMoved(moved) {
+      refreshWorldMarkers();
+      setCameraFollowTarget(moved.entityId, moved.position);
+    },
+    updateFreeCamera: applyFreeCameraInput
   });
+  if (!runtime || typeof runtime.start !== "function" || typeof runtime.advance !== "function") {
+    throw new TypeError("Dev Lab runtime factory must return a runtime with start() and advance().");
+  }
+
   try {
     const context = await runtime.start();
-    const worlds = context.getService("core.world-registry");
+    const services = resolveRuntimeServices(context);
+    if (!services?.worldRegistry || !services?.persistenceApi || !services?.clock) {
+      throw new TypeError("Dev Lab runtime services must provide worldRegistry, persistenceApi and clock.");
+    }
+    const worlds = services.worldRegistry;
     for (const size of [64, 128, 256]) {
       worlds.registerWorld({ worldId: `dev-lab-world-${size}`, type: "dev-lab-test", dimensions: { width: size, height: size }, coordinateSystem: "tiles" });
     }
     worlds.activateWorld(`dev-lab-world-${Number(worldSizeSelect.value)}`);
     state.worldRegistry = worlds;
-    state.persistenceApi = context.getService("core.persistence");
-    state.unitApi = context.getService("game.unit-api");
-    state.inputApi = context.getService("engine.input-api");
-    state.colonyControlApi = context.getService("game.colony-control-api");
+    state.persistenceApi = services.persistenceApi;
+    state.unitApi = services.unitApi ?? null;
+    state.inputApi = services.inputApi ?? null;
+    state.colonyControlApi = services.colonyControlApi ?? null;
     setWorldMarkers([]);
     clearUnitSelection();
-    state.clock = context.getService("core.game-clock");
+    state.clock = services.clock;
     advanceRuntime = (deltaSeconds) => runtime.advance(deltaSeconds);
     state.clock.pause("player");
     state.paused = true;
@@ -1018,9 +1020,13 @@ async function startDevLabRuntime() {
  * Dev Lab owns the workspace; the selected application composition root
  * decides which content packages (if any) are registered before startup.
  */
-export async function startDevLab({ loadContentPackage = async () => [] } = {}) {
+export async function startDevLab({
+  loadContentPackage = async () => [],
+  createRuntime = createDevLabRuntime,
+  resolveRuntimeServices = resolveDevLabRuntimeServices
+} = {}) {
   await loadContentPackage();
   refreshDatabase();
-  await startDevLabRuntime();
+  await startDevLabRuntime({ createRuntime, resolveRuntimeServices });
   showView("menu");
 }
