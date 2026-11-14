@@ -113,3 +113,21 @@ test("Dev Lab shell delegates viewport and workspace persistence to owned servic
   assert.ok(persistence.includes("export function createWorkspacePersistenceController"));
   assert.ok(persistence.includes('stateId: "cassandra-dev-lab-workspace"'));
 });
+
+
+test("Dev Lab shell delegates definition catalog behavior to its controller", async () => {
+  const shell = await read("../../dev-lab/application/application-shell.js");
+  const catalog = await read("../../dev-lab/application/definition-catalog-controller.js");
+  assert.ok(shell.includes("createDefinitionCatalogController"));
+  assert.ok(shell.includes("definitionCatalog.open(\"browse\")"));
+  assert.ok(shell.includes("definitionCatalog.open(\"viewport\")"));
+  assert.ok(shell.includes("definitionCatalog.refresh()"));
+  assert.equal(shell.includes("function renderDatabase"), false);
+  assert.equal(shell.includes("function inspectDefinition"), false);
+  assert.equal(shell.includes("loadDefinitionDetail"), true);
+  assert.ok(catalog.includes("export function createDefinitionCatalogController"));
+  assert.ok(catalog.includes("listDefinitionIndex"));
+  assert.ok(catalog.includes("getCategories"));
+  assert.ok(catalog.includes("loadDefinitionDetail"));
+  assert.ok(catalog.includes("onSelectDefinition"));
+});
