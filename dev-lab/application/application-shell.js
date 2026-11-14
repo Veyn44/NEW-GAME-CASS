@@ -4,6 +4,7 @@ import { LocalFileSaveAdapter } from "../../src/adapters/storage/local-file-save
 import { createWorkspacePersistenceController } from "./workspace-persistence-controller.js";
 import { createDefinitionCatalogController } from "./definition-catalog-controller.js";
 import { createDevLabViewNavigationController } from "./view-navigation-controller.js";
+import { createDevLabPauseMenuController } from "./pause-menu-controller.js";
 import { getDefinition, listDefinitionIndex, getCategories, loadDefinitionDetail } from "../../engine/database/definition-registry.js";
 import { createViewportInputController } from "../input/viewport-input-controller.js";
 
@@ -65,7 +66,6 @@ const state = {
   placementActive: false,
   animationFrame: null,
   lastFrameTime: null,
-  pauseMenuOpen: false,
 };
 
 function beginWorldPlacement(definition) {
@@ -123,8 +123,6 @@ const navigation = createDevLabViewNavigationController({
     viewportPanel,
     settingsBackButton: document.querySelector("#settings-back"),
     backMenuButtons: [...document.querySelectorAll("[data-back-menu]")],
-    pauseSettingsButton: document.querySelector("#pause-settings"),
-    pauseMainMenuButton: document.querySelector("#pause-main-menu"),
     viewportDatabaseButton,
     body: document.body
   },
@@ -132,7 +130,7 @@ const navigation = createDevLabViewNavigationController({
   canOpenViewportDatabase: () => state.paused && !state.placementActive,
   beforeLeaveWorkspace() {
     cancelPlacement();
-    if (!state.pauseMenuOpen) {
+    if (!pauseMenuController?.isOpen()) {
       if (!state.paused) {
         inputController.pause();
         state.clock?.pause("player");
@@ -145,17 +143,35 @@ const navigation = createDevLabViewNavigationController({
   },
   onSettingsReturn(returnView) {
     if (returnView === "dev-lab") {
-      state.pauseMenuOpen = true;
-      pauseMenu.hidden = false;
+      pauseMenuController?.open();
       updateSimulationUi();
     }
   },
-  onPauseMainMenu() { state.pauseMenuOpen = false; },
   scrollToTop: () => window.scrollTo(0, 0),
   dispatchResize: () => window.dispatchEvent(new Event("resize"))
 });
 
-document.querySelector("#pause-resume").addEventListener("click", closePauseMenu);
+let pauseMenuController;
+pauseMenuController = createDevLabPauseMenuController({
+  elements: {
+    menu: pauseMenu,
+    resumeButton: document.querySelector("#pause-resume"),
+    settingsButton: document.querySelector("#pause-settings"),
+    mainMenuButton: document.querySelector("#pause-main-menu")
+  },
+  navigation,
+  canOpen: () => document.body.dataset.currentView === "dev-lab",
+  onOpen() {
+    heldMovementKeys.clear();
+    inputController.suspendForOverlay();
+    state.gameplayUi?.closeProfile();
+  },
+  onClose() {
+    if (!state.paused) inputController.resume();
+    canvas.focus({ preventScroll: true });
+  },
+  onVisibilityChange: updateSimulationUi
+});
 function refreshWorldMarkers() {
   const units = state.gameplayApi?.listUnits() ?? [];
   const activeWorldId = state.worldRegistry?.activeWorldId;
@@ -212,25 +228,6 @@ function updateSimulationUi() {
   }
 }
 
-function openPauseMenu() {
-  if (state.pauseMenuOpen || document.body.dataset.currentView !== "dev-lab") return;
-  heldMovementKeys.clear();
-  inputController.suspendForOverlay();
-  state.gameplayUi?.closeProfile();
-  state.pauseMenuOpen = true;
-  pauseMenu.hidden = false;
-  updateSimulationUi();
-}
-
-function closePauseMenu() {
-  if (!state.pauseMenuOpen) return;
-  state.pauseMenuOpen = false;
-  pauseMenu.hidden = true;
-  if (!state.paused) inputController.resume();
-  canvas.focus({ preventScroll: true });
-  updateSimulationUi();
-}
-
 function toggleSimulationPause() {
   if (!state.clock) return;
   if (state.paused) {
@@ -257,7 +254,7 @@ function simulationFrame(timestamp) {
     try {
       // The Core scheduler and Game Clock are the authoritative simulation gate.
       // Rendering and input remain responsive while the clock is paused.
-      if (!state.pauseMenuOpen) runtimeAdvance(elapsedSeconds);
+      if (!pauseMenuController.isOpen()) runtimeAdvance(elapsedSeconds);
       if (state.paused) updatePausedFreeCamera(elapsedSeconds);
       const clockPaused = state.clock?.paused ?? true;
       if (clockPaused !== state.paused) {
@@ -299,7 +296,7 @@ function applyFreeCameraInput(deltaSeconds) {
 }
 
 function updatePausedFreeCamera(deltaSeconds) {
-  if (state.pauseMenuOpen || state.gameplayApi?.getControlState().drafted || !heldMovementKeys.size) return;
+  if (pauseMenuController.isOpen() || state.gameplayApi?.getControlState().drafted || !heldMovementKeys.size) return;
   applyFreeCameraInput(deltaSeconds);
 }
 
@@ -319,12 +316,12 @@ window.addEventListener("keydown", (event) => {
     if (state.placementActive) { cancelPlacement(); return; }
     if (state.gameplayUi?.isProfileOpen()) { state.gameplayUi.closeProfile(); return; }
     if (navigation.isViewportDatabaseOpen()) { navigation.closeViewportDatabase(); return; }
-    if (state.pauseMenuOpen) { closePauseMenu(); return; }
-    openPauseMenu();
+    if (pauseMenuController.isOpen()) { pauseMenuController.close(); return; }
+    pauseMenuController.open();
     return;
   }
   if (isTextEntryTarget(event.target)) return;
-  if (state.pauseMenuOpen) return;
+  if (pauseMenuController.isOpen()) return;
   if (/^Key[WASD]$/.test(event.code)) {
     heldMovementKeys.add(event.code);
     inputController.keyDown(event.code);
@@ -335,7 +332,7 @@ window.addEventListener("keydown", (event) => {
     }
   }
   if (isInteractiveTarget(event.target)) return;
-  if (state.pauseMenuOpen) return;
+  if (pauseMenuController.isOpen()) return;
   if (event.code === "Space" && !event.repeat && !event.altKey && !event.ctrlKey && !event.metaKey) {
     event.preventDefault();
     toggleSimulationPause();
