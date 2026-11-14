@@ -18,6 +18,7 @@ jobs:
       - name: Check browser entry-point syntax
         run: |
           node --check application-entry.js
+          node --check cassandra/application/dev-lab-gameplay-controller.js
           node --check dev-lab/application/application-shell.js
           node --check dev-lab/application/create-dev-lab-runtime.js
           node --check engine/runtime/create-game-runtime.js

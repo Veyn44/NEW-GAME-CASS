@@ -69,9 +69,7 @@ const state = {
   selectedDefinitionId: null,
   selectedDefinition: null,
   detailRequest: 0,
-  unitApi: null,
-  inputApi: null,
-  colonyControlApi: null,
+  gameplayApi: null,
   clock: null,
   worldRegistry: null,
   persistenceApi: null,
@@ -160,8 +158,8 @@ function closeViewportDatabase() {
 }
 
 function beginWorldPlacement(definition) {
-  if (!state.paused || !state.unitApi || !state.worldRegistry
-    || !definition || !definition.spawnableAs.includes("unit")) return;
+  if (!state.paused || !state.gameplayApi?.canPlaceDefinition(definition)
+    || !state.worldRegistry) return;
   closeViewportDatabase();
   clearUnitSelection();
   state.placementActive = true;
@@ -173,14 +171,11 @@ function beginWorldPlacement(definition) {
     artwork: definition.artwork,
     onPlace: (x, y) => {
       try {
-        const unit = state.unitApi.createUnit({
+        const unit = state.gameplayApi.createUnit({
           definitionId: definition.id,
           worldId: state.worldRegistry.activeWorldId,
           position: { x, y }
         });
-        if (definition.id === "pawn.johny" && !state.colonyControlApi.getState().leaderId) {
-          state.colonyControlApi.setLeader(unit.id);
-        }
         state.placementActive = false;
         viewportDatabaseButton.disabled = !state.paused;
         worldSizeSelect.disabled = !state.paused;
@@ -255,7 +250,7 @@ async function inspectDefinition(id) {
 
   state.selectedDefinition = definition;
   databaseSelectButton.hidden = state.databaseMode !== "viewport"
-    || !definition.spawnableAs.includes("unit");
+    || !state.gameplayApi?.canPlaceDefinition(definition);
   databaseSelectButton.disabled = databaseSelectButton.hidden;
   databaseInspector.replaceChildren();
 
@@ -419,7 +414,7 @@ databaseSearch.addEventListener("input", renderDatabase);
 databaseCategory.addEventListener("change", renderDatabase);
 
 function refreshWorldMarkers() {
-  const units = state.unitApi?.listUnits() ?? [];
+  const units = state.gameplayApi?.listUnits() ?? [];
   const activeWorldId = state.worldRegistry?.activeWorldId;
   setWorldMarkers(units
     .filter((unit) => unit.placement?.type === "world"
@@ -450,13 +445,13 @@ function clearUnitSelection() {
 }
 
 function inspectUnit(entityId) {
-  const controlState = state.colonyControlApi?.getState();
+  const controlState = state.gameplayApi?.getControlState();
   if (controlState?.drafted && controlState.leaderId) entityId = controlState.leaderId;
   if (!entityId) {
     clearUnitSelection();
     return;
   }
-  const unit = state.unitApi?.getUnit(entityId);
+  const unit = state.gameplayApi?.getUnit(entityId);
   if (!unit) {
     clearUnitSelection();
     return;
@@ -501,18 +496,19 @@ function inspectUnit(entityId) {
 }
 
 function updateSimulationUi() {
-  const controlState = state.colonyControlApi?.getState();
+  const controlState = state.gameplayApi?.getControlState();
+  const controlLabel = state.gameplayApi?.getDraftStatusLabel() ?? "NO GAME CONTROL";
   simulationStatus.textContent = state.paused
-    ? `PAUSED · ${controlState?.drafted ? "DRAFT ACTIVE" : "F TO DRAFT"} · Space to resume`
-    : `RUNNING · ${controlState?.drafted ? "DRAFT ACTIVE" : "NO DRAFT"} · Space to pause`;
+    ? `PAUSED · ${controlLabel} · Space to resume`
+    : `RUNNING · ${controlLabel} · Space to pause`;
   simulationStatus.dataset.state = state.paused ? "paused" : "running";
   viewportPanel.dataset.paused = String(state.paused);
   viewportPanel.dataset.inputMode = state.paused ? "paused" : "running";
   worldSizeSelect.disabled = !state.paused || state.placementActive;
   gridVisible.disabled = false;
   viewportDatabaseButton.disabled = !state.paused || state.placementActive;
-  resetLabButton.disabled = false;
-  pointerStatus.textContent = state.paused ? "INSPECTION CURSOR" : (state.colonyControlApi?.getState().drafted ? "PAWN CONTROL" : "FREE CAMERA");
+  resetLabButton.disabled = !state.gameplayApi;
+  pointerStatus.textContent = state.paused ? "INSPECTION CURSOR" : (state.gameplayApi?.getControlModeLabel() ?? "FREE CAMERA");
   setWorldInteraction({
     paused: state.paused,
     inspectionEnabled: true,
@@ -617,7 +613,7 @@ function applyFreeCameraInput(deltaSeconds) {
 }
 
 function updatePausedFreeCamera(deltaSeconds) {
-  if (state.pauseMenuOpen || state.colonyControlApi?.getState().drafted || !heldMovementKeys.size) return;
+  if (state.pauseMenuOpen || state.gameplayApi?.getControlState().drafted || !heldMovementKeys.size) return;
   applyFreeCameraInput(deltaSeconds);
 }
 
@@ -659,12 +655,12 @@ window.addEventListener("keydown", (event) => {
     toggleSimulationPause();
     return;
   }
-  if (event.code === "KeyF" && !event.repeat && state.colonyControlApi) {
+  const gameplayAction = state.gameplayApi?.handleKeyDown(event);
+  if (gameplayAction) {
     event.preventDefault();
-    const next = state.colonyControlApi.toggleDraft();
-    if (next.drafted && next.leaderId) {
-      const leader = state.unitApi?.getUnit(next.leaderId);
-      inspectUnit(next.leaderId);
+    const { controlState, leader } = gameplayAction;
+    if (controlState.drafted && controlState.leaderId) {
+      inspectUnit(controlState.leaderId);
       if (leader?.placement?.type === "world"
         && leader.placement.worldId === state.worldRegistry?.activeWorldId) {
         setCameraFollowTarget(leader.id, leader.placement.position);
@@ -729,7 +725,7 @@ function closeUnitProfile() {
 
 function openUnitProfile() {
   if (!state.paused || !state.selectedObject || state.selectedObject.kind !== "UNIT") return;
-  const unit = state.unitApi?.getUnit(state.selectedUnitId);
+  const unit = state.gameplayApi?.getUnit(state.selectedUnitId);
   if (!unit) {
     clearUnitSelection();
     return;
@@ -774,10 +770,10 @@ worldSizeSelect.addEventListener("change", () => {
   if (!state.paused || !state.worldRegistry) return;
   const size = Number(worldSizeSelect.value);
   state.worldRegistry.activateWorld(`dev-lab-world-${size}`);
-  const leaderId = state.colonyControlApi?.getState().leaderId;
-  const leader = leaderId ? state.unitApi?.getUnit(leaderId) : null;
+  const leaderId = state.gameplayApi?.getControlState().leaderId;
+  const leader = leaderId ? state.gameplayApi?.getUnit(leaderId) : null;
   if (leader?.placement && leader.placement.worldId !== state.worldRegistry.activeWorldId) {
-    state.colonyControlApi.setDrafted(false);
+    state.gameplayApi.setDrafted(false);
   }
   clearUnitSelection();
   refreshWorldMarkers();
@@ -785,7 +781,7 @@ worldSizeSelect.addEventListener("change", () => {
 });
 
 resetLabButton.addEventListener("click", () => {
-  if (!state.unitApi || !state.colonyControlApi || !state.worldRegistry) return;
+  if (!state.gameplayApi || !state.worldRegistry) return;
   const confirmed = window.confirm(
     "Reset Dev Lab? All current Units and unsaved session state will be cleared. Saved .cass files will not be deleted."
   );
@@ -800,10 +796,10 @@ resetLabButton.addEventListener("click", () => {
   closeViewportDatabase();
   closeUnitProfile();
 
-  for (const unit of state.unitApi.listUnits()) {
-    state.unitApi.removeUnit(unit.id);
+  for (const unit of state.gameplayApi.listUnits()) {
+    state.gameplayApi.removeUnit(unit.id);
   }
-  state.colonyControlApi.setLeader(null);
+  state.gameplayApi.setLeader(null);
   clearUnitSelection();
   refreshWorldMarkers();
 
@@ -995,9 +991,7 @@ async function startDevLabRuntime({
     worlds.activateWorld(`dev-lab-world-${Number(worldSizeSelect.value)}`);
     state.worldRegistry = worlds;
     state.persistenceApi = services.persistenceApi;
-    state.unitApi = services.unitApi ?? null;
-    state.inputApi = services.inputApi ?? null;
-    state.colonyControlApi = services.colonyControlApi ?? null;
+    state.gameplayApi = services.gameplayApi ?? null;
     setWorldMarkers([]);
     clearUnitSelection();
     state.clock = services.clock;

@@ -508,3 +508,52 @@ Move ownership of Cassandra gameplay runtime composition to the Cassandra applic
 ### Remaining architecture boundary
 
 This slice separates runtime composition, not the entire application. Dev Lab UI still understands Unit and Colony Control API shapes when those services are supplied. Cassandra currently uses Dev Lab as its host application. A later phase must separate the Cassandra application shell/UI from Dev Lab to make Cassandra fully runnable without Dev Lab.
+
+
+## 14. Completed implementation slice — Cassandra gameplay adapter boundary
+
+Approved by the user on 2026-11-14. Implemented on the existing `work` branch only.
+
+### Goal
+
+Remove direct Unit and Colony Control service coupling and Cassandra-specific key/placement policy from the Dev Lab application shell. Expose one Cassandra-owned gameplay adapter to the Dev Lab host.
+
+### Changes made
+
+- Added `cassandra/application/dev-lab-gameplay-controller.js`
+  - Owns the F-to-Draft binding.
+  - Owns the Johny/Colony Leader auto-assignment rule when placing the Pawn.
+  - Exposes a single application-facing gameplay API for Unit lookup/list/create/remove, Colony Leader and Draft state, placement eligibility, and movement updates.
+  - Contains no Dev Lab DOM or presentation imports.
+- `application-entry.js`
+  - Creates the Cassandra gameplay adapter from runtime services.
+  - Uses the same adapter contract for the Colony Control simulation task.
+  - Exposes `gameplayApi` to Dev Lab instead of exposing raw Unit and Colony Control APIs.
+- `dev-lab/application/application-shell.js`
+  - Uses only the injected `gameplayApi` for gameplay operations.
+  - No longer contains direct Unit/Colony service identifiers, the F key binding, the Johny-specific placement rule, or Unit placement eligibility policy.
+  - Continues to own generic viewport keyboard collection, pause, camera movement, rendering coordination and browser UI.
+- `tests/unit/workspace-persistence.test.js`
+  - Corrected stale imports to the current Engine Input service and Dev Lab viewport input controller.
+- `tests/unit/dev-lab-content-boundary.test.js`
+  - Added boundary assertions for the gameplay adapter contract and Cassandra-owned key/placement policy.
+- Added `tests/unit/cassandra-dev-lab-gameplay-controller.test.js` with controller behavior tests.
+- `.github/workflows/core-tests.yml`
+  - Added a syntax check for the new Cassandra gameplay adapter.
+
+### Intentionally unchanged
+
+- Unit System and Colony Control System implementations and their gameplay rules.
+- Engine Core, environment simulation, world registry and persistence behavior.
+- Physical input collection and Dev Lab camera movement.
+- Workspace save format and file adapter.
+- Cassandra Unit profile/Quick Select presentation markup and rendering remain in the current combined shell for now; moving those presentation components into a Cassandra-owned UI module is a remaining application-boundary task.
+- The menu-button responsiveness issue remains separate and is not claimed fixed.
+- `main` and all other branches.
+
+### Verification status
+
+- Source-level checks were added for the new adapter boundary.
+- The stale workspace test imports were corrected.
+- Automated tests and GitHub Actions have not yet been run/confirmed in this environment. Do not claim the test suite or CI passed until a run is observed.
+- Manual Pages/browser acceptance has not been performed.

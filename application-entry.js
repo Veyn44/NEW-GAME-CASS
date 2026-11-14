@@ -4,6 +4,7 @@ import { createInputSystem } from "./engine/input/input-system.js";
 import { getDefinition } from "./engine/database/definition-registry.js";
 import { createUnitSystem } from "./src/gameplay/unit/unit-system.js";
 import { createColonyControlSystem } from "./src/gameplay/colony/colony-control-system.js";
+import { createCassandraDevLabGameplayController } from "./cassandra/application/dev-lab-gameplay-controller.js";
 import { startDevLab } from "./dev-lab/application/application-shell.js";
 
 /**
@@ -17,6 +18,7 @@ export function createCassandraRuntime({
   onUnitMoved,
   updateFreeCamera
 } = {}) {
+  let gameplayController = null;
   return createGameRuntime({
     saveAdapter,
     fixedStepSeconds: 1 / 60,
@@ -29,9 +31,13 @@ export function createCassandraRuntime({
     simulationTasks: [{
       systemId: "game.colony-control",
       update({ deltaSeconds, context }) {
-        const control = context.getService("game.colony-control-api");
-        if (control.getState().drafted) {
-          const moved = control.update(deltaSeconds);
+        gameplayController ??= createCassandraDevLabGameplayController({
+          unitApi: context.getService("game.unit-api"),
+          colonyControlApi: context.getService("game.colony-control-api"),
+          worldRegistry: context.getService("core.world-registry")
+        });
+        if (gameplayController.getControlState().drafted) {
+          const moved = gameplayController.update(deltaSeconds);
           if (moved) onUnitMoved?.(moved);
           return;
         }
@@ -50,9 +56,11 @@ export function resolveCassandraRuntimeServices(context) {
     worldRegistry: context.getService("core.world-registry"),
     persistenceApi: context.getService("core.persistence"),
     clock: context.getService("core.game-clock"),
-    unitApi: context.getService("game.unit-api"),
-    inputApi: context.getService("engine.input-api"),
-    colonyControlApi: context.getService("game.colony-control-api")
+    gameplayApi: createCassandraDevLabGameplayController({
+      unitApi: context.getService("game.unit-api"),
+      colonyControlApi: context.getService("game.colony-control-api"),
+      worldRegistry: context.getService("core.world-registry")
+    })
   };
 }
 

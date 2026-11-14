@@ -4,9 +4,9 @@ import assert from "node:assert/strict";
 import { createGameRuntime } from "../../engine/runtime/create-game-runtime.js";
 import { MemorySaveAdapter } from "../../engine/core/persistence.js";
 import { createUnitSystem } from "../../src/gameplay/unit/unit-system.js";
-import { createGameInputSystem } from "../../src/gameplay/input/game-input-system.js";
+import { createInputSystem } from "../../engine/input/input-system.js";
 import { createColonyControlSystem } from "../../src/gameplay/colony/colony-control-system.js";
-import { createViewportInputController } from "../../src/application/input/viewport-input-controller.js";
+import { createViewportInputController } from "../../dev-lab/input/viewport-input-controller.js";
 import {
   clearDefinitionsForTests,
   getDefinition,
@@ -26,7 +26,7 @@ test("workspace round-trip restores world, identity, placement, Unit and Colony 
   const runtime = createGameRuntime({
     saveAdapter: new MemorySaveAdapter(),
     hostSystems: [
-      createGameInputSystem({ inputController: createViewportInputController() }),
+      createInputSystem({ inputController: createViewportInputController() }),
       createUnitSystem({ definitionLookup: getDefinition }),
       createColonyControlSystem()
     ]
