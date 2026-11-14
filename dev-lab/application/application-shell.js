@@ -5,6 +5,7 @@ import { createWorkspacePersistenceController } from "./workspace-persistence-co
 import { createDefinitionCatalogController } from "./definition-catalog-controller.js";
 import { createDevLabViewNavigationController } from "./view-navigation-controller.js";
 import { createDevLabPauseMenuController } from "./pause-menu-controller.js";
+import { createDevLabWorkspaceSessionController } from "./workspace-session-controller.js";
 import { getDefinition, listDefinitionIndex, getCategories, loadDefinitionDetail } from "../../engine/database/definition-registry.js";
 import { createViewportInputController } from "../input/viewport-input-controller.js";
 
@@ -228,6 +229,39 @@ function updateSimulationUi() {
   }
 }
 
+const workspaceSession = createDevLabWorkspaceSessionController({
+  elements: { worldSizeSelect, worldStatus: document.querySelector("#world-status") },
+  worldRegistry: {
+    get activeWorldId() { return state.worldRegistry?.activeWorldId; },
+    activateWorld: (worldId) => state.worldRegistry?.activateWorld(worldId),
+    get: (worldId) => state.worldRegistry?.get(worldId)
+  },
+  gameplayApi: {
+    getControlState: () => state.gameplayApi?.getControlState() ?? {},
+    getUnit: (id) => state.gameplayApi?.getUnit(id),
+    setDrafted: (drafted) => state.gameplayApi?.setDrafted(drafted),
+    listUnits: () => state.gameplayApi?.listUnits() ?? [],
+    removeUnit: (id) => state.gameplayApi?.removeUnit(id),
+    setLeader: (id) => state.gameplayApi?.setLeader(id)
+  },
+  get clock() { return state.clock; },
+  inputController, heldMovementKeys, viewport,
+  isPaused: () => state.paused,
+  setPaused: (paused) => { state.paused = paused; },
+  clearSelection, refreshWorldMarkers, updateSimulationUi, cancelPlacement,
+  closeViewportDatabase: () => navigation.closeViewportDatabase(),
+  closeUnitProfile: () => state.gameplayUi?.closeProfile(),
+  clearSaveSelection: () => state.workspacePersistence?.clearSelection(),
+  confirmReset: () => window.confirm(
+    "Reset Dev Lab? All current workspace entities and unsaved session state will be cleared. Saved .cass files will not be deleted."
+  ),
+  onResetStatus() {
+    workspaceSaveStatus.textContent = "LAB RESET · NO SAVE SELECTED";
+    simulationStatus.textContent = "EMPTY LAB · PAUSED";
+  },
+  focusCanvas: () => canvas.focus({ preventScroll: true })
+});
+
 function toggleSimulationPause() {
   if (!state.clock) return;
   if (state.paused) {
@@ -396,83 +430,8 @@ document.addEventListener("visibilitychange", () => {
 });
 
 
-worldSizeSelect.addEventListener("change", () => {
-  if (!state.paused || !state.worldRegistry) return;
-  const size = Number(worldSizeSelect.value);
-  state.worldRegistry.activateWorld(`dev-lab-world-${size}`);
-  const leaderId = state.gameplayApi?.getControlState().leaderId;
-  const leader = leaderId ? state.gameplayApi?.getUnit(leaderId) : null;
-  if (leader?.placement && leader.placement.worldId !== state.worldRegistry.activeWorldId) {
-    state.gameplayApi.setDrafted(false);
-  }
-  clearSelection();
-  refreshWorldMarkers();
-  updateSimulationUi();
-});
-
-resetLabButton.addEventListener("click", () => {
-  if (!state.worldRegistry) return;
-  const confirmed = window.confirm(
-    "Reset Dev Lab? All current workspace entities and unsaved session state will be cleared. Saved .cass files will not be deleted."
-  );
-  if (!confirmed) return;
-
-  heldMovementKeys.clear();
-  inputController.pause();
-  inputController.clearForFocusLoss();
-  state.clock?.pause("player");
-  state.paused = true;
-  cancelPlacement();
-  closeViewportDatabase();
-  state.gameplayUi?.closeProfile();
-
-  for (const unit of state.gameplayApi?.listUnits() ?? []) {
-    state.gameplayApi.removeUnit(unit.id);
-  }
-  state.gameplayApi?.setLeader(null);
-  clearSelection();
-  refreshWorldMarkers();
-
-  const activeWorld = state.worldRegistry.getActiveWorld();
-  if (activeWorld?.dimensions) {
-    const { width, height } = activeWorld.dimensions;
-    worldSizeSelect.value = String(width);
-    document.querySelector("#world-status").textContent = `World: ${width} × ${height}`;
-    viewport.resetCameraToWorld(Math.min(width, height));
-  } else {
-    viewport.resetCameraToWorld();
-  }
-
-  state.workspacePersistence?.clearSelection();
-  workspaceSaveStatus.textContent = "LAB RESET · NO SAVE SELECTED";
-  simulationStatus.textContent = "EMPTY LAB · PAUSED";
-  updateSimulationUi();
-  canvas.focus({ preventScroll: true });
-});
-
-
-function synchronizeRestoredWorkspace() {
-  // A loaded session always enters a safe, paused inspection state.
-  heldMovementKeys.clear();
-  inputController.pause();
-  inputController.clearForFocusLoss();
-  state.clock?.pause("player");
-  state.paused = true;
-
-  const activeWorld = state.worldRegistry?.get(state.worldRegistry.activeWorldId);
-  if (activeWorld?.dimensions?.width && activeWorld?.dimensions?.height) {
-    const { width, height } = activeWorld.dimensions;
-    worldSizeSelect.value = String(width);
-    document.querySelector("#world-status").textContent = `World: ${width} × ${height}`;
-    viewport.resetCameraToWorld(Math.min(width, height));
-  } else {
-    viewport.resetCameraToWorld();
-  }
-
-  clearSelection();
-  refreshWorldMarkers();
-  updateSimulationUi();
-}
+worldSizeSelect.addEventListener("change", () => workspaceSession.changeWorld());
+resetLabButton.addEventListener("click", () => workspaceSession.reset());
 
 saveWorkspaceButton.addEventListener("click", () => state.workspacePersistence?.save());
 saveWorkspaceAsButton.addEventListener("click", () => state.workspacePersistence?.saveAs());
@@ -529,7 +488,7 @@ async function startDevLabRuntime({
       persistenceApi: services.persistenceApi,
       saveAdapter: state.saveAdapter,
       fileInput: workspaceFileInput,
-      onRestore: synchronizeRestoredWorkspace,
+      onRestore: workspaceSession.synchronizeRestoredWorkspace,
       onStatus({ saveStatus, simulationStatus: nextSimulationStatus }) {
         workspaceSaveStatus.textContent = saveStatus;
         simulationStatus.textContent = nextSimulationStatus;
