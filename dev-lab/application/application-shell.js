@@ -33,24 +33,6 @@ const databaseInspector = document.querySelector("#database-inspector");
 const databaseModeLabel = document.querySelector("#database-mode-label");
 const simulationStatus = document.querySelector("#simulation-status");
 const pointerStatus = document.querySelector("#pointer-status");
-const quickSelect = document.querySelector("#quick-select");
-const quickSelectKind = document.querySelector("#quick-select-kind");
-const quickSelectArtwork = document.querySelector("#quick-select-artwork");
-const quickSelectArtworkEmpty = document.querySelector("#quick-select-artwork-empty");
-const quickSelectName = document.querySelector("#quick-select-name");
-const quickSelectSummary = document.querySelector("#quick-select-summary");
-const quickSelectInfo = document.querySelector("#quick-select-info");
-const quickSelectDetails = document.querySelector("#quick-select-details");
-const unitProfile = document.querySelector("#unit-profile");
-const unitProfileClose = document.querySelector("#unit-profile-close");
-const unitProfileName = document.querySelector("#unit-profile-name");
-const unitProfileArtwork = document.querySelector("#unit-profile-artwork");
-const unitProfileArtworkEmpty = document.querySelector("#unit-profile-artwork-empty");
-const unitProfileCategory = document.querySelector("#unit-profile-category");
-const unitProfileDescription = document.querySelector("#unit-profile-description");
-const unitProfileAttributes = document.querySelector("#unit-profile-attributes");
-const unitProfileInstance = document.querySelector("#unit-profile-instance");
-const unitProfileLocation = document.querySelector("#unit-profile-location");
 const viewportPanel = document.querySelector(".viewport-panel");
 const canvas = document.querySelector("#world-canvas");
 const worldSizeSelect = document.querySelector("#world-size");
@@ -75,8 +57,7 @@ const state = {
   persistenceApi: null,
   saveAdapter: null,
   paused: true,
-  selectedUnitId: null,
-  selectedObject: null,
+  gameplayUi: null,
   viewportDatabaseOpen: false,
   placementActive: false,
   animationFrame: null,
@@ -161,7 +142,7 @@ function beginWorldPlacement(definition) {
   if (!state.paused || !state.gameplayApi?.canPlaceDefinition(definition)
     || !state.worldRegistry) return;
   closeViewportDatabase();
-  clearUnitSelection();
+  clearSelection();
   state.placementActive = true;
   viewportDatabaseButton.disabled = true;
   worldSizeSelect.disabled = true;
@@ -181,7 +162,7 @@ function beginWorldPlacement(definition) {
         worldSizeSelect.disabled = !state.paused;
         setWorldPlacement(null);
         refreshWorldMarkers();
-        inspectUnit(unit.id);
+        inspectGameplayEntity(unit.id);
         return true;
       } catch (error) {
         simulationStatus.textContent = `PLACEMENT REJECTED · ${error.message}`;
@@ -427,76 +408,24 @@ function refreshWorldMarkers() {
     })));
 }
 
-function clearUnitSelection() {
-  state.selectedUnitId = null;
-  state.selectedObject = null;
+function clearSelection() {
+  state.gameplayUi?.clearSelection();
   setSelectedWorldMarker(null);
-  quickSelect.hidden = true;
-  quickSelectInfo.disabled = true;
-  quickSelectInfo.textContent = "INFO";
-  quickSelectDetails.hidden = true;
-  quickSelectDetails.replaceChildren();
-  closeUnitProfile();
-  quickSelectArtwork.hidden = true;
-  quickSelectArtwork.removeAttribute("src");
-  quickSelectArtworkEmpty.hidden = false;
-  quickSelectName.textContent = "No selection";
-  quickSelectSummary.textContent = "Select an object in the world.";
 }
 
-function inspectUnit(entityId) {
-  const controlState = state.gameplayApi?.getControlState();
-  if (controlState?.drafted && controlState.leaderId) entityId = controlState.leaderId;
-  if (!entityId) {
-    clearUnitSelection();
-    return;
-  }
-  const unit = state.gameplayApi?.getUnit(entityId);
+function inspectGameplayEntity(entityId) {
+  const unit = state.gameplayUi?.inspectUnit(entityId) ?? null;
   if (!unit) {
-    clearUnitSelection();
-    return;
+    setSelectedWorldMarker(null);
+    return null;
   }
-  closeUnitProfile();
-  state.selectedUnitId = unit.id;
-  state.selectedObject = { id: unit.id, kind: "UNIT", unit };
   setSelectedWorldMarker(unit.id);
-  const definition = getDefinition(unit.definitionId);
-  quickSelectKind.textContent = "UNIT";
-  quickSelectName.textContent = definition?.name ?? "Unknown definition";
-  quickSelectSummary.textContent = definition?.description ?? "Live world instance.";
-  quickSelectArtwork.hidden = !definition?.artwork;
-  quickSelectArtworkEmpty.hidden = Boolean(definition?.artwork);
-  if (definition?.artwork) {
-    quickSelectArtwork.src = definition.artwork;
-    quickSelectArtwork.alt = definition.name;
-  } else {
-    quickSelectArtwork.removeAttribute("src");
-  }
-  quickSelectInfo.disabled = !state.paused;
-  quickSelectDetails.replaceChildren();
-  const details = document.createElement("dl");
-  details.className = "attribute-list quick-select-attributes";
-  appendAttributeRows(details, {
-    "Instance ID": unit.id,
-    "Definition": definition?.name ?? unit.definitionId,
-    "Definition ID": unit.definitionId,
-    "World": unit.placement?.worldId ?? "—",
-    "Tile X": unit.placement?.position?.x ?? "—",
-    "Tile Y": unit.placement?.position?.y ?? "—"
-  });
-  appendAttributeRows(details, {
-    "Entity type": definition?.entityType ?? "—",
-    "Canonical attributes": definition?.attributes ?? {}
-  });
-  const hint = document.createElement("p");
-  hint.className = "dev-note";
-  hint.textContent = "Live instance data supplied by Unit and World services.";
-  quickSelectDetails.append(details, hint);
-  quickSelect.hidden = false;
+  return unit;
 }
 
 function updateSimulationUi() {
   const controlState = state.gameplayApi?.getControlState();
+  state.gameplayUi?.setPaused(state.paused);
   const controlLabel = state.gameplayApi?.getDraftStatusLabel() ?? "NO GAME CONTROL";
   simulationStatus.textContent = state.paused
     ? `PAUSED · ${controlLabel} · Space to resume`
@@ -515,9 +444,9 @@ function updateSimulationUi() {
     onSelect: inspectUnit
   });
   if (controlState?.drafted && controlState.leaderId) {
-    inspectUnit(controlState.leaderId);
-  } else if (state.selectedUnitId) {
-    inspectUnit(state.selectedUnitId);
+    inspectGameplayEntity(controlState.leaderId);
+  } else if (state.gameplayUi?.getSelectedUnitId()) {
+    inspectGameplayEntity(state.gameplayUi.getSelectedUnitId());
   }
 }
 
@@ -525,7 +454,7 @@ function openPauseMenu() {
   if (state.pauseMenuOpen || document.body.dataset.currentView !== "dev-lab") return;
   heldMovementKeys.clear();
   inputController.suspendForOverlay();
-  closeUnitProfile();
+  state.gameplayUi?.closeProfile();
   state.pauseMenuOpen = true;
   pauseMenu.hidden = false;
   updateSimulationUi();
@@ -631,7 +560,7 @@ window.addEventListener("keydown", (event) => {
   if (event.code === "Escape" && !event.repeat) {
     event.preventDefault();
     if (state.placementActive) { cancelPlacement(); return; }
-    if (!unitProfile.hidden) { closeUnitProfile(); return; }
+    if (state.gameplayUi?.isProfileOpen()) { state.gameplayUi.closeProfile(); return; }
     if (state.viewportDatabaseOpen) { closeViewportDatabase(); return; }
     if (state.pauseMenuOpen) { closePauseMenu(); return; }
     openPauseMenu();
@@ -660,13 +589,13 @@ window.addEventListener("keydown", (event) => {
     event.preventDefault();
     const { controlState, leader } = gameplayAction;
     if (controlState.drafted && controlState.leaderId) {
-      inspectUnit(controlState.leaderId);
+      inspectGameplayEntity(controlState.leaderId);
       if (leader?.placement?.type === "world"
         && leader.placement.worldId === state.worldRegistry?.activeWorldId) {
         setCameraFollowTarget(leader.id, leader.placement.position);
       }
     } else {
-      clearUnitSelection();
+      clearSelection();
     }
     updateSimulationUi();
     return;
@@ -718,54 +647,6 @@ databaseSelectButton.addEventListener("click", () => {
   beginWorldPlacement(state.selectedDefinition);
 });
 
-function closeUnitProfile() {
-  unitProfile.hidden = true;
-  quickSelectInfo.textContent = "INFO";
-}
-
-function openUnitProfile() {
-  if (!state.paused || !state.selectedObject || state.selectedObject.kind !== "UNIT") return;
-  const unit = state.gameplayApi?.getUnit(state.selectedUnitId);
-  if (!unit) {
-    clearUnitSelection();
-    return;
-  }
-  const definition = getDefinition(unit.definitionId);
-  unitProfileName.textContent = definition?.name ?? "Unknown unit";
-  unitProfileCategory.textContent = definition?.category ?? "UNIT";
-  unitProfileDescription.textContent = definition?.description ?? "No personal record is available.";
-  unitProfileArtwork.hidden = !definition?.artwork;
-  unitProfileArtworkEmpty.hidden = Boolean(definition?.artwork);
-  if (definition?.artwork) {
-    unitProfileArtwork.src = definition.artwork;
-    unitProfileArtwork.alt = definition.name ?? "Unit portrait";
-  } else {
-    unitProfileArtwork.removeAttribute("src");
-  }
-  unitProfileAttributes.replaceChildren();
-  const attributes = definition?.attributes ?? {};
-  if (attributes && typeof attributes === "object" && !Array.isArray(attributes)) {
-    appendAttributeRows(unitProfileAttributes, attributes);
-  } else {
-    appendAttributeRows(unitProfileAttributes, { Record: attributes });
-  }
-  if (!unitProfileAttributes.childElementCount) {
-    appendAttributeRows(unitProfileAttributes, { Record: "No personal attributes recorded." });
-  }
-  unitProfileInstance.textContent = "LIVE WORLD INSTANCE";
-  unitProfileLocation.textContent = unit.placement?.position
-    ? `LOCATION · ${unit.placement.position.x}, ${unit.placement.position.y}`
-    : "LOCATION · UNKNOWN";
-  unitProfile.hidden = false;
-  quickSelectInfo.textContent = "CLOSE INFO";
-}
-
-quickSelectInfo.addEventListener("click", () => {
-  if (unitProfile.hidden) openUnitProfile();
-  else closeUnitProfile();
-});
-unitProfileClose.addEventListener("click", closeUnitProfile);
-
 worldSizeSelect.addEventListener("change", () => {
   if (!state.paused || !state.worldRegistry) return;
   const size = Number(worldSizeSelect.value);
@@ -775,7 +656,7 @@ worldSizeSelect.addEventListener("change", () => {
   if (leader?.placement && leader.placement.worldId !== state.worldRegistry.activeWorldId) {
     state.gameplayApi.setDrafted(false);
   }
-  clearUnitSelection();
+  clearSelection();
   refreshWorldMarkers();
   updateSimulationUi();
 });
@@ -794,13 +675,13 @@ resetLabButton.addEventListener("click", () => {
   state.paused = true;
   cancelPlacement();
   closeViewportDatabase();
-  closeUnitProfile();
+  state.gameplayUi?.closeProfile();
 
   for (const unit of state.gameplayApi.listUnits()) {
     state.gameplayApi.removeUnit(unit.id);
   }
   state.gameplayApi.setLeader(null);
-  clearUnitSelection();
+  clearSelection();
   refreshWorldMarkers();
 
   const activeWorld = state.worldRegistry.getActiveWorld();
@@ -922,7 +803,7 @@ function synchronizeRestoredWorkspace() {
     resetCameraToWorld();
   }
 
-  clearUnitSelection();
+  clearSelection();
   refreshWorldMarkers();
   updateSimulationUi();
 }
@@ -992,8 +873,9 @@ async function startDevLabRuntime({
     state.worldRegistry = worlds;
     state.persistenceApi = services.persistenceApi;
     state.gameplayApi = services.gameplayApi ?? null;
+    state.gameplayUi = services.gameplayUi ?? null;
     setWorldMarkers([]);
-    clearUnitSelection();
+    clearSelection();
     state.clock = services.clock;
     advanceRuntime = (deltaSeconds) => runtime.advance(deltaSeconds);
     state.clock.pause("player");
