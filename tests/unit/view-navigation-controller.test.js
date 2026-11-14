@@ -84,6 +84,7 @@ function createHarness({ canOpen = () => true } = {}) {
   });
   return {
     controller, menu, workspace, database, settings, databaseBack,
+    navWorkspace, navDatabase, navSettings,
     settingsBack, pauseSettings, pauseMainMenu, viewportDatabase,
     body, viewportPanel, databaseHome, catalogCalls, callbacks,
     get scrolled() { return scrolled; },
