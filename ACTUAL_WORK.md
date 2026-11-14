@@ -763,10 +763,11 @@ There are two different ways to reach a screen labelled "Dev Lab":
   simulation speed is a future acceptance requirement only when speed
   multipliers are actually implemented. Do not preemptively refactor camera
   timing or treat hypothetical 3x camera speed as a current defect.
-- The user manually reported that the menu buttons were responding in the
-  current Pages build during the latest acceptance session. This supersedes
-  the older unresolved note for current manual status, but does not imply
-  automated browser coverage or prove every menu state.
+- The menu-button responsiveness issue remains unresolved. In the latest
+  Pages attempt, the user reported that the menu buttons did not respond,
+  preventing meaningful manual acceptance of the application flow. Do not
+  mark the menu interaction or full browser acceptance as verified until it
+  is fixed and retested.
 
 ### Read-only audit findings
 
