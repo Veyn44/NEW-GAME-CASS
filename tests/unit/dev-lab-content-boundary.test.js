@@ -38,16 +38,17 @@ test("Dev Lab shell has no Cassandra or game-system imports", async () => {
   assert.ok(source.includes("export async function startDevLab("));
 });
 
-test("Cassandra composition root owns game systems and adapts them to Dev Lab", async () => {
-  const source = await read("../../cassandra/application/cassandra-application-shell.js");
+test("Cassandra runtime host owns game systems and application lifecycle", async () => {
+  const source = await read("../../cassandra/application/cassandra-runtime-host.js");
+  const shell = await read("../../cassandra/application/cassandra-application-shell.js");
   assert.ok(source.includes("createUnitSystem"));
   assert.ok(source.includes("createColonyControlSystem"));
   assert.ok(source.includes("createInputSystem"));
   assert.ok(source.includes("export function createCassandraRuntime"));
   assert.ok(source.includes("export function resolveCassandraRuntimeServices"));
-  assert.ok(source.includes("export async function startCassandraApplication"));
-  assert.ok(source.includes("createRuntime: createCassandraRuntime"));
-  assert.ok(source.includes("resolveRuntimeServices: resolveCassandraRuntimeServices"));
+  assert.ok(source.includes("createApplicationRuntimeHost"));
+  assert.ok(shell.includes("export async function startCassandraApplication"));
+  assert.ok(shell.includes("createCassandraRuntimeHost"));
 });
 
 test("Cassandra browser entry delegates to the Cassandra application shell", async () => {
@@ -93,8 +94,8 @@ test("Cassandra gameplay adapter owns Draft binding and Pawn-specific placement 
   assert.ok(source.includes("toggleDraft"));
 });
 
-test("Cassandra application exposes a single gameplay adapter contract to Dev Lab", async () => {
-  const source = await read("../../cassandra/application/cassandra-application-shell.js");
+test("Cassandra runtime resolver exposes one gameplay adapter contract", async () => {
+  const source = await read("../../cassandra/application/cassandra-runtime-host.js");
   assert.ok(source.includes("createCassandraDevLabGameplayController"));
   assert.ok(source.includes("gameplayApi"));
   const resolver = source.slice(source.indexOf("export function resolveCassandraRuntimeServices"));
@@ -214,12 +215,6 @@ test("Dev Lab workspace session transitions are owned by the session controller"
   assert.equal(session.includes("/cassandra/"), false);
   assert.equal(session.includes("/src/gameplay/"), false);
 });
-
-import test from "node:test";
-import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
-
-const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
 
 test("Cassandra owns its runtime host and no longer starts the Dev Lab application", async () => {
   const shell = await read("../../cassandra/application/cassandra-application-shell.js");
