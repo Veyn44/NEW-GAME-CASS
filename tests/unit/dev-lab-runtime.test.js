@@ -17,6 +17,7 @@ test("standalone Dev Lab runtime starts and advances without Cassandra gameplay 
     const context = await runtime.start();
     assert.ok(context.getService("core.world-registry"));
     assert.ok(context.getService("core.game-clock"));
+    assert.equal(runtime.initializationOrder.includes("dev-lab.free-camera"), true);
     assert.equal(runtime.initializationOrder.includes("game.unit"), false);
     assert.equal(runtime.initializationOrder.includes("game.colony-control"), false);
 
