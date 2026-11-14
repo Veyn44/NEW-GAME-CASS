@@ -38,8 +38,6 @@ function createHarness({ canOpen = () => true } = {}) {
   const settings = new FakeElement("settings");
   const databaseBack = new FakeElement();
   const settingsBack = new FakeElement();
-  const pauseSettings = new FakeElement();
-  const pauseMainMenu = new FakeElement();
   const viewportDatabase = new FakeElement();
   const body = { dataset: { currentView: "menu" } };
   const viewportPanel = new FakeElement();
@@ -55,7 +53,7 @@ function createHarness({ canOpen = () => true } = {}) {
     open(mode) { catalogCalls.push(["open", mode]); },
     close() { catalogCalls.push(["close"]); }
   };
-  const callbacks = { beforeLeave: [], settingsReturn: [], pauseMainMenu: [] };
+  const callbacks = { beforeLeave: [], settingsReturn: [] };
   let scrolled = 0;
   let resized = 0;
   const controller = createDevLabViewNavigationController({
@@ -69,8 +67,6 @@ function createHarness({ canOpen = () => true } = {}) {
       viewportPanel,
       settingsBackButton: settingsBack,
       backMenuButtons: [databaseBack],
-      pauseSettingsButton: pauseSettings,
-      pauseMainMenuButton: pauseMainMenu,
       viewportDatabaseButton: viewportDatabase,
       body
     },
@@ -78,14 +74,13 @@ function createHarness({ canOpen = () => true } = {}) {
     canOpenViewportDatabase: canOpen,
     beforeLeaveWorkspace: (name) => callbacks.beforeLeave.push(name),
     onSettingsReturn: (view) => callbacks.settingsReturn.push(view),
-    onPauseMainMenu: () => callbacks.pauseMainMenu.push(true),
     scrollToTop: () => { scrolled += 1; },
     dispatchResize: () => { resized += 1; }
   });
   return {
     controller, menu, workspace, database, settings, databaseBack,
     navWorkspace, navDatabase, navSettings,
-    settingsBack, pauseSettings, pauseMainMenu, viewportDatabase,
+    settingsBack, viewportDatabase,
     body, viewportPanel, databaseHome, catalogCalls, callbacks,
     get scrolled() { return scrolled; },
     get resized() { return resized; }
@@ -153,7 +148,4 @@ test("settings return preserves the originating view and pause-menu callback", (
   h.settingsBack.click();
   assert.equal(h.body.dataset.currentView, "dev-lab");
   assert.deepEqual(h.callbacks.settingsReturn, ["dev-lab"]);
-  h.pauseMainMenu.click();
-  assert.equal(h.body.dataset.currentView, "menu");
-  assert.deepEqual(h.callbacks.pauseMainMenu, [true]);
 });
