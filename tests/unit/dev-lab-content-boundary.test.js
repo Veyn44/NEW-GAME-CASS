@@ -6,6 +6,7 @@ const devLabShellUrl = new URL("../../dev-lab/application/application-shell.js",
 const devLabRuntimeUrl = new URL("../../dev-lab/application/create-dev-lab-runtime.js", import.meta.url);
 const applicationEntryUrl = new URL("../../application-entry.js", import.meta.url);
 const cassandraGameplayUrl = new URL("../../cassandra/application/dev-lab-gameplay-controller.js", import.meta.url);
+const cassandraUnitInspectorUrl = new URL("../../cassandra/application/dev-lab-unit-inspector-ui.js", import.meta.url);
 
 test("Dev Lab shell does not import or compose Cassandra gameplay systems", async () => {
   const source = await readFile(devLabShellUrl, "utf8");
@@ -60,4 +61,19 @@ test("Cassandra application exposes a single gameplay adapter contract to Dev La
   const resolver = source.slice(source.indexOf("export function resolveCassandraRuntimeServices"));
   assert.match(resolver, /gameplayApi:/);
   assert.doesNotMatch(resolver, /^ {4}(?:unitApi|colonyControlApi|inputApi):/m);
+});
+
+test("Dev Lab delegates Unit inspection UI and contains no Cassandra inspector markup", async () => {
+  const source = await readFile(devLabShellUrl, "utf8");
+  assert.match(source, /gameplayUi/);
+  assert.match(source, /inspectGameplayEntity/);
+  assert.doesNotMatch(source, /quickSelect|unitProfile|quick-select|unit-profile|selectedUnitId|selectedObject/);
+  const entry = await readFile(applicationEntryUrl, "utf8");
+  assert.match(entry, /createCassandraDevLabUnitInspectorUi/);
+  assert.match(entry, /gameplayUi/);
+  const ui = await readFile(cassandraUnitInspectorUrl, "utf8");
+  assert.match(ui, /data-role="quick-select"/);
+  assert.match(ui, /data-role="unit-profile"/);
+  assert.match(ui, /getSelectedUnitId/);
+  assert.match(ui, /isProfileOpen/);
 });
