@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { createGameRuntime } from "../../src/host/create-game-runtime.js";
-import { MemorySaveAdapter } from "../../src/core/persistence.js";
+import { createGameRuntime } from "../../engine/runtime/create-game-runtime.js";
+import { MemorySaveAdapter } from "../../engine/core/persistence.js";
 import { createUnitSystem } from "../../src/gameplay/unit/unit-system.js";
 import { createGameInputSystem } from "../../src/gameplay/input/game-input-system.js";
 import { createColonyControlSystem } from "../../src/gameplay/colony/colony-control-system.js";
