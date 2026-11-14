@@ -2,13 +2,9 @@ import { createDevLabViewport } from "../presentation/dev-lab-viewport.js";
 import { createDevLabRuntime } from "./create-dev-lab-runtime.js";
 import { LocalFileSaveAdapter } from "../../src/adapters/storage/local-file-save-adapter.js";
 import { createWorkspacePersistenceController } from "./workspace-persistence-controller.js";
-import { getDefinition } from "../../engine/database/definition-registry.js";
+import { createDefinitionCatalogController } from "./definition-catalog-controller.js";
+import { getDefinition, listDefinitionIndex, getCategories, loadDefinitionDetail } from "../../engine/database/definition-registry.js";
 import { createViewportInputController } from "../input/viewport-input-controller.js";
-import {
-  listDefinitionIndex,
-  getCategories,
-  loadDefinitionDetail
-} from "../../engine/database/definition-registry.js";
 
 const views = [...document.querySelectorAll("[data-view]")];
 const navButtons = [...document.querySelectorAll("[data-navigate]")];
@@ -17,11 +13,8 @@ const databaseHome = document.createComment("database-home");
 databaseView.before(databaseHome);
 const viewportDatabaseButton = document.querySelector("#open-viewport-database");
 const databaseBackButton = databaseView.querySelector("[data-back-menu]");
+const databaseSelectButton = document.querySelector("#database-select-definition");
 const databaseSelectButton = databaseView.querySelector("#database-select-definition");
-const databaseList = document.querySelector("#database-list");
-const databaseSearch = document.querySelector("#database-search");
-const databaseCategory = document.querySelector("#database-category");
-const databaseInspector = document.querySelector("#database-inspector");
 const databaseModeLabel = document.querySelector("#database-mode-label");
 const simulationStatus = document.querySelector("#simulation-status");
 const pointerStatus = document.querySelector("#pointer-status");
@@ -43,14 +36,24 @@ const viewport = createDevLabViewport({
   worldStatus: document.querySelector("#world-status"),
   viewStatus: document.querySelector("#view-status")
 });
+const definitionCatalog = createDefinitionCatalogController({
+  elements: {
+    list: document.querySelector("#database-list"),
+    search: document.querySelector("#database-search"),
+    category: document.querySelector("#database-category"),
+    inspector: document.querySelector("#database-inspector"),
+    selectButton: databaseSelectButton
+  },
+  listDefinitionIndex,
+  getCategories,
+  loadDefinitionDetail,
+  canSelectDefinition: (definition) => Boolean(state.gameplayApi?.canPlaceDefinition(definition)),
+  onSelectDefinition: beginWorldPlacement
+});
 const inputController = createViewportInputController();
 const heldMovementKeys = new Set();
 
 const state = {
-  databaseMode: "browse",
-  selectedDefinitionId: null,
-  selectedDefinition: null,
-  detailRequest: 0,
   gameplayApi: null,
   clock: null,
   worldRegistry: null,
@@ -91,35 +94,19 @@ function showView(name) {
 
 function openDatabase() {
   if (state.viewportDatabaseOpen) closeViewportDatabase();
-  state.databaseMode = "browse";
   databaseView.dataset.mode = "browse";
   databaseModeLabel.textContent = "CASSANDRA / KNOWLEDGE";
-  databaseSearch.value = "";
-  databaseCategory.value = "all";
-  state.selectedDefinitionId = null;
-  state.selectedDefinition = null;
-  databaseInspector.replaceChildren();
-  populateCategories();
-  renderDatabase();
+  definitionCatalog.open("browse");
   showView("database");
 }
 
 function openViewportDatabase() {
   if (!state.paused || state.placementActive || state.viewportDatabaseOpen) return;
-  state.databaseMode = "viewport";
-  state.selectedDefinitionId = null;
-  state.selectedDefinition = null;
-  databaseSelectButton.hidden = true;
-  databaseSelectButton.disabled = true;
+  definitionCatalog.open("viewport");
   databaseView.dataset.mode = "viewport";
   databaseView.classList.add("database-overlay");
   databaseModeLabel.textContent = "CASSANDRA / DEV LAB";
   databaseBackButton.textContent = "CLOSE DATABASE";
-  databaseSearch.value = "";
-  databaseCategory.value = "all";
-  databaseInspector.replaceChildren();
-  populateCategories();
-  renderDatabase();
   viewportPanel.append(databaseView);
   databaseView.hidden = false;
   state.viewportDatabaseOpen = true;
@@ -133,10 +120,8 @@ function closeViewportDatabase() {
   databaseView.dataset.mode = "browse";
   databaseBackButton.textContent = "← Main menu";
   databaseModeLabel.textContent = "CASSANDRA / KNOWLEDGE";
-  state.databaseMode = "browse";
   state.viewportDatabaseOpen = false;
-  databaseSelectButton.hidden = true;
-  databaseSelectButton.disabled = true;
+  definitionCatalog.close();
 }
 
 function beginWorldPlacement(definition) {
@@ -183,186 +168,6 @@ function cancelPlacement() {
   simulationStatus.textContent = "PAUSED · PLACEMENT CANCELLED";
 }
 
-function renderValue(value) {
-  if (value === null) return "—";
-  if (Array.isArray(value)) return value.length ? value.map(renderValue).join(", ") : "None";
-  if (typeof value === "object") return JSON.stringify(value);
-  if (typeof value === "boolean") return value ? "Yes" : "No";
-  return String(value);
-}
-
-function appendAttributeRows(container, value, prefix = "") {
-  if (value && typeof value === "object" && !Array.isArray(value)) {
-    for (const [key, child] of Object.entries(value)) {
-      const path = prefix ? `${prefix}.${key}` : key;
-      if (child && typeof child === "object" && !Array.isArray(child)) {
-        appendAttributeRows(container, child, path);
-      } else {
-        const term = document.createElement("dt");
-        term.textContent = path;
-        const detail = document.createElement("dd");
-        detail.textContent = renderValue(child);
-        container.append(term, detail);
-      }
-    }
-    return;
-  }
-  const term = document.createElement("dt");
-  term.textContent = prefix || "Value";
-  const detail = document.createElement("dd");
-  detail.textContent = renderValue(value);
-  container.append(term, detail);
-}
-
-async function inspectDefinition(id) {
-  const request = ++state.detailRequest;
-  state.selectedDefinitionId = id;
-  state.selectedDefinition = null;
-  databaseSelectButton.hidden = true;
-  databaseSelectButton.disabled = true;
-  databaseInspector.replaceChildren();
-
-  const loading = document.createElement("p");
-  loading.className = "database-inspector-state";
-  loading.textContent = "Loading definition details…";
-  databaseInspector.append(loading);
-
-  const definition = await loadDefinitionDetail(id);
-  if (request !== state.detailRequest || !definition) return;
-
-  state.selectedDefinition = definition;
-  databaseSelectButton.hidden = state.databaseMode !== "viewport"
-    || !state.gameplayApi?.canPlaceDefinition(definition);
-  databaseSelectButton.disabled = databaseSelectButton.hidden;
-  databaseInspector.replaceChildren();
-
-  const heading = document.createElement("div");
-  heading.className = "database-inspector-heading";
-  const category = document.createElement("p");
-  category.className = "eyebrow";
-  category.textContent = definition.category;
-  const title = document.createElement("h2");
-  title.textContent = definition.name;
-  const identifier = document.createElement("code");
-  identifier.textContent = definition.id;
-  heading.append(category, title, identifier);
-  databaseInspector.append(heading);
-
-  if (definition.artwork) {
-    const artwork = document.createElement("img");
-    artwork.className = "database-artwork";
-    artwork.alt = `${definition.name} artwork`;
-    artwork.loading = "lazy";
-    artwork.src = definition.artwork;
-    artwork.addEventListener("error", () => artwork.classList.add("is-unavailable"), { once: true });
-    databaseInspector.append(artwork);
-  } else {
-    const artworkPlaceholder = document.createElement("div");
-    artworkPlaceholder.className = "database-artwork-placeholder";
-    artworkPlaceholder.textContent = "NO ARTWORK REGISTERED";
-    databaseInspector.append(artworkPlaceholder);
-  }
-
-  const description = document.createElement("p");
-  description.className = "database-description";
-  description.textContent = definition.description || "No description provided.";
-  databaseInspector.append(description);
-
-  const detailsHeading = document.createElement("h3");
-  detailsHeading.className = "database-subheading";
-  detailsHeading.textContent = "Complete definition data";
-  databaseInspector.append(detailsHeading);
-
-  const attributes = document.createElement("dl");
-  attributes.className = "attribute-list database-detail-attributes";
-  appendAttributeRows(attributes, definition.attributes);
-  if (!attributes.childElementCount) {
-    const empty = document.createElement("p");
-    empty.className = "database-inspector-state";
-    empty.textContent = "No attributes registered.";
-    databaseInspector.append(empty);
-  } else {
-    databaseInspector.append(attributes);
-  }
-
-  const metadata = document.createElement("dl");
-  metadata.className = "attribute-list database-detail-attributes";
-  appendAttributeRows(metadata, {
-    "Definition ID": definition.id,
-    "Definition schema": definition.schemaVersion,
-    "Entity type": definition.entityType ?? "—",
-    Category: definition.category,
-    "Available for": definition.spawnableAs
-  });
-  databaseInspector.append(metadata);
-
-
-}
-
-function renderDatabase() {
-  const query = databaseSearch.value.trim().toLocaleLowerCase();
-  const category = databaseCategory.value;
-  const entries = listDefinitionIndex().filter((entry) => {
-    const matchesCategory = category === "all" || entry.category === category;
-    const haystack = [entry.id, entry.name, entry.description, entry.category].join(" ").toLocaleLowerCase();
-    return matchesCategory && (!query || haystack.includes(query));
-  });
-
-  databaseList.replaceChildren();
-  if (!entries.length) {
-    const empty = document.createElement("div");
-    empty.className = "database-empty";
-    const strong = document.createElement("strong");
-    strong.textContent = "Database is ready.";
-    const message = document.createElement("span");
-    message.textContent = "No definitions are registered in the active content packages.";
-    empty.append(strong, message);
-    databaseList.append(empty);
-    return;
-  }
-
-  for (const entry of entries) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "database-index-entry";
-    button.setAttribute("aria-pressed", String(state.selectedDefinitionId === entry.id));
-    const title = document.createElement("strong");
-    title.textContent = entry.name;
-    const categoryLabel = document.createElement("span");
-    categoryLabel.textContent = entry.category;
-    const description = document.createElement("small");
-    description.textContent = entry.description;
-    button.append(title, categoryLabel, description);
-    button.addEventListener("click", () => {
-      for (const sibling of databaseList.querySelectorAll(".database-index-entry")) {
-        sibling.setAttribute("aria-pressed", "false");
-      }
-      button.setAttribute("aria-pressed", "true");
-      inspectDefinition(entry.id);
-    });
-    databaseList.append(button);
-  }
-}
-
-function populateCategories() {
-  databaseCategory.replaceChildren();
-  const all = document.createElement("option");
-  all.value = "all";
-  all.textContent = "All categories";
-  databaseCategory.append(all);
-  for (const category of getCategories()) {
-    const option = document.createElement("option");
-    option.value = category;
-    option.textContent = category;
-    databaseCategory.append(option);
-  }
-}
-
-function refreshDatabase() {
-  populateCategories();
-  renderDatabase();
-}
-
 for (const button of navButtons) {
   button.addEventListener("click", () => {
     if (button.dataset.navigate === "database") openDatabase();
@@ -392,9 +197,6 @@ document.querySelectorAll("[data-back-menu]").forEach((button) =>
     else showView("menu");
   })
 );
-databaseSearch.addEventListener("input", renderDatabase);
-databaseCategory.addEventListener("change", renderDatabase);
-
 function refreshWorldMarkers() {
   const units = state.gameplayApi?.listUnits() ?? [];
   const activeWorldId = state.worldRegistry?.activeWorldId;
@@ -643,10 +445,7 @@ document.addEventListener("visibilitychange", () => {
 });
 
 viewportDatabaseButton.addEventListener("click", openViewportDatabase);
-databaseSelectButton.addEventListener("click", () => {
-  if (state.databaseMode !== "viewport" || !state.selectedDefinition) return;
-  beginWorldPlacement(state.selectedDefinition);
-});
+
 
 worldSizeSelect.addEventListener("change", () => {
   if (!state.paused || !state.worldRegistry) return;
@@ -815,7 +614,7 @@ export async function startDevLab({
   resolveRuntimeServices = resolveDevLabRuntimeServices
 } = {}) {
   await loadContentPackage();
-  refreshDatabase();
+  definitionCatalog.refresh();
   await startDevLabRuntime({ createRuntime, resolveRuntimeServices });
   showView("menu");
 }
