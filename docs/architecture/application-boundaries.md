@@ -38,9 +38,12 @@ code.
   dependencies. The workspace save/load orchestration lives in
   `dev-lab/application/workspace-persistence-controller.js`; Engine persistence
   and the existing `.cass` file adapter remain separate dependencies.
-- The shell still owns navigation, catalog UI, pause state, and application-level
-  coordination. The viewport service still owns its DOM event bindings and
-  rendering loop; it is isolated from the shell but is not yet a headless renderer.
+- The shell still owns navigation, pause state, and application-level
+  coordination. Definition catalog filtering, category controls, asynchronous
+  detail inspection, and host-neutral selection live in
+  `dev-lab/application/definition-catalog-controller.js`. The viewport service
+  still owns its DOM event bindings and rendering loop; it is isolated from the
+  shell but is not yet a headless renderer.
 - The existing workspace save adapter retains the established `.cass` file
   envelope and format for compatibility.
 - Cassandra currently hosts the Dev Lab viewport as its development workspace;
