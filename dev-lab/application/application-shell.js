@@ -8,6 +8,7 @@ import { createDevLabPauseMenuController } from "./pause-menu-controller.js";
 import { createDevLabWorkspaceSessionController } from "./workspace-session-controller.js";
 import { getDefinition, listDefinitionIndex, getCategories, loadDefinitionDetail } from "../../engine/database/definition-registry.js";
 import { createViewportInputController } from "../input/viewport-input-controller.js";
+import { createApplicationRuntimeHost } from "../../shared/application/runtime-host.js";
 
 const views = [...document.querySelectorAll("[data-view]")];
 const databaseView = document.querySelector('[data-view="database"]');
@@ -65,8 +66,6 @@ const state = {
   paused: true,
   gameplayUi: null,
   placementActive: false,
-  animationFrame: null,
-  lastFrameTime: null,
 };
 
 function beginWorldPlacement(definition) {
@@ -264,60 +263,8 @@ const workspaceSession = createDevLabWorkspaceSessionController({
 
 function toggleSimulationPause() {
   if (!state.clock) return;
-  if (state.paused) {
-    state.clock.resume("player");
-    state.paused = state.clock.paused;
-    if (state.paused) {
-      inputController.pause();
-    } else {
-      inputController.resume();
-    }
-  } else {
-    inputController.pause();
-    state.clock.pause("player");
-    state.paused = state.clock.paused;
-  
-
-  }
-  updateSimulationUi();
-}
-
-function simulationFrame(timestamp) {
-  if (state.lastFrameTime !== null && state.clock) {
-    const elapsedSeconds = Math.min(0.25, Math.max(0, (timestamp - state.lastFrameTime) / 1000));
-    try {
-      // The Core scheduler and Game Clock are the authoritative simulation gate.
-      // Rendering and input remain responsive while the clock is paused.
-      if (!pauseMenuController.isOpen()) runtimeAdvance(elapsedSeconds);
-      if (state.paused) updatePausedFreeCamera(elapsedSeconds);
-      const clockPaused = state.clock?.paused ?? true;
-      if (clockPaused !== state.paused) {
-        if (clockPaused) {
-          inputController.pause();
-
-        } else {
-          inputController.resume();
-        }
-        state.paused = clockPaused;
-        updateSimulationUi();
-      }
-    } catch (error) {
-      simulationStatus.textContent = `SIMULATION ERROR · ${error.message}`;
-      inputController.pause();
-      inputController.clearForFocusLoss();
-      state.clock?.pause("simulation-fault");
-      state.paused = true;
-
-      updateSimulationUi();
-    }
-  }
-  state.lastFrameTime = timestamp;
-  state.animationFrame = requestAnimationFrame(simulationFrame);
-}
-
-let advanceRuntime = null;
-function runtimeAdvance(deltaSeconds) {
-  advanceRuntime?.(deltaSeconds);
+  if (state.paused) runtimeHost.resume("player");
+  else runtimeHost.pause("player");
 }
 
 function applyFreeCameraInput(deltaSeconds) {
@@ -453,27 +400,21 @@ function resolveDevLabRuntimeServices(context) {
   };
 }
 
-async function startDevLabRuntime({
-  createRuntime = createDevLabRuntime,
-  resolveRuntimeServices = resolveDevLabRuntimeServices
-} = {}) {
-  state.saveAdapter = new LocalFileSaveAdapter();
-  const runtime = createRuntime({
-    saveAdapter: state.saveAdapter,
+const runtimeHost = createApplicationRuntimeHost({
+  createRuntime: (options) => createDevLabRuntime({ ...options, saveAdapter: state.saveAdapter }),
+  resolveRuntimeServices: resolveDevLabRuntimeServices,
+  runtimeOptions: {
     inputController,
     onUnitMoved(moved) {
       refreshWorldMarkers();
       viewport.setCameraFollowTarget(moved.entityId, moved.position);
     },
     updateFreeCamera: applyFreeCameraInput
-  });
-  if (!runtime || typeof runtime.start !== "function" || typeof runtime.advance !== "function") {
-    throw new TypeError("Dev Lab runtime factory must return a runtime with start() and advance().");
-  }
-
-  try {
-    const context = await runtime.start();
-    const services = resolveRuntimeServices(context);
+  },
+  requestFrame: requestAnimationFrame,
+  cancelFrame: cancelAnimationFrame,
+  shouldAdvance: () => !pauseMenuController.isOpen(),
+  onReady({ services }) {
     if (!services?.worldRegistry || !services?.persistenceApi || !services?.clock) {
       throw new TypeError("Dev Lab runtime services must provide worldRegistry, persistenceApi and clock.");
     }
@@ -499,17 +440,26 @@ async function startDevLabRuntime({
     viewport.setWorldMarkers([]);
     clearSelection();
     state.clock = services.clock;
-    advanceRuntime = (deltaSeconds) => runtime.advance(deltaSeconds);
     state.clock.pause("player");
     state.paused = true;
     updateSimulationUi();
-    state.animationFrame = requestAnimationFrame(simulationFrame);
     workspaceSaveStatus.textContent = state.workspacePersistence.initialStatus;
-
-  } catch (error) {
-    simulationStatus.textContent = `DEV LAB STARTUP FAILED · ${error.message}`;
+  },
+  onFrame(deltaSeconds, { paused }) {
+    if (paused) updatePausedFreeCamera(deltaSeconds);
+  },
+  onPauseChange(paused) {
+    state.paused = paused;
+    if (paused) inputController.pause();
+    else inputController.resume();
+    updateSimulationUi();
+  },
+  onError(error) {
+    simulationStatus.textContent = `SIMULATION ERROR · ${error.message}`;
+    inputController.pause();
+    inputController.clearForFocusLoss();
   }
-}
+});
 
 /**
  * Starts the Dev Lab with an optional content-package provider.
@@ -523,6 +473,7 @@ export async function startDevLab({
 } = {}) {
   await loadContentPackage();
   definitionCatalog.refresh();
-  await startDevLabRuntime({ createRuntime, resolveRuntimeServices });
+  state.saveAdapter = new LocalFileSaveAdapter();
+  await runtimeHost.start();
   navigation.showView("menu");
 }
