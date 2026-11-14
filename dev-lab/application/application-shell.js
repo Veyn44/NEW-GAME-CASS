@@ -14,7 +14,6 @@ import { createUnitSystem } from "../../src/gameplay/unit/unit-system.js";
 import { createGameInputSystem } from "../../src/gameplay/input/game-input-system.js";
 import { createColonyControlSystem } from "../../src/gameplay/colony/colony-control-system.js";
 import { getDefinition } from "../../engine/database/definition-registry.js";
-import { loadCassandraDatabase } from "../../cassandra/database/load-cassandra-database.js";
 import { createViewportInputController } from "../input/viewport-input-controller.js";
 import {
   listDefinitionIndex,
@@ -1014,7 +1013,14 @@ async function startDevLabRuntime() {
   }
 }
 
-loadCassandraDatabase();
-refreshDatabase();
-startDevLabRuntime();
-showView("menu");
+/**
+ * Starts the Dev Lab with an optional content-package provider.
+ * Dev Lab owns the workspace; the selected application composition root
+ * decides which content packages (if any) are registered before startup.
+ */
+export async function startDevLab({ loadContentPackage = async () => [] } = {}) {
+  await loadContentPackage();
+  refreshDatabase();
+  await startDevLabRuntime();
+  showView("menu");
+}
