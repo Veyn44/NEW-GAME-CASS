@@ -1,6 +1,6 @@
-import { EntityRegistry } from "../src/core/entity-registry.js";
-import { WorldRegistry } from "../src/core/world-registry.js";
-import { WorldContext, WorldContextError } from "../src/core/world-context.js";
+import { EntityRegistry } from "../engine/core/entity-registry.js";
+import { WorldRegistry } from "../engine/core/world-registry.js";
+import { WorldContext, WorldContextError } from "../engine/core/world-context.js";
 
 const tests = [];
 function test(name, run) { tests.push({ name, run }); }

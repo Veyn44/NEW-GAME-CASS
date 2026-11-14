@@ -1,4 +1,4 @@
-import { clampCameraPosition, getVisibleDimensions, MIN_ZOOM, MAX_ZOOM, CAMERA_OVERSCAN_TILES, UNIT_MARKER_RADIUS_TILES, SELECTED_MARKER_OUTLINE_RADIUS_TILES } from "./world-preview-model.js";
+import { clampCameraPosition, getVisibleDimensions, MIN_ZOOM, MAX_ZOOM, CAMERA_OVERSCAN_TILES, UNIT_MARKER_RADIUS_TILES, SELECTED_MARKER_OUTLINE_RADIUS_TILES } from "../../shared/presentation/world-viewport-model.js";
 
 const canvas = document.querySelector("#world-canvas");
 const context = canvas.getContext("2d");

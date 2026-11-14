@@ -10,8 +10,8 @@ Cassandra is the first game project through which we are building and validating
 
 ## Runtime documentation
 
-- [Core runtime API and responsibilities](src/core/README.md)
-- [Host runtime API and responsibilities](src/host/README.md)
+- [Core runtime API and responsibilities](engine/core/README.md)
+- [Host runtime API and responsibilities](engine/runtime/README.md)
 
 ## Development
 

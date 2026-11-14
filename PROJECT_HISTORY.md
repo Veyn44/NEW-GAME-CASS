@@ -13,7 +13,7 @@ The completed Core provides:
 - World Registry and World Context for world registration, activation and entity placement.
 - Persistence coordination and Core Assembly.
 
-Core deliberately does not own Cassandra-specific gameplay, rendering, browser input, map tiles, movement rules or production storage. The host supplies adapters, gameplay systems and a durable save adapter. Detailed current APIs remain documented in [src/core/README.md](src/core/README.md).
+Core deliberately does not own Cassandra-specific gameplay, rendering, browser input, map tiles, movement rules or production storage. The host supplies adapters, gameplay systems and a durable save adapter. Detailed current APIs remain documented in [src/core/README.md](engine/core/README.md).
 
 The Core baseline passed its recorded GitHub Actions regression run with **198/198 tests passing**. The Core-only Phase 1 was closed before the first Cassandra gameplay layer was integrated.
 

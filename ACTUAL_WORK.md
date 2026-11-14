@@ -381,15 +381,437 @@ So the future design should not simply rename Colony Control to Engine Control. 
 4. Free-camera WASD is currently implemented in the shell (`applyFreeCameraInput`, speed 30), while drafted WASD is implemented in Colony Control (speed 4) and the shell follows the leader camera. The intended Control Modes design should own generic mode/camera/input routing; Cassandra should provide movement/action policy.
 5. The local save adapter uses Cassandra file format/name and Dev Lab workspace slot in one class. Keep it outside Engine until its generic and application-specific parts are separated.
 
-## 11. Current next step
+## 11. Completed implementation slice — content package injection
 
-The read-only first pass is complete enough to propose the first safe implementation slice, but it is not a full formal import graph for every line in every module.
+Approved by the user on 2026-11-14. Implemented on the existing `work` branch only; no new branches were created.
 
-Recommended first code slice (pending user approval):
-- Move the existing Core folder and its tests/docs mechanically under `engine/core/` (or first agree whether `engine/core` is the desired path).
-- Move the generic host runtime wrapper under `engine/runtime/`.
-- Update import paths only; do not change Core behavior, APIs, simulation rules, or browser shell behavior.
-- Run `npm run test:all` and browser acceptance.
-- Do not include Unit/Colony/database/input/shell refactors in the same slice.
+### Goal
 
-No source files have been moved by this inventory. This recommendation still awaits user approval before any source-code restructuring.
+Remove the Dev Lab application's direct dependency on Cassandra's content package while preserving the current Pages application composition and its loaded Johny definition.
+
+### Changes made
+
+- `dev-lab/application/application-shell.js`
+  - Removed the direct import of `cassandra/database/load-cassandra-database.js`.
+  - Removed the direct `loadCassandraDatabase()` startup call.
+  - Exported `startDevLab({ loadContentPackage })`. The content provider is optional and defaults to an async no-op, so Dev Lab itself can initialize without Cassandra content.
+  - The Dev Lab shell still reads definitions through the generic Engine definition registry.
+- `application-entry.js` (new)
+  - Added a temporary top-level composition root.
+  - It imports the Cassandra content loader and passes it to `startDevLab`.
+  - This preserves the current deployed application behavior while keeping Cassandra content wiring outside the Dev Lab application module.
+- `index.html`
+  - Switched the module entry from the Dev Lab shell directly to `application-entry.js`.
+- `tests/unit/dev-lab-content-boundary.test.js` (new)
+  - Checks that the Dev Lab shell no longer imports or invokes the Cassandra database loader.
+  - Checks that the composition root supplies Cassandra content explicitly.
+- `.github/workflows/core-tests.yml`
+  - Added a Node syntax check for `application-entry.js`.
+
+### Intentionally unchanged
+
+- Cassandra definition JSON and the Cassandra package loader.
+- Engine definition registry and package loader behavior.
+- Unit, Colony Control and input systems.
+- Save format, persistence behavior, Core simulation and browser UI logic.
+- `main` branch and all other branches.
+
+### Verification status
+
+- GitHub compare confirms `work` remains ahead of `main`; no changes were made to `main`.
+- The new boundary test is included in `npm run test:host` through the existing wildcard test command.
+- At the time this log was updated, the GitHub Actions status endpoint had not yet reported a result for the latest commit. Do not mark CI or manual Pages/browser acceptance as passed until those results are observed.
+- Manual browser acceptance has not been performed by the assistant.
+
+### Next safe step
+
+Inspect and separate the Cassandra Unit/Colony runtime composition from the Dev Lab workspace. Do not move or generalize those systems until their contracts and current imports have been mapped. Keep the same approval-before-change workflow. The menu click failure remains a separate unresolved defect and is not claimed fixed by this content-boundary change.
+
+
+## 12. Completed implementation slice — generic Engine input service
+
+Approved by the user on 2026-11-14. Implemented on the existing `work` branch only.
+
+### Goal
+
+Move the reusable input-service contract out of Cassandra gameplay while keeping physical input collection and Dev Lab host behavior outside Engine.
+
+### Changes made
+
+- Added `engine/input/input-system.js` exporting `createInputSystem`.
+- The Engine service is now identified as `engine.input` and provides `engine.input-api`.
+- The service still receives a host-owned controller through dependency injection and exposes only `getState()` and `consumeFrameInput()`.
+- Updated the Dev Lab application shell to compose the Engine input service.
+- Updated Cassandra Colony Control to require `engine.input-api`; its Draft, WASD interpretation, movement speed and persistence behavior were not changed.
+- Removed the old game-scoped `src/gameplay/input/game-input-system.js`.
+- Corrected test imports to the current Dev Lab input-controller location and updated the input-service and Colony Control integration tests.
+- Added a syntax check for the new Engine input module to the CI workflow.
+
+### Intentionally unchanged
+
+- `dev-lab/input/viewport-input-controller.js` remains a Dev Lab/host adapter. It continues to own physical key/button state, pause/resume snapshots, inspection suppression and focus-loss cleanup.
+- DOM event bindings and meanings of WASD, F, Space and Escape remain in the Dev Lab shell.
+- Cassandra Unit and Colony Control gameplay rules remain Cassandra-owned.
+- Core simulation, environment behavior, save data shape and menu behavior were not changed.
+
+### Verification status
+
+Source-level references were updated and the old game-scoped input module was removed. The repository's automated test workflow and browser Pages behavior still need confirmation after this commit; no successful CI or manual browser test is claimed here.
+
+
+## 13. Completed implementation slice — runtime composition outside Dev Lab
+
+Approved by the user on 2026-11-14. Implemented on the existing `work` branch only.
+
+### Goal
+
+Move ownership of Cassandra gameplay runtime composition to the Cassandra application entry point. Keep Dev Lab capable of starting an Engine runtime without Cassandra gameplay.
+
+### Changes made
+
+- `application-entry.js`
+  - Now owns `createCassandraRuntime()`.
+  - Composes Engine Input, Cassandra Unit and Cassandra Colony Control as host systems.
+  - Owns the Cassandra Colony Control simulation task and its fixed-step update policy.
+  - Exposes `resolveCassandraRuntimeServices()` to map Core and game services to the Dev Lab application-facing runtime service contract.
+  - Passes the runtime factory and service resolver into `startDevLab()`.
+- `dev-lab/application/application-shell.js`
+  - No longer imports or constructs Cassandra Unit, Colony Control or Engine Input systems.
+  - Accepts `createRuntime` and `resolveRuntimeServices` dependencies.
+  - Supplies Dev Lab-owned input and presentation callbacks to the runtime factory.
+  - Consumes runtime services through the injected service resolver instead of hard-coding Cassandra service IDs.
+  - Advances the runtime whenever the Core clock is available, including a standalone runtime without a Unit API.
+- Added `dev-lab/application/create-dev-lab-runtime.js`
+  - Provides a standalone Engine runtime with a Dev Lab-owned camera simulation system.
+  - Registers no Cassandra gameplay systems.
+- Added `tests/unit/dev-lab-runtime.test.js` and expanded `tests/unit/dev-lab-content-boundary.test.js`.
+  - Cover the standalone runtime and enforce the source-level boundary between Dev Lab and Cassandra gameplay.
+- Updated `.github/workflows/core-tests.yml` to syntax-check the standalone runtime module.
+
+### Intentionally unchanged
+
+- Cassandra Unit System and Colony Control implementation and gameplay rules.
+- Engine Core, environment simulation, world and persistence behavior.
+- Physical input collection in `dev-lab/input/viewport-input-controller.js`.
+- Dev Lab UI, rendering, workspace save format and browser input bindings.
+- The existing menu-button responsiveness issue; it remains a separate unresolved defect.
+- `main` and all other branches.
+
+### Verification status
+
+- Source inspection confirms the Dev Lab shell no longer imports Cassandra gameplay modules or refers directly to Cassandra Unit/Colony Control service IDs.
+- The Cassandra entry point now supplies the Cassandra runtime factory and service resolver.
+- A runtime integration test was added to start and advance the standalone Dev Lab runtime without Cassandra gameplay.
+- The test suite has not been executed in this environment. Do not mark CI as passed until the GitHub Actions run for the resulting commit completes successfully.
+- Manual Pages/browser acceptance has not been performed by the assistant.
+
+### Remaining architecture boundary
+
+This slice separates runtime composition, not the entire application. Dev Lab UI still understands Unit and Colony Control API shapes when those services are supplied. Cassandra currently uses Dev Lab as its host application. A later phase must separate the Cassandra application shell/UI from Dev Lab to make Cassandra fully runnable without Dev Lab.
+
+
+## 14. Completed implementation slice — Cassandra gameplay adapter boundary
+
+Approved by the user on 2026-11-14. Implemented on the existing `work` branch only.
+
+### Goal
+
+Remove direct Unit and Colony Control service coupling and Cassandra-specific key/placement policy from the Dev Lab application shell. Expose one Cassandra-owned gameplay adapter to the Dev Lab host.
+
+### Changes made
+
+- Added `cassandra/application/dev-lab-gameplay-controller.js`
+  - Owns the F-to-Draft binding.
+  - Owns the Johny/Colony Leader auto-assignment rule when placing the Pawn.
+  - Exposes a single application-facing gameplay API for Unit lookup/list/create/remove, Colony Leader and Draft state, placement eligibility, and movement updates.
+  - Contains no Dev Lab DOM or presentation imports.
+- `application-entry.js`
+  - Creates the Cassandra gameplay adapter from runtime services.
+  - Uses the same adapter contract for the Colony Control simulation task.
+  - Exposes `gameplayApi` to Dev Lab instead of exposing raw Unit and Colony Control APIs.
+- `dev-lab/application/application-shell.js`
+  - Uses only the injected `gameplayApi` for gameplay operations.
+  - No longer contains direct Unit/Colony service identifiers, the F key binding, the Johny-specific placement rule, or Unit placement eligibility policy.
+  - Continues to own generic viewport keyboard collection, pause, camera movement, rendering coordination and browser UI.
+- `tests/unit/workspace-persistence.test.js`
+  - Corrected stale imports to the current Engine Input service and Dev Lab viewport input controller.
+- `tests/unit/dev-lab-content-boundary.test.js`
+  - Added boundary assertions for the gameplay adapter contract and Cassandra-owned key/placement policy.
+- Added `tests/unit/cassandra-dev-lab-gameplay-controller.test.js` with controller behavior tests.
+- `.github/workflows/core-tests.yml`
+  - Added a syntax check for the new Cassandra gameplay adapter.
+
+### Intentionally unchanged
+
+- Unit System and Colony Control System implementations and their gameplay rules.
+- Engine Core, environment simulation, world registry and persistence behavior.
+- Physical input collection and Dev Lab camera movement.
+- Workspace save format and file adapter.
+- Cassandra Unit profile/Quick Select presentation markup and rendering remain in the current combined shell for now; moving those presentation components into a Cassandra-owned UI module is a remaining application-boundary task.
+- The menu-button responsiveness issue remains separate and is not claimed fixed.
+- `main` and all other branches.
+
+### Verification status
+
+- Source-level checks were added for the new adapter boundary.
+- The stale workspace test imports were corrected.
+- Automated tests and GitHub Actions have not yet been run/confirmed in this environment. Do not claim the test suite or CI passed until a run is observed.
+- Manual Pages/browser acceptance has not been performed.
+
+
+### CI follow-up — stale test paths found after the adapter slice
+
+The first GitHub Actions run for commit `43c2f5d` reported:
+- one over-broad source-boundary assertion that incorrectly matched the internal Cassandra composition root;
+- stale imports in `johny-world-entity.test.js` for the removed input system and moved viewport controller;
+- a stale `world-preview-model.js` import in `world-preview.test.js`.
+
+The assertion was narrowed to the service resolver contract, and both test files now import the current module paths. The follow-up commit's CI result must be checked separately.
+
+
+## 15. Completed implementation slice — Cassandra-owned Unit inspection UI
+
+Approved by the user on 2026-11-14. Implemented on the existing `work` branch only.
+
+### Goal
+
+Move Cassandra's Quick Select and Unit Profile markup, rendering, and DOM event wiring out of the Dev Lab application shell. Keep Dev Lab responsible only for generic world selection markers and camera presentation.
+
+### Changes made
+
+- Added `cassandra/application/dev-lab-unit-inspector-ui.js`
+  - Owns the Quick Select and Unit Profile markup and DOM event handlers.
+  - Owns Unit definition lookup, artwork, instance details, nested attribute rendering, profile open/close, and paused-state gating for the INFO action.
+  - Exposes a small UI contract: `inspectUnit`, `clearSelection`, `closeProfile`, `isProfileOpen`, `getSelectedUnitId`, and `setPaused`.
+  - Accepts the existing Cassandra gameplay adapter; it does not import Dev Lab presentation or input modules.
+- Added `cassandra/application/dev-lab-unit-inspector-ui.css` and moved the Quick Select and Unit Profile style rules out of the Dev Lab presentation stylesheet.
+- `index.html`
+  - Replaced Cassandra inspector markup with a neutral application UI mount point.
+  - Loads the Cassandra-owned inspector stylesheet separately.
+- `application-entry.js`
+  - Creates the inspector UI at the Cassandra composition boundary and supplies it to Dev Lab as `gameplayUi`.
+- `dev-lab/application/application-shell.js`
+  - No longer queries or renders Quick Select / Unit Profile elements.
+  - No longer stores Unit inspector selection state or binds inspector DOM events.
+  - Uses the injected UI contract and retains world marker selection and camera follow behavior.
+  - Generic definition database attribute rendering remains in the shell and is intentionally separate from the Unit inspector.
+- Added `tests/unit/cassandra-dev-lab-unit-inspector-ui.test.js` for selection, Draft leader redirection, profile toggling, pause gating, and stale-selection cleanup.
+- Expanded `tests/unit/dev-lab-content-boundary.test.js` and added a browser syntax check for the new UI module.
+
+### Intentionally unchanged
+
+- Cassandra gameplay adapter and Unit / Colony Control system implementations.
+- Engine Core, environment simulation, world registry, persistence behavior, and workspace save format.
+- Dev Lab viewport input, generic object marker rendering, camera movement, and world rendering.
+- Generic database definition inspector.
+- The existing menu-button responsiveness issue; it remains separate and is not claimed fixed.
+- `main` and all other branches.
+
+### Verification status
+
+- Source-level boundary checks confirm that the Dev Lab shell and Dev Lab presentation stylesheet no longer contain the Cassandra Unit inspector markup or styles.
+- The new UI behavior test covers selection, Draft leader redirection, profile toggling, pause gating, and stale-leader cleanup; the test is included by the existing `tests/unit/*.test.js` host-test script.
+- The combined GitHub commit-status query for the final inspected commit returned no check records. CI is therefore **unconfirmed**, not reported as passed or failed.
+- Manual Pages/browser acceptance has not been performed by the assistant.
+
+## 16. Completed implementation slice — neutral shared presentation and UI utilities
+
+Approved by the user on 2026-11-14 and implemented on the existing work branch.
+
+### Goal
+
+Remove reusable viewport, input-state, and definition-catalog utilities from the Dev Lab-owned directory so Cassandra and Dev Lab can consume them from a neutral shared layer.
+
+### Changes made
+
+- Added shared/presentation/world-viewport-model.js with the existing viewport geometry and camera-boundary calculations.
+- Added shared/presentation/world-viewport.js with the canvas viewport implementation, exported as createWorldViewport.
+  - Retained camera movement/follow, zoom, world markers, selection, placement, pointer interaction, and rendering behavior.
+  - Pointer overlay and crosshair DOM nodes are injected by the application host. The shared module no longer queries Dev Lab-specific selectors.
+- Added shared/input/viewport-input-controller.js with the existing physical input state, pause/resume snapshot, inspection suppression, and focus-loss behavior.
+- Added shared/application/definition-catalog-controller.js with the existing asynchronous definition browsing, detail rendering, and host-injected selection policy.
+- Updated both Cassandra and Dev Lab shells to import the shared modules. Updated the legacy Dev Lab preview adapter to use the shared viewport model.
+- Updated related unit tests and boundary tests. Added assertions that shared modules do not import or name either application.
+- Updated the CI syntax-check list and application-boundary documentation.
+
+### Intentionally unchanged
+
+- Dev Lab navigation, pause menu, workspace session and persistence controllers remain Dev Lab-owned because they encode Dev Lab-specific screen and save behavior.
+- Cassandra .cass envelope, save slot/state identity, and persistence behavior.
+- Engine Core/runtime, gameplay systems, environment simulation, and simulation rules.
+- Existing visual design and DOM structure; pointer overlay elements are supplied by each shell.
+- The known menu-button responsiveness issue; it remains a separate unresolved defect.
+- main and all other branches.
+
+### Verification status
+
+- Source files and import references were updated on work.
+- Unit and browser tests have not been run locally in this environment.
+- GitHub Actions must be checked for the resulting commit before claiming automated tests passed.
+- Manual Pages/browser acceptance has not been performed by the assistant.
+
+## 17. Completed implementation slice — shared application navigation, pause, and file persistence
+
+Approved by the user on 2026-11-14 and implemented on the existing `work` branch only.
+
+### Goal
+
+Remove the remaining reusable navigation, pause-menu, and file-persistence orchestration from the Dev Lab-owned directory. Keep application-specific view identifiers, callbacks, save adapters, save slots, state identities, and UI copy in the application composition roots.
+
+### Changes made
+
+- Added `shared/application/view-navigation-controller.js`
+  - Exports `createViewNavigationController`.
+  - Coordinates view switching, catalog browse/overlay lifecycle, settings return navigation, and workspace-leave callbacks.
+  - Receives the workspace view identifier and catalog labels from the application shell; contains no Dev Lab or Cassandra imports or identifiers.
+- Added `shared/application/pause-menu-controller.js`
+  - Exports `createPauseMenuController`.
+  - Owns pause-overlay visibility and delegates open/close, settings, and main-menu effects through injected callbacks and navigation.
+  - Receives workspace/menu view identifiers from the application shell.
+- Added `shared/application/file-persistence-controller.js`
+  - Exports `createFilePersistenceController`.
+  - Coordinates save/load/import through the Engine persistence API without importing a concrete save adapter or assuming a particular application slot/state identity.
+  - Receives save adapter, slot, state identifier, file-picker capability, filename prompt, file extension, default filename, and status copy from the application composition root.
+- Updated both Cassandra and Dev Lab shells to compose the shared controllers while preserving the existing visible labels, pause behavior, file prompts, save slot, and state identity.
+- Removed the former Dev Lab-owned navigation, pause-menu, and workspace-persistence controller files.
+- Updated navigation, pause-menu, persistence, and application-boundary tests. Added coverage for injected save identities, fallback filename selection, and native file-picker gating.
+- Corrected the stale `dev-lab/input/viewport-input-controller.js` import in `tests/unit/workspace-persistence.test.js` to the current shared input-controller path.
+- Updated CI syntax checks and `docs/architecture/application-boundaries.md`.
+
+### Compatibility and intentionally unchanged
+
+- The `.cass` file envelope, file format version, shared `LocalFileSaveAdapter` compatibility bridge, save slot `dev-lab-workspace`, and state identifier `cassandra-dev-lab-workspace` are unchanged. The shared orchestration is format-neutral, but the adapter remains Cassandra-format-specific and is a known persistence boundary for a later migration.
+- Both application shells continue to display the same existing catalog and save/pause UI copy.
+- Engine Core/runtime, environment simulation, Unit and Colony Control gameplay, viewport rendering, world/session behavior, and browser entry points are unchanged.
+- The known menu-button responsiveness issue remains unresolved and has not been browser-verified.
+- `main` and all other branches were not modified.
+
+### Verification status
+
+- Source changes and import references were inspected through the GitHub repository API on `work`.
+- The new shared modules are included in the application-boundary test and CI syntax-check list.
+- The automated test suite has not been executed locally in this environment. GitHub Actions status for the resulting commits must be checked before reporting CI as passed.
+- Manual Pages/browser acceptance remains pending user verification.
+
+
+## 18. Architecture clarification and audit handoff — 2026-11-14
+
+This section records the user's latest architectural clarification and the
+read-only audit performed before the final documentation/test cleanup.
+
+### The two Dev Lab execution modes must not be confused
+
+There are two different ways to reach a screen labelled "Dev Lab":
+
+1. **Cassandra-hosted Dev Lab workspace — current primary workflow**
+   - Entry: `index.html` -> `application-entry.js` ->
+     `cassandra/application/cassandra-application-shell.js`.
+   - The main menu's DEV LAB button changes the visible view inside the
+     Cassandra application. It does not launch `dev-lab.html` and does not
+     start the standalone Dev Lab shell.
+   - Cassandra loads its content database and constructs its game runtime,
+     gameplay API, and Unit Inspector UI. These are injected into the
+     laboratory workspace.
+   - This is the workflow used for placing and inspecting Cassandra content.
+     The workspace UI originated in Dev Lab, but its current host and game
+     data provider are Cassandra.
+
+2. **Standalone Engine-only Dev Lab — optional secondary workflow**
+   - Entry: `dev-lab.html` -> `dev-lab/application/standalone-entry.js` ->
+     `dev-lab/application/application-shell.js`.
+   - The standalone entry calls `startDevLab()` without a Cassandra content
+     package or gameplay adapter. It starts a generic Engine runtime.
+   - It currently has no Cassandra definition database and no Cassandra
+     gameplay systems. Its content catalog can only show definitions
+     registered by its own host; it should not be expected to contain
+     Cassandra content.
+   - A dedicated standalone Dev Lab database/content package is optional
+     future work, not a current requirement. This standalone tool may remain
+     an Engine-only sandbox, become a generic package host, or eventually be
+     retired. Its completeness is not a prerequisite for using the
+     Cassandra-hosted laboratory workspace.
+
+### User's clarified architectural intent
+
+- Cassandra is the intended game application; the actual game is still early
+  and is not yet a complete playable game. Current Cassandra application
+  infrastructure and gameplay prototypes should not be mistaken for a
+  finished game.
+- Dev Lab is a development/laboratory environment for working on and testing
+  Engine-backed game content. Its current useful mode is hosted by Cassandra,
+  because Cassandra currently owns the database/content package.
+- Engine, Dev Lab, and Cassandra should have real responsibility boundaries,
+  but development-stage code organization is allowed to evolve. A
+  `shared/` layer for mechanisms used by both applications is legitimate.
+- `shared/` is not a sacred permanent layer and does not have to be moved
+  wholesale into Engine. It may later shrink, split, move modules into Engine
+  or applications, or disappear. Revisit it when actual usage and stable
+  contracts justify a change, not simply to force a final folder layout now.
+- The user prefers clear, small responsibility boundaries and accepts that
+  future refactoring is an expected part of development. Avoid both
+  unnecessary consolidation and speculative decomposition without a concrete
+  responsibility or dependency reason.
+- Dev Lab may have capabilities that Cassandra's player-facing game will
+  never need. Do not force feature parity or make Dev Lab's entire UI part of
+  the game.
+- The previous Argon audit is not an authoritative action list. The user
+  believes its author did not receive enough project context; its conclusions
+  should be treated as untrusted hypotheses and independently re-evaluated
+  against the current architecture and actual project goals.
+- The simulation currently has one time flow. There are no selectable 1x,
+  2x, 3x or other time-speed controls. Camera independence from accelerated
+  simulation speed is a future acceptance requirement only when speed
+  multipliers are actually implemented. Do not preemptively refactor camera
+  timing or treat hypothetical 3x camera speed as a current defect.
+- The menu-button responsiveness issue remains unresolved. In the latest
+  Pages attempt, the user reported that the menu buttons did not respond,
+  preventing meaningful manual acceptance of the application flow. Do not
+  mark the menu interaction or full browser acceptance as verified until it
+  is fixed and retested.
+
+### Read-only audit findings
+
+- The main Cassandra browser entry and standalone Dev Lab entry are distinct
+  and confirmed by source inspection.
+- The Cassandra shell composes Cassandra Unit and Colony Control systems,
+  Cassandra database loading, Cassandra gameplay API and Unit Inspector UI.
+- The standalone Dev Lab shell composes the generic Engine runtime and does
+  not import Cassandra gameplay systems.
+- Both application shells consume shared runtime/presentation/application
+  mechanisms. This is an intentional current boundary.
+- The shared viewport is browser presentation infrastructure (canvas,
+  pointer/resize handling, camera and rendering), not Engine Core simulation.
+- The three remaining `src/` modules inspected are still in use:
+  `src/gameplay/unit/unit-system.js`,
+  `src/gameplay/colony/colony-control-system.js`, and
+  `src/adapters/storage/local-file-save-adapter.js`. The first two are
+  Cassandra domain systems; the latter retains the Cassandra `.cass`
+  envelope and legacy save slot. No move was made in this cleanup.
+- No 1x/2x/3x speed control exists; no camera-speed refactor was made.
+- No gameplay, Engine Core, environment simulation, runtime composition,
+  viewport, persistence format, or HTML entrypoint behavior was changed.
+
+### CI follow-up and narrow cleanup
+
+The observed GitHub Actions run before this cleanup passed 198/198 Core tests
+and 104/106 host tests. The two host failures were both
+`ERR_MODULE_NOT_FOUND` caused by stale imports of
+`../../dev-lab/input/viewport-input-controller.js` in:
+
+- `tests/unit/colony-control-system.test.js`
+- `tests/unit/game-input-system.test.js`
+
+Both test imports have been updated to
+`../../shared/input/viewport-input-controller.js` on the existing `work`
+branch. This is a test-path correction only; the tests' behavior and
+production modules are unchanged.
+
+### Next verification
+
+- Inspect the new GitHub Actions run for the exact resulting `work` HEAD.
+- Confirm Core and host test results and any subsequent workflow steps.
+- Do not infer a passing result from the source edit itself.
+- Manual acceptance of the Cassandra-hosted Dev Lab workspace remains the
+  user's responsibility; the standalone Engine-only Dev Lab is not a required
+  acceptance target unless the user chooses to develop it further.
+- Do not merge to `main` as part of this cleanup.

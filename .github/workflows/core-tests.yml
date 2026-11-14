@@ -2,9 +2,9 @@ name: Core and host tests
 
 on:
   push:
-    branches: [main, 'next-step/**']
+    branches: [main, work]
   pull_request:
-    branches: [main]
+    branches: [main, work]
 
 jobs:
   core:
@@ -17,5 +17,24 @@ jobs:
       - run: npm run test:all
       - name: Check browser entry-point syntax
         run: |
-          node --check src/application/application-shell.js
-          node --check src/adapters/presentation/dev-world-preview.js
+          node --check application-entry.js
+          node --check cassandra/application/cassandra-application-shell.js
+          node --check cassandra/application/cassandra-runtime-host.js
+          node --check tests/unit/cassandra-runtime-host.test.js
+          node --check cassandra/application/dev-lab-gameplay-controller.js
+          node --check cassandra/application/dev-lab-unit-inspector-ui.js
+          node --check dev-lab/application/application-shell.js
+          node --check dev-lab/application/standalone-entry.js
+          node --check dev-lab/application/create-dev-lab-runtime.js
+          node --check engine/runtime/create-game-runtime.js
+          node --check engine/input/input-system.js
+          node --check dev-lab/presentation/dev-world-preview.js
+          node --check shared/application/file-persistence-controller.js
+          node --check shared/application/view-navigation-controller.js
+          node --check shared/application/pause-menu-controller.js
+          node --check dev-lab/application/workspace-session-controller.js
+          node --check shared/application/runtime-host.js
+          node --check shared/application/definition-catalog-controller.js
+          node --check shared/presentation/world-viewport.js
+          node --check shared/presentation/world-viewport-model.js
+          node --check shared/input/viewport-input-controller.js

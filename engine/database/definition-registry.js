@@ -1,5 +1,4 @@
 const definitions = new Map();
-const INSTANCE_KINDS = new Set(["unit"]);
 
 function deepFreeze(value) {
   if (!value || typeof value !== "object" || Object.isFrozen(value)) return value;
@@ -21,8 +20,8 @@ function normalizeDefinition(definition) {
   if (typeof description !== "string") throw new TypeError("Definition description must be a string.");
   if (!attributes || typeof attributes !== "object" || Array.isArray(attributes)) throw new TypeError("Definition attributes must be an object.");
   if (artwork !== null && (typeof artwork !== "string" || !artwork.trim())) throw new TypeError("Definition artwork must be a non-empty path or null.");
-  if (!Array.isArray(spawnableAs) || spawnableAs.some((kind) => typeof kind !== "string" || !INSTANCE_KINDS.has(kind))) {
-    throw new TypeError("Definition spawnableAs must contain supported instance kinds.");
+  if (!Array.isArray(spawnableAs) || spawnableAs.some((kind) => typeof kind !== "string" || !kind.trim())) {
+    throw new TypeError("Definition spawnableAs must contain non-empty strings.");
   }
   return deepFreeze({
     schemaVersion,

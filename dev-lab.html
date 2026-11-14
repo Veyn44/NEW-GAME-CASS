@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0b1220">
+    <title>Dev Lab</title>
+    <link rel="stylesheet" href="./dev-lab/presentation/dev-world-preview.css">
+  </head>
+  <body>
+    <main class="application-shell">
+      <section class="app-view main-menu" data-view="menu">
+        <header class="brand-block">
+          <p class="eyebrow">ENGINE / DEVELOPMENT TOOL</p>
+          <h1>DEV LAB</h1>
+          <p class="brand-subtitle">A standalone world inspection and testing environment.</p>
+        </header>
+        <nav class="main-menu-list" aria-label="Dev Lab navigation">
+          <button class="menu-entry menu-entry-active" type="button" data-navigate="dev-lab"><span><strong>OPEN WORKSPACE</strong><small>World preview and testing tools</small></span><b>ENTER</b></button>
+          <button class="menu-entry menu-entry-available" type="button" data-navigate="database"><span><strong>DEFINITIONS</strong><small>Inspect registered Engine content</small></span><b>OPEN</b></button>
+          <button class="menu-entry menu-entry-available" type="button" data-navigate="settings"><span><strong>CONTROLS</strong><small>Viewport and keyboard reference</small></span><b>OPEN</b></button>
+        </nav>
+        <footer class="app-footer"><span>ENGINE / DEV LAB</span><span>STANDALONE TOOL</span></footer>
+      </section>
+
+      <section class="app-view database-view" data-view="database" data-mode="browse" hidden>
+        <header class="section-header">
+          <div><p class="eyebrow" id="database-mode-label">ENGINE / CONTENT CATALOG</p><h1>Definitions</h1><p class="dev-note">Read-only catalog of content registered with the Engine</p></div>
+          <div class="database-header-actions"><button id="database-select-definition" class="database-select-button" type="button" hidden disabled>SELECT</button><button type="button" class="secondary-button" data-back-menu>← Main menu</button></div>
+        </header>
+        <div class="database-toolbar">
+          <label class="database-search">Search definitions<input id="database-search" type="search" placeholder="Pawn, enemy, wall, material…"></label>
+          <label class="database-filter">Category<select id="database-category"><option value="all">All categories</option></select></label>
+        </div>
+        <div class="database-workspace">
+          <section class="database-index-panel" aria-label="Definition catalog">
+            <div class="database-panel-heading"><strong>CATALOG</strong><span>Registered definitions</span></div>
+            <div id="database-list" class="database-list" aria-live="polite"></div>
+          </section>
+          <section class="database-inspector-panel" aria-label="Selected definition details">
+            <div class="database-panel-heading"><strong>INSPECTOR</strong><span>Complete definition</span></div>
+            <div id="database-inspector" class="database-inspector"><div class="database-inspector-state">Select an entry to inspect its complete definition.</div></div>
+          </section>
+        </div>
+        <footer class="database-footer"><p class="database-footnote">Browse mode is read-only. The catalog contains only content packages registered by the host application.</p></footer>
+      </section>
+
+      <section class="app-view settings-view" data-view="settings" hidden>
+        <header class="section-header"><div><p class="eyebrow">DEV LAB / CONTROLS</p><h1>Controls</h1><p class="dev-note">Informational reference · bindings are not editable yet</p></div><button id="settings-back" type="button" class="secondary-button">← BACK</button></header>
+        <div class="controls-reference">
+          <section class="controls-group"><h2>VIEWPORT</h2>
+            <div class="control-reference-row"><span>Move camera</span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></div>
+            <div class="control-reference-row"><span>Zoom</span><kbd>MOUSE WHEEL</kbd></div>
+            <div class="control-reference-row"><span>Pan camera</span><kbd>MIDDLE MOUSE DRAG</kbd></div>
+            <div class="control-reference-row"><span>Inspect object (when supported)</span><kbd>LEFT CLICK</kbd></div>
+          </section>
+          <section class="controls-group"><h2>INTERFACE</h2>
+            <div class="control-reference-row"><span>Pause / Resume simulation</span><kbd>SPACE</kbd></div>
+            <div class="control-reference-row"><span>Pause menu / Close overlay</span><kbd>ESC</kbd></div>
+          </section>
+        </div>
+      </section>
+
+      <section class="app-view dev-lab-view" data-view="dev-lab" hidden>
+        <header class="dev-header">
+          <div><p class="eyebrow">ENGINE / DEVELOPMENT TOOL</p><h1>Dev Lab</h1></div>
+          <div class="dev-header-actions"><span class="dev-note">Standalone workspace · Engine runtime</span><button type="button" class="secondary-button" data-back-menu>← Main menu</button></div>
+        </header>
+        <section class="toolbar" aria-label="World preview controls">
+          <label class="control"><span>World size</span><select id="world-size"><option value="64">64 × 64</option><option value="128" selected>128 × 128</option><option value="256">256 × 256</option></select></label>
+          <label class="toggle-control" for="grid-visible"><input id="grid-visible" type="checkbox" checked><span>Show grid</span></label>
+          <span class="control zoom-readout">Zoom <output id="zoom-value">100%</output></span>
+          <button id="reset-lab" type="button">Reset Lab</button>
+          <button id="open-viewport-database" type="button">DEFINITIONS</button>
+          <input id="workspace-file-input" type="file" accept=".cass,application/vnd.cassandra.save+json" hidden>
+          <span class="dev-note">WASD: camera · Wheel: zoom · Middle drag: pan</span>
+        </section>
+        <section class="viewport-panel" aria-label="World viewport" data-paused="true" data-input-mode="paused">
+          <canvas id="world-canvas" tabindex="0" aria-label="World viewport. Press Space to pause or resume.">Your browser does not support canvas.</canvas>
+          <div class="viewport-crosshair" aria-hidden="true"></div>
+          <aside id="pause-menu" class="pause-menu" aria-label="Pause menu" hidden>
+            <p class="eyebrow">DEV LAB / PAUSED</p><h2>Workspace Menu</h2>
+            <button id="pause-resume" type="button" class="primary-action">RESUME</button>
+            <button id="pause-save" type="button">SAVE</button>
+            <button id="pause-save-as" type="button">SAVE AS</button>
+            <button id="pause-load" type="button">LOAD</button>
+            <span id="workspace-save-status" class="workspace-save-status" aria-live="polite">NO SAVE SELECTED</span>
+            <button id="pause-settings" type="button">CONTROLS</button>
+            <button id="pause-main-menu" type="button" class="secondary-button">MAIN MENU</button>
+          </aside>
+        </section>
+        <footer class="status-bar"><span id="world-status">World: 128 × 128</span><span id="view-status">View: calculating…</span><span id="simulation-status" aria-live="polite">PAUSED · Space to resume</span><span id="pointer-status">VIEWPORT</span><span>Free camera</span></footer>
+      </section>
+    </main>
+    <script type="module" src="./dev-lab/application/standalone-entry.js"></script>
+  </body>
+</html>

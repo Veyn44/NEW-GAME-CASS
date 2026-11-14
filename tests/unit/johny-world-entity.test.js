@@ -1,21 +1,21 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createGameRuntime } from "../../src/host/create-game-runtime.js";
-import { MemorySaveAdapter } from "../../src/core/persistence.js";
+import { createGameRuntime } from "../../engine/runtime/create-game-runtime.js";
+import { MemorySaveAdapter } from "../../engine/core/persistence.js";
 import { createUnitSystem } from "../../src/gameplay/unit/unit-system.js";
-import { createGameInputSystem } from "../../src/gameplay/input/game-input-system.js";
-import { createViewportInputController } from "../../src/application/input/viewport-input-controller.js";
-import { clearDefinitionsForTests, getDefinition } from "../../src/application/database/definition-registry.js";
-import { loadCanonicalDefinitions } from "../../src/application/database/database-loader.js";
+import { createInputSystem } from "../../engine/input/input-system.js";
+import { createViewportInputController } from "../../shared/input/viewport-input-controller.js";
+import { clearDefinitionsForTests, getDefinition } from "../../engine/database/definition-registry.js";
+import { loadCassandraDatabase } from "../../cassandra/database/load-cassandra-database.js";
 
 test("Johny exists as a live world Unit backed by his canonical database identity", async () => {
   clearDefinitionsForTests();
-  loadCanonicalDefinitions();
+  loadCassandraDatabase();
 
   const runtime = createGameRuntime({
     saveAdapter: new MemorySaveAdapter(),
     hostSystems: [
-      createGameInputSystem({ inputController: createViewportInputController() }),
+      createInputSystem({ inputController: createViewportInputController() }),
       createUnitSystem({ definitionLookup: getDefinition })
     ]
   });

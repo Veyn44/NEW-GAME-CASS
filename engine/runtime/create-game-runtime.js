@@ -1,7 +1,7 @@
 import { createCoreAssembly } from "../core/core-assembly.js";
 
 /**
- * Creates the Cassandra host runtime around the reusable Core Assembly.
+ * Creates a host runtime around the reusable Core Assembly.
  *
  * The host owns configuration, adapters, systems and the outer application
  * loop. Core remains the owner of shared runtime infrastructure.
