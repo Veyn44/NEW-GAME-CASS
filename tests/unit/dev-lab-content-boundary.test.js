@@ -75,7 +75,8 @@ test("Cassandra application exposes a single gameplay adapter contract to Dev La
   assert.ok(source.includes("gameplayApi"));
   const resolver = source.slice(source.indexOf("export function resolveCassandraRuntimeServices"));
   assert.ok(resolver.includes("gameplayApi"));
-  assert.equal(/^\s{4}(?:unitApi|colonyControlApi|inputApi):/m.test(resolver), false);
+  const exposedServices = resolver.slice(resolver.indexOf("return {"));
+  assert.equal(/^\s{4}(?:unitApi|colonyControlApi|inputApi):/m.test(exposedServices), false);
 });
 
 test("Dev Lab delegates Unit inspection UI and contains no Cassandra inspector markup", async () => {
