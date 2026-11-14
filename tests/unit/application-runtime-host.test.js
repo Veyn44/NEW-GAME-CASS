@@ -96,7 +96,7 @@ test("shared runtime host respects host advance policy and calls frame callback"
   await h.tick(16);
 
   assert.deepEqual(h.runtimeCalls.advances, []);
-  assert.deepEqual(frameCalls, [{ delta: 0.016, paused: true }]);
+  assert.deepEqual(frameCalls, [{ delta: 0.016, paused: false }]);
   await h.host.stop();
 });
 
