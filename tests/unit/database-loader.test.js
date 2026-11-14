@@ -1,12 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { clearDefinitionsForTests, getDefinition } from "../../engine/database/definition-registry.js";
-import { loadCanonicalDefinitions } from "../../src/application/database/database-loader.js";
+import { loadCassandraDatabase } from "../../cassandra/database/load-cassandra-database.js";
 
 test("Johny is loaded from a version-controlled canonical human definition", () => {
   clearDefinitionsForTests();
 
-  const definitions = loadCanonicalDefinitions();
+  const definitions = loadCassandraDatabase();
   const johny = getDefinition("pawn.johny");
 
   assert.equal(definitions.length, 1);
@@ -25,8 +25,8 @@ test("Johny is loaded from a version-controlled canonical human definition", () 
 test("canonical definition loading is idempotent", () => {
   clearDefinitionsForTests();
 
-  loadCanonicalDefinitions();
-  loadCanonicalDefinitions();
+  loadCassandraDatabase();
+  loadCassandraDatabase();
 
   assert.equal(getDefinition("pawn.johny").attributes.age, 32);
 });

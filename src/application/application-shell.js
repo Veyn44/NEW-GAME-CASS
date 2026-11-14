@@ -14,7 +14,7 @@ import { createUnitSystem } from "../gameplay/unit/unit-system.js";
 import { createGameInputSystem } from "../gameplay/input/game-input-system.js";
 import { createColonyControlSystem } from "../gameplay/colony/colony-control-system.js";
 import { getDefinition } from "../../engine/database/definition-registry.js";
-import { loadCanonicalDefinitions } from "./database/database-loader.js";
+import { loadCassandraDatabase } from "../../cassandra/database/load-cassandra-database.js";
 import { createViewportInputController } from "./input/viewport-input-controller.js";
 import {
   listDefinitionIndex,
@@ -1014,7 +1014,7 @@ async function startDevLabRuntime() {
   }
 }
 
-loadCanonicalDefinitions();
+loadCassandraDatabase();
 refreshDatabase();
 startDevLabRuntime();
 showView("menu");
