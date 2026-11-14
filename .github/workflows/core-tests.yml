@@ -19,6 +19,7 @@ jobs:
         run: |
           node --check application-entry.js
           node --check cassandra/application/dev-lab-gameplay-controller.js
+          node --check cassandra/application/dev-lab-unit-inspector-ui.js
           node --check dev-lab/application/application-shell.js
           node --check dev-lab/application/create-dev-lab-runtime.js
           node --check engine/runtime/create-game-runtime.js
