@@ -2,9 +2,9 @@ name: Core and host tests
 
 on:
   push:
-    branches: [main, 'next-step/**']
+    branches: [main, work]
   pull_request:
-    branches: [main]
+    branches: [main, work]
 
 jobs:
   core:
@@ -18,4 +18,5 @@ jobs:
       - name: Check browser entry-point syntax
         run: |
           node --check src/application/application-shell.js
+          node --check engine/runtime/create-game-runtime.js
           node --check src/adapters/presentation/dev-world-preview.js

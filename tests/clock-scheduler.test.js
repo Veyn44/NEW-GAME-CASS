@@ -1,5 +1,5 @@
-import { GameClock, GameClockError } from "../src/core/game-clock.js";
-import { SchedulerError, SimulationScheduler } from "../src/core/simulation-scheduler.js";
+import { GameClock, GameClockError } from "../engine/core/game-clock.js";
+import { SchedulerError, SimulationScheduler } from "../engine/core/simulation-scheduler.js";
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);

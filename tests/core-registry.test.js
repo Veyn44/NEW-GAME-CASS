@@ -1,5 +1,5 @@
-import { GameContext } from "../src/core/game-context.js";
-import { RegistryError, SystemRegistry } from "../src/core/system-registry.js";
+import { GameContext } from "../engine/core/game-context.js";
+import { RegistryError, SystemRegistry } from "../engine/core/system-registry.js";
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);

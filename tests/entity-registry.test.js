@@ -1,4 +1,4 @@
-import { EntityRegistry, EntityRegistryError } from "../src/core/entity-registry.js";
+import { EntityRegistry, EntityRegistryError } from "../engine/core/entity-registry.js";
 
 const tests = [];
 function test(name, run) { tests.push({ name, run }); }

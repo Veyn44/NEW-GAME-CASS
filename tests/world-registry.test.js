@@ -1,4 +1,4 @@
-import { WorldRegistry, WorldRegistryError } from "../src/core/world-registry.js";
+import { WorldRegistry, WorldRegistryError } from "../engine/core/world-registry.js";
 
 const tests = [];
 function test(name, run) { tests.push({ name, run }); }

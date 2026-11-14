@@ -1,5 +1,5 @@
-import { RegistryError } from "../src/core/system-registry.js";
-import { SystemBootstrap } from "../src/core/system-bootstrap.js";
+import { RegistryError } from "../engine/core/system-registry.js";
+import { SystemBootstrap } from "../engine/core/system-bootstrap.js";
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);

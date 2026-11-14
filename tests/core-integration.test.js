@@ -1,5 +1,5 @@
 import { createCoreAssembly } from "./fixtures/create-demo-assembly.js";
-import { createCoreAssembly as createEngineCoreAssembly } from "../src/core/core-assembly.js";
+import { createCoreAssembly as createEngineCoreAssembly } from "../engine/core/core-assembly.js";
 
 const tests = [];
 function test(name, run) { tests.push({ name, run }); }

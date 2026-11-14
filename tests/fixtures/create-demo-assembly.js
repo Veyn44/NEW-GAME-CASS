@@ -1,5 +1,5 @@
-import { createCoreAssembly as createEngineCoreAssembly } from "../../src/core/core-assembly.js";
-import { MemorySaveAdapter } from "../../src/core/persistence.js";
+import { createCoreAssembly as createEngineCoreAssembly } from "../../engine/core/core-assembly.js";
+import { MemorySaveAdapter } from "../../engine/core/persistence.js";
 
 /**
  * Cassandra-specific integration fixture. Kept outside src/core so the engine

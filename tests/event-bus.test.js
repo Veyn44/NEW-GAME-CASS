@@ -1,4 +1,4 @@
-import { EventBus, EventBusError } from "../src/core/event-bus.js";
+import { EventBus, EventBusError } from "../engine/core/event-bus.js";
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);

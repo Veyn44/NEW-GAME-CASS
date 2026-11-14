@@ -1,5 +1,5 @@
-import { Logger, LoggerError } from "../src/core/logger.js";
-import { Persistence, PersistenceError, MemorySaveAdapter } from "../src/core/persistence.js";
+import { Logger, LoggerError } from "../engine/core/logger.js";
+import { Persistence, PersistenceError, MemorySaveAdapter } from "../engine/core/persistence.js";
 
 function assert(condition, message) { if (!condition) throw new Error(message); }
 function equal(actual, expected, message) { if (!Object.is(actual, expected)) throw new Error(`${message} (expected ${expected}, received ${actual})`); }
