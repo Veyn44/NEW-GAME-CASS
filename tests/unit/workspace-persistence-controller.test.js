@@ -73,7 +73,7 @@ test("workspace persistence controller imports a file and synchronizes the resto
 test("workspace persistence controller delegates browser file selection and exposes reset", async () => {
   let clicked = 0;
   let cleared = 0;
-  const controller = createWorkspacePersistenceController({
+  const controller = createFilePersistenceController({
     persistenceApi: { async save() {}, async load() {} },
     saveAdapter: {
       selectedFileName: null,
