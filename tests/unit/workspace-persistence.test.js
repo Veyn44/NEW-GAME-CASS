@@ -6,7 +6,7 @@ import { MemorySaveAdapter } from "../../engine/core/persistence.js";
 import { createUnitSystem } from "../../src/gameplay/unit/unit-system.js";
 import { createInputSystem } from "../../engine/input/input-system.js";
 import { createColonyControlSystem } from "../../src/gameplay/colony/colony-control-system.js";
-import { createViewportInputController } from "../../dev-lab/input/viewport-input-controller.js";
+import { createViewportInputController } from "../../shared/input/viewport-input-controller.js";
 import {
   clearDefinitionsForTests,
   getDefinition,
