@@ -52,11 +52,13 @@ status/prompt copy through dependency injection.
 - The file-persistence controller does not select or own a file format. Each
   application injects its save adapter, save slot, state identifier, file-picker
   capability, file extension, default filename, filename prompt, and UI status copy.
-- The existing `.cass` envelope, local-file adapter, save slot (`dev-lab-workspace`),
-  and state identifier (`cassandra-dev-lab-workspace`) are intentionally
-  unchanged in this slice. Their historical names are retained for save
-  compatibility; a later persistence migration can revise ownership only with
-  an explicit compatibility plan.
+- Both application shells still select the existing `LocalFileSaveAdapter` as
+  a compatibility bridge. That adapter owns the Cassandra `.cass` envelope and
+  legacy save slot (`dev-lab-workspace`); both shells also preserve the state
+  identifier (`cassandra-dev-lab-workspace`). The shared controller is format-
+  neutral, but the adapter itself is not yet application-neutral. A later
+  persistence migration must separate the file-format adapter from application
+  workspace persistence without breaking existing saves.
 - Dev Lab retains its own shell, runtime factory, viewport composition,
   workspace orchestration, and standalone entry.
 - The known menu-button responsiveness issue has not been independently
