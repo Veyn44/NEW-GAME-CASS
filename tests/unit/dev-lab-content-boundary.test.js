@@ -172,3 +172,21 @@ test("Dev Lab pause menu behavior is owned by its application controller", async
   assert.equal(pauseMenu.includes("/cassandra/"), false);
   assert.equal(pauseMenu.includes("/src/gameplay/"), false);
 });
+
+
+test("Dev Lab workspace session transitions are owned by the session controller", async () => {
+  const shell = await read("../../dev-lab/application/application-shell.js");
+  const session = await read("../../dev-lab/application/workspace-session-controller.js");
+  assert.ok(shell.includes("createDevLabWorkspaceSessionController"));
+  assert.ok(shell.includes("workspaceSession.changeWorld()"));
+  assert.ok(shell.includes("workspaceSession.reset()"));
+  assert.ok(shell.includes("workspaceSession.synchronizeRestoredWorkspace"));
+  assert.equal(shell.includes("function synchronizeRestoredWorkspace"), false);
+  assert.ok(session.includes("export function createDevLabWorkspaceSessionController"));
+  assert.ok(session.includes("worldRegistry.activateWorld"));
+  assert.ok(session.includes("confirmReset"));
+  assert.ok(session.includes("clearHeldInputAndPause"));
+  assert.ok(session.includes("synchronizeRestoredWorkspace"));
+  assert.equal(session.includes("/cassandra/"), false);
+  assert.equal(session.includes("/src/gameplay/"), false);
+});
