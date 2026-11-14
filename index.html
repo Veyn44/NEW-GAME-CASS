@@ -6,6 +6,7 @@
     <meta name="theme-color" content="#0b1220">
     <title>Cassandra</title>
     <link rel="stylesheet" href="./dev-lab/presentation/dev-world-preview.css">
+    <link rel="stylesheet" href="./cassandra/application/dev-lab-unit-inspector-ui.css">
   </head>
   <body>
     <main class="application-shell">
@@ -92,8 +93,7 @@
             <span id="workspace-save-status" class="workspace-save-status" aria-live="polite">NO SAVE SELECTED</span>
             <button id="pause-settings" type="button">SETTINGS</button>
             <button id="pause-main-menu" type="button" class="secondary-button">MAIN MENU</button>
-          </aside><aside id="quick-select" class="quick-select" aria-label="Quick Select" hidden><div class="quick-select-heading"><span class="eyebrow">QUICK SELECT</span><span id="quick-select-kind">OBJECT</span></div><div class="quick-select-preview"><img id="quick-select-artwork" alt="" hidden><span id="quick-select-artwork-empty">NO SPRITE</span></div><h2 id="quick-select-name">No selection</h2><p id="quick-select-summary">Select an object in the paused world.</p><button id="quick-select-info" type="button" disabled>INFO</button><section id="quick-select-details" class="quick-select-details" hidden></section></aside>
-          <aside id="unit-profile" class="unit-profile" aria-label="Unit profile" aria-modal="true" role="dialog" hidden><header class="unit-profile-header"><div><p class="eyebrow">CASSANDRA / PERSONNEL FILE</p><h2 id="unit-profile-name">Unit profile</h2></div><button id="unit-profile-close" type="button" aria-label="Close profile">CLOSE ✕</button></header><div class="unit-profile-body"><div class="unit-profile-portrait"><img id="unit-profile-artwork" alt="" hidden><span id="unit-profile-artwork-empty">PORTRAIT NOT AVAILABLE</span></div><div class="unit-profile-intro"><span id="unit-profile-category" class="unit-profile-tag">UNIT</span><p id="unit-profile-description"></p></div><section class="unit-profile-section"><h3>PERSONAL RECORD</h3><dl id="unit-profile-attributes" class="unit-profile-attributes"></dl></section><footer class="unit-profile-footer"><span id="unit-profile-instance">LIVE WORLD INSTANCE</span><span id="unit-profile-location"></span></footer></div></aside></section>
+          </aside><div data-application-gameplay-ui></div></section>
         <footer class="status-bar"><span id="world-status">World: 128 × 128</span><span id="view-status">View: calculating…</span><span id="simulation-status" aria-live="polite">PAUSED · Space to resume</span><span id="pointer-status">INSPECTION CURSOR</span><span>Free camera</span></footer>
         
       </section>
