@@ -3,10 +3,10 @@ import { createCassandraRuntimeHost } from "./cassandra-runtime-host.js";
 import { createWorldViewport } from "../../shared/presentation/world-viewport.js";
 import { createViewportInputController } from "../../shared/input/viewport-input-controller.js";
 import { LocalFileSaveAdapter } from "../../src/adapters/storage/local-file-save-adapter.js";
-import { createWorkspacePersistenceController } from "../../dev-lab/application/workspace-persistence-controller.js";
+import { createFilePersistenceController } from "../../shared/application/file-persistence-controller.js";
 import { createDefinitionCatalogController } from "../../shared/application/definition-catalog-controller.js";
-import { createDevLabViewNavigationController } from "../../dev-lab/application/view-navigation-controller.js";
-import { createDevLabPauseMenuController } from "../../dev-lab/application/pause-menu-controller.js";
+import { createViewNavigationController } from "../../shared/application/view-navigation-controller.js";
+import { createPauseMenuController } from "../../shared/application/pause-menu-controller.js";
 import { getDefinition, listDefinitionIndex, getCategories, loadDefinitionDetail } from "../../engine/database/definition-registry.js";
 
 const views = [...document.querySelectorAll("[data-view]")];
@@ -158,7 +158,9 @@ const definitionCatalog = createDefinitionCatalogController({
   onSelectDefinition: beginWorldPlacement
 });
 
-const navigation = createDevLabViewNavigationController({
+const navigation = createViewNavigationController({
+  workspaceView: "dev-lab",
+  catalogLabels: { browse: "ENGINE / CONTENT CATALOG", viewport: "ENGINE / DEV LAB" },
   elements: {
     views,
     navButtons: [...document.querySelectorAll("[data-navigate]")],
@@ -196,7 +198,8 @@ const navigation = createDevLabViewNavigationController({
 });
 
 let pauseMenuController;
-pauseMenuController = createDevLabPauseMenuController({
+pauseMenuController = createPauseMenuController({
+  workspaceView: "dev-lab",
   elements: {
     menu: pauseMenu,
     resumeButton: document.querySelector("#pause-resume"),
@@ -374,8 +377,13 @@ export async function startCassandraApplication() {
       state.persistenceApi = services.persistenceApi;
       state.gameplayApi = services.gameplayApi;
       state.gameplayUi = services.gameplayUi;
-      state.workspacePersistence = createWorkspacePersistenceController({
+      state.workspacePersistence = createFilePersistenceController({
         persistenceApi: services.persistenceApi,
+        saveSlot: "dev-lab-workspace",
+        stateId: "cassandra-dev-lab-workspace",
+        supportsFileAccess: () => LocalFileSaveAdapter.supportsFileAccess,
+        requestFileName: ({ currentFileName, defaultFileName }) =>
+          window.prompt("Name this Cassandra save:", currentFileName || defaultFileName),
         saveAdapter: state.saveAdapter,
         fileInput,
         onRestore() {
