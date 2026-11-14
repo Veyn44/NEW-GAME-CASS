@@ -125,10 +125,10 @@ Cassandra or Dev Lab application policy.
   for a speculative timing refactor. When time multipliers are introduced,
   verify that camera movement remains appropriately independent of simulation
   speed.
-- The previously reported menu-button responsiveness issue was manually
-  reported by the user as working in the current Pages build during the
-  November 2026 acceptance session. This is a manual observation, not a claim
-  of automated browser coverage.
+- The menu-button responsiveness issue remains unresolved. The user reported
+  that the menu buttons did not respond in the current Pages build, preventing
+  meaningful manual acceptance of the application flow. Do not mark the menu
+  interaction or full browser acceptance as verified until it is fixed and retested.
 - CI must be evaluated from the latest workflow run for the exact commit.
   A previous run passed 198/198 Core tests and 104/106 host tests; the two
   failures were stale imports in `colony-control-system.test.js` and
