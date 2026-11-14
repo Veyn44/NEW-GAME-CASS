@@ -1015,5 +1015,13 @@ async function startDevLabRuntime() {
 
 loadCanonicalDefinitions();
 refreshDatabase();
-startDevLabRuntime();
-showView("dev-lab");
+
+const requestedView = new URLSearchParams(window.location.search).get("view");
+if (requestedView === "database") {
+  openDatabase();
+} else if (requestedView === "settings") {
+  openSettings("menu");
+} else {
+  startDevLabRuntime();
+  showView("dev-lab");
+}
