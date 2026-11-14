@@ -33,4 +33,5 @@ jobs:
           node --check dev-lab/application/view-navigation-controller.js
           node --check dev-lab/application/pause-menu-controller.js
           node --check dev-lab/application/workspace-session-controller.js
+          node --check shared/application/runtime-host.js
           node --check dev-lab/input/viewport-input-controller.js
