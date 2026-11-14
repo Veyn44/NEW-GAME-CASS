@@ -17,6 +17,7 @@ jobs:
       - run: npm run test:all
       - name: Check browser entry-point syntax
         run: |
+          node --check application-entry.js
           node --check dev-lab/application/application-shell.js
           node --check engine/runtime/create-game-runtime.js
           node --check dev-lab/presentation/dev-world-preview.js
