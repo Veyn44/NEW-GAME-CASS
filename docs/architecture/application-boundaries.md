@@ -51,7 +51,7 @@ status/prompt copy through dependency injection.
   either application; each shell supplies its workspace view and callbacks.
 - The file-persistence controller does not select or own a file format. Each
   application injects its save adapter, save slot, state identifier, file-picker
-  capability, filename prompt, and UI status copy.
+  capability, file extension, default filename, filename prompt, and UI status copy.
 - The existing `.cass` envelope, local-file adapter, save slot (`dev-lab-workspace`),
   and state identifier (`cassandra-dev-lab-workspace`) are intentionally
   unchanged in this slice. Their historical names are retained for save
