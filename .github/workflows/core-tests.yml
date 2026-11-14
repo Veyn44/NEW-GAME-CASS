@@ -20,6 +20,7 @@ jobs:
           node --check application-entry.js
           node --check cassandra/application/cassandra-application-shell.js
           node --check cassandra/application/cassandra-runtime-host.js
+          node --check tests/unit/cassandra-runtime-host.test.js
           node --check cassandra/application/dev-lab-gameplay-controller.js
           node --check cassandra/application/dev-lab-unit-inspector-ui.js
           node --check dev-lab/application/application-shell.js
