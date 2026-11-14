@@ -1,80 +1,420 @@
 import { loadCassandraDatabase } from "../database/load-cassandra-database.js";
-import { createGameRuntime } from "../../engine/runtime/create-game-runtime.js";
-import { createInputSystem } from "../../engine/input/input-system.js";
-import { getDefinition } from "../../engine/database/definition-registry.js";
-import { createUnitSystem } from "../../src/gameplay/unit/unit-system.js";
-import { createColonyControlSystem } from "../../src/gameplay/colony/colony-control-system.js";
-import { createCassandraDevLabGameplayController } from "./dev-lab-gameplay-controller.js";
-import { createCassandraDevLabUnitInspectorUi } from "./dev-lab-unit-inspector-ui.js";
-import { startDevLab } from "../../dev-lab/application/application-shell.js";
+import { createCassandraRuntimeHost } from "./cassandra-runtime-host.js";
+import { createDevLabViewport } from "../../dev-lab/presentation/dev-lab-viewport.js";
+import { createViewportInputController } from "../../dev-lab/input/viewport-input-controller.js";
+import { LocalFileSaveAdapter } from "../../src/adapters/storage/local-file-save-adapter.js";
+import { createWorkspacePersistenceController } from "../../dev-lab/application/workspace-persistence-controller.js";
+import { createDefinitionCatalogController } from "../../dev-lab/application/definition-catalog-controller.js";
+import { createDevLabViewNavigationController } from "../../dev-lab/application/view-navigation-controller.js";
+import { createDevLabPauseMenuController } from "../../dev-lab/application/pause-menu-controller.js";
+import { getDefinition, listDefinitionIndex, getCategories, loadDefinitionDetail } from "../../engine/database/definition-registry.js";
 
-/**
- * Cassandra's composition root. Dev Lab is injected as a host tool; the
- * standalone Dev Lab entry point never imports this module.
- */
-export function createCassandraRuntime({
-  saveAdapter,
-  inputController,
-  onUnitMoved,
-  updateFreeCamera
-} = {}) {
-  let gameplayController = null;
-  return createGameRuntime({
-    saveAdapter,
-    fixedStepSeconds: 1 / 60,
-    maxStepsPerFrame: 120,
-    hostSystems: [
-      createInputSystem({ inputController }),
-      createUnitSystem({ definitionLookup: getDefinition }),
-      createColonyControlSystem()
-    ],
-    simulationTasks: [{
-      systemId: "game.colony-control",
-      update({ deltaSeconds, context }) {
-        gameplayController ??= createCassandraDevLabGameplayController({
-          unitApi: context.getService("game.unit-api"),
-          colonyControlApi: context.getService("game.colony-control-api"),
-          worldRegistry: context.getService("core.world-registry")
+const views = [...document.querySelectorAll("[data-view]")];
+const databaseView = document.querySelector('[data-view="database"]');
+const databaseHome = document.createComment("database-home");
+databaseView.before(databaseHome);
+const viewportDatabaseButton = document.querySelector("#open-viewport-database");
+const databaseBackButton = databaseView.querySelector("[data-back-menu]");
+const databaseSelectButton = document.querySelector("#database-select-definition");
+const databaseModeLabel = document.querySelector("#database-mode-label");
+const simulationStatus = document.querySelector("#simulation-status");
+const pointerStatus = document.querySelector("#pointer-status");
+const viewportPanel = document.querySelector(".viewport-panel");
+const canvas = document.querySelector("#world-canvas");
+const worldSizeSelect = document.querySelector("#world-size");
+const gridVisible = document.querySelector("#grid-visible");
+const resetLabButton = document.querySelector("#reset-lab");
+const saveButton = document.querySelector("#pause-save");
+const saveAsButton = document.querySelector("#pause-save-as");
+const loadButton = document.querySelector("#pause-load");
+const fileInput = document.querySelector("#workspace-file-input");
+const saveStatus = document.querySelector("#workspace-save-status");
+const pauseMenu = document.querySelector("#pause-menu");
+const inputController = createViewportInputController();
+const heldMovementKeys = new Set();
+const viewport = createDevLabViewport({
+  canvas,
+  sizeSelect: worldSizeSelect,
+  gridToggle: gridVisible,
+  zoomValue: document.querySelector("#zoom-value"),
+  worldStatus: document.querySelector("#world-status"),
+  viewStatus: document.querySelector("#view-status")
+});
+
+const state = {
+  gameplayApi: null,
+  gameplayUi: null,
+  clock: null,
+  worldRegistry: null,
+  persistenceApi: null,
+  saveAdapter: null,
+  workspacePersistence: null,
+  paused: true,
+  placementActive: false
+};
+
+function clearSelection() {
+  state.gameplayUi?.clearSelection();
+  viewport.setSelectedWorldMarker(null);
+}
+
+function refreshWorldMarkers() {
+  const activeWorldId = state.worldRegistry?.activeWorldId;
+  const units = state.gameplayApi?.listUnits() ?? [];
+  viewport.setWorldMarkers(units
+    .filter((unit) => unit.placement?.type === "world" && unit.placement.worldId === activeWorldId)
+    .map((unit) => ({
+      id: unit.id,
+      x: unit.placement.position.x,
+      y: unit.placement.position.y,
+      label: getDefinition(unit.definitionId)?.name ?? unit.definitionId
+    })));
+}
+
+function inspectGameplayEntity(entityId) {
+  const unit = state.gameplayUi?.inspectUnit(entityId) ?? null;
+  viewport.setSelectedWorldMarker(unit?.id ?? null);
+  return unit;
+}
+
+function updateSimulationUi() {
+  const controlState = state.gameplayApi?.getControlState();
+  state.gameplayUi?.setPaused(state.paused);
+  const controlLabel = state.gameplayApi?.getDraftStatusLabel() ?? "FREE CAMERA";
+  simulationStatus.textContent = state.paused
+    ? `PAUSED · ${controlLabel} · Space to resume`
+    : `RUNNING · ${controlLabel} · Space to pause`;
+  simulationStatus.dataset.state = state.paused ? "paused" : "running";
+  viewportPanel.dataset.paused = String(state.paused);
+  viewportPanel.dataset.inputMode = state.paused ? "paused" : "running";
+  worldSizeSelect.disabled = !state.paused || state.placementActive;
+  viewportDatabaseButton.disabled = !state.paused || state.placementActive;
+  resetLabButton.disabled = !state.worldRegistry;
+  pointerStatus.textContent = state.paused
+    ? "INSPECTION CURSOR"
+    : (state.gameplayApi?.getControlModeLabel() ?? "FREE CAMERA");
+  viewport.setWorldInteraction({
+    paused: state.paused,
+    inspectionEnabled: true,
+    onSelect: inspectGameplayEntity
+  });
+  if (controlState?.drafted && controlState.leaderId) inspectGameplayEntity(controlState.leaderId);
+  else if (state.gameplayUi?.getSelectedUnitId()) inspectGameplayEntity(state.gameplayUi.getSelectedUnitId());
+}
+
+function cancelPlacement() {
+  if (!state.placementActive) return;
+  state.placementActive = false;
+  viewport.cancelWorldPlacement();
+  updateSimulationUi();
+}
+
+function beginWorldPlacement(definition) {
+  if (!state.paused || !state.gameplayApi?.canPlaceDefinition(definition) || !state.worldRegistry) return;
+  navigation.closeViewportDatabase();
+  clearSelection();
+  state.placementActive = true;
+  updateSimulationUi();
+  canvas.focus({ preventScroll: true });
+  viewport.setWorldPlacement({
+    label: definition.name,
+    artwork: definition.artwork,
+    onPlace(x, y) {
+      try {
+        const unit = state.gameplayApi.createUnit({
+          definitionId: definition.id,
+          worldId: state.worldRegistry.activeWorldId,
+          position: { x, y }
         });
-        if (gameplayController.getControlState().drafted) {
-          const moved = gameplayController.update(deltaSeconds);
-          if (moved) onUnitMoved?.(moved);
-          return;
-        }
-        updateFreeCamera?.(deltaSeconds);
+        state.placementActive = false;
+        viewport.setWorldPlacement(null);
+        refreshWorldMarkers();
+        inspectGameplayEntity(unit.id);
+        updateSimulationUi();
+        return true;
+      } catch (error) {
+        simulationStatus.textContent = `PLACEMENT REJECTED · ${error.message}`;
+        return false;
       }
-    }]
+    }
   });
+  simulationStatus.textContent = `PLACING · ${definition.name} · CLICK A TILE · ESC TO CANCEL`;
 }
 
-/**
- * Adapt Cassandra-owned runtime services to the public Dev Lab host contract.
- * Cassandra UI is mounted only by the Cassandra page.
- */
-export function resolveCassandraRuntimeServices(context) {
-  const worldRegistry = context.getService("core.world-registry");
-  const gameplayApi = createCassandraDevLabGameplayController({
-    unitApi: context.getService("game.unit-api"),
-    colonyControlApi: context.getService("game.colony-control-api"),
-    worldRegistry
-  });
-  const gameplayUi = createCassandraDevLabUnitInspectorUi({
-    root: document.querySelector("[data-application-gameplay-ui]"),
-    gameplayApi
-  });
-  return {
-    worldRegistry,
-    persistenceApi: context.getService("core.persistence"),
-    clock: context.getService("core.game-clock"),
-    gameplayApi,
-    gameplayUi
-  };
+const definitionCatalog = createDefinitionCatalogController({
+  elements: {
+    list: document.querySelector("#database-list"),
+    search: document.querySelector("#database-search"),
+    category: document.querySelector("#database-category"),
+    inspector: document.querySelector("#database-inspector"),
+    selectButton: databaseSelectButton
+  },
+  listDefinitionIndex,
+  getCategories,
+  loadDefinitionDetail,
+  canSelectDefinition: (definition) => Boolean(state.gameplayApi?.canPlaceDefinition(definition)),
+  onSelectDefinition: beginWorldPlacement
+});
+
+const navigation = createDevLabViewNavigationController({
+  elements: {
+    views,
+    navButtons: [...document.querySelectorAll("[data-navigate]")],
+    databaseView,
+    databaseHome,
+    databaseModeLabel,
+    databaseBackButton,
+    viewportPanel,
+    settingsBackButton: document.querySelector("#settings-back"),
+    backMenuButtons: [...document.querySelectorAll("[data-back-menu]")],
+    viewportDatabaseButton,
+    body: document.body
+  },
+  definitionCatalog,
+  canOpenViewportDatabase: () => state.paused && !state.placementActive,
+  beforeLeaveWorkspace() {
+    cancelPlacement();
+    if (!pauseMenuController?.isOpen() && !state.paused) {
+      inputController.pause();
+      state.clock?.pause("player");
+      state.paused = true;
+    }
+    inputController.clearForFocusLoss();
+    if (state.clock && !state.clock.hasPauseReason?.("player")) state.clock.pause("player");
+    updateSimulationUi();
+  },
+  onSettingsReturn(returnView) {
+    if (returnView === "dev-lab") {
+      pauseMenuController?.open();
+      updateSimulationUi();
+    }
+  },
+  scrollToTop: () => window.scrollTo(0, 0),
+  dispatchResize: () => window.dispatchEvent(new Event("resize"))
+});
+
+let pauseMenuController;
+pauseMenuController = createDevLabPauseMenuController({
+  elements: {
+    menu: pauseMenu,
+    resumeButton: document.querySelector("#pause-resume"),
+    settingsButton: document.querySelector("#pause-settings"),
+    mainMenuButton: document.querySelector("#pause-main-menu")
+  },
+  navigation,
+  canOpen: () => document.body.dataset.currentView === "dev-lab",
+  onOpen() {
+    heldMovementKeys.clear();
+    inputController.suspendForOverlay();
+    state.gameplayUi?.closeProfile();
+  },
+  onClose() {
+    if (!state.paused) inputController.resume();
+    canvas.focus({ preventScroll: true });
+  },
+  onVisibilityChange: updateSimulationUi
+});
+
+function toggleSimulationPause() {
+  if (!state.clock) return;
+  if (state.paused) runtimeHost.resume("player");
+  else runtimeHost.pause("player");
 }
+
+function applyFreeCameraInput(deltaSeconds) {
+  const x = Number(heldMovementKeys.has("KeyD")) - Number(heldMovementKeys.has("KeyA"));
+  const y = Number(heldMovementKeys.has("KeyS")) - Number(heldMovementKeys.has("KeyW"));
+  if (!x && !y) return;
+  const length = Math.hypot(x, y);
+  viewport.moveCameraBy((x / length) * 30 * deltaSeconds, (y / length) * 30 * deltaSeconds);
+}
+
+function isTextEntryTarget(target) {
+  return target instanceof HTMLElement && (target.isContentEditable
+    || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
+}
+
+function isInteractiveTarget(target) {
+  return isTextEntryTarget(target) || (target instanceof HTMLElement && target.tagName === "BUTTON");
+}
+
+window.addEventListener("keydown", (event) => {
+  if (document.body.dataset.currentView !== "dev-lab") return;
+  if (event.code === "Escape" && !event.repeat) {
+    event.preventDefault();
+    if (state.placementActive) { cancelPlacement(); return; }
+    if (state.gameplayUi?.isProfileOpen()) { state.gameplayUi.closeProfile(); return; }
+    if (navigation.isViewportDatabaseOpen()) { navigation.closeViewportDatabase(); return; }
+    if (pauseMenuController.isOpen()) { pauseMenuController.close(); return; }
+    pauseMenuController.open();
+    return;
+  }
+  if (isTextEntryTarget(event.target) || pauseMenuController.isOpen()) return;
+  if (/^Key[WASD]$/.test(event.code)) {
+    heldMovementKeys.add(event.code);
+    inputController.keyDown(event.code);
+    event.preventDefault();
+    if (state.paused) return;
+  }
+  if (isInteractiveTarget(event.target)) return;
+  if (event.code === "Space" && !event.repeat && !event.altKey && !event.ctrlKey && !event.metaKey) {
+    event.preventDefault();
+    toggleSimulationPause();
+    return;
+  }
+  const action = state.gameplayApi?.handleKeyDown(event);
+  if (action) {
+    event.preventDefault();
+    if (action.controlState.drafted && action.controlState.leaderId) {
+      inspectGameplayEntity(action.controlState.leaderId);
+      if (action.leader?.placement?.type === "world"
+        && action.leader.placement.worldId === state.worldRegistry?.activeWorldId) {
+        viewport.setCameraFollowTarget(action.leader.id, action.leader.placement.position);
+      }
+    } else clearSelection();
+    updateSimulationUi();
+    return;
+  }
+  if (!state.paused) {
+    inputController.keyDown(event.code);
+    if (/^(Key[A-Z]|Digit[0-9]|Arrow(Up|Down|Left|Right))$/.test(event.code)) event.preventDefault();
+  }
+});
+
+window.addEventListener("keyup", (event) => {
+  heldMovementKeys.delete(event.code);
+  inputController.keyUp(event.code);
+});
+canvas.addEventListener("pointerdown", (event) => {
+  if (document.body.dataset.currentView === "dev-lab" && [0, 2].includes(event.button)) {
+    inputController.pointerDown(event.button);
+  }
+}, true);
+window.addEventListener("pointerup", (event) => inputController.pointerUp(event.button));
+canvas.addEventListener("pointermove", (event) => {
+  if (!state.paused) inputController.pointerMove(event.movementX || 0, event.movementY || 0);
+});
+
+function handleFocusLoss() {
+  heldMovementKeys.clear();
+  if (!state.paused && state.clock) {
+    inputController.pause();
+    state.clock.pause("player");
+    state.paused = true;
+  }
+  inputController.clearForFocusLoss();
+  updateSimulationUi();
+}
+window.addEventListener("blur", handleFocusLoss);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") handleFocusLoss();
+});
+
+worldSizeSelect.addEventListener("change", () => {
+  if (!state.paused || !state.worldRegistry) return;
+  const size = Number(worldSizeSelect.value);
+  state.worldRegistry.activateWorld(`cassandra-world-${size}`);
+  viewport.resetCameraToWorld(size);
+  clearSelection();
+  refreshWorldMarkers();
+});
+resetLabButton.addEventListener("click", () => {
+  if (!state.gameplayApi || !window.confirm("Reset Cassandra workspace? All current units and unsaved session state will be cleared.")) return;
+  for (const unit of state.gameplayApi.listUnits()) state.gameplayApi.removeUnit(unit.id);
+  state.gameplayApi.setLeader(null);
+  state.gameplayApi.setDrafted(false);
+  cancelPlacement();
+  clearSelection();
+  refreshWorldMarkers();
+  state.workspacePersistence?.clearSelection();
+  saveStatus.textContent = "CASSANDRA RESET · NO SAVE SELECTED";
+  updateSimulationUi();
+});
+saveButton.addEventListener("click", () => state.workspacePersistence?.save());
+saveAsButton.addEventListener("click", () => state.workspacePersistence?.saveAs());
+loadButton.addEventListener("click", () => state.workspacePersistence?.load());
+fileInput.addEventListener("change", async () => {
+  const file = fileInput.files?.[0];
+  fileInput.value = "";
+  if (file) await state.workspacePersistence?.importFile(file);
+});
+
+let runtimeHost = null;
 
 export async function startCassandraApplication() {
-  await startDevLab({
-    loadContentPackage: loadCassandraDatabase,
-    createRuntime: createCassandraRuntime,
-    resolveRuntimeServices: resolveCassandraRuntimeServices
+  await loadCassandraDatabase();
+  definitionCatalog.refresh();
+  state.saveAdapter = new LocalFileSaveAdapter();
+  runtimeHost = createCassandraRuntimeHost({
+    saveAdapter: state.saveAdapter,
+    inputController,
+    onUnitMoved(moved) {
+      refreshWorldMarkers();
+      viewport.setCameraFollowTarget(moved.entityId, moved.position);
+    },
+    updateFreeCamera: applyFreeCameraInput,
+    shouldAdvance: () => !pauseMenuController.isOpen(),
+    onReady({ services }) {
+      if (!services?.worldRegistry || !services?.persistenceApi || !services?.clock || !services?.gameplayApi) {
+        throw new TypeError("Cassandra runtime services are incomplete.");
+      }
+      const worlds = services.worldRegistry;
+      for (const size of [64, 128, 256]) {
+        worlds.registerWorld({
+          worldId: `cassandra-world-${size}`,
+          type: "cassandra-world",
+          dimensions: { width: size, height: size },
+          coordinateSystem: "tiles"
+        });
+      }
+      worlds.activateWorld(`cassandra-world-${Number(worldSizeSelect.value)}`);
+      state.worldRegistry = worlds;
+      state.persistenceApi = services.persistenceApi;
+      state.gameplayApi = services.gameplayApi;
+      state.gameplayUi = services.gameplayUi;
+      state.workspacePersistence = createWorkspacePersistenceController({
+        persistenceApi: services.persistenceApi,
+        saveAdapter: state.saveAdapter,
+        fileInput,
+        onRestore() {
+          refreshWorldMarkers();
+          clearSelection();
+          const world = worlds.get(worlds.activeWorldId);
+          if (world) viewport.resetCameraToWorld(world.dimensions.width);
+          updateSimulationUi();
+        },
+        onStatus({ saveStatus: nextSaveStatus, simulationStatus: nextStatus }) {
+          saveStatus.textContent = nextSaveStatus;
+          simulationStatus.textContent = nextStatus;
+        }
+      });
+      viewport.setWorldMarkers([]);
+      clearSelection();
+      state.clock = services.clock;
+      state.clock.pause("player");
+      state.paused = true;
+      updateSimulationUi();
+      saveStatus.textContent = state.workspacePersistence.initialStatus;
+    },
+    onFrame(deltaSeconds, { paused }) {
+      if (paused && !pauseMenuController.isOpen()) applyFreeCameraInput(deltaSeconds);
+    },
+    onPauseChange(paused) {
+      state.paused = paused;
+      if (paused) inputController.pause();
+      else inputController.resume();
+      updateSimulationUi();
+    },
+    onError(error) {
+      simulationStatus.textContent = `SIMULATION ERROR · ${error.message}`;
+      inputController.pause();
+      inputController.clearForFocusLoss();
+    }
   });
+  try {
+    await runtimeHost.start();
+  } catch (error) {
+    simulationStatus.textContent = `CASSANDRA STARTUP FAILED · ${error.message}`;
+  }
+  navigation.showView("menu");
 }
