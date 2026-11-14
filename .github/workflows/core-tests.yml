@@ -29,11 +29,12 @@ jobs:
           node --check engine/runtime/create-game-runtime.js
           node --check engine/input/input-system.js
           node --check dev-lab/presentation/dev-world-preview.js
-          node --check dev-lab/presentation/dev-lab-viewport.js
           node --check dev-lab/application/workspace-persistence-controller.js
-          node --check dev-lab/application/definition-catalog-controller.js
           node --check dev-lab/application/view-navigation-controller.js
           node --check dev-lab/application/pause-menu-controller.js
           node --check dev-lab/application/workspace-session-controller.js
           node --check shared/application/runtime-host.js
-          node --check dev-lab/input/viewport-input-controller.js
+          node --check shared/application/definition-catalog-controller.js
+          node --check shared/presentation/world-viewport.js
+          node --check shared/presentation/world-viewport-model.js
+          node --check shared/input/viewport-input-controller.js
