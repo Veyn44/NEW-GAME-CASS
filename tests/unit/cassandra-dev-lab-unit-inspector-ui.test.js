@@ -87,7 +87,7 @@ test("Cassandra Unit inspector renders selection and toggles the personnel profi
 });
 
 test("Cassandra Unit inspector follows the Draft leader and clears stale selections", () => {
-  const { ui, elements } = createHarness({ drafted: true, leaderId: "unit-2" });
+  const { ui, elements, units } = createHarness({ drafted: true, leaderId: "unit-2" });
   const selected = ui.inspectUnit("unit-1");
 
   assert.equal(selected.id, "unit-2");
