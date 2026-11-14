@@ -13,7 +13,6 @@ const databaseHome = document.createComment("database-home");
 databaseView.before(databaseHome);
 const viewportDatabaseButton = document.querySelector("#open-viewport-database");
 const databaseBackButton = databaseView.querySelector("[data-back-menu]");
-const databaseSelectButton = document.querySelector("#database-select-definition");
 const databaseSelectButton = databaseView.querySelector("#database-select-definition");
 const databaseModeLabel = document.querySelector("#database-mode-label");
 const simulationStatus = document.querySelector("#simulation-status");
