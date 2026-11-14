@@ -93,3 +93,78 @@ test("workspace persistence controller delegates browser file selection and expo
   controller.clearSelection();
   assert.equal(cleared, 1);
 });
+
+
+test("file persistence controller injects save identity and filename selection", async () => {
+  const calls = [];
+  const requested = [];
+  const adapter = {
+    selectedFileName: null,
+    clearSelection() { this.selectedFileName = null; },
+    setDownloadFileName(name) { this.selectedFileName = name; },
+    async importFile() {}
+  };
+  const controller = createFilePersistenceController({
+    persistenceApi: {
+      async save(slot, options) {
+        calls.push({ slot, options });
+        return { createdAt: "2026-11-14T13:00:00.000Z" };
+      },
+      async load() {}
+    },
+    saveAdapter: adapter,
+    fileInput: { click() {} },
+    saveSlot: "app-specific-slot",
+    stateId: "app-specific-state",
+    supportsFileAccess: () => false,
+    requestFileName: (details) => {
+      requested.push(details);
+      return "ship-backup";
+    },
+    defaultFileName: "default.cass"
+  });
+
+  assert.equal(await controller.saveAs(), true);
+  assert.deepEqual(requested, [{ currentFileName: "", defaultFileName: "default.cass" }]);
+  assert.equal(adapter.selectedFileName, "ship-backup.cass");
+  assert.deepEqual(calls, [{
+    slot: "app-specific-slot",
+    options: { stateId: "app-specific-state", kind: "manual" }
+  }]);
+});
+
+test("file persistence controller requires a selected file when native file access is enabled", async () => {
+  let saveCalls = 0;
+  let loadCalls = 0;
+  const adapter = {
+    selectedFileName: null,
+    clearSelection() {},
+    setDownloadFileName() {},
+    async importFile() {},
+    async selectLoadFile() {
+      this.selectedFileName = "selected.cass";
+      return this.selectedFileName;
+    }
+  };
+  const controller = createFilePersistenceController({
+    persistenceApi: {
+      async save() { saveCalls += 1; },
+      async load(slot, options) {
+        loadCalls += 1;
+        assert.equal(slot, "app-slot");
+        assert.equal(options.stateId, "app-state");
+      }
+    },
+    saveAdapter: adapter,
+    fileInput: { click() { throw new Error("native file access should be used"); } },
+    saveSlot: "app-slot",
+    stateId: "app-state",
+    supportsFileAccess: () => true,
+    requestFileName: () => "unused.cass"
+  });
+
+  assert.equal(await controller.save(), false);
+  assert.equal(saveCalls, 0);
+  assert.equal(await controller.load(), true);
+  assert.equal(loadCalls, 1);
+});
