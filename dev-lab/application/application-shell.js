@@ -341,7 +341,7 @@ function renderDatabase() {
     const strong = document.createElement("strong");
     strong.textContent = "Database is ready.";
     const message = document.createElement("span");
-    message.textContent = "Canonical game definitions are loaded from the content database.";
+    message.textContent = "No definitions are registered in the active content packages.";
     empty.append(strong, message);
     databaseList.append(empty);
     return;
