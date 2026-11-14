@@ -457,3 +457,54 @@ Move the reusable input-service contract out of Cassandra gameplay while keeping
 ### Verification status
 
 Source-level references were updated and the old game-scoped input module was removed. The repository's automated test workflow and browser Pages behavior still need confirmation after this commit; no successful CI or manual browser test is claimed here.
+
+
+## 13. Completed implementation slice — runtime composition outside Dev Lab
+
+Approved by the user on 2026-11-14. Implemented on the existing `work` branch only.
+
+### Goal
+
+Move ownership of Cassandra gameplay runtime composition to the Cassandra application entry point. Keep Dev Lab capable of starting an Engine runtime without Cassandra gameplay.
+
+### Changes made
+
+- `application-entry.js`
+  - Now owns `createCassandraRuntime()`.
+  - Composes Engine Input, Cassandra Unit and Cassandra Colony Control as host systems.
+  - Owns the Cassandra Colony Control simulation task and its fixed-step update policy.
+  - Exposes `resolveCassandraRuntimeServices()` to map Core and game services to the Dev Lab application-facing runtime service contract.
+  - Passes the runtime factory and service resolver into `startDevLab()`.
+- `dev-lab/application/application-shell.js`
+  - No longer imports or constructs Cassandra Unit, Colony Control or Engine Input systems.
+  - Accepts `createRuntime` and `resolveRuntimeServices` dependencies.
+  - Supplies Dev Lab-owned input and presentation callbacks to the runtime factory.
+  - Consumes runtime services through the injected service resolver instead of hard-coding Cassandra service IDs.
+  - Advances the runtime whenever the Core clock is available, including a standalone runtime without a Unit API.
+- Added `dev-lab/application/create-dev-lab-runtime.js`
+  - Provides a standalone Engine runtime with a Dev Lab-owned camera simulation system.
+  - Registers no Cassandra gameplay systems.
+- Added `tests/unit/dev-lab-runtime.test.js` and expanded `tests/unit/dev-lab-content-boundary.test.js`.
+  - Cover the standalone runtime and enforce the source-level boundary between Dev Lab and Cassandra gameplay.
+- Updated `.github/workflows/core-tests.yml` to syntax-check the standalone runtime module.
+
+### Intentionally unchanged
+
+- Cassandra Unit System and Colony Control implementation and gameplay rules.
+- Engine Core, environment simulation, world and persistence behavior.
+- Physical input collection in `dev-lab/input/viewport-input-controller.js`.
+- Dev Lab UI, rendering, workspace save format and browser input bindings.
+- The existing menu-button responsiveness issue; it remains a separate unresolved defect.
+- `main` and all other branches.
+
+### Verification status
+
+- Source inspection confirms the Dev Lab shell no longer imports Cassandra gameplay modules or refers directly to Cassandra Unit/Colony Control service IDs.
+- The Cassandra entry point now supplies the Cassandra runtime factory and service resolver.
+- A runtime integration test was added to start and advance the standalone Dev Lab runtime without Cassandra gameplay.
+- The test suite has not been executed in this environment. Do not mark CI as passed until the GitHub Actions run for the resulting commit completes successfully.
+- Manual Pages/browser acceptance has not been performed by the assistant.
+
+### Remaining architecture boundary
+
+This slice separates runtime composition, not the entire application. Dev Lab UI still understands Unit and Colony Control API shapes when those services are supplied. Cassandra currently uses Dev Lab as its host application. A later phase must separate the Cassandra application shell/UI from Dev Lab to make Cassandra fully runnable without Dev Lab.
