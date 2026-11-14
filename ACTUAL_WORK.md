@@ -426,3 +426,34 @@ Remove the Dev Lab application's direct dependency on Cassandra's content packag
 ### Next safe step
 
 Inspect and separate the Cassandra Unit/Colony runtime composition from the Dev Lab workspace. Do not move or generalize those systems until their contracts and current imports have been mapped. Keep the same approval-before-change workflow. The menu click failure remains a separate unresolved defect and is not claimed fixed by this content-boundary change.
+
+
+## 12. Completed implementation slice — generic Engine input service
+
+Approved by the user on 2026-11-14. Implemented on the existing `work` branch only.
+
+### Goal
+
+Move the reusable input-service contract out of Cassandra gameplay while keeping physical input collection and Dev Lab host behavior outside Engine.
+
+### Changes made
+
+- Added `engine/input/input-system.js` exporting `createInputSystem`.
+- The Engine service is now identified as `engine.input` and provides `engine.input-api`.
+- The service still receives a host-owned controller through dependency injection and exposes only `getState()` and `consumeFrameInput()`.
+- Updated the Dev Lab application shell to compose the Engine input service.
+- Updated Cassandra Colony Control to require `engine.input-api`; its Draft, WASD interpretation, movement speed and persistence behavior were not changed.
+- Removed the old game-scoped `src/gameplay/input/game-input-system.js`.
+- Corrected test imports to the current Dev Lab input-controller location and updated the input-service and Colony Control integration tests.
+- Added a syntax check for the new Engine input module to the CI workflow.
+
+### Intentionally unchanged
+
+- `dev-lab/input/viewport-input-controller.js` remains a Dev Lab/host adapter. It continues to own physical key/button state, pause/resume snapshots, inspection suppression and focus-loss cleanup.
+- DOM event bindings and meanings of WASD, F, Space and Escape remain in the Dev Lab shell.
+- Cassandra Unit and Colony Control gameplay rules remain Cassandra-owned.
+- Core simulation, environment behavior, save data shape and menu behavior were not changed.
+
+### Verification status
+
+Source-level references were updated and the old game-scoped input module was removed. The repository's automated test workflow and browser Pages behavior still need confirmation after this commit; no successful CI or manual browser test is claimed here.
