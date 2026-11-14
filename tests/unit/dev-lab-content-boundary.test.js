@@ -152,3 +152,23 @@ test("Dev Lab navigation behavior is owned by its application controller", async
   assert.equal(navigation.includes("/cassandra/"), false);
   assert.equal(navigation.includes("/src/gameplay/"), false);
 });
+
+
+test("Dev Lab pause menu behavior is owned by its application controller", async () => {
+  const shell = await read("../../dev-lab/application/application-shell.js");
+  const navigation = await read("../../dev-lab/application/view-navigation-controller.js");
+  const pauseMenu = await read("../../dev-lab/application/pause-menu-controller.js");
+  assert.ok(shell.includes("createDevLabPauseMenuController"));
+  assert.ok(shell.includes("pauseMenuController.isOpen()"));
+  assert.ok(shell.includes("pauseMenuController.open()"));
+  assert.equal(shell.includes("state.pauseMenuOpen"), false);
+  assert.equal(shell.includes("function openPauseMenu"), false);
+  assert.equal(shell.includes("function closePauseMenu"), false);
+  assert.equal(navigation.includes("pauseSettingsButton"), false);
+  assert.equal(navigation.includes("pauseMainMenuButton"), false);
+  assert.ok(pauseMenu.includes("export function createDevLabPauseMenuController"));
+  assert.ok(pauseMenu.includes("navigation.openSettings(\"dev-lab\")"));
+  assert.ok(pauseMenu.includes('navigation.showView("menu")'));
+  assert.equal(pauseMenu.includes("/cassandra/"), false);
+  assert.equal(pauseMenu.includes("/src/gameplay/"), false);
+});
