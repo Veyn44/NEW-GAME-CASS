@@ -680,7 +680,7 @@ Remove the remaining reusable navigation, pause-menu, and file-persistence orche
 
 ### Compatibility and intentionally unchanged
 
-- The `.cass` file envelope, file format version, local-file adapter, save slot `dev-lab-workspace`, and state identifier `cassandra-dev-lab-workspace` are unchanged.
+- The `.cass` file envelope, file format version, shared `LocalFileSaveAdapter` compatibility bridge, save slot `dev-lab-workspace`, and state identifier `cassandra-dev-lab-workspace` are unchanged. The shared orchestration is format-neutral, but the adapter remains Cassandra-format-specific and is a known persistence boundary for a later migration.
 - Both application shells continue to display the same existing catalog and save/pause UI copy.
 - Engine Core/runtime, environment simulation, Unit and Colony Control gameplay, viewport rendering, world/session behavior, and browser entry points are unchanged.
 - The known menu-button responsiveness issue remains unresolved and has not been browser-verified.
