@@ -613,3 +613,39 @@ Move Cassandra's Quick Select and Unit Profile markup, rendering, and DOM event 
 - The new UI behavior test covers selection, Draft leader redirection, profile toggling, pause gating, and stale-leader cleanup; the test is included by the existing `tests/unit/*.test.js` host-test script.
 - The combined GitHub commit-status query for the final inspected commit returned no check records. CI is therefore **unconfirmed**, not reported as passed or failed.
 - Manual Pages/browser acceptance has not been performed by the assistant.
+
+## 16. Completed implementation slice — neutral shared presentation and UI utilities
+
+Approved by the user on 2026-11-14 and implemented on the existing work branch.
+
+### Goal
+
+Remove reusable viewport, input-state, and definition-catalog utilities from the Dev Lab-owned directory so Cassandra and Dev Lab can consume them from a neutral shared layer.
+
+### Changes made
+
+- Added shared/presentation/world-viewport-model.js with the existing viewport geometry and camera-boundary calculations.
+- Added shared/presentation/world-viewport.js with the canvas viewport implementation, exported as createWorldViewport.
+  - Retained camera movement/follow, zoom, world markers, selection, placement, pointer interaction, and rendering behavior.
+  - Pointer overlay and crosshair DOM nodes are injected by the application host. The shared module no longer queries Dev Lab-specific selectors.
+- Added shared/input/viewport-input-controller.js with the existing physical input state, pause/resume snapshot, inspection suppression, and focus-loss behavior.
+- Added shared/application/definition-catalog-controller.js with the existing asynchronous definition browsing, detail rendering, and host-injected selection policy.
+- Updated both Cassandra and Dev Lab shells to import the shared modules. Updated the legacy Dev Lab preview adapter to use the shared viewport model.
+- Updated related unit tests and boundary tests. Added assertions that shared modules do not import or name either application.
+- Updated the CI syntax-check list and application-boundary documentation.
+
+### Intentionally unchanged
+
+- Dev Lab navigation, pause menu, workspace session and persistence controllers remain Dev Lab-owned because they encode Dev Lab-specific screen and save behavior.
+- Cassandra .cass envelope, save slot/state identity, and persistence behavior.
+- Engine Core/runtime, gameplay systems, environment simulation, and simulation rules.
+- Existing visual design and DOM structure; pointer overlay elements are supplied by each shell.
+- The known menu-button responsiveness issue; it remains a separate unresolved defect.
+- main and all other branches.
+
+### Verification status
+
+- Source files and import references were updated on work.
+- Unit and browser tests have not been run locally in this environment.
+- GitHub Actions must be checked for the resulting commit before claiming automated tests passed.
+- Manual Pages/browser acceptance has not been performed by the assistant.
