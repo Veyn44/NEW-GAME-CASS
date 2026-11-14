@@ -15,7 +15,7 @@ import { createGameInputSystem } from "../../src/gameplay/input/game-input-syste
 import { createColonyControlSystem } from "../../src/gameplay/colony/colony-control-system.js";
 import { getDefinition } from "../../engine/database/definition-registry.js";
 import { loadCassandraDatabase } from "../../cassandra/database/load-cassandra-database.js";
-import { createViewportInputController } from "../../src/application/input/viewport-input-controller.js";
+import { createViewportInputController } from "../input/viewport-input-controller.js";
 import {
   listDefinitionIndex,
   getCategories,
