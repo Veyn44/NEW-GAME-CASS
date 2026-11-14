@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createInputSystem } from "../../engine/input/input-system.js";
-import { createViewportInputController } from "../../dev-lab/input/viewport-input-controller.js";
+import { createViewportInputController } from "../../shared/input/viewport-input-controller.js";
 
 test("Engine input system exposes the injected controller through a read-only service", () => {
   const controller = createViewportInputController();
