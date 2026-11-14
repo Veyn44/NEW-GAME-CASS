@@ -9,7 +9,6 @@ export function createDevLabViewNavigationController({
   canOpenViewportDatabase = () => true,
   beforeLeaveWorkspace = () => {},
   onSettingsReturn = () => {},
-  onPauseMainMenu = () => {},
   onNavigateSettings = () => {},
   scrollToTop = () => {},
   dispatchResize = () => {}
@@ -17,8 +16,7 @@ export function createDevLabViewNavigationController({
   const required = [
     "views", "navButtons", "databaseView", "databaseHome",
     "databaseModeLabel", "databaseBackButton", "viewportPanel",
-    "settingsBackButton", "backMenuButtons", "pauseSettingsButton",
-    "pauseMainMenuButton", "viewportDatabaseButton", "body"
+    "settingsBackButton", "backMenuButtons", "viewportDatabaseButton", "body"
   ];
   if (!elements || required.some((key) => !elements[key])) {
     throw new TypeError("Dev Lab navigation elements are required.");
@@ -31,7 +29,7 @@ export function createDevLabViewNavigationController({
   const {
     views, navButtons, databaseView, databaseHome, databaseModeLabel,
     databaseBackButton, viewportPanel, settingsBackButton, backMenuButtons,
-    pauseSettingsButton, pauseMainMenuButton, viewportDatabaseButton
+    viewportDatabaseButton
   } = elements;
   let viewportDatabaseOpen = false;
   let settingsReturnView = "menu";
@@ -107,11 +105,6 @@ export function createDevLabViewNavigationController({
   }
 
   settingsBackButton.addEventListener("click", returnFromSettings);
-  pauseSettingsButton.addEventListener("click", () => openSettings("dev-lab"));
-  pauseMainMenuButton.addEventListener("click", () => {
-    onPauseMainMenu();
-    showView("menu");
-  });
   for (const button of backMenuButtons) {
     button.addEventListener("click", () => {
       if (button === databaseBackButton && viewportDatabaseOpen) closeViewportDatabase();
