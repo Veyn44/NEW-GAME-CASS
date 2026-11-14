@@ -112,7 +112,9 @@ test("Dev Lab delegates Unit inspection UI and contains no Cassandra inspector m
     assert.equal(source.includes(forbidden), false);
   }
   const entry = await read("../../cassandra/application/cassandra-application-shell.js");
-  assert.ok(entry.includes("createCassandraDevLabUnitInspectorUi"));
+  const runtimeHost = await read("../../cassandra/application/cassandra-runtime-host.js");
+  assert.ok(runtimeHost.includes("createCassandraDevLabUnitInspectorUi"));
+  assert.ok(runtimeHost.includes("gameplayUi"));
   assert.ok(entry.includes("gameplayUi"));
   const ui = await read("../../cassandra/application/dev-lab-unit-inspector-ui.js");
   assert.ok(ui.includes('data-role="quick-select"'));
