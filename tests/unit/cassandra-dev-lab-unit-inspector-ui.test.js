@@ -77,6 +77,7 @@ test("Cassandra Unit inspector renders selection and toggles the personnel profi
   ui.setPaused(false);
   assert.equal(elements.quickSelectInfo.disabled, true);
   ui.closeProfile();
+  elements.quickSelectInfo.click();
   assert.equal(ui.isProfileOpen(), false);
   ui.setPaused(true);
   elements.quickSelectInfo.click();
