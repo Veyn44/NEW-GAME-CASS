@@ -244,7 +244,7 @@ const workspaceSession = createDevLabWorkspaceSessionController({
     removeUnit: (id) => state.gameplayApi?.removeUnit(id),
     setLeader: (id) => state.gameplayApi?.setLeader(id)
   },
-  get clock() { return state.clock; },
+  clock: { pause: (reason) => state.clock?.pause(reason) },
   inputController, heldMovementKeys, viewport,
   isPaused: () => state.paused,
   setPaused: (paused) => { state.paused = paused; },
