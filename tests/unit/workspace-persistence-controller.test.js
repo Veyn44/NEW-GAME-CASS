@@ -131,8 +131,8 @@ test("file persistence controller injects save identity and filename selection",
   });
 
   assert.equal(await controller.saveAs(), true);
-  assert.deepEqual(requested, [{ currentFileName: "", defaultFileName: "default.cass" }]);
-  assert.equal(adapter.selectedFileName, "ship-backup.cass");
+  assert.deepEqual(requested, [{ currentFileName: "", defaultFileName: "default.sav" }]);
+  assert.equal(adapter.selectedFileName, "ship-backup.sav");
   assert.deepEqual(calls, [{
     slot: "app-specific-slot",
     options: { stateId: "app-specific-state", kind: "manual" }
