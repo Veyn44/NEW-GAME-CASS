@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { createWorkspacePersistenceController } from "../../dev-lab/application/workspace-persistence-controller.js";
+import { createFilePersistenceController } from "../../shared/application/file-persistence-controller.js";
 
 test("workspace persistence controller saves through the Engine persistence API", async () => {
   const calls = [];
@@ -19,9 +19,13 @@ test("workspace persistence controller saves through the Engine persistence API"
     async importFile() {},
     setDownloadFileName(name) { this.selectedFileName = name; }
   };
-  const controller = createWorkspacePersistenceController({
+  const controller = createFilePersistenceController({
     persistenceApi,
     saveAdapter: adapter,
+    saveSlot: "dev-lab-workspace",
+    stateId: "cassandra-dev-lab-workspace",
+    supportsFileAccess: () => false,
+    requestFileName: () => "save.cass",
     fileInput: { click() {} },
     onStatus: (status) => statuses.push(status)
   });
@@ -44,12 +48,16 @@ test("workspace persistence controller imports a file and synchronizes the resto
     clearSelection() {},
     setDownloadFileName() {}
   };
-  const controller = createWorkspacePersistenceController({
+  const controller = createFilePersistenceController({
     persistenceApi: {
       async save() {},
       async load(slot, options) { calls.push(["load", slot, options.stateId]); }
     },
     saveAdapter: adapter,
+    saveSlot: "dev-lab-workspace",
+    stateId: "cassandra-dev-lab-workspace",
+    supportsFileAccess: () => false,
+    requestFileName: () => "save.cass",
     fileInput: { click() {} },
     onRestore: () => { restored += 1; }
   });
@@ -73,6 +81,10 @@ test("workspace persistence controller delegates browser file selection and expo
       async importFile() {},
       setDownloadFileName() {}
     },
+    saveSlot: "dev-lab-workspace",
+    stateId: "cassandra-dev-lab-workspace",
+    supportsFileAccess: () => false,
+    requestFileName: () => "save.cass",
     fileInput: { click() { clicked += 1; } }
   });
 
