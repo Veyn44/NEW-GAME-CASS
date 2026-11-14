@@ -481,6 +481,10 @@ export async function startDevLab({
   definitionCatalog.refresh();
   state.saveAdapter = new LocalFileSaveAdapter();
   runtimeHost = createDevLabRuntimeHost({ createRuntime, resolveRuntimeServices });
-  await runtimeHost.start();
+  try {
+    await runtimeHost.start();
+  } catch (error) {
+    simulationStatus.textContent = `DEV LAB STARTUP FAILED · ${error.message}`;
+  }
   navigation.showView("menu");
 }
