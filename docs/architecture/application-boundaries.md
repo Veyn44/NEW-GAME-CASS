@@ -38,6 +38,8 @@ code.
   dependencies. The workspace save/load orchestration lives in
   `dev-lab/application/workspace-persistence-controller.js`; Engine persistence
   and the existing `.cass` file adapter remain separate dependencies.
+- Shared runtime lifecycle, fixed-step frame scheduling, clock synchronization, and teardown are owned by `shared/application/runtime-host.js`. Each application injects its runtime factory, service resolver, frame scheduler, and presentation callbacks; the shared host imports no application or browser modules.
+- The Dev Lab shell retains its workspace-specific composition, input policy, UI coordination, and camera behavior while delegating generic runtime hosting to the shared layer.
 - The shell delegates screen transitions, menu/back navigation, settings return
   routing, and the definition-catalog overlay lifecycle to
   `dev-lab/application/view-navigation-controller.js`. Pause overlay visibility
