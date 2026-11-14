@@ -12,6 +12,9 @@ export function createDevLabRuntime({ saveAdapter, updateFreeCamera } = {}) {
     saveAdapter,
     fixedStepSeconds: 1 / 60,
     maxStepsPerFrame: 120,
+    hostSystems: [{
+      id: "dev-lab.free-camera"
+    }],
     simulationTasks: [{
       systemId: "dev-lab.free-camera",
       update({ deltaSeconds }) {
