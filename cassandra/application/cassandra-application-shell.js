@@ -1,10 +1,10 @@
 import { loadCassandraDatabase } from "../database/load-cassandra-database.js";
 import { createCassandraRuntimeHost } from "./cassandra-runtime-host.js";
-import { createDevLabViewport } from "../../dev-lab/presentation/dev-lab-viewport.js";
-import { createViewportInputController } from "../../dev-lab/input/viewport-input-controller.js";
+import { createWorldViewport } from "../../shared/presentation/world-viewport.js";
+import { createViewportInputController } from "../../shared/input/viewport-input-controller.js";
 import { LocalFileSaveAdapter } from "../../src/adapters/storage/local-file-save-adapter.js";
 import { createWorkspacePersistenceController } from "../../dev-lab/application/workspace-persistence-controller.js";
-import { createDefinitionCatalogController } from "../../dev-lab/application/definition-catalog-controller.js";
+import { createDefinitionCatalogController } from "../../shared/application/definition-catalog-controller.js";
 import { createDevLabViewNavigationController } from "../../dev-lab/application/view-navigation-controller.js";
 import { createDevLabPauseMenuController } from "../../dev-lab/application/pause-menu-controller.js";
 import { getDefinition, listDefinitionIndex, getCategories, loadDefinitionDetail } from "../../engine/database/definition-registry.js";
@@ -32,13 +32,15 @@ const saveStatus = document.querySelector("#workspace-save-status");
 const pauseMenu = document.querySelector("#pause-menu");
 const inputController = createViewportInputController();
 const heldMovementKeys = new Set();
-const viewport = createDevLabViewport({
+const viewport = createWorldViewport({
   canvas,
   sizeSelect: worldSizeSelect,
   gridToggle: gridVisible,
   zoomValue: document.querySelector("#zoom-value"),
   worldStatus: document.querySelector("#world-status"),
-  viewStatus: document.querySelector("#view-status")
+  viewStatus: document.querySelector("#view-status"),
+  pointerOverlay: viewportPanel,
+  pointerCrosshair: document.querySelector(".viewport-crosshair")
 });
 
 const state = {
