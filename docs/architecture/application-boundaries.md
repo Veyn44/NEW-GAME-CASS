@@ -33,10 +33,14 @@ code.
 
 ## Current limits
 
-- The Dev Lab host shell still contains its generic catalog, viewport, pause,
-  and workspace UI in one module. A later slice can split those presentation
-  concerns into smaller Dev Lab-owned modules without changing this entry-point
-  boundary.
+- The Dev Lab shell now delegates viewport rendering and camera interaction to
+  `dev-lab/presentation/dev-lab-viewport.js`, initialized with explicit DOM
+  dependencies. The workspace save/load orchestration lives in
+  `dev-lab/application/workspace-persistence-controller.js`; Engine persistence
+  and the existing `.cass` file adapter remain separate dependencies.
+- The shell still owns navigation, catalog UI, pause state, and application-level
+  coordination. The viewport service still owns its DOM event bindings and
+  rendering loop; it is isolated from the shell but is not yet a headless renderer.
 - The existing workspace save adapter retains the established `.cass` file
   envelope and format for compatibility.
 - Cassandra currently hosts the Dev Lab viewport as its development workspace;
