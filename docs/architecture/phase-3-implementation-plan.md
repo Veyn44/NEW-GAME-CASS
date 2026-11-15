@@ -256,7 +256,7 @@ Behavior:
 - Same-position, out-of-bounds footprint, unavailable/non-grid/closed world and invalid entity cases.
 - Policy rejection, exception, async/malformed return and re-entrant attempt.
 
-**Boundary note:** The host policy receives immutable facts and is contractually synchronous, deterministic and side-effect-free. JavaScript cannot prevent a host closure from mutating external services it already owns; the Engine API does not grant the policy any mutation capability. Cassandra movement, speed, input, interpolation, passability and collision consequences remain untouched.
+**Boundary note:** The policy receives immutable facts and is synchronous. During evaluation, Engine guards Spatial Composition content/occupancy writes and Placement Coordinator commits/restore rollbacks; policy decision properties are normalized under the same guard. The host must still avoid mutating unrelated external state captured by its closure. Cassandra movement, speed, input, interpolation, passability and collision consequences remain untouched.
 
 ### Slice 5 — Persistence and restore integration
 
