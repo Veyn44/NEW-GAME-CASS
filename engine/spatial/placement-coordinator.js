@@ -5,11 +5,12 @@ export class PlacementCoordinatorError extends Error {
   constructor(code, message, details = {}) { super(message); this.name = "PlacementCoordinatorError"; this.code = code; this.details = Object.freeze({ ...details }); }
 }
 export class PlacementCoordinator {
-  #entities; #worlds; #worldContext; #spatial; #faulted = false;
-  constructor({ entityRegistry, worldRegistry, worldContext, spatialComposition } = {}) {
+  #entities; #worlds; #worldContext; #spatial; #faulted = false; #onFatalIntegrityFault;
+  constructor({ entityRegistry, worldRegistry, worldContext, spatialComposition, onFatalIntegrityFault = null } = {}) {
     if (!entityRegistry?.get || !entityRegistry?.setSpatialOccupancyGuard || !worldRegistry?.get ||
         !worldContext?.prepareCoordinatedPlacementChange || !spatialComposition?.prepareEntityOccupancyChange) throw new PlacementCoordinatorError("INVALID_DEPENDENCY", "PlacementCoordinator requires EntityRegistry, WorldRegistry, WorldContext and SpatialComposition.");
-    this.#entities = entityRegistry; this.#worlds = worldRegistry; this.#worldContext = worldContext; this.#spatial = spatialComposition;
+    if (onFatalIntegrityFault !== null && typeof onFatalIntegrityFault !== "function") throw new PlacementCoordinatorError("INVALID_FAULT_HANDLER", "onFatalIntegrityFault must be a function or null.");
+    this.#entities = entityRegistry; this.#worlds = worldRegistry; this.#worldContext = worldContext; this.#spatial = spatialComposition; this.#onFatalIntegrityFault = onFatalIntegrityFault;
     this.#entities.setSpatialOccupancyGuard((id) => this.#spatial.hasEntityOccupancy(id), PLACEMENT_AUTHORITY);
   }
   get isFaulted() { return this.#faulted; }
@@ -25,6 +26,7 @@ export class PlacementCoordinator {
   removePlacement(entityId) { return this.#apply(entityId, null); }
   removeEntity(entityId) { return this.#apply(entityId, null, { retire: true }); }
   #assertHealthy() { if (this.#faulted) throw new PlacementCoordinatorError("FATAL_INTEGRITY_FAULT", "Coordinator is faulted; mutations and persistence are blocked."); }
+  #markFaulted() { this.#faulted = true; try { this.#onFatalIntegrityFault?.(); } catch { /* Fault signaling must not mask the integrity failure. */ } }
   #apply(entityId, target, { retire = false } = {}) {
     this.#assertHealthy();
     const previous = this.#worldContext.getPlacement(entityId);
@@ -48,7 +50,7 @@ export class PlacementCoordinator {
     try { worldTx.commit(); worldCommitted = true; spatialTx.commit(); spatialCommitted = true; }
     catch (error) {
       try { if (spatialCommitted) spatialTx.rollback(); if (worldCommitted) worldTx.rollback(); }
-      catch (rollbackError) { this.#faulted = true; throw new PlacementCoordinatorError("FATAL_INTEGRITY_FAULT", "Commit and rollback both failed.", { cause: error?.message, rollback: rollbackError?.message }); }
+      catch (rollbackError) { this.#markFaulted(); throw new PlacementCoordinatorError("FATAL_INTEGRITY_FAULT", "Commit and rollback both failed.", { cause: error?.message, rollback: rollbackError?.message }); }
       throw new PlacementCoordinatorError("PLACEMENT_COMMIT_FAILED", "Coordinated placement failed; prior state was restored.", { cause: error?.message });
     }
     return Object.freeze({ previous: worldTx.previous, current: worldTx.current, occupancy: spatialTx.current });
@@ -57,7 +59,7 @@ export class PlacementCoordinator {
     const occupancy = this.#spatial.getEntityOccupancy(entityId);
     if (!occupancy || occupancy.worldId !== placement.worldId ||
         occupancy.anchor.x !== placement.position.x - 0.5 || occupancy.anchor.y !== placement.position.y - 0.5) {
-      this.#faulted = true; throw new PlacementCoordinatorError("PLACEMENT_INTEGRITY_MISMATCH", "WorldContext and Spatial Composition disagree.", { entityId });
+      this.#markFaulted(); throw new PlacementCoordinatorError("PLACEMENT_INTEGRITY_MISMATCH", "WorldContext and Spatial Composition disagree.", { entityId });
     }
   }
   #validateSnapshot(snapshot, { validateWorlds = true } = {}) {
@@ -101,7 +103,7 @@ export class PlacementCoordinator {
             this.#validateSnapshot(snapshot,{validateWorlds:true});
             worldTx.commit();
             try { spatialTx.commit(); }
-            catch (error) { try { worldTx.rollback(); } catch (rollbackError) { this.#faulted=true; throw new PlacementCoordinatorError("FATAL_INTEGRITY_FAULT","Restore rollback failed.",{cause:error?.message,rollback:rollbackError?.message}); } throw error; }
+            catch (error) { try { worldTx.rollback(); } catch (rollbackError) { this.#markFaulted(); throw new PlacementCoordinatorError("FATAL_INTEGRITY_FAULT","Restore rollback failed.",{cause:error?.message,rollback:rollbackError?.message}); } throw error; }
             committed=true;
           },
           rollback: () => { if (!committed) return false; try { spatialTx.rollback(); worldTx.rollback(); committed=false; return true; } catch(error) { this.#faulted=true; throw new PlacementCoordinatorError("FATAL_INTEGRITY_FAULT","Composite restore rollback failed.",{cause:error?.message}); } }
