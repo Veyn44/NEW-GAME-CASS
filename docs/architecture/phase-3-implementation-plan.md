@@ -260,7 +260,7 @@ Behavior:
 
 ### Slice 5 — Persistence and restore integration
 
-**Status:** Implemented on `work`; automated test coverage is present, but the latest change still requires a confirmed CI run.
+**Status:** Implemented on `work`; the latest confirmed CI run passed the full Core and host suites. IndexedDB campaign persistence remains a candidate backend pending real-browser durability/recovery verification.
 
 **Implemented files and behavior:**
 - `engine/spatial/placement-coordinator.js` owns the composite `core.spatial-placement` persistence participant.
@@ -270,7 +270,7 @@ Behavior:
 - `tests/unit/placement-coordinator.test.js` covers composite restore, mismatch rejection, authority guards, rollback integrity faulting and rollback when a later Persistence participant fails.
 - `tests/core-integration.test.js` covers the real Core Assembly grid placement save/load round-trip and cross-registry restore rollback.
 
-**Remaining verification:** Confirm a CI run on the current `work` head and keep unsupported historical save rejection covered. The test additions are not a claim that the latest CI has passed.
+**Remaining verification:** Verify the candidate campaign backend in actual target browsers; unsupported historical `.cass` envelope rejection is covered by automated tests.
 
 **Original implementation checklist (completed unless noted):**
 - Add an Engine-owned composite placement-state persistence coordinator/participant (detailed in Section 14 of `spatial-placement-integration-contract-proposal.md`) that captures World Context and Spatial Composition canonical snapshots together.
@@ -302,7 +302,7 @@ Tasks:
 
 ### Slice 6 — Runtime assembly and Core integration
 
-**Status:** Core Assembly integration is implemented on `work`; final CI and non-spatial regression acceptance remain verification gates.
+**Status:** Core Assembly integration is implemented on `work`; the latest full CI run passed, including non-spatial host tests and standalone Dev Lab/Cassandra-hosted spatial acceptance.
 
 **Implemented:**
 - `engine/core/core-assembly.js` registers Spatial Composition, Placement Coordinator and Spatial Movement with explicit service IDs and dependency declarations.
@@ -310,7 +310,7 @@ Tasks:
 - The Core service graph remains application-neutral and does not import Cassandra or Dev Lab.
 - `tests/core-integration.test.js` verifies grid placement persistence through the actual Core Assembly and retains non-grid World Context behavior coverage.
 
-**Remaining:** Confirm current CI results, teardown/lifecycle regression coverage, and the full non-spatial host suite on the latest head.
+**Remaining:** Browser-level teardown/lifecycle verification; automated Core/host suite currently passes.
 
 **Original implementation checklist:**
 - Update `engine/core/core-assembly.js`.
@@ -333,7 +333,7 @@ Tasks:
 
 ### Slice 7 — Cassandra integration
 
-**Status:** Main World grid/Unit integration, Cassandra Main + Temporary World session foundations and the first Cassandra Change Package coordinator are implemented on `work`; production campaign storage, campaign projection/domain operations, expedition workflow and final acceptance remain outstanding.
+**Status:** Main World grid/Unit integration, Main + Temporary World session, Unit identity projection and persistence, Change Package/Change Buffer protocol and candidate IndexedDB CAS backend are implemented on `work`; authoritative campaign domain operations, full expedition workflow, backend browser verification and final acceptance remain outstanding.
 
 **Implemented initial sub-slice:**
 - Cassandra's 64×64, 128×128 and 256×256 selectable Main Worlds explicitly declare matching Engine grid capabilities.
@@ -354,7 +354,7 @@ Tasks:
 - Colony movement speed, cardinal movement, diagonal normalization, Draft gating, active-world gating and persistence.
 - Main/Temporary World session lifecycle, single-temporary constraint, independent local clocks, Main-time pause, return behavior, world-session persistence restore and no local-time commit after a failed scheduler step.
 
-**Remaining:** Full participation gating for every future Cassandra simulation system; campaign projection mapping and authoritative aggregate models; production verification/integration of the IndexedDB campaign adapter; domain operation handlers and full conservation/reconciliation rules; expedition creation/End/Abandon workflow; safe Temporary World disposal after package commit; and environment/world-generation integration when authoritative modules exist. The current branch still has no authoritative environment, world-generation or expedition gameplay modules to integrate.
+**Remaining:** Full participation gating for future Cassandra simulation systems; extend Unit projection beyond currently modeled definition/position and add shuttle/other persistent-entity projections; authoritative campaign aggregate models; production browser verification/integration of the IndexedDB campaign adapter; typed domain operation handlers and full conservation/reconciliation rules; expedition creation/End/Abandon workflow; safe Temporary World disposal after package commit; and environment/world-generation integration when authoritative modules exist. The current branch still has no authoritative environment, world-generation or expedition gameplay modules to integrate.
 
 **Target area:** Existing Cassandra application/gameplay modules, exact paths to be confirmed by the required source audit in Slice 0.
 
@@ -413,6 +413,8 @@ Tasks:
 - Standalone Dev Lab and Cassandra-hosted Dev Lab remain application-separated according to the application-boundary contract.
 
 ### Slice 9 — End-to-end acceptance and release gate
+
+**Status:** Automated Core and host suites pass on `work` (205/205 Core, 228/228 host at the latest confirmed run). Multi-world occupancy, Main/Temporary clock behavior, Unit/projection persistence, package retries/CAS, unsupported historical save rejection and Dev Lab/Cassandra host parity have automated coverage. Browser-specific IndexedDB durability, UI interaction/layout, 128×128/256×256 performance measurements and any environment simulation not present in this branch remain open verification items.
 
 Tasks:
 - Run all existing Core/application tests plus current-format save tests and safe-rejection tests for unsupported historical `.cass` versions.
