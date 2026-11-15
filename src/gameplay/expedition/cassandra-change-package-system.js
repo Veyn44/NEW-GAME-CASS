@@ -94,6 +94,49 @@ function validateBaseline(baseline) {
   return result.sort((a, b) => a.aggregateId.localeCompare(b.aggregateId));
 }
 
+function validateProjectionMappings(mappings, baseline) {
+  if (!Array.isArray(mappings)) {
+    fail("INVALID_PROJECTION_MAPPINGS", "projectionMappings must be an array.");
+  }
+  const baselineById = new Map(baseline.map((entry) => [entry.aggregateId, entry.revision]));
+  const campaignIds = new Set();
+  const temporaryIds = new Set();
+  return mappings.map((mapping) => {
+    if (!mapping || typeof mapping !== "object") {
+      fail("INVALID_PROJECTION_MAPPINGS", "Projection mapping entries must be objects.");
+    }
+    const campaignEntityId = assertId(mapping.campaignEntityId, "Campaign entity ID");
+    const temporaryEntityId = assertId(mapping.temporaryEntityId, "Temporary entity ID");
+    const aggregateId = assertId(mapping.aggregateId, "Projection aggregate ID");
+    if (campaignEntityId === temporaryEntityId
+      || campaignIds.has(campaignEntityId) || temporaryIds.has(temporaryEntityId)) {
+      fail("DUPLICATE_PROJECTION_MAPPING", "Projection identity mappings must be one-to-one and use distinct IDs.", {
+        campaignEntityId, temporaryEntityId
+      });
+    }
+    if (baselineById.get(aggregateId) !== mapping.baselineRevision) {
+      fail("PROJECTION_BASELINE_MISMATCH",
+        "Projection mapping revision must match its package aggregate baseline.",
+        { campaignEntityId, aggregateId });
+    }
+    if (typeof mapping.projectionRole !== "string" || !mapping.projectionRole
+      || typeof mapping.transferEligible !== "boolean") {
+      fail("INVALID_PROJECTION_MAPPINGS",
+        "Projection mapping must declare a role and transfer eligibility.",
+        { campaignEntityId });
+    }
+    if (mapping.baselineFingerprint !== undefined && mapping.baselineFingerprint !== null
+      && typeof mapping.baselineFingerprint !== "string") {
+      fail("INVALID_PROJECTION_FINGERPRINT", "Projection baseline fingerprint must be a string or null.", {
+        campaignEntityId
+      });
+    }
+    campaignIds.add(campaignEntityId);
+    temporaryIds.add(temporaryEntityId);
+    return cloneJson(mapping, `projection mapping ${campaignEntityId}`);
+  }).sort((a, b) => a.campaignEntityId.localeCompare(b.campaignEntityId));
+}
+
 function validateOperations(operations, baseline) {
   if (!Array.isArray(operations) || operations.length === 0) {
     fail("INVALID_OPERATIONS", "A finalized package must contain at least one typed operation.");
@@ -189,7 +232,18 @@ export async function createCassandraChangePackage(input) {
   const packageId = assertId(input.packageId, "Package ID");
   const sessionId = assertId(input.sessionId, "Expedition session ID");
   if (!input.source || typeof input.source !== "object") fail("INVALID_PACKAGE_SOURCE", "Package source metadata is required.");
+  const source = cloneJson(input.source, "source");
+  assertId(source.mainWorldId, "Source Main World ID");
+  assertId(source.temporaryWorldId, "Source Temporary World ID");
+  if (source.mainWorldId === source.temporaryWorldId) {
+    fail("INVALID_PACKAGE_SOURCE", "Source Main and Temporary World IDs must be different.");
+  }
+  if (source.locationRevision !== undefined
+    && (!Number.isSafeInteger(source.locationRevision) || source.locationRevision < 0)) {
+    fail("INVALID_PACKAGE_SOURCE", "Location revision must be a non-negative safe integer.");
+  }
   const baseline = validateBaseline(input.baseline);
+  const projectionMappings = validateProjectionMappings(input.projectionMappings ?? [], baseline);
   const operations = validateOperations(input.operations, baseline);
   orderOperations(operations);
   const returnManifest = validateManifest(input.returnManifest);
@@ -201,9 +255,9 @@ export async function createCassandraChangePackage(input) {
     schemaVersion: PACKAGE_SCHEMA_VERSION,
     packageId,
     sessionId,
-    source: cloneJson(input.source, "source"),
+    source,
     baseline,
-    projectionMappings: cloneJson(input.projectionMappings ?? [], "projectionMappings"),
+    projectionMappings,
     operations,
     returnManifest,
     outcome: cloneJson(input.outcome, "outcome")
