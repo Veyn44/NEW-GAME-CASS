@@ -1,0 +1,249 @@
+# Phase 3 Cross-Contract Integration Audit
+
+**Status:** Documentation audit completed; implementation specification still requires focused closure  
+**Branch:** `work`  
+**Audit date:** 2026-11-15  
+**Scope:** Cross-contract consistency, integrated acceptance coverage and dependency-ordered implementation plan  
+**Authority:** This audit records consistency findings and implementation recommendations. It does not authorize source/runtime changes, PR creation/merge or changes to `main`.
+
+## 1. Audit result
+
+The current Phase 3 contracts are **architecturally compatible at the responsibility-boundary level**. No fundamental contradiction was found between optional grid geometry, spatial composition, read-only spatial queries, movement, coordinated placement, world lifecycle, expedition change packages and save persistence.
+
+Several details remain implementation-level proposals rather than approved API specifications. They are called out explicitly below; this audit does not silently promote them to decisions.
+
+One documentation conflict was found and corrected during this audit: older wording required preserving arbitrary existing `.cass` compatibility. The agreed policy is now that Cassandra makes **no general backward-compatibility promise** for saves from older game versions. Unsupported versions may be rejected safely. Selected migrations remain optional and version-scoped.
+
+## 2. Cross-contract invariant matrix
+
+| Area | Authoritative owner | Required invariant | Audit result |
+|---|---|---|---|
+| World identity/lifecycle | World Registry + lifecycle runtime | Existence, loaded/readiness, simulation, pause, focus and rendering are independent dimensions | Consistent |
+| Grid capability | World Registry descriptor | Grid is explicit, optional and immutable for the initial World lifetime; dimensions alone do not imply grid | Consistent |
+| Grid geometry | Grid Geometry | Integer cell coordinates, top-left origin, half-open bounds, deterministic conversion | Consistent |
+| Entity identity | Entity Registry | One stable identity/lifecycle per entity; spatial references do not duplicate identity | Consistent |
+| World/storage placement | World Context | Owns world association and storage placement under its existing contract | Consistent |
+| Grid placement detail | Spatial Composition | Owns anchor, footprint, orientation and occupied-cell index | Consistent when coordinated |
+| Cross-service placement | Placement Coordinator/integration boundary | World Context and Spatial Composition commit or roll back together; no observer sees an intermediate state | Consistent; API/transaction mechanics open |
+| Cell composition | Spatial Composition | Sparse contents; multiple independent contents/entities per cell; empty is neutral; vacuum is explicit | Consistent |
+| Spatial queries | Spatial Composition query surface | Read-only, deterministic, bounded, no hidden activation/materialization/mutation | Consistent |
+| Movement | Spatial Movement + host policy | Engine commits geometry only; Cassandra decides passability, speed and consequences | Consistent |
+| Simulation time | GameClock/Scheduler + world-local time | One global time base; only successful world steps advance that world's local time; paused worlds do not age | Consistent |
+| Expedition projection | Cassandra | Persistent campaign identity is distinct from temporary runtime entity identity; explicit mapping | Consistent |
+| Expedition result | Cassandra Change Package | Immutable, durable package; explicit disposition/reconciliation; no whole-Main-World replacement | Consistent |
+| Campaign promotion | Cassandra Major State + Change Buffer | Build isolated Candidate; validate all; atomically promote Major State + Applied ledger | Consistent |
+| Save restore | Engine Persistence + application preflight | Prepare/validate before commit; reject missing/invalid required state; rollback where supported | Consistent |
+| Save-version policy | Cassandra application | No general backward compatibility promise; unsupported old versions may be rejected without mutation | Updated and consistent |
+
+## 3. Important integration findings
+
+### 3.1 Placement has two complementary authorities, not two competing authorities
+
+The original Spatial Composition proposal describes World Context as the existing placement authority. The later approved placement decision refines this for grid worlds:
+
+- World Context owns the entity's world association and storage/world placement lifecycle.
+- Spatial Composition owns grid anchor, canonical footprint, orientation and occupied cells.
+- A grid-backed placement operation is one coordinated transaction.
+- Non-grid placement and storage continue to use World Context alone.
+
+This is not a contradiction once the integration contract is read as the refinement of the earlier standalone proposal. All grid placement mutation paths must be routed through the coordinator; direct one-sided updates are forbidden.
+
+### 3.2 Coordinate conversion is still a real open detail
+
+The preferred mapping is grid anchor `(x,y)` to World Context world-space cell center `(x+0.5,y+0.5)`. It matches the current viewport convention, but remains a proposal, not an approved API rule.
+
+Existing Unit movement accepts fractional world-space positions. Therefore:
+- Do not silently round legacy fractional positions into cells.
+- Audit each source representation before conversion.
+- Define an explicit mapping for grid-backed entities.
+- Keep non-grid continuous placement semantics unchanged.
+
+This is a focused implementation/design decision, not a reason to weaken the ownership or atomicity invariant.
+
+### 3.3 Simulation time and expedition pause agree
+
+The lifecycle contract provides one shared global time base and world-local committed simulated time. Cassandra pauses Main World simulation while the Temporary World participates. Consequently:
+- Temporary World local time advances by its successful simulation steps.
+- Main World local time remains unchanged while paused.
+- Returning from an expedition does not apply elapsed Temporary World time to Main World.
+- Rendering/focus changes do not advance either world's simulation.
+
+No independent wall clock or per-world time scaling is introduced by this design.
+
+### 3.4 Temporary World results do not use generic Engine transfer as a shortcut
+
+A persistent campaign object and its Temporary World projection use distinct runtime identities connected by a durable session mapping. The change package addresses campaign identities and explicit result keys, not an indiscriminate copy of the Temporary World snapshot.
+
+The package is immutable after finalization. Its return manifest and conservation reconciliation prevent missing items/resources from being treated as normal cleanup. The Main World is not overwritten by the Temporary World.
+
+### 3.5 Major State + Change Buffer is compatible with Engine persistence, but remains Cassandra-owned
+
+The package contract's staged model is:
+1. Preserve the last complete Major State.
+2. Durably persist the complete Change Buffer and recovery checkpoint.
+3. Build Candidate State in isolation.
+4. Validate identity, entitlement, ownership, quantity conservation, preconditions and domain invariants.
+5. Atomically promote Candidate State and Applied ledger.
+6. Dispose Temporary World only after durable confirmation.
+
+Candidate failure leaves Major State unchanged. Transient storage failure retains the buffer for retry. An integrity violation rejects the package and rolls the expedition back to its start checkpoint. This is a Cassandra campaign transaction, not a generic Engine spatial transaction.
+
+The exact storage transaction/atomic-promotion mechanism must be proven against the target persistence backend; a sequence of unrelated file writes is not sufficient.
+
+### 3.6 Save compatibility is a product policy, not a migration project
+
+Agreed direction:
+- No general requirement to load saves from older Cassandra versions.
+- Unsupported outer envelope, inner format, participant schema or content versions may be rejected.
+- No permanent historical migration chain is required.
+- Selected migrations may be supported explicitly when worth maintaining.
+- Rejection/migration failure must not partially mutate the runtime or rewrite the source save.
+- Cassandra and Dev Lab remain separate save identities with no cross-save conversion.
+
+The current audited `.cass` workspace save is not a future campaign save and is not a valid source for campaign environment/inventory/expedition migration.
+
+## 4. Remaining implementation-level closure
+
+These items are not contradictions; they must be resolved before the dependent implementation slice:
+
+1. **Placement integration:** exact coordinator location/API, prepared-state transaction mechanism, observer/persistence safe boundary and rollback implementation.
+2. **Coordinate mapping:** confirm the grid-anchor ↔ World Context position rule and define migration behavior only for any specifically supported legacy source.
+3. **Persistence registration:** exact participant IDs/schema versions, dependency order, cross-participant validation and restore rollback tests.
+4. **Save support matrix:** declare which current outer/inner/participant/content versions are accepted; reject everything else clearly. Golden fixtures must be generated from actual supported outputs.
+5. **Campaign save model:** identify the future campaign save identity and authoritative campaign/location/environment participants; do not infer them from the current workspace save.
+6. **Change package:** finalize typed operation schemas, package identity/digest, durable Change Buffer/ledger and idempotent retry semantics.
+7. **Campaign recovery:** define the concrete durable checkpoint and atomic promotion/recovery mechanism for the supported storage backend.
+8. **Source audit before Cassandra integration:** locate and inspect actual pawn movement, world generation, environment persistence, map state, expedition flow and tests. Current audit evidence is incomplete for those paths.
+9. **World lifecycle runtime details:** exact state representation, event/error names, global clock behavior when a world fails, and restore readiness sequencing.
+
+No user decision is needed to preserve the agreed architectural boundaries. The anchor-to-world-position mapping is the most consequential remaining design choice and should be settled before the placement integration is implemented.
+
+## 5. Integrated acceptance matrix (Step 9)
+
+Every scenario below must be covered by an automated test or a clearly identified manual acceptance test. Existing tested environment behavior is a protected regression area.
+
+### A. Geometry and world capability
+- A non-grid World remains valid even with generic dimensions.
+- Grid capability is explicit in the World descriptor and dimensions are positive safe integers.
+- Integer cell coordinates use top-left origin and half-open bounds.
+- Fractional cell coordinates are rejected; world-space-to-cell conversion uses the defined floor rule.
+- 128×128 and 256×256 Cassandra worlds are supported without Engine hard-coded size limits.
+- Viewport/camera/rendering changes never mutate grid geometry.
+
+### B. Composition and identity
+- An untouched in-bounds cell returns neutral empty composition without materialization.
+- Vacuum/environment content is independent from empty-cell default.
+- Multiple entities and cell-associated contents coexist at one coordinate.
+- One multi-cell entity retains one Entity Registry identity and one canonical footprint.
+- Non-rectangular footprints and supported quarter-turn orientations derive deterministic occupied-cell sets.
+- Duplicate IDs, invalid references, invalid orientations and out-of-bounds footprints are rejected.
+- Derived reverse indexes rebuild from canonical records and reconcile exactly.
+
+### C. Queries
+- Cell, explicit cell-set, bounded region, entity occupancy, footprint, neighbor and radius queries return deterministic results.
+- Entity-oriented queries deduplicate multi-cell entities.
+- Region queries distinguish anchor inclusion from footprint intersection.
+- Queries do not create cells, activate worlds, simulate, mutate state or repair snapshots.
+- Inactive-world queries are allowed only when the required spatial snapshot is already available.
+- Out-of-bounds, non-grid, unknown-world and unavailable-snapshot results remain distinguishable.
+
+### D. Placement and movement
+- Non-grid placement and storage continue to work through World Context alone.
+- Grid placement/move/rotation/footprint replacement update World Context and Spatial Composition together.
+- No query, event, renderer, simulation system or persistence capture observes cross-service intermediate state.
+- Failure in either commit restores both services exactly.
+- Rejected host policy leaves old occupancy unchanged.
+- Engine reports geometric facts; Cassandra decides passability, blocking, speed, costs and consequences.
+- No movement operation advances simulation time or changes health/inventory by itself.
+
+### E. World lifecycle and time
+- Main and Temporary Worlds coexist.
+- Registration, loading/readiness, simulation participation, pause, focus and rendering are independently testable.
+- Only participating worlds receive steps.
+- Only successful steps advance the relevant world-local simulated time.
+- Paused Main World time remains unchanged during an expedition.
+- Rendering/focus/selection do not advance simulation.
+- A world-local failure is isolated; a shared infrastructure failure may stop the runtime.
+- A world that fails after partial synchronous mutation is not resumed without restore/rebuild or an explicitly added transactional mechanism.
+
+### F. Persistence and restore
+- World Registry grid descriptors restore before dependent spatial data.
+- Entity identities and World Context/Spatial Composition records are cross-validated before commit.
+- Spatial snapshots persist canonical content/anchor/footprint data, not rebuildable duplicate indexes.
+- Missing required spatial data is rejected unless a specifically supported migration proves the correct result.
+- Unsupported historical save versions are rejected cleanly without runtime mutation or source-file modification.
+- Current supported save round-trips preserve identity and authoritative state.
+- Restore preparation is side-effect-free; commit/rollback failure behavior is tested.
+- Environment simulation rules are unchanged by spatial persistence integration.
+
+### G. Expedition and campaign change package
+- Expedition creates a Temporary World projection with unique runtime identities and stable campaign mappings.
+- Main World simulation remains paused and its local time does not advance.
+- Every relevant item/entity/resource/reward has an explicit final disposition.
+- Conservation/reconciliation detects missing, duplicated or unexplained quantities.
+- Finalized package is immutable and durably retained before Temporary World disposal.
+- Candidate State is built from Major State + complete Change Buffer without exposing partial changes.
+- Candidate validation failure leaves Major State unchanged.
+- Transient commit failure retains the same buffer for retry without duplication.
+- Identity/entitlement/conservation integrity failure rejects the entire result and restores the expedition-start checkpoint.
+- Atomic promotion commits new Major State and Applied ledger together.
+- Temporary World is disposed and Main World resumed only after durable successful application.
+
+### H. Application boundary and regression
+- Engine contains no Cassandra-specific entity, environment, expedition or save-domain rules.
+- Cassandra owns generation, environment, pawn movement and campaign semantics.
+- Dev Lab consumes shared Engine spatial APIs and does not create a parallel occupancy model.
+- Existing tested environment simulation and unrelated UI/input behavior remain unchanged unless a separately approved dependency requires a minimal change.
+- No cross-save compatibility between Cassandra and Dev Lab is introduced.
+
+## 6. Dependency-ordered implementation sequence (Step 10)
+
+The proposed sequence below is the recommended dependency order, not authorization to begin implementation.
+
+| Order | Slice | Depends on | Main deliverable / exit gate |
+|---:|---|---|---|
+| 0 | Design closure + baseline | None | Close required design details; locate actual source paths; record current supported save formats/fixtures; baseline tests |
+| 1 | Grid Geometry | 0 | World Registry optional grid descriptor, geometry primitives and boundary tests |
+| 2 | Spatial Composition | 1 | Sparse contents, canonical footprints, occupancy, deterministic indexes and atomic local updates |
+| 3 | Spatial Queries | 2 | Read-only query surface and deterministic/lifecycle-aware results |
+| 4 | Movement | 2, 3, placement decision | Generic footprint move transaction with host policy boundary |
+| 5 | Persistence | 1, 2, placement decision | Versioned snapshots, dependency-safe restore, cross-service validation, supported-version rejection and rollback |
+| 6 | Core assembly | 1–5 | Service registration, participant ordering, non-grid regression and Core integration |
+| 7 | Cassandra integration | 6 + package/recovery design | Cassandra grid adoption, movement/environment/worldgen integration, expedition package protocol |
+| 8 | Dev Lab integration | 6 | Inspection/test UI using the same Engine spatial services |
+| 9 | End-to-end acceptance | 7, 8 | Full regression, integrated matrix, manual acceptance where automation is unsuitable, explicit release review |
+
+### Dependency constraints
+- Slice 1 does not depend on Cassandra gameplay rules.
+- Slice 2 depends on grid descriptors and Entity Registry identity.
+- Slice 3 depends on authoritative Spatial Composition data; it does not create a second store.
+- Slice 4 depends on composition and host policy; it must use the coordinated placement boundary for grid-backed entities.
+- Slice 5 depends on canonical spatial records and placement ownership; do not persist two conflicting placement authorities.
+- Slice 6 follows successful unit/integration behavior of slices 1–5.
+- Slices 7 and 8 both depend on the same Engine API; neither may fork occupancy/movement semantics.
+- Cassandra expedition change-package work is not interchangeable with Engine cross-world spatial relocation.
+- Slice 9 is a gate, not a catch-all implementation phase.
+
+## 7. Explicit non-goals retained
+
+- No source/runtime changes are authorized by this audit.
+- No PR merge or `main` update is implied.
+- No cross-save compatibility or converter between Cassandra and Dev Lab.
+- No requirement to load arbitrary older Cassandra saves.
+- No pathfinding, continuous physics framework, universal passability or game-specific movement rules in Engine.
+- No changes to tested environment simulation without a concrete dependency and separate approval.
+- No hard-coded Engine limit of two Worlds.
+- No automatic off-screen simulation of inactive locations unless separately designed for a Cassandra feature.
+
+## 8. Source and related contract references
+
+- `world-lifecycle-contract-proposal.md`
+- `grid-geometry-contract-proposal.md`
+- `spatial-composition-contract-proposal.md`
+- `spatial-query-contract-proposal.md`
+- `movement-collision-contract-proposal.md`
+- `spatial-placement-integration-contract-proposal.md`
+- `cassandra-temporary-world-change-package-contract-proposal.md`
+- `cass-save-compatibility-migration-proposal.md`
+- `phase-3-implementation-plan.md`
+- `phase-3-brainstorm.md`
