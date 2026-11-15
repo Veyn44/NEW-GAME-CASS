@@ -366,7 +366,7 @@ test("version-one world references migrate into generic metadata", () => {
 
 test("snapshot rejects multiple active worlds and inconsistent activeWorldId", () => {
   const registry = makeRegistry();
-  const a = { worldId: "world:a", type: "cassandra", status: "active", dimensions: { width: 10, height: 10 }, coordinateSystem: "world-units", metadata: {} };
+  const a = { worldId: "world:a", type: "cassandra", status: "active", dimensions: { width: 10, height: 10 }, grid: null, coordinateSystem: "world-units", metadata: {} };
   const b = { ...a, worldId: "world:b" };
   throwsCode(() => registry.prepareRestore({ version: 3, activeWorldId: "world:a", worlds: [a, b] }), "MULTIPLE_ACTIVE_WORLDS");
   throwsCode(() => registry.prepareRestore({ version: 3, activeWorldId: "world:missing", worlds: [{ ...a, status: "inactive" }] }), "INVALID_ACTIVE_WORLD");
