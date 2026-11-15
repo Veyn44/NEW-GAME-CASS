@@ -175,6 +175,35 @@ test("IndexedDB campaign adapter atomically replaces and reopens one complete ca
   reopened.close();
 });
 
+test("IndexedDB campaign adapter snapshots write inputs and isolates loaded snapshots", async () => {
+  const indexedDBRef = new FakeIndexedDB();
+  const adapter = new IndexedDbCampaignSaveAdapter({
+    indexedDBRef,
+    campaignId: "campaign:detached-snapshots",
+    initialSnapshot: initialSnapshot()
+  });
+  const input = {
+    majorState: { revision: 2, aggregates: { crew: { revision: 1, state: { supplies: 7 } } } },
+    pendingPackages: [{ packageId: "package:detached" }],
+    appliedLedger: []
+  };
+  const write = adapter.writeCampaignSnapshotAtomic(input, 0);
+  input.majorState.aggregates.crew.state.supplies = 999;
+  input.pendingPackages[0].packageId = "package:mutated";
+  await write;
+
+  const loaded = await adapter.loadCampaignSnapshot();
+  assert.equal(loaded.snapshot.majorState.aggregates.crew.state.supplies, 7);
+  assert.equal(loaded.snapshot.pendingPackages[0].packageId, "package:detached");
+  loaded.snapshot.majorState.aggregates.crew.state.supplies = 1234;
+  loaded.snapshot.pendingPackages.length = 0;
+
+  const reopened = await adapter.loadCampaignSnapshot();
+  assert.equal(reopened.snapshot.majorState.aggregates.crew.state.supplies, 7);
+  assert.equal(reopened.snapshot.pendingPackages[0].packageId, "package:detached");
+  adapter.close();
+});
+
 test("IndexedDB campaign adapter fails closed when strict durability is unavailable", async () => {
   const indexedDBRef = new FakeIndexedDB({ supportsStrict: false });
   const adapter = new IndexedDbCampaignSaveAdapter({
