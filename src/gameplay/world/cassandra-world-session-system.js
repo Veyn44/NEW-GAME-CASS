@@ -262,6 +262,12 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
             }
           }
           const placementsInWorld = worldContext.listPlacements({ worldId: id });
+          const occupanciesInWorld = spatial.listEntityOccupancies({ worldId: id });
+          const occupancyByEntity = new Map(occupanciesInWorld.map((entry) => [entry.entityId, entry]));
+          // Validate the complete WorldContext ↔ Spatial Composition bijection
+          // before the first Unit or Entity is retired. A later per-entity
+          // coordinator failure must not discover pre-existing corruption after
+          // earlier entities have already been removed.
           for (const placement of placementsInWorld) {
             const entity = entities.get(placement.entityId);
             if (!entity || entity.scope !== "scoped" || entity.scopeId !== scopeId) {
@@ -269,14 +275,35 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
                 "Temporary World disposal refuses to remove a placement not owned by this Temporary World scope.",
                 { worldId: id, entityId: placement.entityId });
             }
+            const occupancy = occupancyByEntity.get(placement.entityId);
+            if (!occupancy || occupancy.worldId !== id
+              || occupancy.anchor.x !== placement.position.x - 0.5
+              || occupancy.anchor.y !== placement.position.y - 0.5) {
+              throw new CassandraWorldSessionError("TEMPORARY_SPATIAL_INTEGRITY_MISMATCH",
+                "Temporary World placement and occupancy must agree before disposal begins.",
+                { worldId: id, entityId: placement.entityId });
+            }
           }
-          for (const occupancy of spatial.listEntityOccupancies({ worldId: id })) {
+          for (const occupancy of occupanciesInWorld) {
             const entity = entities.get(occupancy.entityId);
+            const placement = worldContext.getPlacement(occupancy.entityId);
             if (!entity || entity.scope !== "scoped" || entity.scopeId !== scopeId) {
               throw new CassandraWorldSessionError("PERSISTENT_OCCUPANCY_IN_TEMPORARY_WORLD",
                 "Temporary World disposal refuses to remove occupancy not owned by this Temporary World scope.",
                 { worldId: id, entityId: occupancy.entityId });
             }
+            if (!placement || placement.type !== "world" || placement.worldId !== id
+              || occupancy.anchor.x !== placement.position.x - 0.5
+              || occupancy.anchor.y !== placement.position.y - 0.5) {
+              throw new CassandraWorldSessionError("TEMPORARY_SPATIAL_INTEGRITY_MISMATCH",
+                "Temporary World occupancy and placement must agree before disposal begins.",
+                { worldId: id, entityId: occupancy.entityId });
+            }
+          }
+          if (placementsInWorld.length !== occupanciesInWorld.length) {
+            throw new CassandraWorldSessionError("TEMPORARY_SPATIAL_INTEGRITY_MISMATCH",
+              "Temporary World placements and occupancies must have equal cardinality before disposal begins.",
+              { worldId: id, placements: placementsInWorld.length, occupancies: occupanciesInWorld.length });
           }
 
           for (const unit of unitApi.listUnits()) {
