@@ -48,7 +48,7 @@ The original Spatial Composition proposal describes World Context as the existin
 
 This is not a contradiction once the integration contract is read as the refinement of the earlier standalone proposal. All grid placement mutation paths must be routed through the coordinator; direct one-sided updates are forbidden.
 
-### 3.2 Coordinate conversion is still a real open detail
+### 3.2 Coordinate conversion is approved; fractional movement integration remains open
 
 **Approved direction (2026-11-15):** Grid anchor `(x,y)` maps to World Context world-space cell center `(x+0.5,y+0.5)`. The integer anchor is the anchor cell, not the center of the complete multi-cell footprint. Non-grid positions remain continuous.
 
