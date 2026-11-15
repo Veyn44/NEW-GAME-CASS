@@ -206,7 +206,7 @@ Tasks:
 ### Slice 5 — Persistence and restore integration
 
 **Proposed files:**
-- Add an Engine-owned composite placement-state persistence coordinator/participant that captures World Context and Spatial Composition canonical snapshots together.
+- Add an Engine-owned composite placement-state persistence coordinator/participant (detailed in Section 14 of `spatial-placement-integration-contract-proposal.md`) that captures World Context and Spatial Composition canonical snapshots together.
 - Keep Entity Registry and World Registry as earlier restore dependencies; restore the composite placement state after both.
 - Do not register independent World Context and Spatial Composition participants for the same canonical placement state in one Core assembly.
 - Update `engine/core/core-assembly.js` to register it after dependency ordering is approved.
