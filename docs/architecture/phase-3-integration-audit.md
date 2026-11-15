@@ -84,7 +84,9 @@ The package contract's staged model is:
 
 Candidate failure leaves Major State unchanged. Transient storage failure retains the buffer for retry. An integrity violation rejects the package and rolls the expedition back to its start checkpoint. This is a Cassandra campaign transaction, not a generic Engine spatial transaction.
 
-The exact storage transaction/atomic-promotion mechanism must be proven against the target persistence backend; a sequence of unrelated file writes is not sufficient.
+The exact storage transaction/atomic-promotion mechanism must be proven against the target persistence backend; a sequence of unrelated file writes is not sufficient. The package proposal now includes concrete defaults for typed operations, per-aggregate revisions, result-key mapping, canonical digest and one atomic campaign-save promotion.
+
+A source audit of `src/adapters/storage/local-file-save-adapter.js` confirms that the existing adapter supports only the `dev-lab-workspace` slot. With a file handle it writes one complete `.cass` file; without a file handle it exports a download rather than atomically replacing an authoritative campaign save. It cannot be assumed to provide the future campaign's multi-state transaction guarantee. The campaign backend must prove atomic file replacement or an atomic generation-manifest switch.
 
 For Engine placement restore, a focused source audit found that the current Persistence implementation awaits participant commits sequentially. Therefore two separate awaited World Context and Spatial Composition participants would not meet the no-observer-intermediate-state requirement. Section 14 of `spatial-placement-integration-contract-proposal.md` records the source-audited composite participant recommendation and restore ordering.
 
@@ -125,8 +127,8 @@ These items are not contradictions; they must be resolved before the dependent i
 3. **Persistence registration:** finalize the composite placement participant ID/schema, dependency order, cross-service validation, fatal rollback behavior and restore tests.
 4. **Save support matrix:** declare which current outer/inner/participant/content versions are accepted; reject everything else clearly. Golden fixtures must be generated from actual supported outputs.
 5. **Campaign save model:** identify the future campaign save identity and authoritative campaign/location/environment participants; do not infer them from the current workspace save.
-6. **Change package:** finalize typed operation schemas, package identity/digest, durable Change Buffer/ledger and idempotent retry semantics.
-7. **Campaign recovery:** define the concrete durable checkpoint and atomic promotion/recovery mechanism for the supported storage backend.
+6. **Change package:** review the proposed package envelope, typed operation families, per-aggregate revision model, canonical digest and result-key mapping; verify durable Change Buffer/ledger and idempotent retry semantics.
+7. **Campaign recovery:** choose the actual campaign storage backend, define the frozen Temporary World checkpoint and prove atomic Major State + Applied ledger promotion/recovery.
 8. **Future physical-world source audit:** current Unit/Colony Control and viewport paths have been inspected. Environment simulation, world generation, expedition flow, Temporary World runtime and their tests are not present in the current branch tree and must be audited when available.
 9. **World lifecycle runtime details:** exact state representation, event/error names, global clock behavior when a world fails, and restore readiness sequencing. The current Cassandra prototype has one active/selected World and one gameplay simulation task; it does not yet implement Main + Temporary World simulation.
 
