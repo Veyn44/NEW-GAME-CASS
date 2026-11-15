@@ -67,8 +67,8 @@ function refreshWorldMarkers() {
     .filter((unit) => unit.placement?.type === "world" && unit.placement.worldId === activeWorldId)
     .map((unit) => ({
       id: unit.id,
-      x: unit.placement.position.x,
-      y: unit.placement.position.y,
+      x: unit.position.x,
+      y: unit.position.y,
       label: getDefinition(unit.definitionId)?.name ?? unit.definitionId
     })));
 }
