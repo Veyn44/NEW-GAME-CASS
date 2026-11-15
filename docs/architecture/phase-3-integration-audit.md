@@ -90,7 +90,7 @@ Candidate failure leaves Major State unchanged. Transient storage failure retain
 
 The exact storage transaction/atomic-promotion mechanism must be proven against the target persistence backend; a sequence of unrelated file writes is not sufficient.
 
-For Engine placement restore, a focused source audit found that the current Persistence implementation awaits participant commits sequentially. Therefore two separate awaited World Context and Spatial Composition participants would not meet the no-observer-intermediate-state requirement. The new [placement persistence integration proposal](spatial-placement-persistence-integration-proposal.md) recommends one composite participant with a single synchronous commit/rollback for the pair.
+For Engine placement restore, a focused source audit found that the current Persistence implementation awaits participant commits sequentially. Therefore two separate awaited World Context and Spatial Composition participants would not meet the no-observer-intermediate-state requirement. Section 14 of `spatial-placement-integration-contract-proposal.md` records the source-audited composite participant recommendation and restore ordering.
 
 ### 3.6 Save compatibility is a product policy, not a migration project
 
@@ -245,7 +245,7 @@ The proposed sequence below is the recommended dependency order, not authorizati
 - `spatial-query-contract-proposal.md`
 - `movement-collision-contract-proposal.md`
 - `spatial-placement-integration-contract-proposal.md`
-- `spatial-placement-persistence-integration-proposal.md`
+
 - `cassandra-temporary-world-change-package-contract-proposal.md`
 - `cass-save-compatibility-migration-proposal.md`
 - `phase-3-implementation-plan.md`
