@@ -117,7 +117,14 @@ export class SpatialComposition {
   withReadOnlyEvaluation(callback, authority) {
     if (authority !== MOVEMENT_AUTHORITY || typeof callback !== "function") throw new SpatialCompositionError("MOVEMENT_AUTHORITY_REQUIRED", "Read-only evaluation requires the internal movement capability.");
     this.#readOnlyEvaluation += 1;
-    try { return callback(); } finally { this.#readOnlyEvaluation -= 1; }
+    let released = false;
+    const release = () => { if (!released) { released = true; this.#readOnlyEvaluation -= 1; } };
+    try {
+      const value = callback();
+      if (value && typeof value.then === "function") return Promise.resolve(value).finally(release);
+      release();
+      return value;
+    } catch (error) { release(); throw error; }
   }
   #assertWritable() {
     if (this.#readOnlyEvaluation > 0) throw new SpatialCompositionError("SPATIAL_MUTATION_DURING_POLICY", "Spatial Composition cannot be mutated during movement policy evaluation.");
