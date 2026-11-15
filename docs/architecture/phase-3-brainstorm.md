@@ -6,7 +6,7 @@
 >
 > **Branch:** work
 > **Status:** Brainstorm in progress
-> **Current focus:** Step 1 — Goals and scope
+> **Current focus:** Step 2 — World Geometry and lifecycle semantics
 
 ---
 
@@ -36,88 +36,181 @@ The goal of this phase is to define a reusable physical-world foundation for Eng
 
 The existing Engine already has world registration and entity placement concepts. This phase must first understand those contracts and decide how to extend them without duplicating responsibilities or breaking existing behavior.
 
+The discussion has now established several important architectural directions:
+
+- Engine must be capable of hosting at least one persistent world and one temporary world at the same time. This is a minimum capability, not necessarily a hard maximum imposed by Engine.
+- A world can exist without currently being simulated, selected, or rendered. These are separate concerns.
+- Cassandra may pause its persistent world while a temporary encounter is running, but pausing is Cassandra/game policy, not an intrinsic Engine rule.
+- A coordinate is not limited to one entity. It can contain multiple independent spatial contents, conceptually organized into layers or categories.
+- An empty cell is a neutral template. Vacuum and other environmental conditions are data placed on or associated with that base, not the definition of emptiness itself.
+- The current geometry preference is a square grid. No alternative topology is being pursued without a concrete reason.
+
+These decisions narrow the design, but do not yet define the exact public APIs, storage structures, lifecycle contracts, or transfer protocol.
+
 ### Step 1 — Goals and scope
-**Status:** In progress
+**Status:** Agreed baseline; remaining boundaries documented
 
 Define what the Physical World & Grid capability must enable, what it explicitly will not do, and which requirements come from Cassandra versus the reusable Engine.
 
-#### Cassandra gameplay requirements (recorded from discussion)
+#### Cassandra gameplay requirements
 
 These describe Cassandra's game design. They must not automatically become restrictions inside the reusable Engine.
 
 - Cassandra needs a **main world** containing the colony.
 - Cassandra also needs a **secondary world** for expeditions, events, and encounters where the environment can be damaged and combat can take place.
-- The expected Cassandra runtime arrangement is one main world plus at most one secondary world active at a time. The secondary world will often be around 128×128 cells; 256×256 is also already relevant to the game.
+- The expected Cassandra runtime arrangement is one main world plus at most one secondary world at a time. The secondary world will often be around 128×128 cells; 256×256 is also already relevant to the game.
 - The main world is the buildable colony. The secondary world is an expedition/encounter space with different gameplay rules.
-- Much of the game takes place in space. Space will frequently be represented as vacuum, but vacuum is an environmental/gameplay condition, not necessarily a special kind of grid or world geometry.
+- Much of the game takes place in space. Space will frequently be represented as vacuum, but vacuum is an environmental/gameplay condition, not a special kind of grid or world geometry.
+- When an expedition starts, the relevant entities and state from the main world are represented in a temporary-world context. The temporary encounter can change their state through combat, item acquisition/consumption, damage, death, and other events.
+- When the encounter ends, the resulting changes are applied back to the persistent world. The persistent world is normally paused during this process, but this is a Cassandra policy.
 
-#### Engine direction (candidate, not yet fully specified)
+#### Engine direction
 
-- The Engine should remain more universal than Cassandra's main-world/secondary-world arrangement.
-- A square grid is the current preferred direction for this project. This is a design preference, not yet a complete grid contract.
-- A coordinate system is required, but its exact representation and semantics remain open.
-- The Engine should not hard-code the Cassandra concepts “colony”, “expedition”, “encounter”, or “vacuum” as world types or core spatial rules.
+- The Engine must support a persistent world and a temporary world existing at the same time. It should not encode Cassandra's exact main/expedition roles as mandatory world types.
+- Engine should not hard-code a maximum of two worlds merely because Cassandra currently needs one main and one secondary world.
+- A world existing, being loaded, being simulated, being paused, being selected/focused, and being rendered are distinct concepts. They must not be represented as one overloaded active/inactive flag.
+- Engine should support pausing or not scheduling simulation for a world, but it must not automatically pause one world when another world starts. That policy belongs to the host/game.
+- A square grid is the agreed geometry direction for this project.
+- A coordinate can contain multiple entities and multiple kinds of spatial content. Single-entity-per-cell assumptions are explicitly disallowed.
+- An empty cell is a neutral base/template with no game-specific definition by default. Environmental conditions such as vacuum are represented separately.
+- Engine must not hard-code the Cassandra concepts “colony”, “expedition”, “encounter”, or “vacuum” as world types or core spatial rules.
+
+#### Temporary-world transfer concept
+
+The current agreed conceptual model is:
+
+1. The persistent world contains the authoritative ongoing colony state.
+2. Starting an expedition creates a temporary-world representation/package from the relevant source state. It is not necessary to duplicate the entire persistent world if only a subset is relevant.
+3. The temporary world runs its own simulation and can change the participating entities and encounter-local world state.
+4. Ending the encounter produces a set of changes (a delta/change package), rather than blindly replacing the entire persistent world.
+5. The changes are validated and applied to the persistent world. The persistent world then resumes according to Cassandra's rules.
+
+Conceptually:
+
+`newState = previousState + changes`
+
+Examples of changes include:
+- An entity received damage or a condition.
+- An entity died or was removed.
+- An entity acquired, dropped, consumed, or lost an item.
+- Ammunition or another resource was consumed.
+- An entity's position or group membership changed.
+- The expedition produced resources or other rewards.
+
+This is a design direction, not yet a defined serialization format or API.
 
 #### Important architecture observation to investigate
 
-The current World Registry implementation exposes a single `activeWorldId`. Cassandra's desired arrangement may require a main and secondary world to be simultaneously available/active. We must decide whether:
-- “active” in Engine means one globally selected world, while Cassandra separately manages its loaded/participating worlds; or
-- the generic Engine world lifecycle must support multiple simultaneously active worlds; or
-- another explicit distinction is needed (for example loaded, simulated, selected, or focused).
+The current World Registry implementation exposes a single `activeWorldId`. The desired arrangement requires more precise semantics than one global active-world selection. We must decide whether the Engine should distinguish:
+- registered/existing worlds;
+- loaded worlds;
+- worlds eligible for simulation;
+- currently simulating versus paused worlds;
+- selected/focused world for tools or player interaction;
+- currently rendered world or viewport.
 
 Do not change the existing World Registry contract until this is resolved.
 
-#### Questions to resolve
+#### Step 1 decisions
 
-- What does “physical world” mean in the reusable Engine, independent of Cassandra?
-- Which capabilities are generic spatial infrastructure, and which are Cassandra policies?
-- What is the smallest useful outcome of this phase?
-- What capabilities are deliberately deferred?
-- What must remain compatible with the existing Engine and Cassandra?
+- **Agreed:** Cassandra has a persistent main colony world and a temporary expedition/encounter world.
+- **Agreed:** Engine must be capable of hosting at least one persistent and one temporary world concurrently.
+- **Agreed:** This is not a hard two-world maximum for Engine.
+- **Agreed:** Pausing the persistent world during a Cassandra encounter is game policy, not an Engine requirement.
+- **Agreed:** World existence, simulation, pause, selection/focus, and rendering must be treated as separate concerns.
+- **Agreed:** The temporary-world transfer should conceptually return a change set/delta to the persistent world, not replace its entire state.
+- **Agreed:** Square grid is the current geometry direction.
+- **Agreed:** One coordinate may contain multiple entities and spatial contents.
+- **Agreed:** Empty cell is a neutral template; vacuum is a separate environmental property/content.
+- **Open:** Exact definitions of persistent versus temporary world, ownership, lifecycle, and persistence.
+- **Open:** Whether the transfer package contains full entity snapshots, selected components, references, or a combination.
+- **Open:** Delta validation, conflict handling, atomic application, rollback, and identity/reference rules.
 
-### Step 2 — World Geometry
-**Status:** Open
+### Step 2 — World Geometry and lifecycle semantics
+**Status:** In progress
 
-Define world dimensions, coordinate representation, boundaries, coordinate systems, and whether the model must support more than one geometry/topology.
+Define world dimensions, coordinate representation, boundaries, coordinate systems, and how worlds exist and participate in runtime.
 
 Questions to resolve:
-- Are coordinates continuous, discrete, or both?
-- Are dimensions finite, unbounded, or configurable by world type?
+- Are coordinates discrete integer grid coordinates, continuous coordinates, or both?
+- Are dimensions finite, unbounded, or configurable per world?
 - How are boundaries represented and queried?
-- Do we need support for multiple planes, levels, or dimensions?
-- Which geometry concepts belong in generic Engine versus a host application?
+- Are world dimensions fixed at creation or can a world resize?
+- How are out-of-bounds positions handled?
+- Do we need multiple planes, levels, or dimensions within one world, or are these separate world instances?
+- What exactly distinguishes persistent and temporary worlds at the Engine level, if anything? Are these host-supplied metadata/lifecycle policies?
+- Which lifecycle states are needed: registered, loaded, ready, simulating, paused, unloaded, disposed?
+- Can a world be loaded but not simulated? Can it be simulated without being selected or rendered?
+- Can multiple worlds be simulated at once, with independent scheduling?
+- How should world time behave when a world is paused or not scheduled?
+- Which geometry and lifecycle concepts belong in generic Engine versus a host application?
 
 ### Step 3 — Grid
-**Status:** Open
+**Status:** Partially agreed; details open
 
-Define whether a grid exists, what a cell is, how cells are addressed, and how neighborhood relationships work.
+Define what a grid is, what a cell is, how cells are addressed, and how neighborhood relationships work.
 
-Questions to resolve:
-- Is the grid square, hexagonal, another topology, or pluggable?
-- Is grid structure mandatory for every world or an optional spatial representation?
+#### Agreed direction
+
+- Use a square grid for the current project.
+- Do not introduce hexagonal, triangular, or other grid topologies without a concrete requirement that justifies the additional complexity.
+- A cell is not synonymous with one object, one terrain type, or one environmental state.
+- Empty cell should be a neutral/default template rather than a pre-defined “vacuum” or “space” tile.
+
+#### Questions to resolve
+
+- Is the grid mandatory for every world or an optional spatial representation?
 - Are cells stored explicitly or derived from coordinates?
-- How are neighbors and distances defined?
-- Can different worlds use different grid configurations?
+- What is the exact cell data contract?
+- Is the empty-cell template a shared immutable definition, a default returned by queries, or an actual stored cell instance?
+- How are neighbors and distances defined (4-way, 8-way, or configurable)?
+- Can different worlds use different grid dimensions/resolutions while sharing square topology?
+- How are large or sparse worlds represented efficiently?
+- Is the grid itself authoritative state, or is it a spatial index over entities and cell contents?
 
-### Step 4 — Spatial Occupancy
-**Status:** Open
+### Step 4 — Spatial Occupancy and composition
+**Status:** Concept agreed; detailed model open
 
 Define how physical entities occupy space, including multiple objects at one coordinate and independent spatial layers.
 
-Candidate concepts to examine (not decisions):
-- Terrain
-- Structures / construction
-- Items
-- Units / actors
-- Effects or other overlays
+#### Agreed direction: multiple contents per coordinate
 
-Questions to resolve:
-- Can multiple entities occupy one coordinate?
-- Which layers are independent, and can a layer contain multiple entities?
+A single coordinate may contain many independent spatial contents. The intended mental model is a stack/composition of layers, not one tile object that must represent everything at that position.
+
+Illustrative example of one coordinate:
+- Environment: vacuum
+- Base/surface: floor
+- Surface overlay: carpet
+- Furniture: table
+- Small object: candleholder
+- Projectile: bullet or rocket
+- Debris: body fragment after destruction
+
+The example is illustrative, not a fixed schema.
+
+#### Important design constraint
+
+Do not implement a fixed number of six layers merely because the example has six entries. The model should allow the relevant categories/layers to be extended without changing the fundamental cell structure. A layer/category may itself contain multiple entities. The exact distinction between layer, category, component, and entity remains to be designed.
+
+#### Empty cell versus environmental state
+
+- An empty cell is the neutral base/template and has no Cassandra-specific meaning by default.
+- Vacuum is not the empty-cell definition. It is an environmental state/content that can be present over an otherwise empty location.
+- An asteroid or other physical material can be represented as spatial content with its own properties, including passability and other physical/environmental interactions.
+- Floor, carpet, furniture, items, units, projectiles, and debris should not be forced into one mutually exclusive tile type.
+
+#### Questions to resolve
+
+- Which spatial contents are cells/tiles and which are normal registered entities?
+- What is the exact meaning of a layer? Is layer ordering meaningful, and if so, how?
+- Can multiple entities exist within the same layer/category at one coordinate?
 - Can an entity occupy more than one cell?
-- How are size, footprint, and orientation represented?
-- Is occupancy owned by a dedicated spatial service/system or by the world itself?
+- How are size, footprint, orientation, and multi-cell placement represented?
+- How do entities overlap, attach to, cover, or contain other entities?
+- Is there a dedicated spatial composition/occupancy service or does World Context own this?
 - How does occupancy relate to Entity Registry identity and World Context placement?
+- Are environment properties stored per cell, as entities/components, as a field/region, or by a combination?
+- How are empty/default cells represented without allocating a large number of meaningless objects?
 
 ### Step 5 — Spatial Queries
 **Status:** Open
@@ -125,12 +218,14 @@ Questions to resolve:
 Define the read/query API for spatial data.
 
 Questions to resolve:
-- Query all entities at a position.
+- Query all entities and contents at a position.
 - Query entities by layer/category/type.
 - Query neighboring cells or a radius/area.
 - Find empty or eligible positions.
 - Query intersecting footprints.
+- Query by environmental properties (for example, vacuum), without making those properties special Engine concepts.
 - Query behavior for inactive, unloaded, or out-of-bounds regions.
+- Query ordering and whether layer order is guaranteed.
 - Performance expectations and indexing requirements.
 
 ### Step 6 — Movement and Collision
@@ -142,11 +237,13 @@ Questions to resolve:
 - Does this phase only provide spatial placement and queries?
 - Is movement a separate system built on top of occupancy?
 - What does collision mean for different layers and entity types?
-- Are blocking rules generic capabilities or host-defined policies?
+- Are blocking/passability rules generic capabilities or host-defined policies?
+- How do projectiles, debris, units, and structures participate in collision differently?
 - How are atomic moves and failed moves handled?
+- Can an entity move between worlds, and is that separate from temporary-world transfer?
 - Is pathfinding explicitly deferred?
 
-### Step 7 — Entity and application boundaries
+### Step 7 — Entity, world, transfer, and application boundaries
 **Status:** Open
 
 Define ownership and contracts between Engine Core, reusable spatial capabilities, Cassandra gameplay systems, and presentation.
@@ -154,7 +251,14 @@ Define ownership and contracts between Engine Core, reusable spatial capabilitie
 Questions to resolve:
 - What remains the responsibility of Entity Registry?
 - What remains the responsibility of World Registry and World Context?
-- Which new service/API is needed, if any?
+- Which new service/API is needed, if any, for spatial composition?
+- Which world lifecycle controls belong to Engine and which are host policy?
+- How can a host create, select, pause, resume, unload, and dispose worlds?
+- What is the formal contract for exporting a temporary-world result as a change package?
+- How are entity identities and references preserved across world representations?
+- How are changes validated before applying them to the persistent world?
+- Must applying a change package be atomic? What happens if one operation fails?
+- How are conflicting or stale changes detected?
 - Which rules must be supplied by the host application?
 - How can presentation/rendering consume spatial data without owning it?
 - How do we avoid Engine importing Cassandra concepts?
@@ -162,10 +266,14 @@ Questions to resolve:
 ### Step 8 — Persistence and compatibility
 **Status:** Open
 
-Define persistence of geometry, grid configuration, occupancy, and spatial state.
+Define persistence of geometry, grid configuration, occupancy, world lifecycle metadata, and spatial state.
 
 Questions to resolve:
 - Which component owns the spatial snapshot?
+- Are temporary worlds persisted, or can they be discarded/recreated?
+- If temporary worlds can be saved, how is their relationship to the persistent source state represented?
+- Is a transfer/change package durable until successfully applied?
+- How are snapshots and change packages versioned?
 - How are restore dependencies ordered and validated?
 - How are invalid or conflicting placements handled during restore?
 - What migrations are required?
@@ -180,7 +288,13 @@ Define observable conditions that prove the design and implementation are correc
 Include:
 - Unit-level invariants and failure cases.
 - Integration with Entity Registry, World Registry, World Context, and persistence.
-- Multiple entities at one coordinate and across layers.
+- At least one persistent and one temporary world existing simultaneously.
+- Independent world lifecycle: existence, loading, simulation, pause, selection, and rendering.
+- Multiple entities at one coordinate and multiple contents/categories at one coordinate.
+- Empty-cell defaults and environmental properties such as vacuum being independent.
+- Multi-cell footprints if included in the agreed scope.
+- Temporary-world changes being returned and applied without overwriting unrelated persistent-world state.
+- Atomicity, validation, conflict, and rollback tests for transfer if that protocol is included.
 - Boundary and invalid-coordinate behavior.
 - Deterministic behavior where required.
 - Compatibility tests for existing saves and existing Cassandra workflows.
@@ -192,6 +306,7 @@ Include:
 Only after the preceding design is settled, specify:
 - Exact modules/files to add or change.
 - Public APIs and ownership of each responsibility.
+- Data contracts for worlds, cells, spatial contents, layers/categories, and change packages.
 - Dependency and initialization order.
 - Persistence participants and migrations.
 - Test files and test cases.
@@ -206,7 +321,13 @@ No implementation starts from this section until the complete specification is a
 
 - Engine remains application- and domain-neutral. Cassandra-specific gameplay rules stay in Cassandra.
 - Do not assume a single entity per coordinate.
-- Do not assume a tile-only or square-grid world before the geometry discussion establishes that requirement.
+- Do not assume a tile-only world model.
+- Square grid is the agreed current direction; do not add alternative topologies without a concrete requirement.
+- Do not conflate an empty cell with vacuum or any other environment.
+- Do not impose a fixed number of spatial layers based on examples.
+- Do not conflate world existence, loading, simulation, pause, selection/focus, and rendering.
+- Do not make pausing the persistent world an automatic Engine side effect of creating or simulating another world.
+- Do not make the Engine's world count hard-coded to Cassandra's current one-main-plus-one-temporary arrangement.
 - Do not mix rendering/art assets with authoritative spatial state. Presentation may consume spatial data, but visual representation must not become the source of truth for occupancy or world geometry.
 - Do not modify tested environment/simulation behavior unless a concrete dependency is demonstrated and separately agreed.
 - Preserve .cass save compatibility.
@@ -217,15 +338,31 @@ No implementation starts from this section until the complete specification is a
 
 ## Current decisions
 
-- **Cassandra world roles — Agreed as a game requirement:** Cassandra has a main colony world and a secondary expedition/encounter world. At most one secondary world is expected alongside the main world.
+- **Cassandra world roles — Agreed:** Cassandra has a persistent main colony world and a temporary expedition/encounter world.
+- **Concurrent worlds — Agreed:** Engine must support at least one persistent and one temporary world at the same time. This is not a hard maximum of two worlds.
+- **World pause — Agreed:** Pausing the persistent world during a temporary encounter is Cassandra/game policy, not an Engine rule.
+- **World lifecycle — Agreed principle:** Existence, loading, simulation, pause, selection/focus, and rendering are separate concerns.
+- **Temporary-world result — Agreed concept:** The temporary world returns a delta/change package; the persistent world is updated using previous state plus changes rather than being wholly overwritten.
 - **Cassandra world scale — Recorded requirement:** 128×128 is a common secondary-world size; 256×256 must remain supported by the game.
-- **Grid preference — Proposed:** square grid, with an explicit coordinate system. Detailed geometry and grid semantics remain open.
+- **Grid topology — Agreed direction:** Square grid.
+- **Spatial occupancy — Agreed:** One coordinate can contain multiple independent entities and spatial contents.
+- **Spatial composition — Agreed concept:** Contents can be organized into extensible layers/categories; no fixed six-layer limit.
+- **Empty cell — Agreed:** Neutral base/template without an intrinsic game-specific definition.
+- **Vacuum — Agreed:** Environmental state/content separate from the empty-cell template.
 - **Engine boundary — Agreed principle:** Engine spatial capabilities must be more universal than Cassandra's world roles and gameplay vocabulary.
 
 ## Open questions / investigation notes
 
 - Audit the current uses of World Registry, World Context, Entity Registry, and any existing Cassandra/shared spatial or viewport code before proposing new contracts.
+- Resolve the semantics of registered, loaded, simulated, paused, selected/focused, rendered, unloaded, and disposed worlds.
+- Decide whether coordinates are discrete integer grid positions, continuous positions, or both, and define world bounds/dimensions.
+- Define the exact cell/template model and how sparse or empty regions are represented.
+- Define the distinction between layers, categories, entities, components, and environment data.
+- Define multi-cell footprints, orientation, overlap, and passability ownership.
+- Specify the temporary-world representation and the change-package/commit protocol, including validation, identity mapping, atomicity, and conflict handling.
 - Distinguish authoritative world/spatial state from viewport geometry, visual presentation, and input coordinates.
-- Resolve the meaning of “active world” and whether multiple worlds can be loaded, simulated, or selected concurrently.
-- Clarify whether vacuum is solely an environmental state or whether any physical-world representation is needed for empty space.
-- Clarify the lifecycle and ownership of the main colony world and temporary expedition/encounter worlds.
+- Preserve current tested simulation behavior and existing .cass compatibility unless a separate, explicit decision authorizes a change.
+
+---
+
+**Working principle:** Define reusable Engine mechanisms from Cassandra's real requirements, but keep Cassandra's game rules and content outside the Engine. Complete and review the design before implementation.
