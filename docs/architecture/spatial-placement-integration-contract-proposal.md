@@ -111,7 +111,7 @@ The precise set of lifecycle statuses eligible for occupancy must follow the exi
 
 ## 7. Persistence and restore
 
-World Context and Spatial Composition may retain separate persistence participants, but restore must preserve the same cross-service invariants.
+World Context and Spatial Composition retain separate service ownership, but their authoritative placement/spatial snapshots must be restored through one composite persistence participant and one transaction boundary. See `spatial-placement-persistence-integration-proposal.md`.
 
 Required restore behavior:
 
@@ -126,7 +126,7 @@ Required restore behavior:
 5. Commit both prepared states as one coordinated restore boundary, or roll back both if any participant or later restore step fails.
 6. Rebuild derived occupancy indexes from canonical Spatial Composition records rather than persisting duplicate index authorities.
 
-The exact participant order, cross-participant validation hook and rollback integration must be checked against the current Persistence coordinator before implementation. The existing staged prepare/commit/rollback contract must be reused.
+The source audit confirms the current Persistence coordinator prepares all participants first but commits them sequentially with an `await` between participant commits. Separate World Context and Spatial Composition participants would therefore not guarantee an unobservable atomic pair. The recommended design is one composite placement-state participant: Entity Registry and World Registry restore first, then one synchronous composite commit swaps World Context and Spatial Composition together. The existing Persistence rollback then treats the pair as one transaction if a later participant fails.
 
 This proposal does not define legacy `.cass` migration. Legacy saves without spatial occupancy require a separate Cassandra-owned compatibility decision and representative fixtures before the persistence slice begins.
 
@@ -201,11 +201,11 @@ These details remain proposals or require a focused source check; they are not a
 - Exact transaction/prepared-state mechanism compatible with existing service internals.
 - Whether the coordinator is registered in Core assembly or composed by an application adapter.
 - Exact world-position conversion required to preserve current Cassandra semantics.
-- Exact cross-participant persistence ordering and rollback hook.
+- Exact composite participant schema and rollback/fatal-fault integration.
 - Which lifecycle statuses are eligible for grid occupancy.
 - Whether every grid-backed entity in Cassandra is represented spatially or only selected entity classes.
 
-The recommended implementation default is a small Engine-owned coordinator using prepared replacement state, with Cassandra supplying only the game-specific validation policy and conversion adapter where needed. Confirm this against source before writing code.
+The recommended implementation default is a small Engine-owned coordinator using prepared replacement state and one composite persistence participant, with Cassandra supplying only game-specific validation policy. The grid-anchor-to-cell-center mapping is approved. The detailed source-audited restore design is in `spatial-placement-persistence-integration-proposal.md`.
 
 ## 12. Explicit non-goals
 
