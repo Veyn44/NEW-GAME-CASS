@@ -532,7 +532,9 @@ document.addEventListener("visibilitychange", () => {
 worldSizeSelect.addEventListener("change", () => {
   workspaceSession.changeWorld();
   state.selectedTestEntityId = null;
+  state.selectedSpatialCell = null;
   state.moveTestEntityMode = false;
+  inspectSpatialCell({ x: 0, y: 0 });
   refreshWorldMarkers();
   updateSpatialTestControls();
 });
