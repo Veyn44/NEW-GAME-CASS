@@ -106,6 +106,13 @@ Cassandra or Dev Lab application policy.
   application injects its save adapter, save slot, state identifier, file-picker
   capability, file extension, default filename, filename prompt, and UI status
   copy.
+### Persistence isolation — target architecture
+
+- Cassandra and Dev Lab are separate applications with separate save/workspace domains. They are not intended to open or exchange one another's save files; cross-application save compatibility is explicitly out of scope.
+- The current shared `LocalFileSaveAdapter`, Cassandra `.cass` envelope, and legacy `dev-lab-workspace` / `cassandra-dev-lab-workspace` identities are transitional implementation debt, not a desired shared-save contract.
+- The target is an application-owned persistence adapter, file format/envelope, slot identity, and state identity for each application. Engine continues to provide only the generic persistence coordination and participant contracts.
+- Do not add cross-save conversion or compatibility logic. When the split is implemented, verify that each application can only select and write its own save domain and that existing Cassandra saves are preserved as required by the Cassandra migration.
+
 - Both application shells still select the existing
   `LocalFileSaveAdapter` as a compatibility bridge. That adapter owns the
   Cassandra `.cass` envelope and legacy save slot (`dev-lab-workspace`);
