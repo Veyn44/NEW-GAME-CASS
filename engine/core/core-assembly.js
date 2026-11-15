@@ -5,6 +5,8 @@ import { SimulationScheduler } from "./simulation-scheduler.js";
 import { EntityRegistry } from "./entity-registry.js";
 import { WorldRegistry } from "./world-registry.js";
 import { WorldContext } from "./world-context.js";
+import { SpatialComposition } from "../spatial/spatial-composition.js";
+import { PlacementCoordinator } from "../spatial/placement-coordinator.js";
 import { Persistence } from "./persistence.js";
 import { SystemBootstrap } from "./system-bootstrap.js";
 
@@ -15,6 +17,8 @@ const SERVICE = Object.freeze({
   entities: "core.entity-registry",
   worlds: "core.world-registry",
   worldContext: "core.world-context",
+  spatialComposition: "core.spatial-composition",
+  placementCoordinator: "core.placement-coordinator",
   scheduler: "core.scheduler",
   persistence: "core.persistence"
 });
@@ -126,6 +130,21 @@ export function createCoreAssembly({
       }
     },
     {
+      id: "core.spatial-composition",
+      provides: [SERVICE.spatialComposition],
+      requires: [SERVICE.worlds],
+      initialize(context) { return { [SERVICE.spatialComposition]: new SpatialComposition({ worldRegistry: required(context, SERVICE.worlds) }) }; }
+    },
+    {
+      id: "core.placement-coordinator",
+      provides: [SERVICE.placementCoordinator],
+      requires: [SERVICE.entities, SERVICE.worlds, SERVICE.worldContext, SERVICE.spatialComposition],
+      initialize(context) { return { [SERVICE.placementCoordinator]: new PlacementCoordinator({
+        entityRegistry: required(context, SERVICE.entities), worldRegistry: required(context, SERVICE.worlds),
+        worldContext: required(context, SERVICE.worldContext), spatialComposition: required(context, SERVICE.spatialComposition)
+      }) }; }
+    },
+    {
       id: "core.scheduler",
       provides: [SERVICE.scheduler],
       requires: [SERVICE.clock, SERVICE.events, SERVICE.logger],
@@ -185,12 +204,13 @@ export function createCoreAssembly({
     {
       id: "core.persistence",
       provides: [SERVICE.persistence],
-      requires: [SERVICE.logger, SERVICE.entities, SERVICE.worlds, SERVICE.worldContext, SERVICE.scheduler, SERVICE.events],
+      requires: [SERVICE.logger, SERVICE.entities, SERVICE.worlds, SERVICE.worldContext, SERVICE.placementCoordinator, SERVICE.scheduler, SERVICE.events],
       initialize(context) {
         const logger = required(context, SERVICE.logger);
         const entities = required(context, SERVICE.entities);
         const worlds = required(context, SERVICE.worlds);
         const worldContext = required(context, SERVICE.worldContext);
+        const placementCoordinator = required(context, SERVICE.placementCoordinator);
         const scheduler = required(context, SERVICE.scheduler);
         const events = required(context, SERVICE.events);
         const clock = required(context, SERVICE.clock);
@@ -239,7 +259,7 @@ export function createCoreAssembly({
         });
         persistence.registerParticipant(entities.createPersistenceParticipant());
         persistence.registerParticipant(worlds.createPersistenceParticipant());
-        persistence.registerParticipant(worldContext.createPersistenceParticipant());
+        persistence.registerParticipant(placementCoordinator.createPersistenceParticipant());
         return { [SERVICE.persistence]: persistence };
       }
     },
