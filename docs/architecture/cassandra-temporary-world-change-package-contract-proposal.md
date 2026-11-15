@@ -716,7 +716,7 @@ The first Cassandra-owned protocol foundation is now implemented on `work` in
 Implemented foundations:
 - Canonical JSON normalization and SHA-256 package integrity verification.
 - Versioned immutable package envelopes, explicit dispositions, per-aggregate baselines and typed operation dependencies.
-- Session-scoped campaign-entity ↔ Temporary World runtime-entity projection mapping in `src/gameplay/expedition/cassandra-expedition-projection.js`, with strict Engine identity/scope validation, one-to-one mapping, snapshot restore and exact-one manifest coverage for each projected persistent entity.
+- Session-scoped campaign-entity ↔ Temporary World runtime-entity projection mapping in `src/gameplay/expedition/cassandra-expedition-projection.js`, with strict Engine identity/scope validation, one-to-one mapping, snapshot restore and exact-one manifest coverage for each projected persistent entity.\n- A Unit projection adapter in `src/gameplay/expedition/cassandra-unit-expedition-projection.js` now creates real scoped Temporary World Unit instances through the existing Unit API, records their persistent campaign mapping and retires any partially created projections if the batch fails.
 - Durable pending Change Buffer staging with an expedition-start checkpoint.
 - Candidate State construction from a detached Major State copy.
 - Per-aggregate conflict checks, handler-based typed operation validation/application and one revision increment per touched aggregate.
@@ -744,3 +744,9 @@ Projection implementation:
 - Source: `src/gameplay/expedition/cassandra-expedition-projection.js`.
 - Tests: `tests/unit/cassandra-expedition-projection.test.js`.
 - The projection map records identity/provenance only; it does not move Engine placements, copy inventories or make gameplay disposition decisions.
+
+
+Unit projection implementation:
+- Source: `src/gameplay/expedition/cassandra-unit-expedition-projection.js`.
+- Tests: `tests/unit/cassandra-unit-expedition-projection.test.js`, using the actual Cassandra Unit and World Session systems.
+- The adapter currently projects only the Unit fields that exist in the current domain model: definition and grid-cell position. It requires the host to provide authoritative aggregate revision, role and transfer-eligibility metadata. It does not invent health, inventory, equipment or shuttle state that the current branch does not model.
