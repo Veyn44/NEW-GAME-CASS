@@ -153,6 +153,10 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
     },
 
     enterTemporaryWorld() {
+      if (temporaryDisposalInProgress) {
+        throw new CassandraWorldSessionError("TEMPORARY_DISPOSAL_IN_PROGRESS",
+          "Cannot re-enter a Temporary World while its disposal is in progress.");
+      }
       commitPendingStepIfSuccessful();
       if (temporaryWorldId === null) {
         throw new CassandraWorldSessionError("NO_TEMPORARY_WORLD", "There is no Temporary World to enter.");
