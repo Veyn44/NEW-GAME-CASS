@@ -466,13 +466,31 @@ The proposal specifies:
 
 ### 8.4 Save compatibility and legacy spatial state
 
-**Still needs a contract:**
-- How legacy `.cass` saves without a spatial participant are interpreted.
-- How existing map/environment state is mapped into spatial composition without data loss.
-- Whether any legacy save migration is required and where it runs.
-- Which version owns migration: Engine participant schema, Cassandra application migration, or both.
+**Source-audited findings (2026-11-15):**
+- Current outer `.cass` envelope is `cassandra.save`, fileFormatVersion 1; inner Engine Persistence formatVersion is independently versioned and currently 1.
+- The current shell uses slot `dev-lab-workspace` and state ID `cassandra-dev-lab-workspace`. This is a Dev Lab/workspace save path, not a complete future Cassandra campaign save.
+- Core participants: Entity Registry schema 2 (v1 migration), World Registry schema 2 (v1 migration), World Context schema 1 (no migration).
+- Current runtime participants: Unit schema 1 and Colony Control schema 1.
+- Engine Persistence rejects missing required snapshots. Participant migration cannot synthesize a snapshot when the participant is absent from the save.
+- The current audited runtime does not register a persistent environment/map/world-generation participant. No current workspace save proves compatibility for a full colony environment or campaign.
 
-**Gate:** Persistence integration (Slice 5) cannot begin until the migration/compatibility strategy and representative fixtures are agreed.
+**Working contract drafted:** `cass-save-compatibility-migration-proposal.md`
+
+The proposal specifies:
+- Separate outer file, inner Engine, participant and Cassandra campaign version dimensions.
+- Explicit separation of current Dev Lab/workspace saves from future Cassandra campaign saves; no cross-save conversion.
+- An application-owned preflight migration for detached legacy data before Engine restore.
+- No empty Spatial Composition snapshot unless a domain migration proves the world is truly empty.
+- Explicit coordinate conversion, environment/map ownership audit, source-file preservation and golden fixtures.
+- Failure behavior that rejects unprovable migration rather than silently losing or inventing data.
+
+**Still requires review/decision:**
+- Exact application preflight integration point and future campaign save identity/schema.
+- Actual legacy Cassandra campaign/map/environment persistence source and representative fixtures.
+- Coordinate conversion rules for each legacy spatial source.
+- Platform-specific atomic replacement/backup guarantees and migration UI flow.
+
+**Gate:** Persistence integration (Slice 5) remains blocked until the migration contract, actual legacy sources and representative fixtures are reviewed and accepted.
 
 ## 9. Review checkpoints
 
