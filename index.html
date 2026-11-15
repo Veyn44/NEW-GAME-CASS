@@ -84,6 +84,11 @@
           <span class="dev-note">WASD: move Pawn / camera · Wheel: zoom · Middle drag: pan</span>
         </section>
         <section class="viewport-panel" aria-label="World viewport" data-paused="true" data-input-mode="paused"><canvas id="world-canvas" tabindex="0" aria-label="World viewport. Press Space to pause or resume.">Your browser does not support canvas.</canvas><div class="viewport-crosshair" aria-hidden="true"></div>
+          <aside id="spatial-inspector" class="spatial-inspector" aria-label="Engine spatial inspector">
+            <strong>ENGINE / SPATIAL INSPECTOR</strong>
+            <span id="spatial-cell-label">Select a cell</span>
+            <pre id="spatial-cell-data">Click a grid cell while paused to inspect its contents and entity occupancy.</pre>
+          </aside>
           <aside id="pause-menu" class="pause-menu" aria-label="Pause menu" hidden>
             <p class="eyebrow">CASSANDRA / PAUSED</p><h2>Pause Menu</h2>
             <button id="pause-resume" type="button" class="primary-action">RESUME</button>
