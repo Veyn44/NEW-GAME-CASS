@@ -136,6 +136,21 @@ This section extracts reusable capabilities from Cassandra's design. It does not
 
 **Ownership:** Engine mechanisms; Cassandra world roles and pause policy; Dev Lab lifecycle controls and diagnostics.
 
+#### First design slice — world lifecycle (source-verified)
+
+A focused re-read of the current implementation and tests confirms the exact starting point:
+
+- `WorldRegistry` can register and persist multiple world descriptors, but its `status` is limited to `inactive`, `active`, and `closed`.
+- `activateWorld(id)` makes the selected world the only active world and automatically marks the previously active world inactive. Snapshot validation rejects more than one active world.
+- The registry's own class documentation explicitly says it does not own simulation or rendering. Therefore, the current `active` flag must not be treated as proof that a world is loaded, simulating, paused, focused, or rendered.
+- `GameClock` has one global accumulated simulation time and global pause-reason set. `SimulationScheduler` advances one ordered task set against that clock; it has no world ID or per-world scheduler state.
+- `WorldContext` stores one placement record per entity. It does not define world loading or simulation participation.
+- Existing World Registry tests explicitly enforce single-active-world behavior, so changing that behavior is a contract change requiring focused migration and regression tests, not a casual rename.
+
+**Design implication:** the first task is not “make two worlds active”. It is to define what “active” means and separate independent dimensions of world lifecycle. The design must decide whether selection/focus stays a single host-level pointer while multiple worlds may be loaded and/or simulated, and how a host opts each world into simulation. It must also decide whether time is one global timeline with per-world scheduling or genuinely independent world clocks. Do not choose an answer implicitly by expanding the current status enum.
+
+**Recommended next step:** write and review a small public lifecycle contract with observable states/transitions and acceptance scenarios before changing `WorldRegistry`, `GameClock` or `SimulationScheduler`. Preserve current behavior until that contract is approved.
+
 ### 4.2 Square grid and world geometry
 
 **Agreed direction**
