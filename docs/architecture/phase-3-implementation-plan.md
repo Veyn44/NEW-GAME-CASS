@@ -181,7 +181,7 @@ Tasks:
 
 ### Slice 2 — Spatial Composition storage and occupancy
 
-**Status:** Slice 2a and Slice 2b implemented and verified; query and movement slices remain gated.
+**Status:** Spatial Composition storage and occupancy are implemented and verified. The read-only query and generic movement capabilities are implemented separately in Slices 3 and 4 below.
 
 **Slice 2a — cell content and footprint geometry:**
 - Sparse cell-associated content, stable IDs, categories/layers, immutable payloads, deterministic snapshots and pure footprint geometry are implemented in `engine/spatial/spatial-composition.js`.
