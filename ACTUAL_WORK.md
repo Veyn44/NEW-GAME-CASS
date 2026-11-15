@@ -925,3 +925,14 @@ The Change Package canonical clone now applies the same strict JSON-data safegua
 - Added regression tests for sparse arrays, non-invoked getters and own `__proto__` preservation, including digest verification.
 
 GitHub Actions run [#43765588791](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43765588791) passed: Core **205/205**, host/unit **257/257**, and browser entry-point syntax checks. This remains infrastructure hardening only; no gameplay operation handlers or inventory/health/equipment rules were introduced. `main` was not modified.
+
+
+## 2026-11-15 — World Lifecycle design proposal
+
+Completed a source-level re-check of the current World Registry, World Context, Game Clock, Simulation Scheduler and their tests on `work`.
+
+Added `docs/architecture/world-lifecycle-design-proposal.md` as a **non-binding design proposal**. It separates registration, loading/readiness, simulation participation, pause, host focus/selection, rendering/visibility and disposal. It recommends independent per-world clocks/schedulers, host-owned focus/rendering, separate simulation persistence and explicit pause/disable backlog semantics.
+
+The proposal includes required invariants, pre-implementation acceptance scenarios and a migration strategy. It does not change source code, runtime behavior, save schemas, Pages configuration or `main`.
+
+**Awaiting user review/approval:** independent per-world simulation time; preservation of partial scheduler backlog on pause/disable; separate World Registry and simulation-runtime persistence; host ownership of focus/rendering. No implementation is authorized until these contracts are agreed.
