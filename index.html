@@ -80,6 +80,11 @@
           <span class="control zoom-readout">Zoom <output id="zoom-value">100%</output></span>
           <button id="reset-lab" type="button">Reset Lab</button>
           <button id="open-viewport-database" type="button">DATABASE</button>
+          <label class="control spatial-test-footprint"><span>Test footprint</span><select id="test-entity-footprint"><option value="single">1 × 1</option><option value="square-2">2 × 2</option></select></label>
+          <button id="create-spatial-test-entity" type="button" disabled>SPAWN TEST ENTITY</button>
+          <button id="move-spatial-test-entity" type="button" disabled>MOVE SELECTED</button>
+          <button id="remove-spatial-test-entity" type="button" disabled>REMOVE TEST</button>
+          <span id="spatial-test-status" class="dev-note" aria-live="polite">Spatial test tools loading…</span>
           <input id="workspace-file-input" type="file" accept=".cass,application/vnd.cassandra.save+json" hidden>
           <span class="dev-note">WASD: move Pawn / camera · Wheel: zoom · Middle drag: pan</span>
         </section>
