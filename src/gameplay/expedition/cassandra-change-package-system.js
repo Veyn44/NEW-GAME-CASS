@@ -186,6 +186,7 @@ function validateManifest(manifest) {
   if (!Array.isArray(manifest)) fail("INVALID_MANIFEST", "returnManifest must be an array.");
   const ids = new Set();
   const resultKeys = new Set();
+  const campaignEntityIds = new Set();
   return manifest.map((entry) => {
     if (!entry || typeof entry !== "object") fail("INVALID_MANIFEST", "Manifest entries must be objects.");
     const entryId = assertId(entry.entryId, "Manifest entry ID");
@@ -199,7 +200,15 @@ function validateManifest(manifest) {
         fail("AMBIGUOUS_MANIFEST_IDENTITY", "A manifest entry cannot declare both a resultKey and a campaignEntityId.", { entryId });
       }
     }
-    if (entry.campaignEntityId !== undefined) assertId(entry.campaignEntityId, "Manifest campaign entity ID");
+    if (entry.campaignEntityId !== undefined) {
+      assertId(entry.campaignEntityId, "Manifest campaign entity ID");
+      if (campaignEntityIds.has(entry.campaignEntityId)) {
+        fail("DUPLICATE_MANIFEST_ENTITY", "A persistent campaign entity must have exactly one final disposition.", {
+          campaignEntityId: entry.campaignEntityId
+        });
+      }
+      campaignEntityIds.add(entry.campaignEntityId);
+    }
     if (!DISPOSITIONS.has(entry.disposition)) {
       fail("INVALID_DISPOSITION", "Every manifest entry needs one explicit final disposition.", { entryId, disposition: entry.disposition });
     }
