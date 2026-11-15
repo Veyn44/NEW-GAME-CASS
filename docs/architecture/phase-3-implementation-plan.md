@@ -202,24 +202,33 @@ Tasks:
 
 ### Slice 3 — Spatial Query surface
 
-**Proposed files:**
-- Extend `engine/spatial/spatial-composition.js` with read-only query methods.
-- Add `tests/unit/spatial-query.test.js`.
+**Implemented on `work`:**
+- `engine/spatial/spatial-composition.js` — read-only query surface.
+- `engine/core/core-assembly.js` — injects Entity Registry for generic entity-kind filters.
+- `tests/unit/spatial-query.test.js` — focused query acceptance coverage.
 
-Tasks:
-- Implement cell, bounded region, explicit cell-set, entity occupancy, footprint, neighbor and radius queries.
-- Support explicit category/layer/entity-kind filters without conflating them.
-- Deduplicate entity-oriented results by entity ID.
-- Distinguish empty success from invalid request, out-of-bounds, non-grid, unknown-world and unavailable-world outcomes.
-- Use deterministic row-major cell order and stable ID ordering.
-- Return immutable/defensively copied results.
-- Ensure queries do not materialize cells, load worlds or mutate gameplay state.
+Implemented methods:
+- `queryCell(worldId, cell, filters)` — separate content and entity occupancy facts.
+- `queryRegion(worldId, region, filters)` — half-open rectangles or finite cell sets; only occupied cells are materialized in results.
+- `queryEntitiesInRegion(worldId, region, { kinds })` — entity-ID deduplication and matched-cell reporting.
+- `getEntityFootprint(entityId)` — full authoritative footprint; distinguishes unknown entity from non-grid placement.
+- `queryNeighbors(worldId, cell, { topology })` — explicit four-way/eight-way topology.
+- `queryRadius(worldId, center, { radius, metric })` — explicit Manhattan/Chebyshev metric.
 
-**Exit criteria:**
-- Spatial Query acceptance scenarios pass.
-- Query results are consistent with occupancy indexes.
-- Querying a stale result never acts as a reservation for a later move.
-- Local queries use spatial indexes rather than scanning the entire Entity Registry.
+Filters:
+- Category and layer filter cell-associated content only.
+- Entity kind filters Entity Registry metadata only.
+- Empty arrays mean no restriction; malformed filters reject.
+
+**Exit criteria covered by the Slice 3 test suite:**
+- Deterministic row-major cell order, stable entity IDs and multi-cell deduplication.
+- Half-open region boundaries, explicit-cell deduplication and reject-by-default out-of-bounds behavior.
+- Immutable results and no mutation/materialization of untouched cells.
+- Distinct invalid-region, bounds, unknown-world, non-grid-world, unknown-entity and non-spatial-placement errors.
+- Local cell lookups use the cell index rather than scanning Entity Registry.
+- Region scans use sparse stored content/occupancy records; no full grid materialization.
+
+**Deferred:** Independent unloaded-snapshot availability, category/layer secondary indexes pending profiling, async/paginated queries, arbitrary predicates, subscriptions, Cassandra/Dev Lab adoption and movement integration.
 
 ### Slice 4 — Generic Movement transaction
 
@@ -546,8 +555,8 @@ The proposal specifies:
 |---|---|
 | C0 — Scoped design closure | Per-slice contracts closed before execution; downstream design gates remain separate; explicit user authorization required for each implementation scope |
 | C1 — Geometry | **Passed 2026-11-15** — pure geometry and explicit World Registry grid capability; full Core/host CI green; existing placement semantics untouched |
-| C2 — Composition | Ownership, footprints, overlap facts, atomic occupancy and sparse storage |
-| C3 — Queries | Read-only behavior, deterministic results, lifecycle and bounds outcomes |
+| C2 — Composition | **Passed 2026-11-15** — sparse content, footprints, occupancy, Placement Coordinator and composite persistence implemented; full CI green |
+| C3 — Queries | **Implemented on work 2026-11-15** — read-only cell/region/entity/footprint/neighbor/radius queries; focused tests added; final CI pending |
 | C4 — Movement | Host policy boundary and atomic move results |
 | C5 — Persistence | Current supported-save fixtures, explicit unsupported-version rejection, snapshot/restore ordering and rollback |
 | C6 — Core integration | Service registration, dependency order and non-grid compatibility |
@@ -582,7 +591,7 @@ Any proposed exception must identify the concrete dependency and the smallest re
 
 **Compatibility policy:** Backward compatibility with arbitrary old `.cass` versions is not required. Unsupported versions may be rejected safely; selected migrations are optional and explicitly version-scoped.
 
-**Current action:** Slice 1 is implemented on `work` and CI-verified. Next is Slice 2 design-to-source mapping for Spatial Composition, including grid descriptor integration and the already-agreed placement/persistence boundaries. No PR merge or `main` update is implied.
+**Current action:** Slices 1, 1b, 2a/2b and 3 are implemented on `work`; Slice 3 verification is pending final CI. Next proposed work is Slice 4 — generic Movement transaction — which remains a separate scope and requires explicit authorization. No PR merge or `main` update is implied.
 
 
 
@@ -593,3 +602,13 @@ Any proposed exception must identify the concrete dependency and the smallest re
 - If a coordinated rollback itself fails, Placement Coordinator enters a fatal integrity state and Core pauses the Game Clock through `core.placement-integrity-fault`.
 - Composite snapshots persist WorldContext and Spatial Composition together; derived cell indexes are rebuilt on restore.
 - Cassandra Unit/Colony Control movement, viewport interpolation, environment simulation and world generation were not changed.
+
+
+## Slice 3 implementation checkpoint
+
+- Added deterministic, read-only cell, bounded-region, explicit-cell-set, entity-region, footprint, neighbor and radius query APIs.
+- Entity-kind filtering uses Entity Registry metadata supplied by Core Assembly; category/layer filters remain scoped to cell-associated content.
+- Region queries use sparse authoritative content/occupancy records and report only occupied cells; untouched cells remain implicit.
+- Added focused tests for ordering, filters, deduplication, matched cells, bounds, invalid regions, topology/metrics, immutable results and snapshot non-mutation.
+- No Cassandra movement, environment simulation, world generation, Dev Lab or persistence schema was changed.
+- Final CI verification is pending.
