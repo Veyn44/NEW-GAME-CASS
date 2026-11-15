@@ -60,7 +60,7 @@ function makeStorage({ revision = 0, value = 2, failWrites = 0 } = {}) {
     },
     async writeCampaignSnapshotAtomic(next) {
       writes += 1;
-      if (writes <= failWrites) throw new Error("simulated durable write failure");
+      if (writes === failWrites) throw new Error("simulated durable write failure");
       snapshot = structuredClone(next);
       return { durable: true };
     },
