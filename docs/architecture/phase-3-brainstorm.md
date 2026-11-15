@@ -136,12 +136,21 @@ The following gameplay behavior has been established in the brainstorm. These ar
 - If a crew member is stabilized inside a future medical/stasis chamber aboard the shuttle, that pawn should count as safely onboard and survive an abandon. This is a future gameplay feature, not a current implementation requirement.
 
 **Universe map and revisitable locations**
+- The galaxy is conceived as a fixed hierarchy of nested map divisions:
+  - Galaxy: 16×16 sectors (256 sectors).
+  - Each sector: 16×16 regions (256 regions per sector).
+  - Each region: 16×16 star systems (256 systems per region).
+  - This gives 16,777,216 star systems across the galaxy.
+- Each star system contains a random number of encounters/planetary locations; the illustrative range discussed is 1–8 planets per system.
+- Each planet may have 0–4 asteroids. There must nevertheless be at least one asteroid in every star system, even if none of its planets has one. The exact interpretation and placement of this system-level minimum remains to be clarified.
+- This hierarchy is a player-facing universe structure. It does not imply that every system, planet, asteroid, or encounter must exist as a fully loaded world at runtime.
+- A discovered location remains eligible for another visit unless the player explicitly marks it as Done.
 - A discovered location remains eligible for another visit unless the player explicitly marks it as Done.
 - Marking a location Done is an optional player decision, not an automatic consequence of visiting or clearing it.
 - A Done location can no longer be selected for another expedition.
 - When marked Done, its detailed encounter/location record may be discarded because the player has explicitly retired that location.
 - The universe map may still retain the location's lightweight identity/marker so the universe continues to know that the location exists; this is distinct from retaining its detailed generated world state.
-- The planned universe scale is approximately 1.6 million locations. This is a strong requirement to avoid treating every location as a fully loaded or fully serialized world. Most locations should remain lightweight map-level records until needed.
+- An earlier rough estimate of approximately 1.6 million locations is superseded or at least inconsistent with the subsequently described universe hierarchy: the hierarchy alone contains 16,777,216 star systems, before counting planets and asteroids. The final total number of encounter locations depends on the per-system planet count and asteroid rules. This scale reinforces the requirement to avoid treating every location as a fully loaded or fully serialized world; most should remain lightweight map-level records until needed.
 - Exact map representation, discovery rules, generation/storage strategy, and what minimum metadata survives Done are still open.
 
 **Shuttle mission flow**
@@ -192,9 +201,10 @@ Do not change the existing World Registry contract until this is resolved.
 - **Open:** Exact shuttle durability and failure consequences.
 - **Agreed Cassandra concept:** All discovered locations remain revisitable unless the player explicitly marks them Done.
 - **Agreed Cassandra concept:** Done is an optional retirement action; a Done location cannot be selected for another expedition and its detailed location record may be discarded.
-- **Recorded scale requirement:** The planned universe contains approximately 1.6 million locations; location identity/map representation must be much lighter than a loaded world instance.
+- **Recorded universe hierarchy:** 16×16 sectors, each with 16×16 regions, each with 16×16 star systems, for 16,777,216 systems. Each system has an illustrative 1–8 planets and at least one asteroid; each planet may have 0–4 asteroids. Location totals beyond the system count remain to be calculated/clarified.
 - **Open:** Which minimal location identity/metadata remains on the universe map after a location is marked Done.
-- **Open:** How locations are generated, discovered, represented, and stored efficiently at the planned scale.
+- **Open:** How the hierarchical universe and its systems/planets/asteroids are generated, discovered, represented, and stored efficiently at this scale.
+- **Open:** Whether the system-level minimum of one asteroid is a separate system encounter/location or must be associated with one of the planets.
 - **Open:** Exact landing/placement flow and whether it is automatic or player-selected.
 
 ### Step 2 — World Geometry and lifecycle semantics
