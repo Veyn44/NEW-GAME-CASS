@@ -437,20 +437,28 @@ The descriptor shape, validation and snapshot details remain technical proposals
 
 ### 8.3 Temporary-world result/change package
 
-**Current agreed concept:**
+**Agreed concept (recorded in the Phase 3 brainstorm):**
 - Temporary World returns a delta/change package.
 - Main World state is updated as previous state plus validated changes, not replaced wholesale.
 - Cassandra owns expedition semantics and the meaning of returned changes.
 
-**Still needs a contract:**
-- Change operation types and stable entity identity mapping.
-- Validation against stale/conflicting Main World state.
-- Atomicity boundary and rollback behavior.
-- Idempotency/replay handling.
-- Durable retention if applying the package fails.
-- Exact order of final encounter consequences, resource reconciliation and Temporary World disposal.
+**Working contract drafted:** `cassandra-temporary-world-change-package-contract-proposal.md`
 
-**Gate:** Cassandra expedition integration (Slice 7) cannot be completed until this contract is designed and accepted. It need not block isolated Engine geometry/composition work once the overall Phase 3 design gate is approved.
+The proposal specifies:
+- Separate persistent campaign state, persistent location records and Temporary World runtime state.
+- Campaign identity to encounter-runtime identity projection mapping; no simultaneous duplicate Engine placement for one entity.
+- Typed Cassandra domain operations, baseline revisions/preconditions and all-or-nothing package application.
+- Immutable, versioned and durably retained pending packages.
+- Idempotent application ledger and recovery after interruption.
+- Separate End Expedition and Abandon outcomes, final encounter consequences, Clear/Not Clear, resource extraction and location persistence.
+
+**Still requires review/decision:**
+- Exact package schema/operation types and aggregate revision model.
+- Detailed entity projection/return eligibility and disposition rules.
+- Recovery checkpoint strategy and transaction coordinator integration.
+- Per-location persistence policy and user-facing conflict resolution.
+
+**Gate:** Cassandra expedition integration (Slice 7) remains blocked until the contract is reviewed and the remaining consequential details are resolved. Isolated Engine geometry/composition work is not blocked by this Cassandra-specific protocol.
 
 ### 8.4 Save compatibility and legacy spatial state
 
