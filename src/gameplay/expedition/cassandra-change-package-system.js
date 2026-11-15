@@ -78,8 +78,8 @@ async function sha256(value) {
 }
 
 function validateBaseline(baseline) {
-  if (!Array.isArray(baseline) || baseline.length === 0) {
-    fail("INVALID_BASELINE", "A package must declare at least one touched aggregate baseline.");
+  if (!Array.isArray(baseline)) {
+    fail("INVALID_BASELINE", "Package aggregate baselines must be an array.");
   }
   const seen = new Set();
   const result = baseline.map((entry) => {
@@ -138,9 +138,10 @@ function validateProjectionMappings(mappings, baseline) {
 }
 
 function validateOperations(operations, baseline) {
-  if (!Array.isArray(operations) || operations.length === 0) {
-    fail("INVALID_OPERATIONS", "A finalized package must contain at least one typed operation.");
+  if (!Array.isArray(operations)) {
+    fail("INVALID_OPERATIONS", "Package operations must be an array.");
   }
+  if (operations.length === 0) return Object.freeze([]);
   const baselineById = new Map(baseline.map((entry) => [entry.aggregateId, entry.revision]));
   const operationIds = new Set();
   const normalized = operations.map((operation) => {
