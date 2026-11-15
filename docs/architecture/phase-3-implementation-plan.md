@@ -1,6 +1,6 @@
 # Phase 3 Physical World — Implementation Plan
 
-**Status:** Slices 1–6 are implemented on `work`; initial Dev Lab spatial test workflows, Cassandra grid/Unit movement, Main/Temporary World session and the first Change Package protocol foundation are implemented. Production campaign persistence, domain integration and final acceptance remain in progress. Automated tests may run during implementation; user-led acceptance testing remains deferred until Phase 3 is complete. The latest confirmed GitHub Actions run passed 205/205 Core tests and 231/231 host tests.  
+**Status:** Slices 1–6 are implemented on `work`; initial Dev Lab spatial test workflows, Cassandra grid/Unit movement, Main/Temporary World session and the first Change Package protocol foundation are implemented. Production campaign persistence, domain integration and final acceptance remain in progress. Automated tests may run during implementation; user-led acceptance testing remains deferred until Phase 3 is complete. The latest confirmed GitHub Actions run passed 205/205 Core tests and 232/232 host tests.  
 **Branch:** `work`  
 **Source audit:** 2026-11-15  
 **Scope:** Implementation sequencing for reusable Engine grid/spatial capabilities and their Cassandra/Dev Lab integration
@@ -414,7 +414,7 @@ Tasks:
 
 ### Slice 9 — End-to-end acceptance and release gate
 
-**Status:** Automated Core and host suites pass on `work` (205/205 Core, 228/228 host at the latest confirmed run). Multi-world occupancy, Main/Temporary clock behavior, Unit/projection persistence, package retries/CAS, unsupported historical save rejection and Dev Lab/Cassandra host parity have automated coverage. Browser-specific IndexedDB durability, UI interaction/layout, 128×128/256×256 performance measurements and any environment simulation not present in this branch remain open verification items. The deferred manual checks are recorded in `phase-3-manual-acceptance-checklist.md`.
+**Status:** Automated Core and host suites pass on `work` (205/205 Core, 232/232 host at the latest confirmed run). Multi-world occupancy, Main/Temporary clock behavior, Unit/projection persistence, package retries/CAS, unsupported historical save rejection and Dev Lab/Cassandra host parity have automated coverage. The latest confirmed GitHub Actions run `43759502389` passed Core 205/205 and host 232/232. Temporary World disposal now uses two-phase cleanup preflight: registered handlers validate and return commit callbacks before any scoped runtime state is removed; a failing preflight leaves the World and its cell contents intact. Browser-specific IndexedDB durability, UI interaction/layout, 128×128/256×256 performance measurements and any environment simulation not present in this branch remain open verification items. The deferred manual checks are recorded in `phase-3-manual-acceptance-checklist.md`.
 
 Tasks:
 - Run all existing Core/application tests plus current-format save tests and safe-rejection tests for unsupported historical `.cass` versions.
