@@ -17,6 +17,19 @@ This document defines the first usable grid contract for Engine. It separates ge
 - Do not add hexagonal, triangular, isometric-topology or other grid variants without a concrete requirement.
 - Grid geometry is not the same thing as a cell's contents, entity occupancy, terrain, environment, or visual representation.
 
+### 1.1 Grid capability ownership
+
+**Agreed direction (2026-11-15):** The optional grid capability is declared by the World Registry descriptor.
+
+- World Registry owns whether a World has grid capability and the immutable grid dimensions recorded at World creation.
+- The grid descriptor is explicit and separate from generic World dimensions; dimensions alone do not imply grid support.
+- A World without a grid remains valid and must not acquire grid behavior implicitly.
+- Grid Geometry validates dimensions and provides coordinate/bounds operations but does not own World lifecycle or capability registration.
+- Spatial Composition consumes the descriptor and owns the actual cell-associated contents and entity occupancy.
+- Initial scope does not include changing grid dimensions or adding/removing grid capability after World creation.
+
+The exact descriptor property/API names and snapshot field layout remain implementation details to verify against the existing World Registry contract. This ownership choice is settled; it does not authorize source/runtime changes.
+
 ## 2. Coordinate contract
 
 ### 2.1 Cell coordinates
