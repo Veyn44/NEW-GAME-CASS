@@ -256,7 +256,7 @@ function cloneState(value) {
 export function createCassandraChangePackageCoordinator({
   storage,
   operationHandlers,
-  validateReturnManifest = () => true,
+  validateReturnManifest,
   resolveResultIdentities = async () => ({})
 } = {}) {
   if (!storage || typeof storage.loadCampaignSnapshot !== "function"
@@ -267,6 +267,10 @@ export function createCassandraChangePackageCoordinator({
   }
   if (!operationHandlers || typeof operationHandlers !== "object") {
     fail("OPERATION_REGISTRY_REQUIRED", "Cassandra operation handlers must be supplied by the host.");
+  }
+  if (typeof validateReturnManifest !== "function") {
+    fail("RETURN_MANIFEST_VALIDATOR_REQUIRED",
+      "The host must provide Cassandra domain reconciliation for every return-manifest entry.");
   }
 
   async function loadSnapshot() {
@@ -293,16 +297,30 @@ export function createCassandraChangePackageCoordinator({
     async stage(changePackage, { checkpoint } = {}) {
       await verifyCassandraChangePackage(changePackage);
       const snapshot = await loadSnapshot();
-      const existing = snapshot.pendingPackages.find((entry) => entry.packageId === changePackage.packageId)
-        ?? snapshot.appliedLedger.find((entry) => entry.packageId === changePackage.packageId);
+      const pendingExisting = snapshot.pendingPackages.find((entry) => entry.packageId === changePackage.packageId);
+      const appliedExisting = snapshot.appliedLedger.find((entry) => entry.packageId === changePackage.packageId);
+      if (pendingExisting && appliedExisting) {
+        fail("PACKAGE_LEDGER_INCONSISTENT", "A package cannot be both pending and applied.", { packageId: changePackage.packageId });
+      }
+      const existing = pendingExisting ?? appliedExisting;
       if (existing) {
         if (existing.digest !== changePackage.digest) {
           fail("PACKAGE_ID_REUSE", "A package ID cannot be reused with different content.", { packageId: changePackage.packageId });
         }
-        return Object.freeze({ status: snapshot.appliedLedger.includes(existing) ? "alreadyApplied" : "alreadyPending" });
+        return Object.freeze({ status: appliedExisting ? "alreadyApplied" : "alreadyPending" });
       }
-      if (!checkpoint || typeof checkpoint !== "object") {
-        fail("EXPEDITION_CHECKPOINT_REQUIRED", "The expedition-start Major State checkpoint must be retained with the pending package.");
+      if (!checkpoint || typeof checkpoint !== "object"
+        || !checkpoint.majorState || typeof checkpoint.majorState !== "object"
+        || !checkpoint.majorState.aggregates || typeof checkpoint.majorState.aggregates !== "object") {
+        fail("EXPEDITION_CHECKPOINT_REQUIRED",
+          "The full expedition-start Major State checkpoint, including aggregates, must be retained with the pending package.");
+      }
+      for (const baseline of changePackage.baseline) {
+        if (checkpoint.majorState.aggregates[baseline.aggregateId]?.revision !== baseline.revision) {
+          fail("CHECKPOINT_BASELINE_MISMATCH",
+            "The package baseline must match the retained expedition-start checkpoint.",
+            { aggregateId: baseline.aggregateId });
+        }
       }
       snapshot.pendingPackages.push({
         packageId: changePackage.packageId,
@@ -327,6 +345,11 @@ export function createCassandraChangePackageCoordinator({
         }
       }
       if (!pending) fail("PACKAGE_NOT_PENDING", "No durable pending package exists.", { packageId });
+      if (pending.status === "conflict") {
+        fail("PACKAGE_CONFLICT_REQUIRES_RESOLUTION",
+          "A conflicted immutable package requires an explicit reconciliation/replacement workflow.",
+          { packageId });
+      }
       const changePackage = pending.changePackage;
       await verifyCassandraChangePackage(changePackage);
       if (pending.digest !== changePackage.digest) fail("PENDING_PACKAGE_CORRUPT", "Pending package digest does not match its envelope.");
