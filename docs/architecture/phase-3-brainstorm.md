@@ -392,9 +392,13 @@ Questions to resolve:
 - Is pathfinding explicitly deferred?
 
 ### Step 7 — Entity, world, transfer, and application boundaries
-**Status:** Open
+**Status:** Open — working proposal drafted for the Cassandra Temporary World result/change-package protocol; review and remaining decisions pending
 
 Define ownership and contracts between Engine Core, reusable spatial capabilities, Cassandra gameplay systems, and presentation.
+
+**Working proposal:** `cassandra-temporary-world-change-package-contract-proposal.md`
+
+The proposal does not close Step 7. The questions below remain open until the protocol and its remaining implementation choices are reviewed.
 
 Questions to resolve:
 - What remains the responsibility of Entity Registry?
