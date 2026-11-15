@@ -159,6 +159,37 @@ test("Unit domain records restore transactionally with Core identity and placeme
 });
 
 
+test("Cassandra grid Units keep independent occupancy across registered Worlds", async () => {
+  const state = await startWithWorld();
+  try {
+    const worlds = state.context.getService("core.world-registry");
+    worlds.registerWorld({
+      worldId: "unit-test-world-temporary",
+      type: "test.temporary",
+      dimensions: { width: 64, height: 64 },
+      grid: { width: 64, height: 64 }
+    });
+    const mainUnit = state.units.createUnit({
+      definitionId: "unit.test-worker",
+      worldId: "unit-test-world",
+      position: { x: 8, y: 9 }
+    });
+    const temporaryUnit = state.units.createUnit({
+      definitionId: "unit.test-worker",
+      worldId: "unit-test-world-temporary",
+      position: { x: 8, y: 9 }
+    });
+    const spatial = state.context.getService("core.spatial-composition");
+    assert.deepEqual(spatial.getCellEntities("unit-test-world", { x: 8, y: 9 }), [mainUnit.id]);
+    assert.deepEqual(spatial.getCellEntities("unit-test-world-temporary", { x: 8, y: 9 }), [temporaryUnit.id]);
+    assert.equal(state.context.getService("core.world-context").getPlacement(mainUnit.id).worldId, "unit-test-world");
+    assert.equal(state.context.getService("core.world-context").getPlacement(temporaryUnit.id).worldId, "unit-test-world-temporary");
+  } finally {
+    await state.runtime.destroy();
+    clearDefinitionsForTests();
+  }
+});
+
 test("Unit movement accepts fractional world coordinates and persists them across restore", async () => {
   const state = await startWithWorld();
   try {
