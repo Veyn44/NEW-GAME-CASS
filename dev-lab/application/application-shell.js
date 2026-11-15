@@ -330,9 +330,10 @@ function querySelectedSpatialRadius(metric) {
 function querySelectedSpatialRegion() {
   const worldId = state.worldRegistry?.activeWorldId;
   if (!state.paused || !state.spatialApi || !worldId) return;
+  const readCoordinate = (input) => input.value.trim() === "" ? Number.NaN : Number(input.value);
   const bounds = {
-    min: { x: Number(spatialRegionMinX.value), y: Number(spatialRegionMinY.value) },
-    maxExclusive: { x: Number(spatialRegionMaxX.value), y: Number(spatialRegionMaxY.value) }
+    min: { x: readCoordinate(spatialRegionMinX), y: readCoordinate(spatialRegionMinY) },
+    maxExclusive: { x: readCoordinate(spatialRegionMaxX), y: readCoordinate(spatialRegionMaxY) }
   };
   if (Object.values(bounds.min).some((value) => !Number.isSafeInteger(value))
     || Object.values(bounds.maxExclusive).some((value) => !Number.isSafeInteger(value))) {
