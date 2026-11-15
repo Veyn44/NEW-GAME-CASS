@@ -330,7 +330,13 @@ export function createCassandraChangePackageCoordinator({
         status: "pending",
         resolvedResultIdentities: {}
       });
-      await writeSnapshot(snapshot);
+      const reopened = await writeSnapshot(snapshot);
+      const retained = reopened.pendingPackages.find((entry) => entry.packageId === changePackage.packageId);
+      if (!retained || retained.digest !== changePackage.digest
+        || canonicalStringify(retained.checkpoint) !== canonicalStringify(checkpoint)) {
+        fail("CHANGE_BUFFER_DURABILITY_UNCONFIRMED",
+          "The reopened campaign snapshot does not contain the complete pending package and expedition checkpoint.");
+      }
       return Object.freeze({ status: "pending", packageId: changePackage.packageId });
     },
 
