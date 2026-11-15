@@ -238,6 +238,7 @@ function clearSelection() {
   state.selectedSpatialEntityId = null;
   state.selectedTestEntityId = null;
   state.moveTestEntityMode = false;
+  viewport.setSpatialHighlights([]);
   viewport.setSelectedWorldMarker(null);
   updateSpatialTestControls();
 }
@@ -258,6 +259,7 @@ function inspectGameplayEntity(entityId) {
 
 function handleViewportEntitySelect(entityId) {
   if (state.moveTestEntityMode) return;
+  viewport.setSpatialHighlights([]);
   if (!entityId) {
     if (state.moveTestEntityMode) return;
     state.selectedSpatialEntityId = null;
