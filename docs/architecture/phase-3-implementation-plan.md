@@ -232,25 +232,31 @@ Filters:
 
 ### Slice 4 — Generic Movement transaction
 
-**Proposed files:**
-- Add `engine/spatial/spatial-movement.js`.
-- Add `tests/unit/spatial-movement.test.js`.
+**Implemented on `work`:**
+- `engine/spatial/spatial-movement.js` — synchronous host-policy movement transaction.
+- `engine/core/core-assembly.js` — registers `core.spatial-movement` after its dependencies.
+- `tests/unit/spatial-movement.test.js` — focused movement acceptance coverage.
 
-Tasks:
-- Accept an entity, target world, target anchor and target orientation.
-- Derive and validate the full target footprint.
-- Gather geometric overlaps and cell-associated contents through Spatial Composition queries.
-- Invoke a host-supplied, deterministic, side-effect-free policy.
-- Commit the complete footprint atomically only after validation and policy acceptance.
-- Return stable moved/rejected/invalid/out-of-bounds/unavailable outcomes.
-- Keep damage, knockback, speed, movement cadence, input, pathfinding, passability semantics and all gameplay consequences outside Engine.
+Behavior:
+- Moves an entity's existing complete grid footprint to a target world/anchor/orientation.
+- Derives and validates every target cell before host policy evaluation.
+- Supplies immutable mover/current/target facts, target-cell contents and deduplicated geometric overlaps.
+- Requires a synchronous host policy per call; no default allow/block policy exists in Engine.
+- Accepts boolean or structured `{ accepted, code?, reason? }` decisions.
+- Commits accepted moves only through Placement Coordinator.
+- Returns stable `moved`, `unchanged`, `rejected`, `invalid`, `out-of-bounds` or `unavailable` outcomes.
+- Policy rejection, malformed/throwing/async policy and bounds failure leave the previous placement unchanged.
+- Re-entrant movement of the same entity is rejected.
 
-**Exit criteria:**
-- Accepted moves replace the complete footprint atomically.
-- Rejected or invalid moves preserve the previous occupancy.
-- Policy cannot mutate the index during evaluation.
-- Multi-cell moves, rotation, bounds, overlap, same-position and failure cases are covered.
-- Existing Cassandra pawn movement is not replaced until its implementation is audited and an explicit integration adapter is designed.
+**Exit criteria covered by focused tests:**
+- Multi-cell translation and rotation, including removal of all old occupied cells.
+- Geometric overlap and cell-content facts, without Engine passability semantics.
+- Host policy can accept overlap or reject a target.
+- Cross-grid-world relocation preserves entity identity.
+- Same-position, out-of-bounds footprint, unavailable/non-grid/closed world and invalid entity cases.
+- Policy rejection, exception, async/malformed return and re-entrant attempt.
+
+**Boundary note:** The host policy receives immutable facts and is contractually synchronous, deterministic and side-effect-free. JavaScript cannot prevent a host closure from mutating external services it already owns; the Engine API does not grant the policy any mutation capability. Cassandra movement, speed, input, interpolation, passability and collision consequences remain untouched.
 
 ### Slice 5 — Persistence and restore integration
 
@@ -557,7 +563,7 @@ The proposal specifies:
 | C1 — Geometry | **Passed 2026-11-15** — pure geometry and explicit World Registry grid capability; full Core/host CI green; existing placement semantics untouched |
 | C2 — Composition | **Passed 2026-11-15** — sparse content, footprints, occupancy, Placement Coordinator and composite persistence implemented; full CI green |
 | C3 — Queries | **Implemented on work 2026-11-15** — read-only cell/region/entity/footprint/neighbor/radius queries; focused tests added; final CI pending |
-| C4 — Movement | Host policy boundary and atomic move results |
+| C4 — Movement | **Implemented on work 2026-11-15** — host-policy transaction and focused tests added; final CI pending |
 | C5 — Persistence | Current supported-save fixtures, explicit unsupported-version rejection, snapshot/restore ordering and rollback |
 | C6 — Core integration | Service registration, dependency order and non-grid compatibility |
 | C7 — Cassandra | Existing gameplay/environment regressions and expedition workflow |
@@ -591,7 +597,7 @@ Any proposed exception must identify the concrete dependency and the smallest re
 
 **Compatibility policy:** Backward compatibility with arbitrary old `.cass` versions is not required. Unsupported versions may be rejected safely; selected migrations are optional and explicitly version-scoped.
 
-**Current action:** Slices 1, 1b, 2a/2b and 3 are implemented on `work`; Slice 3 verification is pending final CI. Next proposed work is Slice 4 — generic Movement transaction — which remains a separate scope and requires explicit authorization. No PR merge or `main` update is implied.
+**Current action:** Slices 1, 1b, 2a/2b, 3 and 4 are implemented on `work`; Slice 4 verification is pending final CI. Next proposed work is Slice 5 — persistence and restore integration — which remains a separate scope and requires explicit authorization. No PR merge or `main` update is implied.
 
 
 
@@ -611,4 +617,14 @@ Any proposed exception must identify the concrete dependency and the smallest re
 - Region queries use sparse authoritative content/occupancy records and report only occupied cells; untouched cells remain implicit.
 - Added focused tests for ordering, filters, deduplication, matched cells, bounds, invalid regions, topology/metrics, immutable results and snapshot non-mutation.
 - No Cassandra movement, environment simulation, world generation, Dev Lab or persistence schema was changed.
+- Final CI verification is pending.
+
+
+## Slice 4 implementation checkpoint
+
+- Added `SpatialMovement` as a small Engine service and registered it as `core.spatial-movement`.
+- Host movement policy is supplied per move; Engine has no default passability or overlap decision.
+- The service derives target footprint cells, gathers cell contents and geometric overlaps, evaluates the synchronous policy, then commits through Placement Coordinator.
+- Added focused movement tests for acceptance, rejection, bounds, overlap, rotation, cross-world relocation, same-position and policy failure behavior.
+- Cassandra Pawn/Unit movement, input, speed, interpolation, environment simulation, world generation and Dev Lab were not changed.
 - Final CI verification is pending.
