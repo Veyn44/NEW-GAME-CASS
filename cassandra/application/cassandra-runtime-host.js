@@ -3,6 +3,7 @@ import { createInputSystem } from "../../engine/input/input-system.js";
 import { getDefinition } from "../../engine/database/definition-registry.js";
 import { createUnitSystem } from "../../src/gameplay/unit/unit-system.js";
 import { createColonyControlSystem } from "../../src/gameplay/colony/colony-control-system.js";
+import { createCassandraWorldSessionSystem } from "../../src/gameplay/world/cassandra-world-session-system.js";
 import { createCassandraDevLabGameplayController } from "./dev-lab-gameplay-controller.js";
 import { createCassandraDevLabUnitInspectorUi } from "./dev-lab-unit-inspector-ui.js";
 import { createApplicationRuntimeHost } from "../../shared/application/runtime-host.js";
@@ -22,11 +23,13 @@ export function createCassandraRuntime({
     hostSystems: [
       createInputSystem({ inputController }),
       createUnitSystem({ definitionLookup: getDefinition }),
-      createColonyControlSystem()
+      createColonyControlSystem(),
+      createCassandraWorldSessionSystem()
     ],
     simulationTasks: [{
       systemId: "game.colony-control",
       update({ deltaSeconds, context }) {
+        const worldSession = context.getService("game.world-session-api");
         gameplayController ??= createCassandraDevLabGameplayController({
           unitApi: context.getService("game.unit-api"),
           colonyControlApi: context.getService("game.colony-control-api"),
@@ -35,9 +38,10 @@ export function createCassandraRuntime({
         if (gameplayController.getControlState().drafted) {
           const moved = gameplayController.update(deltaSeconds);
           if (moved) onUnitMoved?.(moved);
-          return;
+        } else {
+          updateFreeCamera?.(deltaSeconds);
         }
-        updateFreeCamera?.(deltaSeconds);
+        worldSession.advance(deltaSeconds);
       }
     }]
   });
@@ -59,6 +63,7 @@ export function resolveCassandraRuntimeServices(context) {
     worldRegistry,
     persistenceApi: context.getService("core.persistence"),
     clock: context.getService("core.game-clock"),
+    worldSessionApi: context.getService("game.world-session-api"),
     gameplayApi,
     gameplayUi
   };
