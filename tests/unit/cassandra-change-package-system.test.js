@@ -214,6 +214,9 @@ test("coordinator stages a durable buffer then promotes Major State and Applied 
   assert.equal(storage.snapshot.majorState.aggregates["inventory:crew"].revision, 1);
   assert.equal(storage.snapshot.majorState.revision, 8);
   assert.equal(result.ledger.resultingMajorRevision, 8);
+  assert.equal(await coordinator.isApplied(changePackage.packageId, changePackage.digest), true);
+  assert.equal(await coordinator.isApplied(changePackage.packageId, "f".repeat(64)), false);
+  assert.equal(await coordinator.isApplied("package:unknown", changePackage.digest), false);
   assert.equal(storage.snapshot.pendingPackages.length, 0);
   assert.equal(storage.snapshot.appliedLedger.length, 1);
 
