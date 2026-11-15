@@ -462,12 +462,12 @@ export function createCassandraChangePackageCoordinator({
       }
       if (!immutableCheckpoint || typeof immutableCheckpoint !== "object"
         || !immutableCheckpoint.majorState || typeof immutableCheckpoint.majorState !== "object"
-        || !checkpoint.majorState.aggregates || typeof checkpoint.majorState.aggregates !== "object") {
+        || !immutableCheckpoint.majorState.aggregates || typeof immutableCheckpoint.majorState.aggregates !== "object") {
         fail("EXPEDITION_CHECKPOINT_REQUIRED",
           "The full expedition-start Major State checkpoint, including aggregates, must be retained with the pending package.");
       }
       for (const baseline of immutablePackage.baseline) {
-        if (checkpoint.majorState.aggregates[baseline.aggregateId]?.revision !== baseline.revision) {
+        if (immutableCheckpoint.majorState.aggregates[baseline.aggregateId]?.revision !== baseline.revision) {
           fail("CHECKPOINT_BASELINE_MISMATCH",
             "The package baseline must match the retained expedition-start checkpoint.",
             { aggregateId: baseline.aggregateId });
@@ -488,7 +488,7 @@ export function createCassandraChangePackageCoordinator({
       const retained = reopened.pendingPackages.find((entry) => entry.packageId === immutablePackage.packageId);
       if (!retained || retained.digest !== immutablePackage.digest
         || retained.checkpointDigest !== checkpointDigest
-        || canonicalStringify(retained.checkpoint) !== canonicalStringify(checkpoint)) {
+        || canonicalStringify(retained.checkpoint) !== canonicalStringify(immutableCheckpoint)) {
         fail("CHANGE_BUFFER_DURABILITY_UNCONFIRMED",
           "The reopened campaign snapshot does not contain the complete pending package and expedition checkpoint.");
       }
