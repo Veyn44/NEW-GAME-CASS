@@ -297,8 +297,9 @@ export class WorldContext {
       throw new WorldContextError("ENTITY_STORED", "A stored entity must be activated before world placement.", { entityId });
     }
     const point = clonePosition(position);
-    if (point.x < 0 || point.y < 0 || point.x >= world.dimensions.width || point.y >= world.dimensions.height) {
-      throw new WorldContextError("POSITION_OUT_OF_BOUNDS", "Entity position must be inside the target world's dimensions.", { entityId, worldId, position: point });
+    const bounds = world.grid ?? world.dimensions;
+    if (point.x < 0 || point.y < 0 || point.x >= bounds.width || point.y >= bounds.height) {
+      throw new WorldContextError("POSITION_OUT_OF_BOUNDS", "Entity position must be inside the target world's spatial bounds.", { entityId, worldId, position: point });
     }
     return freezePlacement({ entityId, type: "world", worldId, position: point });
   }
