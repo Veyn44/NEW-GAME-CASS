@@ -53,16 +53,24 @@ function makeStorage({ revision = 0, value = 2, failWrites = 0 } = {}) {
     appliedLedger: []
   };
   let writes = 0;
+  let storageRevision = 0;
   return {
     atomicReplace: true,
+    compareAndSwap: true,
     async loadCampaignSnapshot() {
-      return structuredClone(snapshot);
+      return { snapshot: structuredClone(snapshot), revision: storageRevision };
     },
-    async writeCampaignSnapshotAtomic(next) {
+    async writeCampaignSnapshotAtomic(next, expectedRevision) {
       writes += 1;
+      if (expectedRevision !== storageRevision) {
+        const error = new Error("campaign storage revision conflict");
+        error.code = "CAMPAIGN_STORAGE_CONFLICT";
+        throw error;
+      }
       if (writes === failWrites) throw new Error("simulated durable write failure");
       snapshot = structuredClone(next);
-      return { durable: true };
+      storageRevision += 1;
+      return { durable: true, revision: storageRevision };
     },
     tamperPendingCheckpoint() {
       const pending = snapshot.pendingPackages[0];
@@ -73,6 +81,7 @@ function makeStorage({ revision = 0, value = 2, failWrites = 0 } = {}) {
       if (pending?.resolvedResultIdentities) pending.resolvedResultIdentities["result:ore"] = "campaign:corrupt";
     },
     get snapshot() { return structuredClone(snapshot); },
+    get storageRevision() { return storageRevision; },
     get writes() { return writes; }
   };
 }
