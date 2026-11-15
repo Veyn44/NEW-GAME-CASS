@@ -154,3 +154,44 @@ test("policy cannot recursively start a second move for the same entity", () => 
   assert.equal(result.status, "moved");
   assert.deepEqual(occupancy(s, "pawn:mover").anchor, { x: 2, y: 2 });
 });
+
+test("policy evaluation cannot mutate Spatial Composition cell contents", () => {
+  const s = setup();
+  place(s, "pawn:mover", { x: 1, y: 1 });
+  const before = occupancy(s, "pawn:mover");
+  const result = s.movement.moveEntity("pawn:mover", { worldId: "grid-a", anchor: { x: 2, y: 2 } }, () => {
+    s.spatial.addCellContent({ contentId: "wall:illegal", worldId: "grid-a", cell: { x: 2, y: 2 }, categoryId: "structure" });
+    return true;
+  });
+  assert.equal(result.status, "policy-error");
+  assert.equal(result.code, "POLICY_EVALUATION_FAILED");
+  assert.equal(occupancy(s, "pawn:mover"), before);
+  assert.equal(s.spatial.getContent("wall:illegal"), null);
+});
+
+test("policy evaluation cannot mutate placements through PlacementCoordinator", () => {
+  const s = setup();
+  place(s, "pawn:mover", { x: 1, y: 1 });
+  place(s, "pawn:other", { x: 5, y: 5 });
+  const beforeMover = occupancy(s, "pawn:mover");
+  const beforeOther = occupancy(s, "pawn:other");
+  const result = s.movement.moveEntity("pawn:mover", { worldId: "grid-a", anchor: { x: 2, y: 2 } }, () => {
+    s.placements.moveEntity("pawn:other", { type: "grid", worldId: "grid-a", anchor: { x: 6, y: 6 }, footprint: [{ x: 0, y: 0 }], orientation: 0 });
+    return true;
+  });
+  assert.equal(result.status, "policy-error");
+  assert.equal(result.code, "POLICY_EVALUATION_FAILED");
+  assert.equal(occupancy(s, "pawn:mover"), beforeMover);
+  assert.equal(occupancy(s, "pawn:other"), beforeOther);
+});
+
+test("movement cannot silently change an entity footprint", () => {
+  const s = setup();
+  place(s, "pawn:mover", { x: 1, y: 1 }, [{ x: 0, y: 0 }, { x: 1, y: 0 }]);
+  const before = occupancy(s, "pawn:mover");
+  const result = s.movement.moveEntity("pawn:mover", {
+    worldId: "grid-a", anchor: { x: 2, y: 2 }, footprint: [{ x: 0, y: 0 }]
+  }, () => true);
+  assert.equal(result.code, "FOOTPRINT_CHANGE_NOT_SUPPORTED");
+  assert.equal(occupancy(s, "pawn:mover"), before);
+});
