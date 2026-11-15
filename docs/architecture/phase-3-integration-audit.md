@@ -50,7 +50,7 @@ This is not a contradiction once the integration contract is read as the refinem
 
 ### 3.2 Coordinate conversion is still a real open detail
 
-The preferred mapping is grid anchor `(x,y)` to World Context world-space cell center `(x+0.5,y+0.5)`. It matches the current viewport convention, but remains a proposal, not an approved API rule.
+**Approved direction (2026-11-15):** Grid anchor `(x,y)` maps to World Context world-space cell center `(x+0.5,y+0.5)`. The integer anchor is the anchor cell, not the center of the complete multi-cell footprint. Non-grid positions remain continuous.
 
 Existing Unit movement accepts fractional world-space positions. Therefore:
 - Do not silently round legacy fractional positions into cells.
@@ -58,7 +58,7 @@ Existing Unit movement accepts fractional world-space positions. Therefore:
 - Define an explicit mapping for grid-backed entities.
 - Keep non-grid continuous placement semantics unchanged.
 
-This is a focused implementation/design decision, not a reason to weaken the ownership or atomicity invariant.
+This decision closes the coordinate-mapping question. Legacy fractional coordinates still require an explicit source-specific migration rule if that save version is deliberately supported; they must never be silently rounded. The placement coordinator and transaction mechanics remain open.
 
 ### 3.3 Simulation time and expedition pause agree
 
@@ -116,7 +116,7 @@ These items are not contradictions; they must be resolved before the dependent i
 8. **Source audit before Cassandra integration:** locate and inspect actual pawn movement, world generation, environment persistence, map state, expedition flow and tests. Current audit evidence is incomplete for those paths.
 9. **World lifecycle runtime details:** exact state representation, event/error names, global clock behavior when a world fails, and restore readiness sequencing.
 
-No user decision is needed to preserve the agreed architectural boundaries. The anchor-to-world-position mapping is the most consequential remaining design choice and should be settled before the placement integration is implemented.
+No further user decision is currently needed to preserve the agreed architectural boundaries. Remaining work is implementation-level closure: coordinator mechanics, persistence ordering, durable campaign commit/recovery and source audits.
 
 ## 5. Integrated acceptance matrix (Step 9)
 
