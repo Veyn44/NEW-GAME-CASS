@@ -89,6 +89,16 @@ test("Dev Lab removes test entities through coordinated retirement", () => {
   assert.equal(s.controller.list().length, 0);
 });
 
+test("Dev Lab reset helper retires every spatial test entity", () => {
+  const s = setup();
+  const first = s.controller.create({ anchor: { x: 1, y: 1 } });
+  const second = s.controller.create({ anchor: { x: 3, y: 3 } });
+  const removed = s.controller.removeAll();
+  assert.deepEqual(removed.map((entity) => entity.id).sort(), [first.entity.id, second.entity.id].sort());
+  assert.equal(s.controller.list().length, 0);
+  assert.equal(s.spatial.entityOccupancyCount, 0);
+});
+
 test("Dev Lab controller refuses to mutate non-test Engine entities", () => {
   const s = setup();
   const external = s.entities.registerPersistent({ id: "campaign:pawn", kind: "pawn" });
