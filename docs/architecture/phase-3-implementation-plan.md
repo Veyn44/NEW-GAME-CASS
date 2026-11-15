@@ -223,14 +223,14 @@ Tasks:
 - Make World Context + Spatial Composition restore one synchronous composite commit/rollback boundary; separate awaited participant commits are insufficient for cross-service atomicity.
 - Preserve the World Context-only persistence path for hosts that do not assemble the spatial capability.
 - Define explicit rejection or an intentionally supported, version-scoped migration for saves that predate the spatial participant.
-- Preserve existing `.cass` envelopes, metadata and application-specific state contracts.
+- Keep envelope/version boundaries explicit; never silently reinterpret an unsupported envelope, metadata or application identity.
 - Never interpret an absent spatial snapshot as empty by default. Reject the save unless a deliberately supported migration can derive the spatial state from authoritative legacy data.
 
 **Exit criteria:**
 - Save/load round trips preserve all authoritative spatial records.
 - Invalid snapshots fail without leaving partially restored spatial state.
 - Cross-participant failure rolls back earlier commits.
-- Existing `.cass` fixtures still load and preserve their prior behavior.
+- Fixtures for currently supported `.cass` formats load and preserve their documented behavior; unsupported historical versions reject without runtime or source-file mutation.
 - New saves can be reopened and spatial indexes rebuilt deterministically.
 
 ### Slice 6 — Runtime assembly and Core integration
@@ -424,7 +424,7 @@ These are genuine architecture dependencies, not routine implementation details.
 - Callers must not mutate either representation independently in a way that can desynchronize them.
 - Non-grid world placement and storage placement continue to use World Context without requiring grid occupancy.
 
-The integration mechanics, conversion between grid anchors and World Context world-space positions, transaction coordinator boundary, and restore ordering are specified as a focused working contract in `spatial-placement-integration-contract-proposal.md`. The agreed ownership model is settled; exact API names and implementation details remain proposals.
+The approved grid-anchor-to-cell-center conversion, transaction coordinator boundary and restore ordering are specified in `spatial-placement-integration-contract-proposal.md`. The agreed ownership model and coordinate mapping are settled; exact API names and implementation details remain proposals.
 
 **Decision status:** Resolved. No further authority-model decision is required.
 
