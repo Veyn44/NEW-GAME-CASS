@@ -30,14 +30,16 @@ const context = canvas.getContext("2d");
 let worldMarkers = [];
 let selectionEnabled = false;
 let onMarkerSelect = null;
+let onCellInspect = null;
 let selectedMarkerId = null;
 let placementArtwork = null;
 let placementImage = null;
 let placementImageReady = false;
-function setWorldInteraction({ paused = false, inspectionEnabled = false, onSelect = null } = {}) {
+function setWorldInteraction({ paused = false, inspectionEnabled = false, onSelect = null, onInspectCell = null } = {}) {
   state.paused = Boolean(paused);
   selectionEnabled = Boolean(inspectionEnabled);
   onMarkerSelect = typeof onSelect === "function" ? onSelect : null;
+  onCellInspect = typeof onInspectCell === "function" ? onInspectCell : null;
   render();
 }
 
@@ -344,7 +346,8 @@ canvas.addEventListener("pointerdown", (event) => {
     event.preventDefault();
     return;
   }
-  if (event.button === 0 && selectionEnabled && onMarkerSelect) {
+  if (event.button === 0 && selectionEnabled && (onMarkerSelect || onCellInspect)) {
+    const tile = screenPointToTile(event.clientX, event.clientY);
     const bounds = canvas.getBoundingClientRect();
     const view = visibleDimensions();
     const cellWidth = bounds.width / view.columns;
@@ -358,7 +361,9 @@ canvas.addEventListener("pointerdown", (event) => {
       const y = (marker.y + 0.5 - top) * cellHeight;
       return Math.hypot(pointerX - x, pointerY - y) <= Math.max(9, Math.min(16, cellWidth * 0.55));
     });
-    onMarkerSelect(hit?.id ?? null);
+    onMarkerSelect?.(hit?.id ?? null);
+    if (tile?.valid) onCellInspect?.({ x: tile.x, y: tile.y });
+    event.preventDefault();
     return;
   }
   // Middle mouse remains available for camera panning in both pause states.
