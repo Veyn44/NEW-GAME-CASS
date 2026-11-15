@@ -1,139 +1,133 @@
-import { deriveFootprintCells } from "./spatial-composition.js";
+import { deriveFootprintCells, normalizeFootprintOffsets, SpatialCompositionError } from "./spatial-composition.js";
 import { PlacementCoordinatorError } from "./placement-coordinator.js";
+import { MOVEMENT_AUTHORITY } from "./movement-authority.js";
 
 export class SpatialMovementError extends Error {
   constructor(code, message, details = {}) {
-    super(message);
-    this.name = "SpatialMovementError";
-    this.code = code;
+    super(message); this.name = "SpatialMovementError"; this.code = code;
     this.details = Object.freeze({ ...details });
   }
 }
+function freezeTarget(worldId, anchor, footprint, orientation, cells) {
+  return Object.freeze({
+    worldId, anchor: Object.freeze({ x: anchor.x, y: anchor.y }),
+    footprint: Object.freeze(footprint.map((p) => Object.freeze({ x: p.x, y: p.y }))),
+    orientation, cells: Object.freeze(cells.map((p) => Object.freeze({ x: p.x, y: p.y })))
+  });
+}
+function sameCells(a, b) {
+  return a.length === b.length && a.every((p, i) => p.x === b[i].x && p.y === b[i].y);
+}
+function sameOccupancy(a, b) {
+  return a.worldId === b.worldId && a.anchor.x === b.anchor.x && a.anchor.y === b.anchor.y
+    && a.orientation === b.orientation && sameCells(a.cells, b.cells)
+    && a.footprint.length === b.footprint.length
+    && a.footprint.every((p, i) => p.x === b.footprint[i].x && p.y === b.footprint[i].y);
+}
+function outcome(status, code, details = {}) { return Object.freeze({ status, code, ...details }); }
 
 /**
- * Generic, grid-footprint movement transaction.
- *
- * The host policy receives immutable geometric facts and must be synchronous,
- * deterministic and side-effect free. Only PlacementCoordinator may commit.
+ * Generic grid movement transaction. Engine supplies geometry and overlap
+ * facts; the host supplies the deterministic policy that gives them meaning.
  */
 export class SpatialMovement {
-  #entities;
-  #worlds;
-  #spatial;
-  #placements;
-  #evaluating = new Set();
-
+  #entities; #worlds; #spatial; #placements; #evaluating = new Set();
   constructor({ entityRegistry, worldRegistry, spatialComposition, placementCoordinator } = {}) {
-    if (!entityRegistry?.get || !worldRegistry?.get || !spatialComposition?.queryCell ||
-        !spatialComposition?.getEntityFootprint || !placementCoordinator?.moveEntity) {
+    if (!entityRegistry?.get || !worldRegistry?.get || !spatialComposition?.getEntityOccupancy
+      || !spatialComposition?.queryRegion || !spatialComposition?.withReadOnlyEvaluation
+      || !placementCoordinator?.moveEntity || !placementCoordinator?.withPolicyEvaluation) {
       throw new SpatialMovementError("INVALID_DEPENDENCY", "SpatialMovement requires EntityRegistry, WorldRegistry, SpatialComposition and PlacementCoordinator.");
     }
-    this.#entities = entityRegistry;
-    this.#worlds = worldRegistry;
-    this.#spatial = spatialComposition;
-    this.#placements = placementCoordinator;
+    this.#entities = entityRegistry; this.#worlds = worldRegistry;
+    this.#spatial = spatialComposition; this.#placements = placementCoordinator;
   }
 
   moveEntity(entityId, target, policy) {
-    if (typeof policy !== "function") return this.#outcome("invalid", "INVALID_POLICY", { entityId });
-    if (typeof entityId !== "string" || !entityId.length) return this.#outcome("invalid", "INVALID_ENTITY_ID", { entityId });
-    if (this.#evaluating.has(entityId)) return this.#outcome("invalid", "REENTRANT_MOVEMENT", { entityId });
+    if (typeof entityId !== "string" || !entityId.trim()) return outcome("invalid", "INVALID_ENTITY_ID", { entityId });
+    if (this.#evaluating.has(entityId)) return outcome("invalid", "REENTRANT_MOVEMENT", { entityId });
+    if (!target || typeof target !== "object" || Array.isArray(target)
+      || typeof target.worldId !== "string" || !target.worldId.trim()
+      || !target.anchor || typeof target.anchor !== "object" || Array.isArray(target.anchor)
+      || !Number.isSafeInteger(target.anchor.x) || !Number.isSafeInteger(target.anchor.y)) {
+      return outcome("invalid", "INVALID_TARGET", { entityId });
+    }
+    if (typeof policy !== "function") return outcome("invalid", "MOVEMENT_POLICY_REQUIRED", { entityId });
     const entity = this.#entities.get(entityId);
-    if (!entity || entity.status !== "active") return this.#outcome("invalid", "ENTITY_NOT_ELIGIBLE", { entityId });
-    let current;
-    try { current = this.#spatial.getEntityFootprint(entityId); }
-    catch (error) {
-      return this.#outcome("invalid", error.code ?? "ENTITY_NOT_SPATIALLY_PLACED", { entityId });
-    }
-    if (!target || typeof target !== "object" || Array.isArray(target) ||
-        typeof target.worldId !== "string" || !target.worldId ||
-        !target.anchor || !Number.isSafeInteger(target.anchor.x) || !Number.isSafeInteger(target.anchor.y)) {
-      return this.#outcome("invalid", "INVALID_TARGET", { entityId });
-    }
+    if (!entity || entity.status !== "active") return outcome("invalid", "ENTITY_NOT_ACTIVE", { entityId });
+    const source = this.#spatial.getEntityOccupancy(entityId);
+    if (!source) return outcome("invalid", "ENTITY_NOT_GRID_PLACED", { entityId });
     const world = this.#worlds.get(target.worldId);
-    if (!world) return this.#outcome("unavailable", "UNKNOWN_WORLD", { entityId, worldId: target.worldId });
-    if (world.status === "closed") return this.#outcome("unavailable", "WORLD_CLOSED", { entityId, worldId: target.worldId });
-    if (world.grid == null) return this.#outcome("unavailable", "WORLD_HAS_NO_GRID", { entityId, worldId: target.worldId });
-    const orientation = target.orientation ?? (current.worldId === target.worldId ? current.orientation : 0);
-    let targetCells;
-    try {
-      targetCells = deriveFootprintCells({ anchor: target.anchor, footprint: current.footprint, orientation, grid: world.grid });
-    } catch (error) {
-      const status = error.code === "FOOTPRINT_OUT_OF_BOUNDS" || error.code === "CELL_OUT_OF_BOUNDS" ? "out-of-bounds" : "invalid";
-      return this.#outcome(status, error.code ?? "INVALID_FOOTPRINT", { entityId, worldId: target.worldId });
-    }
-    if (current.worldId === target.worldId &&
-        current.anchor.x === target.anchor.x && current.anchor.y === target.anchor.y &&
-        current.orientation === orientation) {
-      return Object.freeze({ status: "unchanged", entityId, worldId: current.worldId, anchor: current.anchor, cells: current.cells });
+    if (!world || world.status === "closed" || world.grid == null) {
+      return outcome("unavailable", !world ? "UNKNOWN_WORLD" : world.status === "closed" ? "WORLD_CLOSED" : "WORLD_HAS_NO_GRID", { entityId, worldId: target.worldId });
     }
 
-    const cellFacts = targetCells.map((cell) => this.#spatial.queryCell(target.worldId, cell));
-    const overlapsById = new Map();
-    for (const fact of cellFacts) for (const occupied of fact.entities) {
-      if (occupied.entityId !== entityId && !overlapsById.has(occupied.entityId)) overlapsById.set(occupied.entityId, occupied);
+    let footprint, orientation, cells;
+    try {
+      footprint = normalizeFootprintOffsets(target.footprint ?? source.footprint);
+      orientation = target.orientation ?? (source.worldId === target.worldId ? source.orientation : 0);
+      cells = deriveFootprintCells({ anchor: target.anchor, footprint, orientation, grid: world.grid });
+    } catch (error) {
+      const status = error.code === "FOOTPRINT_OUT_OF_BOUNDS" || error.code === "CELL_OUT_OF_BOUNDS" ? "out-of-bounds" : "invalid";
+      return outcome(status, error.code ?? "INVALID_TARGET", { entityId, worldId: target.worldId, details: error.details ?? {} });
     }
-    const overlaps = [...overlapsById.values()].sort((a,b) => a.entityId < b.entityId ? -1 : a.entityId > b.entityId ? 1 : 0);
-    const context = Object.freeze({
-      entity,
-      current,
-      target: Object.freeze({
-        worldId: target.worldId,
-        anchor: Object.freeze({ x: target.anchor.x, y: target.anchor.y }),
-        footprint: current.footprint,
-        orientation,
-        cells: Object.freeze(targetCells)
-      }),
-      cells: Object.freeze(cellFacts),
-      contents: Object.freeze(cellFacts.flatMap((fact) => fact.contents)),
-      overlaps: Object.freeze(overlaps)
+
+    const proposedTarget = freezeTarget(target.worldId, target.anchor, footprint, orientation, cells);
+    if (sameOccupancy(source, proposedTarget)) {
+      return Object.freeze({ status: "unchanged", entityId, source, target: proposedTarget });
+    }
+
+    let observations;
+    try { observations = this.#spatial.queryRegion(target.worldId, { type: "cells", cells }); }
+    catch (error) {
+      const status = ["UNKNOWN_WORLD", "WORLD_CLOSED", "WORLD_HAS_NO_GRID"].includes(error.code) ? "unavailable" : "invalid";
+      return outcome(status, error.code ?? "SPATIAL_QUERY_FAILED", { entityId, worldId: target.worldId, details: error.details ?? {} });
+    }
+    const overlaps = Object.freeze(observations.entities.filter((item) => item.entityId !== entityId));
+    const proposal = Object.freeze({
+      entityId, entityKind: entity.kind, source, target: proposedTarget,
+      overlaps, cells: observations.cells, contents: observations.contents
     });
 
     this.#evaluating.add(entityId);
     let decision;
     try {
-      decision = policy(context);
+      decision = this.#placements.withPolicyEvaluation(
+        () => this.#spatial.withReadOnlyEvaluation(() => policy(proposal), MOVEMENT_AUTHORITY),
+        MOVEMENT_AUTHORITY
+      );
       if (decision && typeof decision.then === "function") {
         Promise.resolve(decision).catch(() => {});
-        return this.#outcome("invalid", "ASYNC_POLICY_UNSUPPORTED", { entityId });
+        return outcome("invalid", "ASYNC_POLICY_NOT_SUPPORTED", { entityId });
       }
     } catch (error) {
-      return this.#outcome("invalid", "POLICY_EVALUATION_FAILED", { entityId, cause: error?.message ?? String(error) });
-    } finally {
-      this.#evaluating.delete(entityId);
-    }
+      return outcome("policy-error", "POLICY_EVALUATION_FAILED", { entityId, cause: error?.message ?? String(error) });
+    } finally { this.#evaluating.delete(entityId); }
 
     const accepted = typeof decision === "boolean" ? decision
-      : decision && typeof decision === "object" && typeof decision.accepted === "boolean" ? decision.accepted
-      : null;
-    if (accepted === null) return this.#outcome("invalid", "INVALID_POLICY_RESULT", { entityId });
+      : decision && typeof decision === "object" && typeof decision.accepted === "boolean" ? decision.accepted : null;
+    if (accepted === null) return outcome("invalid", "INVALID_POLICY_RESULT", { entityId });
     if (!accepted) {
-      const reason = typeof decision === "object" && typeof decision.reason === "string" ? decision.reason : null;
-      const code = typeof decision === "object" && typeof decision.code === "string" ? decision.code : "POLICY_REJECTED";
-      return Object.freeze({ status: "rejected", code, reason, entityId, worldId: target.worldId, anchor: context.target.anchor });
+      const reason = decision && typeof decision === "object" && typeof decision.reason === "string" ? decision.reason : null;
+      const code = decision && typeof decision === "object" && typeof decision.code === "string" ? decision.code : "POLICY_REJECTED";
+      return Object.freeze({ status: "rejected", code, reason, entityId, source, target: proposedTarget });
     }
 
     try {
       const committed = this.#placements.moveEntity(entityId, {
-        type: "grid", worldId: target.worldId, anchor: context.target.anchor,
-        footprint: current.footprint, orientation
+        type: "grid", worldId: proposedTarget.worldId, anchor: proposedTarget.anchor,
+        footprint: proposedTarget.footprint, orientation: proposedTarget.orientation
       });
       return Object.freeze({
-        status: "moved", entityId, worldId: target.worldId,
-        anchor: context.target.anchor, cells: Object.freeze(targetCells),
-        previous: committed.previous, current: committed.current
+        status: "moved", entityId, source, target: proposedTarget,
+        previous: committed.previous, current: committed.current, occupancy: committed.occupancy
       });
     } catch (error) {
-      if (error instanceof PlacementCoordinatorError) {
+      if (error instanceof PlacementCoordinatorError || error instanceof SpatialCompositionError) {
         const status = error.code === "FOOTPRINT_OUT_OF_BOUNDS" ? "out-of-bounds"
-          : ["UNKNOWN_WORLD", "WORLD_HAS_NO_GRID", "WORLD_CLOSED"].includes(error.code) ? "unavailable" : "invalid";
-        return this.#outcome(status, error.code, { entityId, worldId: target.worldId, cause: error.message });
+          : ["UNKNOWN_WORLD", "WORLD_HAS_NO_GRID", "WORLD_CLOSED"].includes(error.code) ? "unavailable" : "failed";
+        return outcome(status, error.code, { entityId, worldId: target.worldId, cause: error.message });
       }
-      return this.#outcome("invalid", "MOVEMENT_COMMIT_FAILED", { entityId, cause: error?.message ?? String(error) });
+      return outcome("failed", "MOVEMENT_COMMIT_FAILED", { entityId, cause: error?.message ?? String(error) });
     }
-  }
-
-  #outcome(status, code, details) {
-    return Object.freeze({ status, code, ...details });
   }
 }
