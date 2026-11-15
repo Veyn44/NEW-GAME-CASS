@@ -475,6 +475,9 @@ export function createCassandraChangePackageCoordinator({
       if (applied) fail("PACKAGE_LEDGER_INCONSISTENT", "Package exists in both pending and applied records.");
 
       const majorState = snapshot.majorState;
+      if (!Number.isSafeInteger(majorState.revision) || majorState.revision < 0) {
+        fail("MAJOR_STATE_REVISION_REQUIRED", "Major State must expose a non-negative safe-integer revision.");
+      }
       if (!majorState.aggregates || typeof majorState.aggregates !== "object") {
         fail("MAJOR_STATE_AGGREGATES_REQUIRED", "Major State must expose an aggregates object keyed by stable aggregate ID.");
       }
@@ -499,7 +502,7 @@ export function createCassandraChangePackageCoordinator({
       let resolvedResultIdentities;
       if (pending.resolvedResultIdentities === null || pending.resolvedResultIdentities === undefined) {
         resolvedResultIdentities = validateResultIdentityMap(
-          await resolveResultIdentities(changePackage, candidate),
+          await resolveResultIdentities(changePackage, deepFreeze(cloneJson(candidate))),
           changePackage.returnManifest
         );
         // Persist result-key identities before candidate construction/commit so retries
@@ -537,8 +540,8 @@ export function createCassandraChangePackageCoordinator({
           });
         }
         const valid = await handler.validate({
-          candidate,
-          aggregate,
+          candidate: deepFreeze(cloneJson(candidate)),
+          aggregate: deepFreeze(cloneJson(aggregate)),
           operation,
           changePackage,
           resolvedResultIdentities
@@ -553,10 +556,25 @@ export function createCassandraChangePackageCoordinator({
         });
       }
       const touched = new Set(changePackage.baseline.map((entry) => entry.aggregateId));
+      for (const baseline of changePackage.baseline) {
+        if (candidate.aggregates[baseline.aggregateId]?.revision !== baseline.revision) {
+          fail("OPERATION_MUTATED_AGGREGATE_REVISION",
+            "Typed operation handlers may not mutate aggregate revision counters directly.",
+            { aggregateId: baseline.aggregateId });
+        }
+      }
+      if (candidate.revision !== majorState.revision) {
+        fail("OPERATION_MUTATED_MAJOR_REVISION", "Typed operation handlers may not mutate the Major State revision directly.");
+      }
       for (const aggregateId of touched) {
         candidate.aggregates[aggregateId].revision += 1;
       }
-      if (await validateReturnManifest(changePackage.returnManifest, changePackage, candidate) !== true) {
+      candidate.revision += 1;
+      if (await validateReturnManifest(
+        changePackage.returnManifest,
+        changePackage,
+        deepFreeze(cloneJson(candidate))
+      ) !== true) {
         fail("CANDIDATE_MANIFEST_RECONCILIATION_FAILED", "Candidate State does not reconcile with the complete return manifest.");
       }
 
