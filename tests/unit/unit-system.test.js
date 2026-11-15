@@ -187,6 +187,39 @@ test("Units created in Temporary Worlds use session-scoped runtime identities", 
   }
 });
 
+test("Temporary World Unit runtime identity and fractional progress restore together", async () => {
+  const state = await startWithWorld();
+  try {
+    const worlds = state.context.getService("core.world-registry");
+    worlds.registerWorld({
+      worldId: "encounter:restore-scope",
+      type: "cassandra-temporary",
+      dimensions: { width: 64, height: 64 },
+      grid: { width: 64, height: 64 },
+      coordinateSystem: "tiles",
+      metadata: { role: "temporary" }
+    });
+    const unit = state.units.createUnit({
+      definitionId: "unit.test-worker",
+      worldId: "encounter:restore-scope",
+      position: { x: 6, y: 7 }
+    });
+    state.units.moveUnit(unit.id, { x: 6.75, y: 7.25 });
+    const persistence = state.context.getService("core.persistence");
+    await persistence.save("temporary-unit", { stateId: "temporary-unit-state" });
+    state.units.removeUnit(unit.id);
+    await persistence.load("temporary-unit", { stateId: "temporary-unit-state" });
+    const restored = state.units.getUnit(unit.id);
+    const identity = state.context.getService("core.entity-registry").get(unit.id);
+    assert.deepEqual(restored.position, { x: 6.75, y: 7.25 });
+    assert.equal(identity.scope, "scoped");
+    assert.equal(identity.scopeId, "world:encounter:restore-scope");
+  } finally {
+    await state.runtime.destroy();
+    clearDefinitionsForTests();
+  }
+});
+
 test("Cassandra grid Units keep independent occupancy across registered Worlds", async () => {
   const state = await startWithWorld();
   try {
