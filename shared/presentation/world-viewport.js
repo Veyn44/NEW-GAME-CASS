@@ -88,6 +88,7 @@ function cancelWorldPlacement() {
   setWorldPlacement(null);
 }
 
+// Marker and camera-follow positions are world-space coordinates (cell centers), not integer grid anchors.
 function setCameraFollowTarget(entityId, position) {
   if (entityId && position && Number.isFinite(position.x) && Number.isFinite(position.y)) {
     state.cameraX = position.x;
@@ -124,6 +125,7 @@ function setSelectedWorldMarker(entityId) {
   render();
 }
 
+// Each marker x/y is already in world-space coordinates; grid cell-center offsets are applied by the caller.
 function setWorldMarkers(markers) {
   worldMarkers = Array.isArray(markers) ? markers.map((marker) => ({ ...marker })) : [];
   if (selectedMarkerId && !worldMarkers.some((marker) => marker.id === selectedMarkerId)) {
