@@ -53,7 +53,7 @@ export class SpatialMovement {
     }
     if (typeof policy !== "function") return outcome("invalid", "INVALID_POLICY", { entityId });
     const entity = this.#entities.get(entityId);
-    if (!entity || entity.status !== "active") return outcome("invalid", "ENTITY_NOT_ACTIVE", { entityId });
+    if (!entity || entity.status !== "active") return outcome("invalid", "ENTITY_NOT_ELIGIBLE", { entityId });
     const source = this.#spatial.getEntityOccupancy(entityId);
     if (!source) return outcome("invalid", "ENTITY_NOT_SPATIALLY_PLACED", { entityId });
     const world = this.#worlds.get(target.worldId);
