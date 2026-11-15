@@ -124,6 +124,19 @@ test("change package rejects missing dispositions and inconsistent operation bas
   );
 });
 
+test("change package requires versioned location provenance", async () => {
+  await assert.rejects(
+    () => makePackage({
+      source: {
+        mainWorldId: "main:one",
+        temporaryWorldId: "temp:one",
+        locationId: "location:alpha"
+      }
+    }),
+    { code: "INVALID_PACKAGE_SOURCE" }
+  );
+});
+
 test("change package validates one-to-one projection mappings against aggregate baselines", async () => {
   const mapping = {
     campaignEntityId: "campaign:pawn:one",
