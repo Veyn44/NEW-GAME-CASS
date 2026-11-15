@@ -856,3 +856,18 @@ The review is a navigation/ownership aid, not a complete implementation specific
 ### Next safe step
 
 Use the capability map as the shared reference and proceed one Engine capability at a time. Before implementation, select the first concrete capability, define its public contract and acceptance tests, and check the existing Core behavior/source again. Do not reopen already agreed Cassandra gameplay details unless a concrete Engine dependency requires it. Do not merge to `main` without explicit user approval.
+
+
+### First Engine design slice — world lifecycle source re-check
+
+A focused source/test re-read was performed for `WorldRegistry`, `WorldContext`, `GameClock`, `SimulationScheduler`, and their Core tests.
+
+Confirmed facts:
+
+- `WorldRegistry` registers multiple world descriptors but enforces exactly zero or one `active` world. Activating another world deactivates the previous one; snapshot validation rejects multiple active worlds.
+- Its own contract says it does not own simulation or rendering. Therefore `active` currently cannot be assumed to mean loaded, simulating, paused, focused or rendered.
+- `GameClock` is one global simulation clock with global pause reasons. `SimulationScheduler` has one ordered task set and no world-specific scheduler state.
+- `WorldContext` stores one placement per entity and does not define world loading/simulation lifecycle.
+- Existing tests explicitly encode the single-active-world behavior. Changing it requires a designed contract and regression/migration coverage.
+
+The next design task is therefore to define the meaning and independent dimensions of world lifecycle before editing these modules. In particular, decide how host-level focus/selection relates to multiple loaded/simulated worlds, and whether multiple worlds share one timeline or require independent clocks. No implementation choice has been made and no source code was changed.
