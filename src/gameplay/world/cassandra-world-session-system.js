@@ -68,6 +68,7 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
   let worldContext;
   let spatial;
   let placements;
+  let unitApi;
   const temporaryWorldCleanupHandlers = new Set();
   let pendingStep = null;
   let mainWorldId = null;
@@ -223,6 +224,12 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
             throw new CassandraWorldSessionError("PERSISTENT_OCCUPANCY_IN_TEMPORARY_WORLD",
               "Temporary World disposal refuses to remove occupancy not owned by this Temporary World scope.",
               { worldId: id, entityId: occupancy.entityId });
+          }
+        }
+
+        for (const unit of unitApi.listUnits()) {
+          if (unit.placement?.type === "world" && unit.placement.worldId === id) {
+            unitApi.removeUnit(unit.id);
           }
         }
 
@@ -388,7 +395,8 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
       "core.entity-registry",
       "core.world-context",
       "core.spatial-composition",
-      "core.placement-coordinator"
+      "core.placement-coordinator",
+      "game.unit-api"
     ],
     initialize(context) {
       worlds = context.getService("core.world-registry");
@@ -398,6 +406,7 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
       worldContext = context.getService("core.world-context");
       spatial = context.getService("core.spatial-composition");
       placements = context.getService("core.placement-coordinator");
+      unitApi = context.getService("game.unit-api");
       unregisterPersistence = persistence.registerParticipant(persistenceParticipant);
       return { "game.world-session-api": api };
     },
