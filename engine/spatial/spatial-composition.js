@@ -33,7 +33,7 @@ function clone(value, path = "payload", seen = new Set()) {
       const out = new Array(value.length), indexes = new Set();
       for (const key of keys) {
         if (key === "length") continue;
-        if (typeof key !== "string" || !/^(0|[1-9]\\d*)$/.test(key) || Number(key) >= value.length) throw new SpatialCompositionError("INVALID_PAYLOAD", `${path} has an unsupported array property.`);
+        if (typeof key !== "string" || !/^(0|[1-9]\d*)$/.test(key) || Number(key) >= value.length) throw new SpatialCompositionError("INVALID_PAYLOAD", `${path} has an unsupported array property.`);
         const d = Object.getOwnPropertyDescriptor(value, key);
         if (!d?.enumerable || !Object.hasOwn(d, "value")) throw new SpatialCompositionError("INVALID_PAYLOAD", `${path} has an accessor or hidden array property.`);
         indexes.add(Number(key)); out[Number(key)] = clone(d.value, `${path}[${key}]`, seen);

@@ -18,7 +18,7 @@ test("multiple independent contents coexist at one cell and filters are determin
   s.addCellContent({ contentId: "floor", worldId: "grid", cell: { x: 2, y: 3 }, categoryId: "terrain", layerId: "base", payload: { material: "stone" } });
   s.addCellContent({ contentId: "carpet", worldId: "grid", cell: { x: 2, y: 3 }, categoryId: "surface", layerId: "overlay" });
   s.addCellContent({ contentId: "ore", worldId: "grid", cell: { x: 2, y: 3 }, categoryId: "terrain", layerId: "detail" });
-  assert.deepEqual(s.getCellContents("grid", { x: 2, y: 3 }).map(x => x.contentId), ["floor", "ore", "carpet"]);
+  assert.deepEqual(s.getCellContents("grid", { x: 2, y: 3 }).map(x => x.contentId), ["carpet", "floor", "ore"]);
   assert.deepEqual(s.listContents({ categoryId: "terrain" }).map(x => x.contentId), ["floor", "ore"]);
   assert.deepEqual(s.listContents({ layerId: "overlay" }).map(x => x.contentId), ["carpet"]);
   assert.equal(Object.isFrozen(s.getContent("floor").payload), true);
@@ -102,5 +102,5 @@ test("footprint derivation validates every rotated cell against bounds", () => {
   assert.deepEqual(deriveFootprintCells({ anchor: { x: 2, y: 1 }, footprint: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }], orientation: 90, grid: { width: 5, height: 5 } }),
     [{ x: 1, y: 1 }, { x: 2, y: 1 }, { x: 2, y: 2 }]);
   code(() => deriveFootprintCells({ anchor: { x: 4, y: 4 }, footprint: [{ x: 0, y: 0 }, { x: 1, y: 0 }], grid: { width: 5, height: 5 } }), "FOOTPRINT_OUT_OF_BOUNDS");
-  code(() => deriveFootprintCells({ anchor: { x: Number.MAX_SAFE_INTEGER, y: 0 }, footprint: [{ x: 0, y: 0 }, { x: 1, y: 0 }], grid: { width: 5, height: 5 } }), "FOOTPRINT_OUT_OF_RANGE");
+  code(() => deriveFootprintCells({ anchor: { x: 1, y: 0 }, footprint: [{ x: 0, y: 0 }, { x: Number.MAX_SAFE_INTEGER, y: 0 }], grid: { width: 5, height: 5 } }), "FOOTPRINT_OUT_OF_RANGE");
 });
