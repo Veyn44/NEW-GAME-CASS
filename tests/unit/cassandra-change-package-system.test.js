@@ -41,12 +41,13 @@ function makePackage(overrides = {}) {
   });
 }
 
-function makeStorage({ revision = 0, value = 2, failWrites = 0 } = {}) {
+function makeStorage({ revision = 0, value = 2, failWrites = 0, concurrentCommitAt = 0 } = {}) {
   let snapshot = {
     majorState: {
       revision: 7,
       aggregates: {
-        "inventory:crew": { revision, state: { ore: value } }
+        "inventory:crew": { revision, state: { ore: value } },
+        "location:alpha": { revision: 0, state: { expeditions: 0 } }
       }
     },
     pendingPackages: [],
@@ -62,6 +63,12 @@ function makeStorage({ revision = 0, value = 2, failWrites = 0 } = {}) {
     },
     async writeCampaignSnapshotAtomic(next, expectedRevision) {
       writes += 1;
+      if (writes === concurrentCommitAt) {
+        snapshot.majorState.aggregates["location:alpha"].state.expeditions += 1;
+        snapshot.majorState.aggregates["location:alpha"].revision += 1;
+        snapshot.majorState.revision += 1;
+        storageRevision += 1;
+      }
       if (expectedRevision !== storageRevision) {
         const error = new Error("campaign storage revision conflict");
         error.code = "CAMPAIGN_STORAGE_CONFLICT";
@@ -302,6 +309,31 @@ test("coordinator rejects incomplete result identity mappings before changing Ma
   );
   assert.equal(storage.snapshot.majorState.aggregates["inventory:crew"].state.ore, 2);
   assert.equal(storage.snapshot.appliedLedger.length, 0);
+});
+
+test("coordinator retries after a concurrent disjoint campaign commit without losing either change", async () => {
+  const storage = makeStorage({ concurrentCommitAt: 3 });
+  const coordinator = createCassandraChangePackageCoordinator({
+    storage,
+    operationHandlers: handlers,
+    validateReturnManifest: () => true,
+    resolveResultIdentities
+  });
+  const changePackage = await makePackage();
+  await coordinator.stage(changePackage, { checkpoint: { majorState: storage.snapshot.majorState } });
+  await assert.rejects(
+    () => coordinator.apply(changePackage.packageId),
+    { code: "CAMPAIGN_STORAGE_CONFLICT" }
+  );
+  assert.equal(storage.snapshot.majorState.aggregates["inventory:crew"].state.ore, 2);
+  assert.equal(storage.snapshot.majorState.aggregates["location:alpha"].state.expeditions, 1);
+  assert.equal(storage.snapshot.pendingPackages.length, 1);
+
+  const result = await coordinator.apply(changePackage.packageId);
+  assert.equal(result.status, "applied");
+  assert.equal(storage.snapshot.majorState.aggregates["inventory:crew"].state.ore, 6);
+  assert.equal(storage.snapshot.majorState.aggregates["location:alpha"].state.expeditions, 1);
+  assert.equal(storage.snapshot.majorState.revision, 9);
 });
 
 test("coordinator rejects a corrupted durable expedition-start checkpoint", async () => {
