@@ -716,6 +716,7 @@ The first Cassandra-owned protocol foundation is now implemented on `work` in
 Implemented foundations:
 - Canonical JSON normalization and SHA-256 package integrity verification.
 - Versioned immutable package envelopes, explicit dispositions, per-aggregate baselines and typed operation dependencies.
+- Session-scoped campaign-entity ↔ Temporary World runtime-entity projection mapping in `src/gameplay/expedition/cassandra-expedition-projection.js`, with strict Engine identity/scope validation, one-to-one mapping, snapshot restore and exact-one manifest coverage for each projected persistent entity.
 - Durable pending Change Buffer staging with an expedition-start checkpoint.
 - Candidate State construction from a detached Major State copy.
 - Per-aggregate conflict checks, handler-based typed operation validation/application and one revision increment per touched aggregate.
@@ -737,3 +738,9 @@ Additional implementation status:
 - Candidate adapter: `src/adapters/storage/indexeddb-campaign-save-adapter.js`.
 - Adapter tests: `tests/unit/indexeddb-campaign-save-adapter.test.js`.
 - The adapter deliberately has a separate campaign ID/database namespace and does not read, rewrite or reinterpret the Dev Lab `.cass` workspace save.
+
+
+Projection implementation:
+- Source: `src/gameplay/expedition/cassandra-expedition-projection.js`.
+- Tests: `tests/unit/cassandra-expedition-projection.test.js`.
+- The projection map records identity/provenance only; it does not move Engine placements, copy inventories or make gameplay disposition decisions.
