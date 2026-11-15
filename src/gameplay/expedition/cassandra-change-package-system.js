@@ -377,6 +377,20 @@ export function createCassandraChangePackageCoordinator({
   if (!operationHandlers || typeof operationHandlers !== "object") {
     fail("OPERATION_REGISTRY_REQUIRED", "Cassandra operation handlers must be supplied by the host.");
   }
+  // Snapshot the registry so a host cannot swap operation behavior while a
+  // durable package is being staged or applied.
+  const handlerRegistry = Object.create(null);
+  for (const [type, handler] of Object.entries(operationHandlers)) {
+    if (typeof type !== "string" || !/^[a-z][a-zA-Z0-9.:-]{1,95}$/.test(type)
+      || !handler || typeof handler.validate !== "function" || typeof handler.apply !== "function") {
+      fail("INVALID_OPERATION_HANDLER", "Every registered operation handler needs stable type, validate and apply functions.", { type });
+    }
+    handlerRegistry[type] = Object.freeze({
+      validate: handler.validate,
+      apply: handler.apply
+    });
+  }
+  Object.freeze(handlerRegistry);
   if (typeof validateReturnManifest !== "function") {
     fail("RETURN_MANIFEST_VALIDATOR_REQUIRED",
       "The host must provide Cassandra domain reconciliation for every return-manifest entry.");
@@ -562,7 +576,7 @@ export function createCassandraChangePackageCoordinator({
       resolvedResultIdentities = deepFreeze(cloneJson(resolvedResultIdentities));
       const ordered = orderOperations(changePackage.operations);
       for (const operation of ordered) {
-        const handler = operationHandlers[operation.type];
+        const handler = handlerRegistry[operation.type];
         if (!handler || typeof handler.apply !== "function" || typeof handler.validate !== "function") {
           fail("UNKNOWN_OPERATION_TYPE", "No validator and apply handler is registered for an operation type.", { type: operation.type });
         }
