@@ -1,4 +1,4 @@
-import { assertCellInBounds, validateCellCoordinate } from "./grid-geometry.js";
+import { assertCellInBounds, validateCellCoordinate, getOrthogonalNeighbors, getAdjacentNeighbors, manhattanDistance, chebyshevDistance } from "./grid-geometry.js";
 import { PLACEMENT_AUTHORITY } from "./placement-authority.js";
 
 const VERSION = 1;
@@ -104,12 +104,13 @@ export function deriveFootprintCells({ anchor, footprint, orientation = 0, grid 
  * withheld until a WorldContext + SpatialComposition coordinator exists.
  */
 export class SpatialComposition {
-  #worlds; #idFactory; #contents = new Map(); #byCell = new Map(); #reserved = new Set();
+  #worlds; #entities; #idFactory; #contents = new Map(); #byCell = new Map(); #reserved = new Set();
   #entityOccupancies = new Map(); #entitiesByCell = new Map();
-  constructor({ worldRegistry, idFactory = defaultIdFactory } = {}) {
+  constructor({ worldRegistry, entityRegistry = null, idFactory = defaultIdFactory } = {}) {
     if (!worldRegistry || typeof worldRegistry.get !== "function") throw new SpatialCompositionError("INVALID_WORLD_REGISTRY", "A WorldRegistry-compatible service is required.");
     if (typeof idFactory !== "function") throw new SpatialCompositionError("INVALID_ID_FACTORY", "idFactory must be a function.");
-    this.#worlds = worldRegistry; this.#idFactory = idFactory;
+    if (entityRegistry !== null && typeof entityRegistry.get !== "function") throw new SpatialCompositionError("INVALID_ENTITY_REGISTRY", "entityRegistry must provide get() when supplied.");
+    this.#worlds = worldRegistry; this.#entities = entityRegistry; this.#idFactory = idFactory;
   }
   get size() { return this.#contents.size; }
   get entityOccupancyCount() { return this.#entityOccupancies.size; }
@@ -122,6 +123,139 @@ export class SpatialComposition {
   getCellEntities(worldId, cell) {
     const world = this.#requireGridWorld(worldId), point = this.#cell(cell, world), ids = this.#entitiesByCell.get(cellKey(worldId, point));
     return Object.freeze(ids ? [...ids].sort() : []);
+  }
+
+  /** Read-only combined view of explicit cell contents and entity occupancy. */
+  queryCell(worldId, cell, { categories = null, layers = null } = {}) {
+    const world = this.#requireGridWorld(worldId), point = this.#cell(cell, world);
+    const filters = this.#normalizeFilters(categories, layers);
+    const contents = this.getCellContents(worldId, point).filter((r) =>
+      (!filters.categories || filters.categories.has(r.categoryId))
+      && (!filters.layers || (r.layerId !== null && filters.layers.has(r.layerId))));
+    const entityIds = this.getCellEntities(worldId, point);
+    const entities = entityIds.map((entityId) => {
+      const occupancy = this.#entityOccupancies.get(entityId);
+      return Object.freeze({ entityId, worldId: occupancy.worldId, anchor: occupancy.anchor,
+        footprint: occupancy.footprint, orientation: occupancy.orientation, cells: occupancy.cells,
+        matchedCells: Object.freeze([point]) });
+    });
+    return Object.freeze({ worldId, cell: point, contents: Object.freeze(contents), entities: Object.freeze(entities) });
+  }
+
+  /**
+   * Query a bounded rectangle or finite cell set. Only matching occupied cells
+   * are returned, so large sparse rectangles do not require materializing every
+   * untouched cell.
+   */
+  queryRegion(worldId, region, { categories = null, layers = null } = {}) {
+    const world = this.#requireGridWorld(worldId), filters = this.#normalizeFilters(categories, layers);
+    const normalized = this.#normalizeRegion(region, world.grid);
+    const byCell = new Map();
+    const include = (cell) => normalized.contains(cell);
+    for (const record of this.#contents.values()) {
+      if (record.worldId !== worldId || !include(record.cell)) continue;
+      if (filters.categories && !filters.categories.has(record.categoryId)) continue;
+      if (filters.layers && (record.layerId === null || !filters.layers.has(record.layerId))) continue;
+      const key = `${record.cell.y},${record.cell.x}`, entry = byCell.get(key) ?? { cell: record.cell, contents: [], entityIds: new Set() };
+      entry.contents.push(record); byCell.set(key, entry);
+    }
+    for (const occupancy of this.#entityOccupancies.values()) {
+      if (occupancy.worldId !== worldId) continue;
+      const matched = occupancy.cells.filter(include);
+      for (const cell of matched) {
+        const key = `${cell.y},${cell.x}`, entry = byCell.get(key) ?? { cell, contents: [], entityIds: new Set() };
+        entry.entityIds.add(occupancy.entityId); byCell.set(key, entry);
+      }
+    }
+    const cells = [...byCell.values()].sort((a,b) => a.cell.y-b.cell.y || a.cell.x-b.cell.x).map((entry) => {
+      const entities = [...entry.entityIds].sort().map((entityId) => {
+        const occupancy = this.#entityOccupancies.get(entityId);
+        return Object.freeze({ entityId, worldId: occupancy.worldId, anchor: occupancy.anchor,
+          footprint: occupancy.footprint, orientation: occupancy.orientation,
+          cells: occupancy.cells, matchedCells: Object.freeze([entry.cell]) });
+      });
+      entry.contents.sort((a,b) => a.contentId < b.contentId ? -1 : a.contentId > b.contentId ? 1 : 0);
+      return Object.freeze({ cell: entry.cell, contents: Object.freeze(entry.contents), entities: Object.freeze(entities) });
+    });
+    const entityMatches = new Map();
+    for (const entry of cells) for (const entity of entry.entities) {
+      const current = entityMatches.get(entity.entityId) ?? { ...entity, matchedCells: [] };
+      current.matchedCells.push(entry.cell); entityMatches.set(entity.entityId, current);
+    }
+    const entities = [...entityMatches.values()].sort((a,b) => a.entityId < b.entityId ? -1 : a.entityId > b.entityId ? 1 : 0)
+      .map((r) => Object.freeze({ ...r, matchedCells: Object.freeze(r.matchedCells) }));
+    const contents = cells.flatMap((entry) => entry.contents);
+    return Object.freeze({ worldId, region: normalized.descriptor, cells: Object.freeze(cells),
+      contents: Object.freeze(contents), entities: Object.freeze(entities) });
+  }
+
+  queryEntitiesInRegion(worldId, region) {
+    return this.queryRegion(worldId, region).entities;
+  }
+
+  getEntityFootprint(entityId) {
+    const key = id(entityId, "Entity ID"), occupancy = this.#entityOccupancies.get(key);
+    if (occupancy) return occupancy;
+    if (this.#entities && !this.#entities.get(key)) throw new SpatialCompositionError("UNKNOWN_ENTITY", `Entity "${key}" is not registered.`, { entityId: key });
+    throw new SpatialCompositionError("ENTITY_NOT_SPATIALLY_PLACED", `Entity "${key}" has no grid occupancy.`, { entityId: key });
+  }
+
+  queryNeighbors(worldId, cell, { topology } = {}) {
+    const world = this.#requireGridWorld(worldId);
+    const neighbors = topology === "four-way" ? getOrthogonalNeighbors(cell, world.grid)
+      : topology === "eight-way" ? getAdjacentNeighbors(cell, world.grid)
+      : (() => { throw new SpatialCompositionError("INVALID_TOPOLOGY", "topology must be four-way or eight-way.", { topology }); })();
+    return Object.freeze(neighbors.map((point) => this.queryCell(worldId, point)));
+  }
+
+  queryRadius(worldId, center, { radius, metric } = {}) {
+    const world = this.#requireGridWorld(worldId), origin = this.#cell(center, world);
+    if (!Number.isSafeInteger(radius) || radius < 0) throw new SpatialCompositionError("INVALID_RADIUS", "radius must be a non-negative safe integer.", { radius });
+    if (metric !== "manhattan" && metric !== "chebyshev") throw new SpatialCompositionError("INVALID_METRIC", "metric must be manhattan or chebyshev.", { metric });
+    const distance = metric === "manhattan" ? manhattanDistance : chebyshevDistance;
+    const cells = [];
+    const minX = Math.max(0, origin.x - radius), maxX = Math.min(world.grid.width - 1, origin.x + radius);
+    const minY = Math.max(0, origin.y - radius), maxY = Math.min(world.grid.height - 1, origin.y + radius);
+    for (let y = minY; y <= maxY; y++) for (let x = minX; x <= maxX; x++) {
+      const point = Object.freeze({ x, y });
+      if (distance(origin, point) <= radius) cells.push(point);
+    }
+    return this.queryRegion(worldId, { type: "cells", cells });
+  }
+
+  #normalizeFilters(categories, layers) {
+    const normalize = (values, label) => {
+      if (values === null || values === undefined) return null;
+      if (!Array.isArray(values)) throw new SpatialCompositionError("INVALID_QUERY_FILTER", `${label} must be an array.`, { filter: label });
+      const result = new Set(values.map((value) => category(value, label)));
+      return result.size ? result : null;
+    };
+    return { categories: normalize(categories, "Category ID"), layers: normalize(layers, "Layer ID") };
+  }
+
+  #normalizeRegion(region, grid) {
+    if (!region || typeof region !== "object" || Array.isArray(region)) throw new SpatialCompositionError("INVALID_REGION", "Region must be an object.");
+    if (region.type === "cells") {
+      if (!Array.isArray(region.cells)) throw new SpatialCompositionError("INVALID_REGION", "Cell region requires a cells array.");
+      const unique = new Map();
+      for (const raw of region.cells) {
+        const point = this.#cell(raw, { grid });
+        unique.set(`${point.y},${point.x}`, point);
+      }
+      const cells = Object.freeze([...unique.values()].sort((a,b) => a.y-b.y || a.x-b.x));
+      const keys = new Set(cells.map((p) => `${p.y},${p.x}`));
+      return Object.freeze({ descriptor: Object.freeze({ type: "cells", cells }), contains: (p) => keys.has(`${p.y},${p.x}`) });
+    }
+    if (region.type === "rectangle") {
+      let min, max;
+      try { min = validateCellCoordinate(region.min); max = validateCellCoordinate(region.maxExclusive); }
+      catch (error) { throw new SpatialCompositionError("INVALID_REGION", "Rectangle bounds must be safe integer cell coordinates.", { causeCode: error.code ?? null }); }
+      if (max.x <= min.x || max.y <= min.y) throw new SpatialCompositionError("INVALID_REGION", "Rectangle maxExclusive must be greater than min on both axes.");
+      if (min.x < 0 || min.y < 0 || max.x > grid.width || max.y > grid.height) throw new SpatialCompositionError("REGION_OUT_OF_BOUNDS", "Rectangle must lie fully inside the grid.", { min, maxExclusive: max });
+      const descriptor = Object.freeze({ type: "rectangle", min, maxExclusive: max });
+      return Object.freeze({ descriptor, contains: (p) => p.x >= min.x && p.y >= min.y && p.x < max.x && p.y < max.y });
+    }
+    throw new SpatialCompositionError("INVALID_REGION", "Region type must be rectangle or cells.", { type: region.type });
   }
   prepareEntityOccupancyChange(entityId, nextOccupancy, authority) {
     if (authority !== PLACEMENT_AUTHORITY) throw new SpatialCompositionError("PLACEMENT_AUTHORITY_REQUIRED", "Only PlacementCoordinator may change entity occupancy.");
