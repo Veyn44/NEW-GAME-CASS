@@ -379,7 +379,7 @@ Tasks:
 
 ### Slice 8 — Dev Lab inspection and test integration
 
-**Status:** Engine-backed cell/neighbor/radius/footprint inspection and controlled test-entity spawn/move/retire workflows are implemented on `work`; richer diagnostics and hosted acceptance remain in progress.
+**Status:** Engine-backed cell/neighbor/radius/footprint and rectangular region inspection, category/layer/entity-kind filters, plus controlled test-entity spawn/move/retire workflows are implemented on `work`; richer diagnostics and hosted acceptance remain in progress.
 
 **Implemented initial sub-slice:**
 - `dev-lab/application/create-dev-lab-runtime.js` continues to compose the shared Engine Core runtime; no parallel spatial model was added.
@@ -395,7 +395,7 @@ Tasks:
 - `tests/unit/spatial-test-controller.test.js` covers spawn, multi-cell occupancy, spawn/movement overlap rejection, movement diagnostics, retirement, reset cleanup and authority boundaries.
 - `.github/workflows/core-tests.yml` syntax-checks the updated viewport and Dev Lab spatial modules; both new test files are included by the existing `tests/unit/*.test.js` command.
 
-**Not yet implemented:** arbitrary rectangular region filters (including category/layer selection), explicit visualization of rejected-overlap sets, movement traces/history and full standalone-vs-Cassandra-hosted Dev Lab acceptance. The current test tools intentionally use a small explicit Dev Lab collision policy and do not define Cassandra passability or gameplay movement rules.
+**Not yet implemented:** explicit visualization of rejected-overlap sets, movement traces/history and full standalone-vs-Cassandra-hosted Dev Lab acceptance. The current test tools intentionally use a small explicit Dev Lab collision policy and do not define Cassandra passability or gameplay movement rules.
 
 **Target area:** `dev-lab/application/application-shell.js`, `dev-lab/application/spatial-inspector.js`, `dev-lab/application/spatial-test-controller.js`, `shared/presentation/world-viewport.js` and the existing Dev Lab presentation styles.
 
