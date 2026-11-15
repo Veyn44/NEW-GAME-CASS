@@ -19,7 +19,14 @@ export class PlacementCoordinator {
   withPolicyEvaluation(callback, authority) {
     if (authority !== MOVEMENT_AUTHORITY || typeof callback !== "function") throw new PlacementCoordinatorError("MOVEMENT_AUTHORITY_REQUIRED", "Policy evaluation requires the internal movement capability.");
     this.#policyEvaluation += 1;
-    try { return callback(); } finally { this.#policyEvaluation -= 1; }
+    let released = false;
+    const release = () => { if (!released) { released = true; this.#policyEvaluation -= 1; } };
+    try {
+      const value = callback();
+      if (value && typeof value.then === "function") return Promise.resolve(value).finally(release);
+      release();
+      return value;
+    } catch (error) { release(); throw error; }
   }
   #assertMutationAllowed() {
     if (this.#policyEvaluation > 0) throw new PlacementCoordinatorError("PLACEMENT_MUTATION_DURING_POLICY", "Placement cannot change during movement policy evaluation.");
