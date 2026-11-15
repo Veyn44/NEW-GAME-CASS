@@ -452,7 +452,7 @@ Questions to resolve:
 
 **Working audit:** `phase-3-integration-audit.md`
 
-**Placement persistence detail:** `spatial-placement-persistence-integration-proposal.md`
+**Placement persistence detail:** Section 14 of `spatial-placement-integration-contract-proposal.md`
 
 The audit consolidates the acceptance scenarios across geometry, composition, queries, placement/movement, lifecycle/time, persistence, expedition change packages and application boundaries. Each scenario must become an automated test or an explicitly identified manual acceptance test during implementation.
 
