@@ -35,7 +35,14 @@ function cloneJson(value, label = "campaign snapshot", seen = new WeakSet()) {
   seen.add(value);
   let result;
   if (Array.isArray(value)) {
-    result = value.map((entry, index) => cloneJson(entry, `${label}[${index}]`, seen));
+    result = [];
+    for (let index = 0; index < value.length; index += 1) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+      if (!descriptor || !("value" in descriptor)) {
+        fail("INVALID_CAMPAIGN_SNAPSHOT", `${label} contains a sparse array entry or accessor at index ${index}.`);
+      }
+      result.push(cloneJson(descriptor.value, `${label}[${index}]`, seen));
+    }
   } else {
     const prototype = Object.getPrototypeOf(value);
     if (prototype !== Object.prototype && prototype !== null) {
@@ -43,8 +50,19 @@ function cloneJson(value, label = "campaign snapshot", seen = new WeakSet()) {
     }
     result = {};
     for (const key of Object.keys(value)) {
-      if (value[key] === undefined) fail("INVALID_CAMPAIGN_SNAPSHOT", `${label} contains undefined at "${key}".`);
-      result[key] = cloneJson(value[key], `${label}.${key}`, seen);
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (!descriptor || !("value" in descriptor)) {
+        fail("INVALID_CAMPAIGN_SNAPSHOT", `${label} contains an accessor at "${key}".`);
+      }
+      if (descriptor.value === undefined) {
+        fail("INVALID_CAMPAIGN_SNAPSHOT", `${label} contains undefined at "${key}".`);
+      }
+      Object.defineProperty(result, key, {
+        value: cloneJson(descriptor.value, `${label}.${key}`, seen),
+        enumerable: true,
+        configurable: true,
+        writable: true
+      });
     }
   }
   seen.delete(value);
