@@ -401,3 +401,14 @@ canvas:active { cursor: grabbing; }
   .spatial-inspector { top: 7px; right: 7px; width: min(230px, 56%); max-height: 42%; padding: 7px 8px; }
   .spatial-inspector pre { font-size: 9px; }
 }
+
+
+/* Engine-backed spatial test controls. */
+.spatial-test-footprint { display: inline-flex; flex-direction: column; gap: 3px; }
+.spatial-test-footprint span { font-size: 10px; color: var(--color-text-muted); }
+#move-spatial-test-entity[data-active="true"] { border-color: #f3c969; color: #f3c969; }
+#spatial-test-status { min-width: 180px; overflow-wrap: anywhere; }
+#spatial-test-status:empty { display: none; }
+@media(max-width:760px) {
+  #spatial-test-status { flex-basis: 100%; }
+}
