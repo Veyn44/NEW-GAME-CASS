@@ -21,23 +21,21 @@ export class SpatialMovement {
   #worlds;
   #spatial;
   #placements;
-  #policy;
   #evaluating = new Set();
 
-  constructor({ entityRegistry, worldRegistry, spatialComposition, placementCoordinator, policy } = {}) {
+  constructor({ entityRegistry, worldRegistry, spatialComposition, placementCoordinator } = {}) {
     if (!entityRegistry?.get || !worldRegistry?.get || !spatialComposition?.queryCell ||
         !spatialComposition?.getEntityFootprint || !placementCoordinator?.moveEntity) {
       throw new SpatialMovementError("INVALID_DEPENDENCY", "SpatialMovement requires EntityRegistry, WorldRegistry, SpatialComposition and PlacementCoordinator.");
     }
-    if (typeof policy !== "function") throw new SpatialMovementError("INVALID_POLICY", "A host-supplied movement policy function is required.");
     this.#entities = entityRegistry;
     this.#worlds = worldRegistry;
     this.#spatial = spatialComposition;
     this.#placements = placementCoordinator;
-    this.#policy = policy;
   }
 
-  moveEntity(entityId, target) {
+  moveEntity(entityId, target, policy) {
+    if (typeof policy !== "function") return this.#outcome("invalid", "INVALID_POLICY", { entityId });
     if (typeof entityId !== "string" || !entityId.length) return this.#outcome("invalid", "INVALID_ENTITY_ID", { entityId });
     if (this.#evaluating.has(entityId)) return this.#outcome("invalid", "REENTRANT_MOVEMENT", { entityId });
     const entity = this.#entities.get(entityId);
@@ -94,8 +92,9 @@ export class SpatialMovement {
     this.#evaluating.add(entityId);
     let decision;
     try {
-      decision = this.#policy(context);
+      decision = policy(context);
       if (decision && typeof decision.then === "function") {
+        Promise.resolve(decision).catch(() => {});
         return this.#outcome("invalid", "ASYNC_POLICY_UNSUPPORTED", { entityId });
       }
     } catch (error) {
