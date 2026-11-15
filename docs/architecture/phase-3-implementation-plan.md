@@ -1,6 +1,6 @@
 # Phase 3 Physical World — Implementation Plan
 
-**Status:** Slices 1–4 implemented; coordinated placement persistence and Core Assembly integration are implemented on `work`. CI/manual integrated acceptance for the latest persistence addition is not yet confirmed.  
+**Status:** Slices 1–6 are implemented on `work`; the first Dev Lab spatial-inspection sub-slice is implemented. CI/manual integrated acceptance for the latest changes is not yet confirmed.  
 **Branch:** `work`  
 **Source audit:** 2026-11-15  
 **Scope:** Implementation sequencing for reusable Engine grid/spatial capabilities and their Cassandra/Dev Lab integration
@@ -355,6 +355,19 @@ Tasks:
 - 128×128 and 256×256 worlds behave correctly.
 
 ### Slice 8 — Dev Lab inspection and test integration
+
+**Status:** Initial spatial-inspection sub-slice implemented on `work`; full inspection and movement-test integration remain in progress.
+
+**Implemented initial sub-slice:**
+- `dev-lab/application/create-dev-lab-runtime.js` continues to compose the shared Engine Core runtime; no parallel spatial model was added.
+- `dev-lab/application/application-shell.js` resolves the Engine Spatial Composition, Spatial Movement, Placement Coordinator and Entity Registry services from the runtime context.
+- Dev Lab's 64×64, 128×128 and 256×256 worlds now declare explicit Engine grid capabilities matching their dimensions.
+- `dev-lab/application/spatial-inspector.js` provides a read-only adapter over `SpatialComposition.queryCell`.
+- `shared/presentation/world-viewport.js` reports the clicked grid cell while paused; the Dev Lab panel displays that cell's contents and entity occupancy.
+- `tests/unit/dev-lab-spatial-inspector.test.js` covers empty-cell inspection, invalid coordinates and the shared Engine API boundary.
+- `.github/workflows/core-tests.yml` now syntax-checks the updated viewport and Dev Lab spatial-inspector modules; the new test is included by the existing `tests/unit/*.test.js` command.
+
+**Not yet implemented:** footprint/region/query controls, entity movement test controls, visual overlap results and full standalone-vs-Cassandra-hosted Dev Lab acceptance. The current panel is read-only and intentionally does not create test entities or content.
 
 **Target area:** Existing Dev Lab application/presentation modules; exact paths to be confirmed from current source before edits.
 
