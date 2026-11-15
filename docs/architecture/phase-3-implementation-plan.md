@@ -531,7 +531,7 @@ Any proposed exception must identify the concrete dependency and the smallest re
 
 **Ready for detailed implementation review:** Grid Geometry, Spatial Composition, Spatial Queries, Movement & Collision and the cross-contract responsibility boundaries.
 
-**Still requires implementation-level closure:** Placement Coordinator mechanics and coordinate mapping; exact persistence participant/restore ordering and supported-save fixture matrix; Cassandra campaign save identity and authoritative state participants; durable Change Buffer/Applied ledger and atomic promotion against the target storage backend; final typed package operation schemas; and the source audit of actual Cassandra movement, environment, world-generation and expedition paths.
+**Still requires implementation-level closure:** Placement Coordinator mechanics; exact persistence participant/restore ordering and supported-save fixture matrix; Cassandra campaign save identity and authoritative state participants; durable Change Buffer/Applied ledger and atomic promotion against the target storage backend; final typed package operation schemas; and the source audit of actual Cassandra movement, environment, world-generation and expedition paths.
 
 **Compatibility policy:** Backward compatibility with arbitrary old `.cass` versions is not required. Unsupported versions may be rejected safely; selected migrations are optional and explicitly version-scoped.
 
