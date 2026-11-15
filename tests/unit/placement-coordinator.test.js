@@ -126,3 +126,36 @@ test("WorldContext restore cannot bypass the composite grid placement participan
   s.coordinator.placeEntity("pawn:one", gridTarget("grid-a", { x: 1, y: 1 }, [{ x: 0, y: 0 }]));
   throwsCode(() => s.worldContext.prepareRestore(s.worldContext.captureSnapshot()), "GRID_COORDINATOR_REQUIRED");
 });
+
+test("rollback integrity failure faults coordinator and signals the host", () => {
+  const entities = new EntityRegistry({ idFactory: () => "generated" });
+  const worlds = new WorldRegistry({ idFactory: () => "generated-world" });
+  worlds.registerWorld({ worldId: "grid", type: "test.grid", dimensions: { width: 4, height: 4 }, grid: { width: 4, height: 4 } });
+  pawn(entities);
+  const realWorldContext = new WorldContext({ entityRegistry: entities, worldRegistry: worlds });
+  const realSpatial = new SpatialComposition({ worldRegistry: worlds });
+  const brokenWorldContext = {
+    getPlacement: realWorldContext.getPlacement.bind(realWorldContext),
+    prepareCoordinatedPlacementChange(...args) {
+      const tx = realWorldContext.prepareCoordinatedPlacementChange(...args);
+      return { ...tx, commit: tx.commit, rollback() { throw new Error("injected rollback failure"); } };
+    }
+  };
+  const brokenSpatial = {
+    hasEntityOccupancy: realSpatial.hasEntityOccupancy.bind(realSpatial),
+    getEntityOccupancy: realSpatial.getEntityOccupancy.bind(realSpatial),
+    prepareEntityOccupancyChange(...args) {
+      const tx = realSpatial.prepareEntityOccupancyChange(...args);
+      return { ...tx, commit() { throw new Error("injected spatial commit failure"); }, rollback: tx.rollback };
+    }
+  };
+  let signaled = 0;
+  const coordinator = new PlacementCoordinator({
+    entityRegistry: entities, worldRegistry: worlds, worldContext: brokenWorldContext,
+    spatialComposition: brokenSpatial, onFatalIntegrityFault: () => { signaled += 1; }
+  });
+  throwsCode(() => coordinator.placeEntity("pawn:one", { worldId: "grid", anchor: { x: 1, y: 1 }, footprint: [{ x: 0, y: 0 }] }), "FATAL_INTEGRITY_FAULT");
+  assert.equal(coordinator.isFaulted, true);
+  assert.equal(signaled, 1);
+  throwsCode(() => coordinator.placeEntity("pawn:one", { worldId: "grid", anchor: { x: 2, y: 2 }, footprint: [{ x: 0, y: 0 }] }), "FATAL_INTEGRITY_FAULT");
+});
