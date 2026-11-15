@@ -416,7 +416,7 @@ Questions to resolve:
 - How do we avoid Engine importing Cassandra concepts?
 
 ### Step 8 — Persistence and compatibility
-**Status:** Open — source audit completed and working .cass migration proposal drafted; review and source/fixture decisions pending
+**Status:** Open — source audit completed; save policy updated to no backward-compatibility guarantee, with optional version-scoped migrations
 
 **Working proposal:** `cass-save-compatibility-migration-proposal.md`
 
@@ -443,7 +443,7 @@ Questions to resolve:
 - How are restore dependencies ordered and validated?
 - How are invalid or conflicting placements handled during restore?
 - What migrations are required?
-- How do we preserve existing .cass save compatibility?
+- Which save versions does the current build explicitly support, and how are unsupported versions rejected safely?
 - What happens to existing worlds and placements when the new capability is introduced?
 
 ### Step 9 — Testing and acceptance criteria
@@ -463,7 +463,7 @@ Include:
 - Atomicity, validation, conflict, and rollback tests for transfer if that protocol is included.
 - Boundary and invalid-coordinate behavior.
 - Deterministic behavior where required.
-- Compatibility tests for existing saves and existing Cassandra workflows.
+- Current-format save tests and safe rejection tests for unsupported historical versions; migration tests only for explicitly supported versions.
 - Explicitly stated performance expectations only where justified.
 
 ### Step 10 — Implementation plan
@@ -496,7 +496,7 @@ No implementation starts from this section until the complete specification is a
 - Do not make the Engine's world count hard-coded to Cassandra's current one-main-plus-one-temporary arrangement.
 - Do not mix rendering/art assets with authoritative spatial state. Presentation may consume spatial data, but visual representation must not become the source of truth for occupancy or world geometry.
 - Do not modify tested environment/simulation behavior unless a concrete dependency is demonstrated and separately agreed.
-- Preserve .cass save compatibility.
+- No general backward-compatibility promise for older .cass saves; unsupported versions may be rejected safely.
 - Prefer the smallest set of clear, stable contracts over speculative abstractions.
 - Avoid broad refactors unrelated to the agreed Phase 3 scope.
 
@@ -568,7 +568,7 @@ No implementation starts from this section until the complete specification is a
 - Define multi-cell footprints, orientation, overlap, and passability ownership.
 - Specify the temporary-world representation and the change-package/commit protocol, including validation, identity mapping, atomicity, and conflict handling.
 - Distinguish authoritative world/spatial state from viewport geometry, visual presentation, and input coordinates.
-- Preserve current tested simulation behavior and existing .cass compatibility unless a separate, explicit decision authorizes a change.
+- Preserve current tested simulation behavior. Backward compatibility with arbitrary older .cass saves is not required; unsupported versions may be rejected safely.
 
 ---
 
