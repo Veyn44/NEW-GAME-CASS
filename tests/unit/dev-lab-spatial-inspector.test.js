@@ -5,7 +5,7 @@ import { EntityRegistry } from "../../engine/core/entity-registry.js";
 import { WorldContext } from "../../engine/core/world-context.js";
 import { PlacementCoordinator } from "../../engine/spatial/placement-coordinator.js";
 import { SpatialComposition } from "../../engine/spatial/spatial-composition.js";
-import { querySpatialCell, querySpatialNeighbors, querySpatialRadius, querySpatialFootprint } from "../../dev-lab/application/spatial-inspector.js";
+import { querySpatialCell, querySpatialNeighbors, querySpatialRadius, querySpatialFootprint, querySpatialRegion } from "../../dev-lab/application/spatial-inspector.js";
 
 test("Dev Lab spatial inspector reads empty cells through Engine Spatial Composition", () => {
   const worlds = new WorldRegistry();
@@ -63,6 +63,63 @@ test("Dev Lab footprint inspection reads the authoritative Engine occupancy reco
   assert.equal(result.entityId, entity.id);
   assert.equal(result.cells.length, 4);
   assert.deepEqual(result.anchor, { x: 7, y: 8 });
+});
+
+test("Dev Lab rectangular region inspection applies category, layer and entity-kind filters", () => {
+  const entities = new EntityRegistry();
+  const worlds = new WorldRegistry();
+  worlds.registerWorld({
+    worldId: "dev-lab-grid",
+    type: "dev-lab-test",
+    dimensions: { width: 16, height: 16 },
+    grid: { width: 16, height: 16 }
+  });
+  const worldContext = new WorldContext({ entityRegistry: entities, worldRegistry: worlds });
+  const spatial = new SpatialComposition({ worldRegistry: worlds, entityRegistry: entities });
+  const placements = new PlacementCoordinator({
+    entityRegistry: entities, worldRegistry: worlds, worldContext, spatialComposition: spatial
+  });
+  const unit = entities.registerPersistent({ id: "lab:region-unit", kind: "unit" });
+  const wall = entities.registerPersistent({ id: "lab:region-wall", kind: "structure" });
+  placements.placeEntity(unit.id, {
+    worldId: "dev-lab-grid", anchor: { x: 3, y: 3 }, footprint: [{ x: 0, y: 0 }]
+  });
+  placements.placeEntity(wall.id, {
+    worldId: "dev-lab-grid", anchor: { x: 4, y: 4 }, footprint: [{ x: 0, y: 0 }]
+  });
+  spatial.addCellContent({
+    contentId: "content:ground",
+    worldId: "dev-lab-grid",
+    cell: { x: 2, y: 2 },
+    categoryId: "terrain",
+    layerId: "ground",
+    payload: { material: "rock" }
+  });
+  spatial.addCellContent({
+    contentId: "content:wall",
+    worldId: "dev-lab-grid",
+    cell: { x: 5, y: 5 },
+    categoryId: "structure",
+    layerId: "built",
+    payload: { material: "alloy" }
+  });
+
+  const result = querySpatialRegion(spatial, "dev-lab-grid", {
+    type: "rectangle",
+    min: { x: 1, y: 1 },
+    maxExclusive: { x: 6, y: 6 }
+  }, {
+    categories: ["terrain"],
+    layers: ["ground"],
+    kinds: ["unit"]
+  });
+  assert.deepEqual(result.contents.map((entry) => entry.contentId), ["content:ground"]);
+  assert.deepEqual(result.entities.map((entry) => entry.entityId), [unit.id]);
+  assert.deepEqual(result.region, {
+    type: "rectangle",
+    min: { x: 1, y: 1 },
+    maxExclusive: { x: 6, y: 6 }
+  });
 });
 
 test("Dev Lab spatial inspector rejects invalid grid coordinates before querying", () => {
