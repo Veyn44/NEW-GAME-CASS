@@ -111,7 +111,7 @@ The precise set of lifecycle statuses eligible for occupancy must follow the exi
 
 ## 7. Persistence and restore
 
-World Context and Spatial Composition retain separate service ownership, but their authoritative placement/spatial snapshots must be restored through one composite persistence participant and one transaction boundary. See `spatial-placement-persistence-integration-proposal.md`.
+World Context and Spatial Composition retain separate service ownership, but their authoritative placement/spatial snapshots must be restored through one composite persistence participant and one transaction boundary. See Section 14 below.
 
 Required restore behavior:
 
@@ -205,7 +205,7 @@ These details remain proposals or require a focused source check; they are not a
 - Which lifecycle statuses are eligible for grid occupancy.
 - Whether every grid-backed entity in Cassandra is represented spatially or only selected entity classes.
 
-The recommended implementation default is a small Engine-owned coordinator using prepared replacement state and one composite persistence participant, with Cassandra supplying only game-specific validation policy. The grid-anchor-to-cell-center mapping is approved. The detailed source-audited restore design is in `spatial-placement-persistence-integration-proposal.md`.
+The recommended implementation default is a small Engine-owned coordinator using prepared replacement state and one composite persistence participant, with Cassandra supplying only game-specific validation policy. The grid-anchor-to-cell-center mapping is approved. The detailed source-audited restore design is recorded in Section 14 below.
 
 ## 12. Explicit non-goals
 
@@ -219,6 +219,114 @@ This contract does not:
 - Define legacy `.cass` migration or save-envelope changes.
 - Change GameClock, SimulationScheduler or tested environment simulation.
 - Authorize source/runtime code changes, PR creation, merge or updates to `main`.
+
+
+## 14. Source-audited persistence integration
+
+**Status:** Working implementation proposal based on source audit (2026-11-15); no runtime implementation approved.
+
+### 14.1 Current Persistence behavior
+
+Audited sources: `engine/core/persistence.js`, `engine/core/core-assembly.js`, `engine/core/entity-registry.js`, `engine/core/world-registry.js`, `engine/core/world-context.js`.
+
+The current Persistence coordinator:
+- Sorts participants by numeric `order`, then participant ID.
+- Prepares every participant transaction before starting commits.
+- Commits transactions sequentially using `await transaction.commit()`.
+- On failure, rolls back in reverse order, including the participant whose commit threw.
+- Logs rollback failures as critical, but cannot guarantee recovery if a participant's rollback itself fails.
+
+Current default participant order:
+
+| Participant | Order | Dependency |
+|---|---:|---|
+| `core.entity-registry` | -100 | Entity identities/lifecycle |
+| `core.world-registry` | -90 | World descriptors/grid capability |
+| `core.world-context` | -80 | Entity and World references |
+
+World Context already detaches and validates its snapshot during preparation, defers reference validation until commit, swaps its complete placement map, and retains the previous map for rollback.
+
+Core Assembly's safe boundary rejects persistence during a simulation step, pending/delivering events, runtime destruction or a faulted scheduler. It serializes persistence operations and pauses the GameClock while the queue drains.
+
+### 14.2 Why two placement participants are insufficient
+
+Simply registering World Context at -80 and Spatial Composition at -70 would provide deterministic order, but not an indivisible commit. Persistence awaits each participant commit separately. A reader could observe the new World Context placement before Spatial Composition has committed the matching anchor/footprint, or vice versa.
+
+Ordering is a dependency tool; it is not a substitute for a transaction spanning both services.
+
+### 14.3 Recommended composite participant
+
+**Recommended default:** one Engine-owned composite placement-state persistence participant captures and restores the canonical World Context and Spatial Composition snapshots together.
+
+Illustrative participant ID: `core.spatial-placement`.
+
+Its snapshot contains two canonical sub-snapshots:
+- World Context placements, including non-grid world placements and storage placements.
+- Spatial Composition anchors, footprints, orientations and cell-associated spatial contents.
+
+This does not merge service ownership or create duplicate records. Each service remains authoritative for its own data; the coordinator supplies one transaction boundary. Derived occupancy indexes are rebuilt from canonical Spatial Composition records.
+
+A Core assembly with the spatial capability must register this composite participant instead of registering independent World Context and Spatial Composition participants for the same state. A host without the spatial capability may retain the standalone World Context participant.
+
+### 14.4 Restore sequence and ordering
+
+1. Persistence validates the outer save, state identity and participant schemas.
+2. Entity Registry and World Registry prepare and commit first, preserving their existing dependency order.
+3. The composite participant prepares detached World Context and Spatial Composition replacement states without exposing either.
+4. It cross-validates the pair: matching world/entity references, exact anchor-to-cell-center mapping, footprint/orientation bounds, derived occupancy, and absence of grid occupancy for stored or non-grid placements.
+5. One synchronous composite `commit()` performs the two prepared state swaps in a single call stack, without `await`, events or callbacks between them.
+6. If either internal swap fails, the composite transaction restores any already-swapped state before returning. If it cannot prove restoration, it reports a fatal integrity fault and the runtime remains stopped.
+7. If a later application participant fails, Persistence calls the composite participant's `rollback()`, restoring both previous service states together.
+
+Proposed dependency order:
+
+| Order | Participant/aggregate | Purpose |
+|---:|---|---|
+| -100 | Entity Registry | Identity/lifecycle |
+| -90 | World Registry | World/grid descriptors |
+| -80 | Composite Spatial Placement State | World Context + Spatial Composition atomic restore |
+| later | Cassandra/application participants | Domain state referencing core identities, worlds or placements |
+
+The numeric values are proposed defaults. The dependency relation is the important contract.
+
+### 14.5 Capture consistency
+
+The composite participant captures both canonical snapshots from one stable state at the existing Core safe boundary. It must not combine World Context from before a move with Spatial Composition from after it. If it cannot obtain a consistent pair, the save fails rather than writing contradictory state.
+
+### 14.6 Mutation boundary
+
+Source audit confirms that current World Context exposes public mutation methods: `placeEntity`, `storeEntity`, `placeInStore`, `moveEntity` and `removePlacement`.
+
+Grid-backed mutation must be routed through the Placement Coordinator. Direct World Context or Spatial Composition mutation must not be able to change one side alone. Preserve existing World Context-only behavior for non-grid placements and storage. The implementation may use private methods, an internal capability token or an equivalent enforced boundary; caller convention alone is insufficient.
+
+### 14.7 Required tests
+
+1. Composite capture contains both canonical sub-snapshots from one consistent state.
+2. Capture cannot occur during an active coordinated placement mutation.
+3. Restore rejects a missing or contradictory World Context/Spatial Composition side.
+4. Restore rejects mismatched world IDs, anchors, orientations, footprints and bounds.
+5. Stored/non-grid placements cannot have active grid occupancy.
+6. Restore validates the approved anchor-to-cell-center mapping exactly.
+7. Both service states commit before any observer can run.
+8. Failure during the second internal swap restores the first before returning.
+9. A later participant failure rolls back both services.
+10. Rollback failure stops the runtime in a fatal integrity state.
+11. Entity Registry or World Registry failure prevents placement commit.
+12. Non-grid placement and storage round-trip unchanged.
+13. A host without spatial capability retains its standalone World Context participant.
+14. Unsupported schemas reject before participant commits.
+15. Successful round-trip rebuilds derived occupancy indexes deterministically.
+
+### 14.8 Open implementation details
+
+- Exact composite participant ID and snapshot schema.
+- Exact coordinator module location and service registration.
+- Prepared-state representation for both services.
+- Enforced internal mutation capability/encapsulation.
+- Fatal integrity-fault signaling and runtime stop/recovery integration.
+- Full lifecycle coverage for entity removal, storage and non-grid transitions.
+
+These are technical implementation details for the relevant implementation slice; they do not require another user decision at this stage.
 
 ## 13. Related contracts
 
