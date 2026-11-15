@@ -143,6 +143,7 @@ If no world participates, the host may allow the runtime's global clock to remai
 - The first multi-world implementation must not claim world-local fault isolation unless it can prove the required state-commit boundary. Until then, preserve the current fail-stop behavior described below.
 - The global scheduler's existing backlog, speed-snapshot, bounded catch-up and overload semantics must be preserved unless a separately reviewed design explicitly changes them.
 - Rendering frequency must not affect simulation time.
+
 ## 5. Failure isolation
 
 Proposed failure domains:
