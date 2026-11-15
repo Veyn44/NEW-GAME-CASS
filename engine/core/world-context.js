@@ -1,3 +1,5 @@
+import { PLACEMENT_AUTHORITY } from "../spatial/placement-authority.js";
+
 const ID_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9:._-]{0,159}$/;
 const SNAPSHOT_VERSION = 1;
 
@@ -168,6 +170,8 @@ export class WorldContext {
     if (this.#placements.has(assertId(entityId, "Entity ID"))) {
       throw new WorldContextError("ENTITY_ALREADY_PLACED", `Entity "${entityId}" already has a placement.`, { entityId });
     }
+    const world = this.#worlds.get(assertId(worldId, "World ID"));
+    if (world?.grid != null) throw new WorldContextError("GRID_COORDINATOR_REQUIRED", "Grid-backed placement must use PlacementCoordinator.", { entityId, worldId });
     const placement = this.#prepareWorldPlacement(entityId, worldId, position);
     this.#placements.set(entityId, placement);
     return placement;
@@ -179,6 +183,7 @@ export class WorldContext {
     if (!current || current.type !== "world") {
       throw new WorldContextError("ENTITY_NOT_IN_WORLD", "Only an entity currently placed in a world can be transferred to the persistent storage.", { entityId });
     }
+    if (this.#worlds.get(current.worldId)?.grid != null) throw new WorldContextError("GRID_COORDINATOR_REQUIRED", "Grid-backed storage transfer must use PlacementCoordinator.", { entityId });
     const stableStoreId = assertId(storeId, "Store ID");
     const entity = this.#requireActiveEntity(entityId);
     if (entity.scope !== "scoped" || entity.status !== "active") {
@@ -211,14 +216,60 @@ export class WorldContext {
     const current = this.#placements.get(entityId);
     if (!current) throw new WorldContextError("ENTITY_NOT_PLACED", `Entity "${entityId}" has no current placement.`, { entityId });
     const next = this.#prepareTarget(entityId, target);
+    if ((current.type === "world" && this.#worlds.get(current.worldId)?.grid != null) ||
+        (next.type === "world" && this.#worlds.get(next.worldId)?.grid != null)) throw new WorldContextError("GRID_COORDINATOR_REQUIRED", "Transfers involving grid-backed placements must use PlacementCoordinator.", { entityId });
     // One synchronous map replacement is the commit point. Validation above is side-effect free.
     this.#placements.set(entityId, next);
     return Object.freeze({ previous: current, current: next });
   }
 
   removePlacement(entityId) {
-    assertId(entityId, "Entity ID");
-    return this.#placements.delete(entityId);
+    const id = assertId(entityId, "Entity ID");
+    const current = this.#placements.get(id);
+    if (current?.type === "world" && this.#worlds.get(current.worldId)?.grid != null) throw new WorldContextError("GRID_COORDINATOR_REQUIRED", "Grid-backed placement removal must use PlacementCoordinator.", { entityId: id });
+    return this.#placements.delete(id);
+  }
+
+  /** Internal prepared mutation; only the Engine placement coordinator has the capability. */
+  prepareCoordinatedPlacementChange(entityId, target, authority, { retire = false } = {}) {
+    if (authority !== PLACEMENT_AUTHORITY) throw new WorldContextError("PLACEMENT_AUTHORITY_REQUIRED", "Only PlacementCoordinator may prepare coordinated changes.");
+    const id = assertId(entityId, "Entity ID"), previous = this.#placements.get(id) ?? null;
+    const previousWorld = previous?.type === "world" ? this.#worlds.get(previous.worldId) : null;
+    let next = null, lifecycle = null;
+    if (retire) {
+      if (!previous || previous.type !== "world" || previousWorld?.grid == null) throw new WorldContextError("GRID_PLACEMENT_REQUIRED", "Retirement requires a grid-backed placement.", { entityId: id });
+      lifecycle = this.#entities.prepareCoordinatedLifecycleChange(id, "remove", authority);
+    } else if (target === null) {
+      if (!previous || previous.type !== "world" || previousWorld?.grid == null) throw new WorldContextError("GRID_PLACEMENT_REQUIRED", "Removal requires a grid-backed placement.", { entityId: id });
+    } else if (target?.type === "world") {
+      const world = this.#worlds.get(assertId(target.worldId, "World ID"));
+      if (!world) throw new WorldContextError("UNKNOWN_WORLD", `World "${target.worldId}" is not registered.`);
+      if (world.grid == null && previousWorld?.grid == null) throw new WorldContextError("GRID_COORDINATION_NOT_REQUIRED", "At least one transfer side must be grid-backed.");
+      const entity = this.#requireActiveEntity(id);
+      if (entity.status === "stored") lifecycle = this.#entities.prepareCoordinatedLifecycleChange(id, "activate", authority);
+      next = this.#prepareWorldPlacement(id, target.worldId, target.position, { allowStored: entity.status === "stored" });
+    } else if (target?.type === "store") {
+      if (!previous || previous.type !== "world" || previousWorld?.grid == null) throw new WorldContextError("GRID_PLACEMENT_REQUIRED", "Storage transfer requires a grid-backed source.");
+      const entity = this.#requireActiveEntity(id);
+      if (entity.scope !== "scoped" || entity.status !== "active") throw new WorldContextError("ENTITY_NOT_STORABLE", "Only active scoped entities can be stored.", { entityId: id });
+      next = freezePlacement({ entityId: id, type: "store", storeId: assertId(target.storeId, "Store ID") });
+      lifecycle = this.#entities.prepareCoordinatedLifecycleChange(id, "store", authority);
+    } else throw new WorldContextError("INVALID_TARGET", "Invalid coordinated placement target.");
+    let committed = false;
+    return Object.freeze({
+      previous, current: next,
+      commit: () => {
+        if (committed) throw new WorldContextError("TRANSACTION_ALREADY_COMMITTED", "Transaction already committed.");
+        lifecycle?.commit();
+        if (next === null) this.#placements.delete(id); else this.#placements.set(id, next);
+        committed = true;
+      },
+      rollback: () => {
+        if (!committed) return false;
+        if (previous === null) this.#placements.delete(id); else this.#placements.set(id, previous);
+        lifecycle?.rollback(); committed = false; return true;
+      }
+    });
   }
 
   #prepareTarget(entityId, target) {
@@ -237,12 +288,12 @@ export class WorldContext {
     throw new WorldContextError("INVALID_TARGET", "A transfer target must have type world or store.");
   }
 
-  #prepareWorldPlacement(entityId, worldId, position) {
+  #prepareWorldPlacement(entityId, worldId, position, { allowStored = false } = {}) {
     const entity = this.#requireActiveEntity(entityId);
     const world = this.#worlds.get(assertId(worldId, "World ID"));
     if (!world) throw new WorldContextError("UNKNOWN_WORLD", `World "${worldId}" is not registered.`, { worldId });
     if (world.status === "closed") throw new WorldContextError("WORLD_CLOSED", `World "${worldId}" is closed.`, { worldId });
-    if (entity.status === "stored") {
+    if (entity.status === "stored" && !allowStored) {
       throw new WorldContextError("ENTITY_STORED", "A stored entity must be activated before world placement.", { entityId });
     }
     const point = clonePosition(position);
