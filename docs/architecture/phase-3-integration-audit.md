@@ -52,13 +52,9 @@ This is not a contradiction once the integration contract is read as the refinem
 
 **Approved direction (2026-11-15):** Grid anchor `(x,y)` maps to World Context world-space cell center `(x+0.5,y+0.5)`. The integer anchor is the anchor cell, not the center of the complete multi-cell footprint. Non-grid positions remain continuous.
 
-Existing Unit movement accepts fractional world-space positions. Therefore:
-- Do not silently round legacy fractional positions into cells.
-- Audit each source representation before conversion.
-- Define an explicit mapping for grid-backed entities.
-- Keep non-grid continuous placement semantics unchanged.
+Current Unit movement accepts fractional world-space positions. The approved grid anchor mapping remains fixed; the Cassandra adapter must define how fractional movement progress is represented without storing fractional grid anchors. The current viewport also adds `+0.5` for marker drawing and camera follow, so those offsets must be removed or adjusted for grid-backed World Context cell-center positions to avoid a double offset.
 
-This decision closes the coordinate-mapping question. Legacy fractional coordinates still require an explicit source-specific migration rule if that save version is deliberately supported; they must never be silently rounded. The placement coordinator and transaction mechanics remain open.
+Do not silently round existing fractional positions. Legacy fractional coordinates require a source-specific conversion only if that old save version is deliberately supported; otherwise reject it safely. The placement coordinator and transaction mechanics remain open.
 
 ### 3.3 Simulation time and expedition pause agree
 
@@ -104,6 +100,22 @@ Agreed direction:
 
 The current audited `.cass` workspace save is not a future campaign save and is not a valid source for campaign environment/inventory/expedition migration.
 
+
+### 3.7 Cassandra source audit: current prototype versus future physical-world systems
+
+The current `work` tree was inspected directly:
+
+- `src/gameplay/unit/unit-system.js`: Unit creation uses integer tile coordinates; Unit movement accepts finite fractional coordinates and writes them directly to World Context. The Unit snapshot stores only Unit ID/definition ID; placement is stored by World Context. Unit removal clears placement, retires the Core identity and removes the domain record.
+- `src/gameplay/colony/colony-control-system.js`: movement speed is 4 tiles/second; diagonal input is normalized; Draft and input eligibility are Cassandra-owned; only the leader in `WorldRegistry.activeWorldId` is moved.
+- `cassandra/application/cassandra-runtime-host.js`: the current runtime composes Input, Unit and Colony Control and runs one Colony Control simulation task.
+- `cassandra/application/cassandra-application-shell.js`: registers 64×64, 128×128 and 256×256 worlds, activates one selected world, passes integer tile coordinates for placement and uses the Dev Lab/workspace `.cass` save identity.
+- `shared/presentation/world-viewport.js`: marker drawing and camera following currently add 0.5 to stored positions. With the approved grid-backed World Context cell-center convention, this offset must be applied exactly once, not twice.
+- Existing tests cover fractional Unit movement and persistence (`tests/unit/unit-system.test.js`), movement speed/diagonal normalization/Draft (`tests/unit/colony-control-system.test.js`), runtime composition (`tests/unit/cassandra-runtime-host.test.js`) and Core placement restore (`tests/core-integration.test.js`).
+
+**Not present in the current branch tree:** Cassandra environment simulation, world generation, expedition workflow, Temporary World runtime, or tests for those systems. The current branch is a workspace/gameplay prototype and cannot provide a source audit of future colony/environment/expedition persistence. These must be audited when the relevant systems are added or located; their behavior must not be invented from the workspace save.
+
+**Integration consequence:** Grid occupancy is discrete; the current pawn movement is continuous. Cassandra must own movement progress and any visual interpolation between committed grid anchors. Engine owns only discrete placement/occupancy transactions. The current `activeWorldId` check is also a single selected/active-world gate, not a substitute for the separate simulation-participation state in the World Lifecycle contract.
+
 ## 4. Remaining implementation-level closure
 
 These items are not contradictions; they must be resolved before the dependent implementation slice:
@@ -115,8 +127,8 @@ These items are not contradictions; they must be resolved before the dependent i
 5. **Campaign save model:** identify the future campaign save identity and authoritative campaign/location/environment participants; do not infer them from the current workspace save.
 6. **Change package:** finalize typed operation schemas, package identity/digest, durable Change Buffer/ledger and idempotent retry semantics.
 7. **Campaign recovery:** define the concrete durable checkpoint and atomic promotion/recovery mechanism for the supported storage backend.
-8. **Source audit before Cassandra integration:** locate and inspect actual pawn movement, world generation, environment persistence, map state, expedition flow and tests. Current audit evidence is incomplete for those paths.
-9. **World lifecycle runtime details:** exact state representation, event/error names, global clock behavior when a world fails, and restore readiness sequencing.
+8. **Future physical-world source audit:** current Unit/Colony Control and viewport paths have been inspected. Environment simulation, world generation, expedition flow, Temporary World runtime and their tests are not present in the current branch tree and must be audited when available.
+9. **World lifecycle runtime details:** exact state representation, event/error names, global clock behavior when a world fails, and restore readiness sequencing. The current Cassandra prototype has one active/selected World and one gameplay simulation task; it does not yet implement Main + Temporary World simulation.
 
 No further user decision is currently needed to preserve the agreed architectural boundaries. Remaining work is implementation-level closure: coordinator mechanics, persistence ordering, durable campaign commit/recovery and source audits.
 
@@ -156,11 +168,15 @@ Every scenario below must be covered by an automated test or a clearly identifie
 - Failure in either commit restores both services exactly.
 - Rejected host policy leaves old occupancy unchanged.
 - Engine reports geometric facts; Cassandra decides passability, blocking, speed, costs and consequences.
+- Existing 4 tiles/second speed and diagonal normalization remain Cassandra-owned.
+- Fractional movement progress is never silently rounded into a grid anchor; the Cassandra movement adapter owns progress/interpolation while Engine occupancy remains discrete.
+- Grid-backed marker drawing and camera follow apply the cell-center offset exactly once.
 - No movement operation advances simulation time or changes health/inventory by itself.
 
 ### E. World lifecycle and time
 - Main and Temporary Worlds coexist.
 - Registration, loading/readiness, simulation participation, pause, focus and rendering are independently testable.
+- A selected/active World identifier is not used as a proxy for simulation participation; the current single-active-world prototype behavior does not constrain the future lifecycle model.
 - Only participating worlds receive steps.
 - Only successful steps advance the relevant world-local simulated time.
 - Paused Main World time remains unchanged during an expedition.
