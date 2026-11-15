@@ -60,10 +60,15 @@ function parseSnapshot(snapshot) {
  * Engine World Registry owns descriptors and active selection; this system
  * owns the single temporary-session rule and independent local simulated time.
  */
-export function createCassandraWorldSessionSystem() {
+export function createCassandraWorldSessionSystem({ isPackageApplied = null } = {}) {
   let worlds;
   let persistence;
   let scheduler;
+  let entities;
+  let worldContext;
+  let spatial;
+  let placements;
+  const temporaryWorldCleanupHandlers = new Set();
   let pendingStep = null;
   let mainWorldId = null;
   let temporaryWorldId = null;
@@ -166,6 +171,101 @@ export function createCassandraWorldSessionSystem() {
       return api.getState();
     },
 
+    registerTemporaryWorldCleanup(handler) {
+      if (typeof handler !== "function") {
+        throw new CassandraWorldSessionError("INVALID_TEMPORARY_CLEANUP_HANDLER",
+          "Temporary World cleanup handler must be a function.");
+      }
+      temporaryWorldCleanupHandlers.add(handler);
+      return () => temporaryWorldCleanupHandlers.delete(handler);
+    },
+
+    async completeTemporaryWorld({ packageId, digest } = {}) {
+      commitPendingStepIfSuccessful();
+      if (temporaryWorldId === null) {
+        throw new CassandraWorldSessionError("NO_TEMPORARY_WORLD", "There is no Temporary World to complete.");
+      }
+      if (mainWorldId === null || worlds.activeWorldId !== mainWorldId) {
+        throw new CassandraWorldSessionError("MAIN_WORLD_MUST_BE_ACTIVE",
+          "Return to the Main World before completing and disposing the Temporary World.");
+      }
+      if (typeof isPackageApplied !== "function") {
+        throw new CassandraWorldSessionError("PACKAGE_APPLICATION_VERIFIER_REQUIRED",
+          "Temporary World disposal requires an authoritative Applied ledger verifier.");
+      }
+      assertWorldId(packageId, "Applied Change Package ID");
+      if (typeof digest !== "string" || !/^[a-f0-9]{64}$/.test(digest)) {
+        throw new CassandraWorldSessionError("INVALID_PACKAGE_DIGEST",
+          "Temporary World disposal requires the exact applied Change Package digest.");
+      }
+      if (await isPackageApplied(packageId, digest) !== true) {
+        throw new CassandraWorldSessionError("CHANGE_PACKAGE_NOT_APPLIED",
+          "Temporary World cannot be disposed until its exact Change Package is durably applied.",
+          { packageId });
+      }
+
+      const id = temporaryWorldId;
+      if (worlds.has(id)) {
+        const scopeId = `world:${id}`;
+        const world = worlds.get(id);
+        const placementsInWorld = worldContext.listPlacements({ worldId: id });
+        for (const placement of placementsInWorld) {
+          const entity = entities.get(placement.entityId);
+          if (!entity || entity.scope !== "scoped" || entity.scopeId !== scopeId) {
+            throw new CassandraWorldSessionError("PERSISTENT_ENTITY_IN_TEMPORARY_WORLD",
+              "Temporary World disposal refuses to remove a placement not owned by this Temporary World scope.",
+              { worldId: id, entityId: placement.entityId });
+          }
+        }
+        for (const occupancy of spatial.listEntityOccupancies({ worldId: id })) {
+          const entity = entities.get(occupancy.entityId);
+          if (!entity || entity.scope !== "scoped" || entity.scopeId !== scopeId) {
+            throw new CassandraWorldSessionError("PERSISTENT_OCCUPANCY_IN_TEMPORARY_WORLD",
+              "Temporary World disposal refuses to remove occupancy not owned by this Temporary World scope.",
+              { worldId: id, entityId: occupancy.entityId });
+          }
+        }
+
+        const scopedEntities = entities.list({ scope: "scoped", scopeId });
+        for (const entity of scopedEntities) {
+          if (entity.status !== "active" && entity.status !== "stored") continue;
+          const placement = worldContext.getPlacement(entity.id);
+          if (placement?.type === "world" && placement.worldId !== id) {
+            throw new CassandraWorldSessionError("TEMPORARY_ENTITY_ESCAPED_WORLD",
+              "A Temporary World-scoped entity was placed in another World and must be reconciled before disposal.",
+              { entityId: entity.id, worldId: placement.worldId });
+          }
+          if (placement?.type === "world" && world.grid != null) {
+            placements.removeEntity(entity.id);
+          } else {
+            if (placement) worldContext.removePlacement(entity.id);
+            entities.remove(entity.id);
+          }
+        }
+
+        for (const content of spatial.listContents({ worldId: id })) {
+          spatial.removeCellContent(content.contentId);
+        }
+        if (worldContext.listPlacements({ worldId: id }).length > 0
+          || spatial.listEntityOccupancies({ worldId: id }).length > 0
+          || spatial.listContents({ worldId: id }).length > 0) {
+          throw new CassandraWorldSessionError("TEMPORARY_WORLD_NOT_EMPTY",
+            "Temporary World still has placements, occupancy or content after scoped cleanup.",
+            { worldId: id });
+        }
+        if (worlds.get(id)?.status !== "closed") worlds.closeWorld(id);
+        worlds.unregisterWorld(id);
+      }
+
+      for (const handler of temporaryWorldCleanupHandlers) {
+        await handler(Object.freeze({ packageId, digest, temporaryWorldId: id }));
+      }
+      temporaryWorldId = null;
+      worldTimes.delete(id);
+      pendingStep = null;
+      return api.getState();
+    },
+
     advance(deltaSeconds, tick = null) {
       commitPendingStepIfSuccessful();
       if (!Number.isFinite(deltaSeconds) || deltaSeconds < 0) {
@@ -220,6 +320,7 @@ export function createCassandraWorldSessionSystem() {
       if (mainWorldId === null) {
         throw new CassandraWorldSessionError("MAIN_WORLD_NOT_REGISTERED", "Cannot save a world session without a Main World.");
       }
+      if (temporaryWorldId !== null) requireGridWorld(temporaryWorldId, "Temporary World");
       return Object.freeze({
         version: SNAPSHOT_VERSION,
         mainWorldId,
@@ -280,11 +381,23 @@ export function createCassandraWorldSessionSystem() {
   return Object.freeze({
     id: "game.world-session",
     provides: ["game.world-session-api"],
-    requires: ["core.world-registry", "core.persistence", "core.scheduler"],
+    requires: [
+      "core.world-registry",
+      "core.persistence",
+      "core.scheduler",
+      "core.entity-registry",
+      "core.world-context",
+      "core.spatial-composition",
+      "core.placement-coordinator"
+    ],
     initialize(context) {
       worlds = context.getService("core.world-registry");
       persistence = context.getService("core.persistence");
       scheduler = context.getService("core.scheduler");
+      entities = context.getService("core.entity-registry");
+      worldContext = context.getService("core.world-context");
+      spatial = context.getService("core.spatial-composition");
+      placements = context.getService("core.placement-coordinator");
       unregisterPersistence = persistence.registerParticipant(persistenceParticipant);
       return { "game.world-session-api": api };
     },
@@ -296,6 +409,7 @@ export function createCassandraWorldSessionSystem() {
       temporaryWorldId = null;
       worldTimes = new Map();
       pendingStep = null;
+      temporaryWorldCleanupHandlers.clear();
     }
   });
 }
