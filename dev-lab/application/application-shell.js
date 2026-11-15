@@ -33,6 +33,7 @@ const spatialNeighborsEightButton = document.querySelector("#spatial-neighbors-e
 const spatialRadiusManhattanButton = document.querySelector("#spatial-radius-manhattan");
 const spatialRadiusChebyshevButton = document.querySelector("#spatial-radius-chebyshev");
 const spatialFootprintButton = document.querySelector("#spatial-footprint");
+const spatialMovementHistoryButton = document.querySelector("#spatial-movement-history");
 const spatialRegionMinX = document.querySelector("#spatial-region-min-x");
 const spatialRegionMinY = document.querySelector("#spatial-region-min-y");
 const spatialRegionMaxX = document.querySelector("#spatial-region-max-x");
@@ -296,6 +297,9 @@ function updateSpatialTestControls() {
   spatialRadiusChebyshevButton.disabled = !state.paused || !state.selectedSpatialCell;
   spatialFootprintButton.disabled = !state.paused || !state.selectedSpatialEntityId;
   spatialRegionQueryButton.disabled = !state.paused || !state.spatialApi || !state.worldRegistry;
+  spatialMovementHistoryButton.disabled = !state.paused
+    || !state.spatialTestController
+    || state.spatialTestController.getMovementHistory().length === 0;
 }
 
 function showSpatialQuery(label, result) {
@@ -324,6 +328,16 @@ function querySelectedSpatialRadius(metric) {
     showSpatialQuery(`RADIUS 2 · ${metric.toUpperCase()} · ${worldId}`, result);
   } catch (error) {
     showSpatialQuery("RADIUS QUERY ERROR", { code: error.code ?? null, message: error.message });
+  }
+}
+
+function querySpatialMovementHistory() {
+  if (!state.paused || !state.spatialTestController) return;
+  try {
+    const history = state.spatialTestController.getMovementHistory({ limit: 25 });
+    showSpatialQuery("DEV LAB MOVEMENT HISTORY · LAST 25", history);
+  } catch (error) {
+    showSpatialQuery("MOVEMENT HISTORY ERROR", { code: error.code ?? null, message: error.message });
   }
 }
 
@@ -401,6 +415,7 @@ function createSpatialTestEntity() {
 function toggleSpatialTestMoveMode() {
   if (!state.paused || !state.selectedTestEntityId) return;
   state.moveTestEntityMode = !state.moveTestEntityMode;
+  if (!state.moveTestEntityMode) viewport.setSpatialHighlights([]);
   spatialTestStatus.textContent = state.moveTestEntityMode
     ? "MOVE MODE · CLICK A TARGET GRID CELL"
     : "MOVE MODE CANCELLED";
@@ -415,6 +430,7 @@ function removeSelectedSpatialTestEntity() {
     state.selectedTestEntityId = null;
     state.selectedSpatialEntityId = null;
     state.moveTestEntityMode = false;
+    viewport.setSpatialHighlights([]);
     viewport.setSelectedWorldMarker(null);
     refreshWorldMarkers();
     spatialTestStatus.textContent = `RETIRED · ${removedId}`;
@@ -428,11 +444,21 @@ function removeSelectedSpatialTestEntity() {
 function inspectSpatialCell(cell) {
   const worldId = state.worldRegistry?.activeWorldId;
   if (!state.spatialApi || !worldId || !cell) return null;
+  let overlapFootprints = [];
   if (state.moveTestEntityMode && state.selectedTestEntityId) {
     const result = state.spatialTestController.move(state.selectedTestEntityId, {
       worldId,
       anchor: cell
     });
+    if (result.status === "rejected" && result.diagnostic?.overlaps.length) {
+      overlapFootprints = result.diagnostic.overlaps.map((entityId) => ({
+        entityId,
+        occupancy: querySpatialFootprint(state.spatialApi, entityId)
+      }));
+      viewport.setSpatialHighlights(overlapFootprints.flatMap(({ occupancy }) => occupancy.cells));
+    } else {
+      viewport.setSpatialHighlights([]);
+    }
     if (result.status === "moved" || result.status === "unchanged") {
       refreshWorldMarkers();
       viewport.setSelectedWorldMarker(state.selectedTestEntityId);
@@ -443,6 +469,8 @@ function inspectSpatialCell(cell) {
       spatialTestStatus.textContent = `MOVE ${result.status.toUpperCase()} · ${result.code} · ${result.diagnostic?.overlaps.length ?? 0} OVERLAP(S)`;
     }
     updateSpatialTestControls();
+  } else {
+    viewport.setSpatialHighlights([]);
   }
   try {
     const inspection = querySpatialCell(state.spatialApi, worldId, cell);
@@ -455,7 +483,8 @@ function inspectSpatialCell(cell) {
     spatialCellData.textContent = JSON.stringify({
       contents: inspection.contents,
       entities: inspection.entities,
-      lastMovement: state.spatialTestController?.getLastMovement() ?? null
+      lastMovement: state.spatialTestController?.getLastMovement() ?? null,
+      overlapFootprints
     }, null, 2);
     updateSpatialTestControls();
     return inspection;
@@ -665,6 +694,7 @@ resetLabButton.addEventListener("click", () => {
   state.selectedSpatialEntityId = null;
   state.selectedSpatialCell = null;
   state.moveTestEntityMode = false;
+  viewport.setSpatialHighlights([]);
   workspaceSession.reset();
   inspectSpatialCell({ x: 0, y: 0 });
   refreshWorldMarkers();
@@ -677,6 +707,7 @@ spatialRadiusManhattanButton.addEventListener("click", () => querySelectedSpatia
 spatialRadiusChebyshevButton.addEventListener("click", () => querySelectedSpatialRadius("chebyshev"));
 spatialFootprintButton.addEventListener("click", querySelectedSpatialFootprint);
 spatialRegionQueryButton.addEventListener("click", querySelectedSpatialRegion);
+spatialMovementHistoryButton.addEventListener("click", querySpatialMovementHistory);
 moveTestEntityButton.addEventListener("click", toggleSpatialTestMoveMode);
 removeTestEntityButton.addEventListener("click", removeSelectedSpatialTestEntity);
 
