@@ -6,7 +6,13 @@ import { createDevLabRuntime } from "../../dev-lab/application/create-dev-lab-ru
 import { createCassandraRuntime } from "../../cassandra/application/cassandra-runtime-host.js";
 
 async function runSpatialAcceptance(runtimeFactory, entityId) {
-  const runtime = runtimeFactory({ saveAdapter: new MemorySaveAdapter() });
+  const runtime = runtimeFactory({
+    saveAdapter: new MemorySaveAdapter(),
+    inputController: {
+      getState: () => Object.freeze({}),
+      consumeFrameInput: () => Object.freeze({})
+    }
+  });
   try {
     const context = await runtime.start();
     const worlds = context.getService("core.world-registry");
