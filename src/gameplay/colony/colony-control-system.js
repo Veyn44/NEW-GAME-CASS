@@ -48,12 +48,12 @@ export function createColonyControlSystem() {
       const length = Math.hypot(x, y);
       x /= length;
       y /= length;
-      const position = leader.placement.position;
+      const position = leader.position;
       const moved = units.moveUnit(leader.id, {
         x: position.x + x * MOVE_SPEED_TILES_PER_SECOND * deltaSeconds,
         y: position.y + y * MOVE_SPEED_TILES_PER_SECOND * deltaSeconds
       });
-      return Object.freeze({ entityId: leader.id, position: moved.placement.position });
+      return Object.freeze({ entityId: leader.id, position: moved.position, placement: moved.placement });
     }
   });
 
