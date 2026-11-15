@@ -198,7 +198,7 @@ Tasks:
 
 **Ownership boundary:** Engine permits overlapping entity footprints; host/game policy decides whether overlap is legal. No pathfinding, passability, collision response or Cassandra movement rules are implemented here.
 
-**Verification:** Final CI run `43740335779` passed: Core `205/205`, Host `148/148`, browser syntax check passed. Commit `82ffaea7af17cbc732c1a92adc86ab9a8dcd98fc`. Do not infer Cassandra integration from this Engine slice.
+**Verification:** Final CI run `43740582295` passed: Core `205/205`, Host `150/150`, browser syntax check passed. Implementation head at this checkpoint: `5c942bfbf4547b4016fa4db404878ec37955ae74`. Do not infer Cassandra integration from this Engine slice.
 
 ### Slice 3 — Spatial Query surface
 
