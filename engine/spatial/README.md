@@ -32,4 +32,4 @@ See `docs/architecture/grid-geometry-contract-proposal.md` and `docs/architectur
 
 `spatial-composition.js` implements sparse cell-associated content for grid-enabled worlds and pure footprint geometry helpers. Content uses host-defined category/layer IDs and detached JSON-like payloads. Empty cells remain implicit; content IDs stay reserved after removal and are retained in snapshots.
 
-Entity-backed occupancy mutations are intentionally withheld until World Context and Spatial Composition share a coordinated transaction. Footprint helpers derive geometry only and do not register occupancy.
+Entity-backed occupancy is changed only through Placement Coordinator. World Context stores the anchor-cell center `(x + 0.5, y + 0.5)`; Spatial Composition stores one canonical anchor/footprint/orientation record and derives the cell index. Multiple entities may overlap at Engine level; legality is host policy. Grid-to-grid, grid-to-world, grid-to-storage, storage-to-grid and retirement use a synchronous prepared commit. Core Persistence restores World Context and Spatial Composition through one composite participant.
