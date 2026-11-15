@@ -448,6 +448,8 @@ The proposal specifies:
 - Separate persistent campaign state, persistent location records and Temporary World runtime state.
 - A player-entitlement invariant: every result owed to the player has an explicit, auditable disposition and must survive identity mapping, persistence, retry and recovery failures.
 - A reconciled return manifest for items, resources, participants and rewards; unknown or unmapped entries block the whole commit rather than being silently dropped.
+- A two-state staging model: preserve the last-known-good Major State, retain expedition changes in a durable Change Buffer, build and validate an isolated Candidate State, and atomically promote it only after all invariants pass.
+- On entitlement/identity/conservation integrity failure, do not commit a partial result; roll back to the expedition-start checkpoint and reset/restore the complete expedition. Transient commit failures retain the Change Buffer and retry from the unchanged Major State.
 - Campaign identity to encounter-runtime identity projection mapping; no simultaneous duplicate Engine placement for one entity.
 - Typed Cassandra domain operations, baseline revisions/preconditions and all-or-nothing package application.
 - Immutable, versioned and durably retained pending packages.
