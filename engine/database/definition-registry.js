@@ -41,10 +41,13 @@ function normalizeDefinition(definition) {
  * A malformed or conflicting definition therefore cannot leave a partially
  * registered package behind.
  */
-export function registerDefinitions(batch) {
+export function normalizeDefinitions(batch) {
   if (!Array.isArray(batch)) throw new TypeError("Definitions must be provided as an array.");
+  return Object.freeze(batch.map(normalizeDefinition));
+}
 
-  const normalized = batch.map(normalizeDefinition);
+export function registerDefinitions(batch) {
+  const normalized = normalizeDefinitions(batch);
   const batchIds = new Set();
 
   for (const definition of normalized) {

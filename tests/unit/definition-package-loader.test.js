@@ -69,3 +69,19 @@ test("invalid later definition does not leave a partially registered package", (
   assert.equal(loaded.length, 1);
   assert.equal(getDefinition("valid.first").name, "First");
 });
+test("Engine rejects changed definition content when a package ID is reused", () => {
+  clearDefinitionsForTests();
+  clearDefinitionPackagesForTests();
+
+  loadDefinitionPackage({
+    id: "test.immutable-content",
+    definitions: [{ id: "material.iron", name: "Iron", category: "Material", attributes: { density: 7.8 } }]
+  });
+
+  assert.throws(() => loadDefinitionPackage({
+    id: "test.immutable-content",
+    definitions: [{ id: "material.iron", name: "Iron", category: "Material", attributes: { density: 8.0 } }]
+  }), /different contents/);
+
+  assert.equal(getDefinition("material.iron").attributes.density, 7.8);
+});

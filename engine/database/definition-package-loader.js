@@ -1,6 +1,21 @@
-import { getDefinition, registerDefinitions } from "./definition-registry.js";
+import { getDefinition, normalizeDefinitions, registerDefinitions } from "./definition-registry.js";
 
 const loadedPackages = new Map();
+
+function areDefinitionsEquivalent(left, right) {
+  if (Object.is(left, right)) return true;
+  if (!left || !right || typeof left !== "object" || typeof right !== "object") return false;
+  if (Array.isArray(left) || Array.isArray(right)) {
+    return Array.isArray(left) && Array.isArray(right)
+      && left.length === right.length
+      && left.every((value, index) => areDefinitionsEquivalent(value, right[index]));
+  }
+  const leftKeys = Object.keys(left).sort();
+  const rightKeys = Object.keys(right).sort();
+  return leftKeys.length === rightKeys.length
+    && leftKeys.every((key, index) => key === rightKeys[index]
+      && areDefinitionsEquivalent(left[key], right[key]));
+}
 
 /**
  * Registers a content package in the Engine definition registry.
@@ -16,19 +31,20 @@ export function loadDefinitionPackage({ id, definitions } = {}) {
   }
 
   const packageId = id.trim();
-  const definitionIds = definitions.map((definition) => definition?.id);
-  if (definitionIds.some((definitionId) => typeof definitionId !== "string" || !definitionId.trim())) {
-    throw new TypeError("Every package definition must have a non-empty id.");
-  }
+  const normalizedDefinitions = normalizeDefinitions(definitions);
+  const definitionIds = normalizedDefinitions.map((definition) => definition.id);
   if (new Set(definitionIds).size !== definitionIds.length) {
     throw new Error('Definition package "' + packageId + '" contains duplicate definition IDs.');
   }
 
   const existingPackage = loadedPackages.get(packageId);
   if (existingPackage) {
-    const sameIds = existingPackage.definitionIds.length === definitionIds.length
-      && existingPackage.definitionIds.every((definitionId, index) => definitionId === definitionIds[index]);
-    if (!sameIds) throw new Error('Definition package "' + packageId + '" was already loaded with different contents.');
+    const sameDefinitions = existingPackage.definitions.length === normalizedDefinitions.length
+      && existingPackage.definitions.every((definition, index) =>
+        areDefinitionsEquivalent(definition, normalizedDefinitions[index]));
+    if (!sameDefinitions) {
+      throw new Error('Definition package "' + packageId + '" was already loaded with different contents.');
+    }
     return existingPackage.definitions;
   }
 
@@ -40,7 +56,7 @@ export function loadDefinitionPackage({ id, definitions } = {}) {
 
   // The registry validates and normalizes the full batch before committing
   // any definition, so a malformed later entry cannot leave a partial package.
-  const registered = registerDefinitions(definitions);
+  const registered = registerDefinitions(normalizedDefinitions);
   const result = Object.freeze(registered);
   loadedPackages.set(packageId, Object.freeze({
     definitionIds: Object.freeze([...definitionIds]),
