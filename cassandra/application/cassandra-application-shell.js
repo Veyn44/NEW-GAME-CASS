@@ -322,8 +322,9 @@ worldSizeSelect.addEventListener("change", () => {
   try {
     state.worldSessionApi.setMainWorldWorld(`cassandra-world-${size}`);
   } catch (error) {
-    const activeWorld = state.worldRegistry.get(state.worldRegistry.activeWorldId);
-    if (activeWorld) worldSizeSelect.value = String(activeWorld.dimensions.width);
+    const session = state.worldSessionApi?.getState();
+    const mainWorld = session?.mainWorldId ? state.worldRegistry.get(session.mainWorldId) : null;
+    if (mainWorld) worldSizeSelect.value = String(mainWorld.dimensions.width);
     simulationStatus.textContent = `WORLD SWITCH REJECTED · ${error.code ?? error.message}`;
     return;
   }
