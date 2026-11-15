@@ -231,6 +231,13 @@ Do not change the existing World Registry contract until this is resolved.
 ### Step 2 — World Geometry and lifecycle semantics
 **Status:** In progress
 
+#### Cassandra world-boundary direction
+- The home/colony map is expected to be finite, with a maximum distance/extent from the map edge, similar in broad player-facing behavior to RimWorld. It is not intended to be an unbounded or infinitely expanding world.
+- Cassandra's home gameplay includes building inside an asteroid, not only on an exposed surface. Therefore, the map boundary and the asteroid's physical shape/interior are separate concepts: a finite map does not imply that all cells inside its bounds are buildable or that the asteroid fills the whole map.
+- Exact dimensions, edge behavior, and how asteroid interior/rock geometry relates to the map grid remain open.
+
+**Status:** In progress
+
 Define world dimensions, coordinate representation, boundaries, coordinate systems, and how worlds exist and participate in runtime.
 
 Questions to resolve:
@@ -449,6 +456,8 @@ No implementation starts from this section until the complete specification is a
 ---
 
 ## Current decisions
+
+- **Proposed Cassandra world geometry:** The home/colony map is finite, with a maximum extent/edge similar in broad behavior to RimWorld; the colony can be built inside an asteroid, so asteroid geometry/interior is distinct from the overall map boundary. Exact dimensions and edge behavior remain open.
 
 - **Agreed Cassandra meaning:** Clear means safe/cleared and ready for further scavenging, mining, or exploration; it does not retire or exhaust the location.
 - **Agreed Cassandra meaning:** Done is a voluntary player decision that permanently prevents returning to that location. Clear and Done are separate states with different meanings.
