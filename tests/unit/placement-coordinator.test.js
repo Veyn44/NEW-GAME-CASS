@@ -165,3 +165,9 @@ test("SpatialComposition restore cannot replace entity occupancy outside the coo
   s.coordinator.placeEntity("pawn:one", gridTarget("grid-a", { x: 1, y: 1 }, [{ x: 0, y: 0 }]));
   throwsCode(() => s.spatial.prepareRestore(s.spatial.captureSnapshot()), "PLACEMENT_AUTHORITY_REQUIRED");
 });
+
+test("EntityRegistry restore cannot invalidate an occupied grid entity outside composite persistence", () => {
+  const s = setup(); pawn(s.entities);
+  s.coordinator.placeEntity("pawn:one", gridTarget("grid-a", { x: 1, y: 1 }, [{ x: 0, y: 0 }]));
+  throwsCode(() => s.entities.prepareRestore(s.entities.captureSnapshot()), "PLACEMENT_AUTHORITY_REQUIRED");
+});
