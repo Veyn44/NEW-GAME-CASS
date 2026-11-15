@@ -13,31 +13,46 @@ class FakeTransaction {
     this.durability = supportsStrict ? (options?.durability ?? "default") : "default";
     this.error = null;
     this.aborted = false;
+    this.pending = 0;
+    this.completionQueued = false;
   }
 
   objectStore(name) {
     assert.equal(name, this.storeName);
     const records = this.database.stores.get(name);
+    const schedule = (action) => {
+      this.pending += 1;
+      queueMicrotask(() => {
+        if (!this.aborted) action();
+        this.pending -= 1;
+        this.#queueComplete();
+      });
+    };
     return {
       get: (key) => {
         const request = {};
-        queueMicrotask(() => {
+        schedule(() => {
           request.result = structuredClone(records.get(key));
           request.onsuccess?.();
-          if (!this.aborted) this.oncomplete?.();
         });
         return request;
       },
       put: (record) => {
         assert.equal(this.mode, "readwrite");
-        queueMicrotask(() => {
-          if (!this.aborted) {
-            records.set(record.campaignId, structuredClone(record));
-            this.oncomplete?.();
-          }
+        schedule(() => {
+          records.set(record.campaignId, structuredClone(record));
         });
       }
     };
+  }
+
+  #queueComplete() {
+    if (this.aborted || this.pending !== 0 || this.completionQueued) return;
+    this.completionQueued = true;
+    queueMicrotask(() => {
+      this.completionQueued = false;
+      if (!this.aborted && this.pending === 0) this.oncomplete?.();
+    });
   }
 
   abort() {
@@ -98,23 +113,25 @@ test("IndexedDB campaign adapter atomically replaces and reopens one complete ca
     initialSnapshot: initialSnapshot()
   });
   assert.equal(adapter.atomicReplace, true);
-  assert.deepEqual(await adapter.loadCampaignSnapshot(), initialSnapshot());
+  assert.equal(adapter.compareAndSwap, true);
+  assert.deepEqual(await adapter.loadCampaignSnapshot(), { snapshot: initialSnapshot(), revision: 0 });
 
   const next = {
     majorState: { revision: 2, aggregates: { "inventory:crew": { revision: 1, state: { ore: 4 } } } },
     pendingPackages: [{ packageId: "package:one", digest: "a".repeat(64) }],
     appliedLedger: []
   };
-  assert.deepEqual(await adapter.writeCampaignSnapshotAtomic(next), {
+  assert.deepEqual(await adapter.writeCampaignSnapshotAtomic(next, 0), {
     durable: true,
-    campaignId: "campaign:one"
+    campaignId: "campaign:one",
+    revision: 1
   });
 
   const reopened = new IndexedDbCampaignSaveAdapter({
     indexedDBRef,
     campaignId: "campaign:one"
   });
-  assert.deepEqual(await reopened.loadCampaignSnapshot(), next);
+  assert.deepEqual(await reopened.loadCampaignSnapshot(), { snapshot: next, revision: 1 });
   adapter.close();
   reopened.close();
 });
@@ -127,11 +144,39 @@ test("IndexedDB campaign adapter fails closed when strict durability is unavaila
     initialSnapshot: initialSnapshot()
   });
   await assert.rejects(
-    () => adapter.writeCampaignSnapshotAtomic(initialSnapshot()),
+    () => adapter.writeCampaignSnapshotAtomic(initialSnapshot(), 0),
     { code: "STRICT_DURABILITY_UNAVAILABLE" }
   );
-  assert.deepEqual(await adapter.loadCampaignSnapshot(), initialSnapshot());
+  assert.deepEqual(await adapter.loadCampaignSnapshot(), { snapshot: initialSnapshot(), revision: 0 });
   adapter.close();
+});
+
+test("IndexedDB campaign adapter rejects stale cross-writer revisions", async () => {
+  const indexedDBRef = new FakeIndexedDB();
+  const initial = initialSnapshot();
+  const firstWriter = new IndexedDbCampaignSaveAdapter({
+    indexedDBRef,
+    campaignId: "campaign:cas",
+    initialSnapshot: initial
+  });
+  const secondWriter = new IndexedDbCampaignSaveAdapter({
+    indexedDBRef,
+    campaignId: "campaign:cas"
+  });
+  assert.equal((await firstWriter.loadCampaignSnapshot()).revision, 0);
+  assert.equal((await secondWriter.loadCampaignSnapshot()).revision, 0);
+  const next = {
+    ...initial,
+    majorState: { revision: 2, aggregates: {} }
+  };
+  await firstWriter.writeCampaignSnapshotAtomic(next, 0);
+  await assert.rejects(
+    () => secondWriter.writeCampaignSnapshotAtomic(initial, 0),
+    { code: "CAMPAIGN_STORAGE_CONFLICT" }
+  );
+  assert.deepEqual(await secondWriter.loadCampaignSnapshot(), { snapshot: next, revision: 1 });
+  firstWriter.close();
+  secondWriter.close();
 });
 
 test("IndexedDB campaign adapter requires IndexedDB and a stable campaign identity", () => {
