@@ -37,6 +37,8 @@ Automated CI currently covers the deterministic Core/host contracts. The followi
 - [ ] Corrupt the checkpoint or resolved identity map; verify application fails closed.
 - [ ] Apply a no-op outcome package; verify only the Major State revision and Applied ledger advance.
 - [ ] Simulate a browser/tab interruption around promotion and verify reopening yields either the prior pending snapshot or the complete applied snapshot, never a partial mixture.
+- [ ] After the exact package is durably applied, complete Temporary World disposal; verify scoped Units/Entities and spatial contents are retired, the World Registry entry is removed, the projection mapping is cleared, and persistent Main World entities remain unchanged.
+- [ ] Attempt disposal with a package ID/digest that is not in the Applied ledger; verify disposal is rejected and the Temporary World, its placements, contents and projection mapping remain intact.
 
 ## Regression and performance
 
