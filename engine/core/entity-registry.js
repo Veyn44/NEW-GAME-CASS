@@ -326,7 +326,7 @@ export class EntityRegistry {
         try { this.#parseSnapshot(snapshot); return true; }
         catch { return false; }
       },
-      prepareRestore: (snapshot) => this.prepareRestore(snapshot)
+      prepareRestore: (snapshot) => this.prepareRestore(snapshot, { authority: PLACEMENT_AUTHORITY })
     });
   }
 
@@ -348,7 +348,9 @@ export class EntityRegistry {
   }
 
   /** Preparation is side-effect-free; commit swaps the complete registry state. */
-  prepareRestore(snapshot) {
+  prepareRestore(snapshot, { authority = null } = {}) {
+    const hasOccupiedEntities = this.#spatialOccupancyGuard && [...this.#entities.keys()].some((id) => this.#spatialOccupancyGuard(id));
+    if (hasOccupiedEntities && authority !== PLACEMENT_AUTHORITY) throw new EntityRegistryError("PLACEMENT_AUTHORITY_REQUIRED", "Restoring identities referenced by grid occupancy requires the composite spatial placement restore.");
     const next = this.#parseSnapshot(snapshot);
     const previous = this.#entities;
     const previousScopeCounters = this.#scopeCounters;
