@@ -1,26 +1,28 @@
 # Cassandra .cass Save Compatibility & Migration — Working Proposal
 
-**Status:** Working proposal for review; no migration behavior or source changes approved  
+**Status:** Working proposal updated with agreed compatibility policy; implementation details remain open  
 **Branch:** work  
 **Source audit:** 2026-11-15, work  
 **Scope:** Existing .cass file compatibility, save identity boundaries, future spatial-state migration and safe upgrade behavior
 
-This document records the current save implementation and proposes a safe migration boundary for future Cassandra campaign saves. It does not authorize source/runtime changes, a format bump, automatic conversion, or changes to existing save files.
+This document records the current save implementation and the agreed policy for future Cassandra campaign saves. It does not authorize source/runtime changes, a format bump, automatic conversion, or changes to existing save files.
 
 ## 1. Purpose and safety requirements
 
 Phase 3 introduces optional grid descriptors, spatial composition/occupancy, spatial queries and movement integration. These capabilities add authoritative state that existing saves do not contain.
 
-The migration must ensure:
-- Existing saves are never silently interpreted as a different application or campaign.
+The save-loading policy is **no backward-compatibility guarantee**: a newer Cassandra version is not required to load saves produced by older game versions. Old saves may be rejected when their format, schema, definitions or state are no longer supported. This is an intentional product policy, not a requirement to build and maintain historical migration chains.
+
+Regardless of compatibility, the save system must ensure:
+- A save is never silently interpreted as a different application or campaign.
 - No existing map, entity, placement, environment, inventory or campaign data is silently discarded.
 - A missing new required snapshot is never treated as an empty world unless an explicit, validated migration proves that is correct.
 - Migration runs against a detached copy and does not mutate the source file.
 - The complete migrated state is validated before any participant commits.
 - A migration or restore failure leaves the currently loaded runtime unchanged or stopped safely, and the original save remains recoverable.
-- A successfully migrated save is written as a new version/copy only after the user/application has an explicit safe-save path; the original source remains available until the new file is confirmed.
+- If an optional, explicitly supported migration is implemented, it writes a new version/copy only after validation; the original source remains available until the new file is confirmed.
 
-Compatibility is an application-level responsibility for Cassandra domain state. Engine provides participant schema migration and transactional restore primitives, but it must not infer Cassandra map, environment, colony or expedition semantics.
+Any migration that Cassandra chooses to support is an application-level responsibility for Cassandra domain state. Engine provides participant schema migration and transactional restore primitives, but it must not infer Cassandra map, environment, colony or expedition semantics. No general promise to migrate or load all prior save versions is made.
 
 ## 2. Audited current .cass file format
 
@@ -141,11 +143,11 @@ Do not overload one version number for unrelated compatibility contracts.
 
 A participant schema migration must not be used to hide a breaking outer file-envelope change. A Cassandra campaign migration must not be delegated to Engine Core.
 
-## 5. Proposed migration boundary
+## 5. Optional migration boundary
 
 ### 5.1 Application-owned preflight migration
 
-**Proposed default:** Cassandra introduces an application-owned save preflight/migration layer between file decoding and Engine Persistence restore.
+**If a particular old save version is deliberately supported:** Cassandra introduces an application-owned save preflight/migration layer between file decoding and Engine Persistence restore. This is an opt-in compatibility feature for selected versions, not a universal obligation.
 
 Conceptually:
 
@@ -165,7 +167,7 @@ Whether the preflight is implemented as a Cassandra adapter wrapper, a dedicated
 
 ### 5.2 Legacy workspace saves versus future campaign saves
 
-Keep two migration tracks distinct:
+If migration is implemented for a specific legacy format, keep these two tracks distinct:
 
 **Track A — Current Dev Lab/workspace .cass**
 - Recognize the exact current state identity cassandra-dev-lab-workspace and slot/workspace contract.
@@ -223,7 +225,7 @@ For future or separately discovered Cassandra legacy formats:
 
 ## 7. Safe upgrade and source-file preservation
 
-**Proposed default:** A successful migration first produces a validated in-memory state and then a new save file/copy. The original legacy file remains untouched until the migrated copy has been successfully written and verified.
+If an explicitly supported migration is implemented, it first produces a validated in-memory state and then a new save file/copy. The original source remains untouched until the migrated copy has been successfully written and verified. This safety rule applies to supported migrations; it does not require old versions to remain loadable.
 
 The exact UI flow is open, but it must support:
 - Clear indication that the selected save is legacy and will be migrated.
@@ -247,11 +249,11 @@ For an in-place future upgrade, the storage adapter must provide a genuinely ato
 
 A migration failure must never lead to a partially restored colony or a rewritten legacy save that has lost data.
 
-## 9. Required compatibility fixtures and acceptance scenarios
+## 9. Save-format and optional-migration acceptance scenarios
 
-The current repository audit found unit tests for the outer adapter and Engine Persistence behavior, but did not identify a checked-in representative golden .cass file fixture. Before implementation, create sanitized, real fixtures from actual supported save outputs; do not invent fixture structures from memory.
+The current repository audit found unit tests for the outer adapter and Engine Persistence behavior, but did not identify a checked-in representative golden .cass file fixture. For every format/version that the current build claims to support, create sanitized, real fixtures from actual save outputs; do not invent fixture structures from memory. Historical versions that are not explicitly supported may be rejected and do not require migration fixtures.
 
-Minimum fixture set:
+Minimum fixture set for currently supported formats and any deliberately supported legacy migration:
 1. Current Dev Lab/workspace .cass outer envelope v1.
 2. Current workspace save with Entity Registry schema v1.
 3. Current workspace save with World Registry schema v1.
@@ -263,12 +265,13 @@ Minimum fixture set:
 9. A future grid-backed save round-trip fixture containing multiple contents and multi-cell occupancy, after those systems exist.
 
 Minimum acceptance scenarios:
-- A current workspace .cass can still be loaded under its own application identity.
+- A current workspace .cass can be loaded under its own application identity and current supported format.
+- An older unsupported outer format, inner format, participant schema or content version is rejected cleanly, without runtime mutation or source-file modification.
 - A workspace save cannot be loaded as a Cassandra campaign save or vice versa.
 - Outer file version and inner Engine format version are checked independently.
-- Entity Registry v1 and World Registry v1 migrations preserve IDs and their documented metadata.
+- Entity Registry v1 and World Registry v1 migrations preserve IDs and documented metadata only while those migrations remain explicitly supported by the current build.
 - World Context snapshots are not silently reinterpreted as grid occupancy.
-- A missing new required spatial participant invokes the application preflight migration or fails clearly; it is never treated as an empty spatial world by default.
+- A missing new required spatial participant is handled by a deliberately supported application migration or rejected clearly; it is never treated as an empty spatial world by default.
 - All participant snapshots and cross-references validate before restore commits.
 - A migration failure leaves the source file byte-for-byte unchanged.
 - A restore failure does not leave a partially restored runtime; rollback failures are reported as critical and runtime remains stopped.
@@ -278,6 +281,15 @@ Minimum acceptance scenarios:
 - No migration changes the environment simulation rules or Engine/application ownership boundaries.
 
 ## 10. Source audit record (2026-11-15)
+
+## 11. Agreed save compatibility policy (2026-11-15)
+
+- Cassandra does not promise backward compatibility for saves from older game versions.
+- A current build may reject an older save when its format/schema/content is unsupported.
+- No permanent chain of historical migrations is required.
+- Selected migration paths may still be implemented when they are useful and low-risk, but each is an explicit supported-version decision, not a general compatibility obligation.
+- Rejection and migration failure must be safe: do not mutate the active runtime partially, do not rewrite the source save, and provide a clear diagnostic.
+- This policy does not alter the separate Cassandra/Dev Lab application and save-identity boundary; cross-save compatibility remains out of scope.
 
 Audited on branch work:
 - src/adapters/storage/local-file-save-adapter.js — outer .cass envelope, strict version-1 parser, workspace-only slot.
@@ -313,7 +325,7 @@ No source/runtime code was changed during this audit.
 5. Define the golden .cass fixtures and the platform's atomic replacement/backup guarantees.
 6. Decide whether legacy saves are upgraded only by creating a new file, or whether a later explicit in-place upgrade is supported.
 
-**Recommended default:** Keep the existing workspace .cass contract isolated; define a distinct campaign save identity/schema; add an application-owned preflight migration that derives every new required snapshot from authoritative legacy data; preserve the source file; and reject any migration that cannot prove data preservation.
+**Recommended default:** Keep the existing workspace .cass contract isolated and define a distinct campaign save identity/schema. Do not promise backward compatibility. Reject unsupported historical versions safely. Add an application-owned preflight migration only for specifically selected versions where preserving that path is worth the cost; preserve the source file and reject any migration that cannot prove data preservation.
 
 ## 12. Related contracts
 
