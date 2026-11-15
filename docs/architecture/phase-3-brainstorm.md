@@ -135,6 +135,15 @@ The following gameplay behavior has been established in the brainstorm. These ar
 - The shuttle has a persistent identity across Main World and encounter contexts. During travel it can be represented as an information package on the Main World map; during an encounter it is represented as a physical/rendered object with interaction points.
 - If a crew member is stabilized inside a future medical/stasis chamber aboard the shuttle, that pawn should count as safely onboard and survive an abandon. This is a future gameplay feature, not a current implementation requirement.
 
+**Universe map and revisitable locations**
+- A discovered location remains eligible for another visit unless the player explicitly marks it as Done.
+- Marking a location Done is an optional player decision, not an automatic consequence of visiting or clearing it.
+- A Done location can no longer be selected for another expedition.
+- When marked Done, its detailed encounter/location record may be discarded because the player has explicitly retired that location.
+- The universe map may still retain the location's lightweight identity/marker so the universe continues to know that the location exists; this is distinct from retaining its detailed generated world state.
+- The planned universe scale is approximately 1.6 million locations. This is a strong requirement to avoid treating every location as a fully loaded or fully serialized world. Most locations should remain lightweight map-level records until needed.
+- Exact map representation, discovery rules, generation/storage strategy, and what minimum metadata survives Done are still open.
+
 **Shuttle mission flow**
 - The player selects a destination and crew at a base map/terminal, in a mission-briefing flow, then prepares supplies and launches.
 - During travel, the shuttle is represented as an information package on the Main World map. An illustrative travel duration discussed was about four in-game hours; this is not a fixed Engine constant.
@@ -181,6 +190,11 @@ Do not change the existing World Registry contract until this is resolved.
 - **Agreed Cassandra concept:** Encounter consequences (including enemy destruction of abandoned objects) are evaluated during End/Abandon processing, not by background simulation.
 - **Open:** Exact persistent object categories and serialization strategy for shuttle, pawns, corpses, equipment, and other surviving objects.
 - **Open:** Exact shuttle durability and failure consequences.
+- **Agreed Cassandra concept:** All discovered locations remain revisitable unless the player explicitly marks them Done.
+- **Agreed Cassandra concept:** Done is an optional retirement action; a Done location cannot be selected for another expedition and its detailed location record may be discarded.
+- **Recorded scale requirement:** The planned universe contains approximately 1.6 million locations; location identity/map representation must be much lighter than a loaded world instance.
+- **Open:** Which minimal location identity/metadata remains on the universe map after a location is marked Done.
+- **Open:** How locations are generated, discovered, represented, and stored efficiently at the planned scale.
 - **Open:** Exact landing/placement flow and whether it is automatic or player-selected.
 
 ### Step 2 — World Geometry and lifecycle semantics
