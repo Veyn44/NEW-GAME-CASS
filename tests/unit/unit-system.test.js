@@ -159,6 +159,34 @@ test("Unit domain records restore transactionally with Core identity and placeme
 });
 
 
+test("Units created in Temporary Worlds use session-scoped runtime identities", async () => {
+  const state = await startWithWorld();
+  try {
+    const worlds = state.context.getService("core.world-registry");
+    worlds.registerWorld({
+      worldId: "encounter:unit-scope",
+      type: "cassandra-temporary",
+      dimensions: { width: 64, height: 64 },
+      grid: { width: 64, height: 64 },
+      coordinateSystem: "tiles",
+      metadata: { role: "temporary" }
+    });
+    const unit = state.units.createUnit({
+      definitionId: "unit.test-worker",
+      worldId: "encounter:unit-scope",
+      position: { x: 2, y: 3 }
+    });
+    const identity = state.context.getService("core.entity-registry").get(unit.id);
+    assert.equal(identity.scope, "scoped");
+    assert.equal(identity.scopeId, "world:encounter:unit-scope");
+    assert.equal(identity.kind, "unit");
+    assert.deepEqual(unit.position, { x: 2.5, y: 3.5 });
+  } finally {
+    await state.runtime.destroy();
+    clearDefinitionsForTests();
+  }
+});
+
 test("Cassandra grid Units keep independent occupancy across registered Worlds", async () => {
   const state = await startWithWorld();
   try {
