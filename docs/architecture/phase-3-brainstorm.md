@@ -253,6 +253,12 @@ Do not change the existing World Registry contract until this is resolved.
 - Personnel assigned to an abstract outpost may be represented as informational/strategic records rather than continuously simulated physical pawn entities. Their assignment and condition still matter to gameplay.
 - An established outpost may continue producing and consuming resources while the player is elsewhere. This is an explicit candidate exception to the earlier rule that inactive physical locations do not run full background simulation: the outpost could advance through abstract/economy calculations without simulating its detailed physical world.
 - This concept may support a progression from a basic habitable module with life-support/resource automation to a more developed remote colony or industrial site. Exact modules, requirements, risks, personnel needs, and development rules are not yet defined.
+- Remote bases are not intended to autonomously choose their own development goals. The player remains in control and assigns the base's purpose/work focus (for example, mining titanium).
+- A base's available work is constrained by its installed buildings/modules and their provided job slots/capacity, plus the personnel assigned to it. Personnel can include pawns in management/supervisory roles and robots or other workers in operational roles.
+- Example Mining Base: the player assigns one pawn as manager and three robots as miners. The base then performs the assigned mining work and records produced resources for delivery to the main colony's stockpile.
+- This is intentionally not a full city simulation. The abstraction should focus on manager/worker assignments, job capacity from buildings, assigned work, output, and operating costs rather than simulating every colonist's individual life.
+- Bases have operating costs. One possible convenience rule is to deduct fixed upkeep directly from the main colony's resources/accounting so the player does not have to micromanage routine supply deliveries. This payment model is only a candidate and remains undecided.
+- Resource transport/routes and the exact delivery mechanism between remote bases and the main colony are acknowledged as necessary gameplay topics but are deferred for now.
 
 #### Cassandra world-boundary direction
 - The home/colony map is expected to be finite, with a maximum distance/extent from the map edge, similar in broad player-facing behavior to RimWorld. It is not intended to be an unbounded or infinitely expanding world.
@@ -479,6 +485,12 @@ No implementation starts from this section until the complete specification is a
 ---
 
 ## Current decisions
+
+- **Proposed remote-base control model:** The player assigns the base's purpose/work focus; the base does not independently choose development goals.
+- **Proposed workforce model:** Buildings provide job slots/capacity, and the player assigns pawns (for example, a manager) and robots/workers to those roles. The simulation focuses on staffing, assigned work, output, and costs rather than full city/population life simulation.
+- **Proposed Mining Base behavior:** Assigned miners automatically perform the selected mining work and accumulate output for eventual delivery to the main colony's stockpile.
+- **Open operating-cost model:** Bases incur upkeep; deducting fixed costs directly from the main colony is a possible way to reduce supply micromanagement, but is not decided.
+- **Deferred:** Exact resource transport, routes, and delivery mechanics between bases and the main colony.
 
 - **Proposed Cassandra remote-base model:** The player may establish an automated remote base by sending personnel/robots and spending resources to construct an initial habitable/basic module.
 - **Proposed abstract management mode:** Once established, a remote base may be managed without a rendered grid world, using strategic information such as stocks, production, consumption, modules, personnel, robots, and status (for example, Mining Base).
