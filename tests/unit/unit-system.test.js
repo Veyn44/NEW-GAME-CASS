@@ -30,6 +30,7 @@ async function startWithWorld() {
     worldId: "unit-test-world",
     type: "test",
     dimensions: { width: 128, height: 128 },
+    grid: { width: 128, height: 128 },
     coordinateSystem: "tiles"
   });
   worlds.activateWorld("unit-test-world");
@@ -49,7 +50,8 @@ test("Unit system creates a Unit with one Core identity and one world placement"
     assert.equal(unit.definitionId, "unit.test-worker");
     assert.equal(identity.kind, "unit");
     assert.equal(identity.status, "active");
-    assert.deepEqual(unit.placement.position, { x: 12, y: 34 });
+    assert.deepEqual(unit.position, { x: 12.5, y: 34.5 });
+    assert.deepEqual(unit.placement.position, { x: 12.5, y: 34.5 });
     assert.equal(state.units.listUnits().length, 1);
   } finally {
     await state.runtime.destroy();
@@ -118,7 +120,8 @@ test("Unit domain records restore transactionally with Core identity and placeme
     await persistence.load("unit-test", { stateId: "unit-test-state" });
     const restored = state.units.getUnit(unit.id);
     assert.equal(restored.definitionId, "unit.test-worker");
-    assert.deepEqual(restored.placement.position, { x: 19, y: 21 });
+    assert.deepEqual(restored.position, { x: 19.5, y: 21.5 });
+    assert.deepEqual(restored.placement.position, { x: 19.5, y: 21.5 });
     assert.equal(state.context.getService("core.entity-registry").get(unit.id).kind, "unit");
   } finally {
     await state.runtime.destroy();
@@ -136,13 +139,42 @@ test("Unit movement accepts fractional world coordinates and persists them acros
       position: { x: 19, y: 21 }
     });
     const moved = state.units.moveUnit(unit.id, { x: 19.25, y: 21.75 });
-    assert.deepEqual(moved.placement.position, { x: 19.25, y: 21.75 });
+    assert.deepEqual(moved.position, { x: 19.25, y: 21.75 });
+    assert.deepEqual(moved.placement.position, { x: 19.5, y: 21.5 });
 
     const persistence = state.context.getService("core.persistence");
     await persistence.save("unit-fractional", { stateId: "unit-fractional-state" });
     state.units.moveUnit(unit.id, { x: 30, y: 30 });
     await persistence.load("unit-fractional", { stateId: "unit-fractional-state" });
-    assert.deepEqual(state.units.getUnit(unit.id).placement.position, { x: 19.25, y: 21.75 });
+    assert.deepEqual(state.units.getUnit(unit.id).position, { x: 19.25, y: 21.75 });
+    assert.deepEqual(state.units.getUnit(unit.id).placement.position, { x: 19.5, y: 21.5 });
+  } finally {
+    await state.runtime.destroy();
+    clearDefinitionsForTests();
+  }
+});
+
+test("Grid occupancy advances only when fractional movement crosses a cell boundary", async () => {
+  const state = await startWithWorld();
+  try {
+    const unit = state.units.createUnit({
+      definitionId: "unit.test-worker",
+      worldId: "unit-test-world",
+      position: { x: 19, y: 21 }
+    });
+    const spatial = state.context.getService("core.spatial-composition");
+    assert.deepEqual(spatial.getCellEntities("unit-test-world", { x: 19, y: 21 }), [unit.id]);
+
+    const withinCell = state.units.moveUnit(unit.id, { x: 19.9, y: 21.9 });
+    assert.deepEqual(withinCell.position, { x: 19.9, y: 21.9 });
+    assert.deepEqual(withinCell.placement.position, { x: 19.5, y: 21.5 });
+    assert.deepEqual(spatial.getCellEntities("unit-test-world", { x: 19, y: 21 }), [unit.id]);
+
+    const crossed = state.units.moveUnit(unit.id, { x: 20.1, y: 21.9 });
+    assert.deepEqual(crossed.position, { x: 20.1, y: 21.9 });
+    assert.deepEqual(crossed.placement.position, { x: 20.5, y: 21.5 });
+    assert.deepEqual(spatial.getCellEntities("unit-test-world", { x: 19, y: 21 }), []);
+    assert.deepEqual(spatial.getCellEntities("unit-test-world", { x: 20, y: 21 }), [unit.id]);
   } finally {
     await state.runtime.destroy();
     clearDefinitionsForTests();
@@ -158,8 +190,9 @@ test("Unit movement clamps to the world edge without producing an invalid placem
       position: { x: 127, y: 127 }
     });
     const moved = state.units.moveUnit(unit.id, { x: 140, y: 140 });
-    assert.ok(moved.placement.position.x < 128);
-    assert.ok(moved.placement.position.y < 128);
+    assert.ok(moved.position.x < 128);
+    assert.ok(moved.position.y < 128);
+    assert.deepEqual(moved.placement.position, { x: 127.5, y: 127.5 });
   } finally {
     await state.runtime.destroy();
     clearDefinitionsForTests();
