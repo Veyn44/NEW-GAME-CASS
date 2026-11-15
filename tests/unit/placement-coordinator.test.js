@@ -159,3 +159,9 @@ test("rollback integrity failure faults coordinator and signals the host", () =>
   assert.equal(signaled, 1);
   throwsCode(() => coordinator.placeEntity("pawn:one", { worldId: "grid", anchor: { x: 2, y: 2 }, footprint: [{ x: 0, y: 0 }] }), "FATAL_INTEGRITY_FAULT");
 });
+
+test("SpatialComposition restore cannot replace entity occupancy outside the coordinator", () => {
+  const s = setup(); pawn(s.entities);
+  s.coordinator.placeEntity("pawn:one", gridTarget("grid-a", { x: 1, y: 1 }, [{ x: 0, y: 0 }]));
+  throwsCode(() => s.spatial.prepareRestore(s.spatial.captureSnapshot()), "PLACEMENT_AUTHORITY_REQUIRED");
+});
