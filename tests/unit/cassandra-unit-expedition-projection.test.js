@@ -140,6 +140,54 @@ test("Cassandra Unit projection creates scoped Temporary World identities and re
   }
 });
 
+test("Applied expedition disposal retires Temporary Units and clears projection only after World cleanup", async () => {
+  const expected = {
+    packageId: "package:applied-expedition",
+    digest: "a".repeat(64)
+  };
+  const verified = [];
+  const state = await setup({
+    isPackageApplied: async (packageId, digest) => {
+      verified.push({ packageId, digest });
+      return packageId === expected.packageId && digest === expected.digest;
+    }
+  });
+  try {
+    const result = createCassandraUnitExpeditionProjection({
+      sessionId: "expedition:applied-cleanup",
+      mainWorldId: "expedition-main",
+      temporaryWorldId: "expedition-temp",
+      campaignUnitIds: [state.campaignUnits[0].id],
+      unitApi: state.unitApi,
+      entityRegistry: state.entityRegistry,
+      getProjectionMetadata: (unit) => ({
+        aggregateId: `unit-aggregate:${unit.id}`,
+        baselineRevision: 0,
+        projectionRole: "participant",
+        transferEligible: true
+      })
+    });
+    state.projectionApi.registerProjection(result.projection);
+    const temporaryUnit = result.projectedUnits[0];
+    state.worldSession.returnToMainWorld();
+
+    await state.worldSession.completeTemporaryWorld(expected);
+
+    assert.deepEqual(verified, [expected]);
+    assert.equal(state.worlds.has("expedition-temp"), false);
+    assert.equal(state.worldSession.getState().temporaryWorldId, null);
+    assert.equal(state.projectionApi.hasProjection(), false);
+    assert.equal(state.unitApi.getUnit(temporaryUnit.id), null);
+    assert.equal(state.entityRegistry.get(temporaryUnit.id).status, "removed");
+    assert.equal(state.worldContext.listPlacements({ worldId: "expedition-temp" }).length, 0);
+    assert.equal(state.spatial.listEntityOccupancies({ worldId: "expedition-temp" }).length, 0);
+    assert.equal(state.unitApi.getUnit(state.campaignUnits[0].id)?.id, state.campaignUnits[0].id);
+  } finally {
+    await state.runtime.destroy();
+    clearDefinitionsForTests();
+  }
+});
+
 test("Cassandra refuses Temporary World disposal until the exact package is in the Applied ledger", async () => {
   const state = await setup({ isPackageApplied: async () => false });
   try {
