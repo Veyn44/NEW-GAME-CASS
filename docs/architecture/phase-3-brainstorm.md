@@ -136,6 +136,11 @@ The following gameplay behavior has been established in the brainstorm. These ar
 - If a crew member is stabilized inside a future medical/stasis chamber aboard the shuttle, that pawn should count as safely onboard and survive an abandon. This is a future gameplay feature, not a current implementation requirement.
 
 **Universe map and revisitable locations**
+- The universe map is a hierarchical navigation interface, not a rendered simulation of the physical universe.
+- Each level is presented as a grid of clickable cells/"tablets" over a level-specific background. Selecting a cell opens the next, more detailed sub-map with its own background. This repeats through the hierarchy (galaxy → sector → region → star system and further navigation as appropriate).
+- These cells are informational/navigation states. Their existence does not mean the represented physical locations have been generated as detailed worlds or loaded into runtime.
+- The contents of a specific star system are generated/revealed only when the player chooses to go on a mission and scans that system. The scan then determines/reveals what is present there.
+- Some systems may be modified by their surroundings or neighboring systems. This is acknowledged as a possible future influence, but its rules are explicitly deferred and should not be designed in this discussion yet.
 - The galaxy is conceived as a fixed hierarchy of nested map divisions:
   - Galaxy: 16×16 sectors (256 sectors).
   - Each sector: 16×16 regions (256 regions per sector).
@@ -202,8 +207,12 @@ Do not change the existing World Registry contract until this is resolved.
 - **Agreed Cassandra concept:** All discovered locations remain revisitable unless the player explicitly marks them Done.
 - **Agreed Cassandra concept:** Done is an optional retirement action; a Done location cannot be selected for another expedition and its detailed location record may be discarded.
 - **Recorded universe hierarchy:** 16×16 sectors, each with 16×16 regions, each with 16×16 star systems, for 16,777,216 systems. Each system has an illustrative 1–8 planets and at least one asteroid; each planet may have 0–4 asteroids. Location totals beyond the system count remain to be calculated/clarified.
+- **Agreed Cassandra map concept:** The galaxy map is a hierarchy of clickable navigation cells over level-specific backgrounds; these are informational UI states, not pre-generated physical worlds.
+- **Agreed Cassandra generation trigger:** A star system's detailed contents are generated/revealed when the player chooses a mission and scans that system, not when the galaxy map is first created or opened.
+- **Deferred:** Possible influence of neighboring/nearby systems on a system's generated contents; no rules are specified yet.
 - **Open:** Which minimal location identity/metadata remains on the universe map after a location is marked Done.
-- **Open:** How the hierarchical universe and its systems/planets/asteroids are generated, discovered, represented, and stored efficiently at this scale.
+- **Open:** Exact visual and interaction behavior of each navigation-map level, including how the player drills down/up and what information each cell displays.
+- **Open:** How a scanned system's generated contents are stored and revisited, while preserving the agreed distinction between lightweight navigation cells and detailed location records.
 - **Open:** Whether the system-level minimum of one asteroid is a separate system encounter/location or must be associated with one of the planets.
 - **Open:** Exact landing/placement flow and whether it is automatic or player-selected.
 
