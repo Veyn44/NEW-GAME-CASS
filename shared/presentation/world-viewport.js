@@ -125,7 +125,7 @@ function setSelectedWorldMarker(entityId) {
   render();
 }
 
-// Each marker x/y is already in world-space coordinates; grid cell-center offsets are applied by the caller.
+// Each marker x/y is already a world-space coordinate; do not add another cell-center offset here.
 function setWorldMarkers(markers) {
   worldMarkers = Array.isArray(markers) ? markers.map((marker) => ({ ...marker })) : [];
   if (selectedMarkerId && !worldMarkers.some((marker) => marker.id === selectedMarkerId)) {
