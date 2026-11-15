@@ -92,24 +92,33 @@ export class SpatialMovement {
     let decision;
     try {
       decision = this.#placements.withPolicyEvaluation(
-        () => this.#spatial.withReadOnlyEvaluation(() => policy(proposal), MOVEMENT_AUTHORITY),
+        () => this.#spatial.withReadOnlyEvaluation(() => {
+          const raw = policy(proposal);
+          if (raw && typeof raw.then === "function") {
+            Promise.resolve(raw).catch(() => {});
+            return Object.freeze({ type: "async" });
+          }
+          if (typeof raw === "boolean") return Object.freeze({ type: "decision", accepted: raw, code: null, reason: null });
+          if (!raw || typeof raw !== "object" || typeof raw.accepted !== "boolean") return Object.freeze({ type: "invalid" });
+          return Object.freeze({
+            type: "decision", accepted: raw.accepted,
+            code: typeof raw.code === "string" ? raw.code : null,
+            reason: typeof raw.reason === "string" ? raw.reason : null
+          });
+        }, MOVEMENT_AUTHORITY),
         MOVEMENT_AUTHORITY
       );
-      if (decision && typeof decision.then === "function") {
-        Promise.resolve(decision).catch(() => {});
-        return outcome("invalid", "ASYNC_POLICY_UNSUPPORTED", { entityId });
-      }
     } catch (error) {
       return outcome("policy-error", "POLICY_EVALUATION_FAILED", { entityId, cause: error?.message ?? String(error) });
     } finally { this.#evaluating.delete(entityId); }
 
-    const accepted = typeof decision === "boolean" ? decision
-      : decision && typeof decision === "object" && typeof decision.accepted === "boolean" ? decision.accepted : null;
-    if (accepted === null) return outcome("invalid", "INVALID_POLICY_RESULT", { entityId });
-    if (!accepted) {
-      const reason = decision && typeof decision === "object" && typeof decision.reason === "string" ? decision.reason : null;
-      const code = decision && typeof decision === "object" && typeof decision.code === "string" ? decision.code : "POLICY_REJECTED";
-      return Object.freeze({ status: "rejected", code, reason, entityId, source, target: proposedTarget });
+    if (decision.type === "async") return outcome("invalid", "ASYNC_POLICY_UNSUPPORTED", { entityId });
+    if (decision.type !== "decision") return outcome("invalid", "INVALID_POLICY_RESULT", { entityId });
+    if (!decision.accepted) {
+      return Object.freeze({
+        status: "rejected", code: decision.code ?? "POLICY_REJECTED",
+        reason: decision.reason, entityId, source, target: proposedTarget
+      });
     }
 
     try {
