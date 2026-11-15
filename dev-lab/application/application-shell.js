@@ -9,7 +9,7 @@ import { createDevLabWorkspaceSessionController } from "./workspace-session-cont
 import { getDefinition, listDefinitionIndex, getCategories, loadDefinitionDetail } from "../../engine/database/definition-registry.js";
 import { createViewportInputController } from "../../shared/input/viewport-input-controller.js";
 import { createApplicationRuntimeHost } from "../../shared/application/runtime-host.js";
-import { querySpatialCell } from "./spatial-inspector.js";
+import { querySpatialCell, querySpatialNeighbors, querySpatialRadius, querySpatialFootprint } from "./spatial-inspector.js";
 import { SpatialTestController } from "./spatial-test-controller.js";
 
 const views = [...document.querySelectorAll("[data-view]")];
@@ -28,6 +28,11 @@ const createTestEntityButton = document.querySelector("#create-spatial-test-enti
 const moveTestEntityButton = document.querySelector("#move-spatial-test-entity");
 const removeTestEntityButton = document.querySelector("#remove-spatial-test-entity");
 const spatialTestStatus = document.querySelector("#spatial-test-status");
+const spatialNeighborsFourButton = document.querySelector("#spatial-neighbors-four");
+const spatialNeighborsEightButton = document.querySelector("#spatial-neighbors-eight");
+const spatialRadiusManhattanButton = document.querySelector("#spatial-radius-manhattan");
+const spatialRadiusChebyshevButton = document.querySelector("#spatial-radius-chebyshev");
+const spatialFootprintButton = document.querySelector("#spatial-footprint");
 const pointerStatus = document.querySelector("#pointer-status");
 const viewportPanel = document.querySelector(".viewport-panel");
 const canvas = document.querySelector("#world-canvas");
@@ -74,6 +79,7 @@ const state = {
   placementCoordinatorApi: null,
   entityRegistry: null,
   selectedSpatialCell: null,
+  selectedSpatialEntityId: null,
   spatialTestController: null,
   selectedTestEntityId: null,
   moveTestEntityMode: false,
@@ -220,7 +226,11 @@ function refreshWorldMarkers() {
 
 function clearSelection() {
   state.gameplayUi?.clearSelection();
+  state.selectedSpatialEntityId = null;
+  state.selectedTestEntityId = null;
+  state.moveTestEntityMode = false;
   viewport.setSelectedWorldMarker(null);
+  updateSpatialTestControls();
 }
 
 function inspectGameplayEntity(entityId) {
@@ -229,7 +239,9 @@ function inspectGameplayEntity(entityId) {
     viewport.setSelectedWorldMarker(null);
     return null;
   }
+  state.selectedSpatialEntityId = unit.id;
   viewport.setSelectedWorldMarker(unit.id);
+  updateSpatialTestControls();
   return unit;
 }
 
@@ -244,12 +256,14 @@ function handleViewportEntitySelect(entityId) {
   }
   const testEntity = state.spatialTestController?.list().find(({ entity }) => entity.id === entityId);
   if (testEntity) {
+    state.selectedSpatialEntityId = entityId;
     state.selectedTestEntityId = entityId;
     viewport.setSelectedWorldMarker(entityId);
     updateSpatialTestControls();
     inspectSpatialCell(testEntity.occupancy.anchor);
     return;
   }
+  state.selectedSpatialEntityId = entityId;
   state.selectedTestEntityId = null;
   updateSpatialTestControls();
   inspectGameplayEntity(entityId);
@@ -265,6 +279,51 @@ function updateSpatialTestControls() {
   moveTestEntityButton.textContent = state.moveTestEntityMode ? "CANCEL MOVE" : "MOVE SELECTED";
   moveTestEntityButton.dataset.active = String(state.moveTestEntityMode);
   testEntityFootprint.disabled = !state.paused;
+  spatialNeighborsFourButton.disabled = !state.paused || !state.selectedSpatialCell;
+  spatialNeighborsEightButton.disabled = !state.paused || !state.selectedSpatialCell;
+  spatialRadiusManhattanButton.disabled = !state.paused || !state.selectedSpatialCell;
+  spatialRadiusChebyshevButton.disabled = !state.paused || !state.selectedSpatialCell;
+  spatialFootprintButton.disabled = !state.paused || !state.selectedSpatialEntityId;
+}
+
+function showSpatialQuery(label, result) {
+  spatialCellLabel.textContent = label;
+  spatialCellData.textContent = JSON.stringify(result, null, 2);
+}
+
+function querySelectedSpatialNeighbors(topology) {
+  const worldId = state.worldRegistry?.activeWorldId;
+  const cell = state.selectedSpatialCell;
+  if (!state.paused || !state.spatialApi || !worldId || !cell) return;
+  try {
+    const result = querySpatialNeighbors(state.spatialApi, worldId, cell, topology);
+    showSpatialQuery(`${topology.toUpperCase()} NEIGHBORS · ${worldId} · (${cell.x}, ${cell.y})`, result);
+  } catch (error) {
+    showSpatialQuery("NEIGHBOR QUERY ERROR", { code: error.code ?? null, message: error.message });
+  }
+}
+
+function querySelectedSpatialRadius(metric) {
+  const worldId = state.worldRegistry?.activeWorldId;
+  const cell = state.selectedSpatialCell;
+  if (!state.paused || !state.spatialApi || !worldId || !cell) return;
+  try {
+    const result = querySpatialRadius(state.spatialApi, worldId, cell, 2, metric);
+    showSpatialQuery(`RADIUS 2 · ${metric.toUpperCase()} · ${worldId}`, result);
+  } catch (error) {
+    showSpatialQuery("RADIUS QUERY ERROR", { code: error.code ?? null, message: error.message });
+  }
+}
+
+function querySelectedSpatialFootprint() {
+  const entityId = state.selectedSpatialEntityId;
+  if (!state.paused || !state.spatialApi || !entityId) return;
+  try {
+    const result = querySpatialFootprint(state.spatialApi, entityId);
+    showSpatialQuery(`ENTITY FOOTPRINT · ${entityId}`, result);
+  } catch (error) {
+    showSpatialQuery("FOOTPRINT QUERY ERROR", { code: error.code ?? null, message: error.message });
+  }
 }
 
 function createSpatialTestEntity() {
@@ -306,6 +365,7 @@ function removeSelectedSpatialTestEntity() {
   try {
     state.spatialTestController.remove(removedId);
     state.selectedTestEntityId = null;
+    state.selectedSpatialEntityId = null;
     state.moveTestEntityMode = false;
     viewport.setSelectedWorldMarker(null);
     refreshWorldMarkers();
@@ -344,6 +404,7 @@ function inspectSpatialCell(cell) {
       contents: inspection.contents,
       entities: inspection.entities
     }, null, 2);
+    updateSpatialTestControls();
     return inspection;
   } catch (error) {
     spatialCellLabel.textContent = `${worldId} · (${cell.x}, ${cell.y})`;
@@ -553,6 +614,11 @@ resetLabButton.addEventListener("click", () => {
   updateSpatialTestControls();
 });
 createTestEntityButton.addEventListener("click", createSpatialTestEntity);
+spatialNeighborsFourButton.addEventListener("click", () => querySelectedSpatialNeighbors("four-way"));
+spatialNeighborsEightButton.addEventListener("click", () => querySelectedSpatialNeighbors("eight-way"));
+spatialRadiusManhattanButton.addEventListener("click", () => querySelectedSpatialRadius("manhattan"));
+spatialRadiusChebyshevButton.addEventListener("click", () => querySelectedSpatialRadius("chebyshev"));
+spatialFootprintButton.addEventListener("click", querySelectedSpatialFootprint);
 moveTestEntityButton.addEventListener("click", toggleSpatialTestMoveMode);
 removeTestEntityButton.addEventListener("click", removeSelectedSpatialTestEntity);
 
