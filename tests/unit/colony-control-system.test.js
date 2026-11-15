@@ -34,6 +34,7 @@ async function setup() {
     worldId: "colony-test-world",
     type: "test",
     dimensions: { width: 128, height: 128 },
+    grid: { width: 128, height: 128 },
     coordinateSystem: "tiles"
   });
   worlds.activateWorld("colony-test-world");
@@ -57,8 +58,9 @@ test("Draft targets the Colony Leader by stable Unit ID and moves at four tiles 
 
     const result = state.control.update(0.25);
     assert.equal(result.entityId, state.leader.id);
-    assert.deepEqual(result.position, { x: 21, y: 20 });
-    assert.deepEqual(state.units.getUnit(state.leader.id).placement.position, { x: 21, y: 20 });
+    assert.deepEqual(result.position, { x: 21.5, y: 20.5 });
+    assert.deepEqual(state.units.getUnit(state.leader.id).position, { x: 21.5, y: 20.5 });
+    assert.deepEqual(state.units.getUnit(state.leader.id).placement.position, { x: 21.5, y: 20.5 });
   } finally {
     await state.runtime.destroy();
     clearDefinitionsForTests();
@@ -102,20 +104,20 @@ test("Draft handles overlapping WASD combinations and independent key release", 
     state.inputController.keyDown("KeyW");
     state.inputController.keyDown("KeyA");
     let moved = state.control.update(0.25);
-    assert.ok(Math.abs(moved.position.x - (20 - Math.SQRT1_2)) < 1e-9);
-    assert.ok(Math.abs(moved.position.y - (20 - Math.SQRT1_2)) < 1e-9);
+    assert.ok(Math.abs(moved.position.x - (20.5 - Math.SQRT1_2)) < 1e-9);
+    assert.ok(Math.abs(moved.position.y - (20.5 - Math.SQRT1_2)) < 1e-9);
 
     state.inputController.keyUp("KeyW");
     moved = state.control.update(0.25);
-    assert.ok(Math.abs(moved.position.x - (19 - Math.SQRT1_2)) < 1e-9);
-    assert.ok(Math.abs(moved.position.y - (20 - Math.SQRT1_2)) < 1e-9);
+    assert.ok(Math.abs(moved.position.x - (19.5 - Math.SQRT1_2)) < 1e-9);
+    assert.ok(Math.abs(moved.position.y - (20.5 - Math.SQRT1_2)) < 1e-9);
 
     state.inputController.keyDown("KeyD");
     moved = state.control.update(0.25);
     assert.equal(moved, null);
-    const finalPosition = state.units.getUnit(state.leader.id).placement.position;
-    assert.ok(Math.abs(finalPosition.x - (19 - Math.SQRT1_2)) < 1e-9);
-    assert.ok(Math.abs(finalPosition.y - (20 - Math.SQRT1_2)) < 1e-9);
+    const finalPosition = state.units.getUnit(state.leader.id).position;
+    assert.ok(Math.abs(finalPosition.x - (19.5 - Math.SQRT1_2)) < 1e-9);
+    assert.ok(Math.abs(finalPosition.y - (20.5 - Math.SQRT1_2)) < 1e-9);
   } finally {
     await state.runtime.destroy();
     clearDefinitionsForTests();
@@ -131,7 +133,7 @@ test("Diagonal Draft movement is normalized and an inactive Draft does not move"
     state.inputController.keyDown("KeyD");
 
     assert.equal(state.control.update(0.5), null);
-    assert.deepEqual(state.units.getUnit(state.leader.id).placement.position, { x: 20, y: 20 });
+    assert.deepEqual(state.units.getUnit(state.leader.id).position, { x: 20.5, y: 20.5 });
 
     state.control.setDrafted(true);
     const result = state.control.update(0.5);
@@ -180,13 +182,13 @@ test("Draft automatically disengages while its leader belongs to an inactive wor
     worlds.activateWorld("colony-test-world-secondary");
     assert.equal(state.control.update(0.25), null);
     assert.deepEqual(state.control.getState(), { leaderId: state.leader.id, drafted: false });
-    assert.deepEqual(state.units.getUnit(state.leader.id).placement.position, { x: 20, y: 20 });
+    assert.deepEqual(state.units.getUnit(state.leader.id).position, { x: 20.5, y: 20.5 });
 
     worlds.activateWorld("colony-test-world");
     state.control.setDrafted(true);
     const moved = state.control.update(0.25);
     assert.equal(moved.entityId, state.leader.id);
-    assert.deepEqual(moved.position, { x: 21, y: 20 });
+    assert.deepEqual(moved.position, { x: 21.5, y: 20.5 });
   } finally {
     await state.runtime.destroy();
     clearDefinitionsForTests();
