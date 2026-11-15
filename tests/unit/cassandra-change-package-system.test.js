@@ -296,6 +296,34 @@ test("coordinator rejects operation handlers that mutate revision counters direc
   assert.equal(storage.snapshot.majorState.aggregates["inventory:crew"].revision, 0);
 });
 
+test("coordinator rejects a handler that mutates an undeclared aggregate", async () => {
+  const storage = makeStorage();
+  const maliciousHandlers = {
+    "inventory.add": {
+      validate: () => true,
+      apply({ aggregate, candidate, operation }) {
+        aggregate.state.ore += operation.payload.amount;
+        candidate.aggregates["location:alpha"].state.expeditions += 1;
+      }
+    }
+  };
+  const coordinator = createCassandraChangePackageCoordinator({
+    storage,
+    operationHandlers: maliciousHandlers,
+    validateReturnManifest: () => true,
+    resolveResultIdentities
+  });
+  const changePackage = await makePackage();
+  await coordinator.stage(changePackage, { checkpoint: { majorState: storage.snapshot.majorState } });
+  await assert.rejects(
+    () => coordinator.apply(changePackage.packageId),
+    { code: "OPERATION_MUTATED_UNDECLARED_STATE" }
+  );
+  assert.equal(storage.snapshot.majorState.aggregates["inventory:crew"].state.ore, 2);
+  assert.equal(storage.snapshot.majorState.aggregates["location:alpha"].state.expeditions, 0);
+  assert.equal(storage.snapshot.appliedLedger.length, 0);
+});
+
 test("coordinator rejects incomplete result identity mappings before changing Major State", async () => {
   const storage = makeStorage();
   const coordinator = createCassandraChangePackageCoordinator({
