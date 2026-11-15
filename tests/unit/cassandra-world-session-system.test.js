@@ -11,12 +11,12 @@ import {
   createCassandraWorldSessionSystem
 } from "../../src/gameplay/world/cassandra-world-session-system.js";
 
-async function setup() {
+async function setup({ isPackageApplied = async () => true } = {}) {
   const runtime = createGameRuntime({
     saveAdapter: new MemorySaveAdapter(),
     hostSystems: [
       createUnitSystem({ definitionLookup: getDefinition }),
-      createCassandraWorldSessionSystem()
+      createCassandraWorldSessionSystem({ isPackageApplied })
     ]
   });
   const context = await runtime.start();
