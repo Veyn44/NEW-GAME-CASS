@@ -430,4 +430,41 @@ test("IndexedDB campaign adapter rejects malformed initial snapshots", () => {
     { code: "INVALID_CAMPAIGN_SNAPSHOT" }
   );
 });
+test("IndexedDB campaign adapter preserves an own __proto__ data field in snapshots", async () => {
+  const indexedDBRef = new FakeIndexedDB();
+  const majorState = JSON.parse('{"revision":1,"aggregates":{},"__proto__":{"marker":"data"}}');
+  const adapter = new IndexedDbCampaignSaveAdapter({
+    indexedDBRef,
+    campaignId: "campaign:proto-field",
+    initialSnapshot: { majorState, pendingPackages: [], appliedLedger: [] }
+  });
 
+  const loaded = await adapter.loadCampaignSnapshot();
+  assert.equal(Object.getPrototypeOf(loaded.snapshot.majorState), Object.prototype);
+  assert.equal(Object.hasOwn(loaded.snapshot.majorState, "__proto__"), true);
+  assert.deepEqual(loaded.snapshot.majorState.__proto__, { marker: "data" });
+  adapter.close();
+});
+
+test("IndexedDB campaign adapter rejects sparse arrays and accessor values", () => {
+  const sparsePackages = new Array(1);
+  assert.throws(
+    () => new IndexedDbCampaignSaveAdapter({
+      indexedDBRef: new FakeIndexedDB(),
+      campaignId: "campaign:sparse-array",
+      initialSnapshot: { majorState: {}, pendingPackages: sparsePackages, appliedLedger: [] }
+    }),
+    { code: "INVALID_CAMPAIGN_SNAPSHOT" }
+  );
+
+  const majorState = {};
+  Object.defineProperty(majorState, "revision", { enumerable: true, get() { return 1; } });
+  assert.throws(
+    () => new IndexedDbCampaignSaveAdapter({
+      indexedDBRef: new FakeIndexedDB(),
+      campaignId: "campaign:accessor",
+      initialSnapshot: { majorState, pendingPackages: [], appliedLedger: [] }
+    }),
+    { code: "INVALID_CAMPAIGN_SNAPSHOT" }
+  );
+});
