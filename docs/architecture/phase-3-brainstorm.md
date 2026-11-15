@@ -314,6 +314,13 @@ Define what a grid is, what a cell is, how cells are addressed, and how neighbor
 
 Define how physical entities occupy space, including multiple objects at one coordinate and independent spatial layers.
 
+#### Multi-cell entities (current design direction)
+- A single entity may occupy one or multiple grid cells while remaining one entity with one identity and lifecycle.
+- Examples include a 2×1 sarcophagus, a larger machine, a vehicle, or a large creature. These are examples of possible use cases, not a commitment that every category will appear in Cassandra.
+- Building should retain the freedom of placing individual building elements on a tile-by-tile basis where appropriate. Multi-cell footprints are a capability for objects that need them, not a requirement that all buildings become large indivisible structures.
+- The Engine should not equate the number of occupied cells with the number of entities. A multi-cell entity remains one entity and must be queryable/managed as such.
+- Exact footprint shape, rotation/orientation, placement validation, and how a multi-cell entity interacts with per-cell contents remain open.
+
 #### Agreed direction: multiple contents per coordinate
 
 A single coordinate may contain many independent spatial contents. The intended mental model is a stack/composition of layers, not one tile object that must represent everything at that position.
@@ -488,6 +495,10 @@ No implementation starts from this section until the complete specification is a
 ---
 
 ## Current decisions
+
+- **Agreed spatial capability direction:** One entity may occupy multiple grid cells while remaining a single entity (for example, a 2×1 object or a larger vehicle/creature).
+- **Agreed Cassandra building direction:** Preserve tile-by-tile building freedom where appropriate; multi-cell footprints are supported for objects that need them, not imposed on every building.
+- **Open:** Exact footprint representation, rotation, placement rules, and interactions with other spatial contents.
 
 - **Agreed remote-base information requirement:** The player can inspect station/base status, including workforce capacity and staffing (for example, 2/3 positions filled).
 - **Agreed remote-base event requirement:** Events affecting a base, such as loss of workers, notify the player; the player can identify the affected base and arrange replacement personnel from the main colony.
