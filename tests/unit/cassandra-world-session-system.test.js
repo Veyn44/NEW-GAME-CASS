@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 
 import { createGameRuntime } from "../../engine/runtime/create-game-runtime.js";
 import { MemorySaveAdapter } from "../../engine/core/persistence.js";
+import { getDefinition } from "../../engine/database/definition-registry.js";
+import { createUnitSystem } from "../../src/gameplay/unit/unit-system.js";
 import { createCassandraRuntime } from "../../cassandra/application/cassandra-runtime-host.js";
 import { createViewportInputController } from "../../shared/input/viewport-input-controller.js";
 import {
@@ -12,7 +14,10 @@ import {
 async function setup() {
   const runtime = createGameRuntime({
     saveAdapter: new MemorySaveAdapter(),
-    hostSystems: [createCassandraWorldSessionSystem()]
+    hostSystems: [
+      createUnitSystem({ definitionLookup: getDefinition }),
+      createCassandraWorldSessionSystem()
+    ]
   });
   const context = await runtime.start();
   const worlds = context.getService("core.world-registry");
@@ -75,6 +80,7 @@ test("Cassandra World local time does not commit when a later task faults the si
     saveAdapter: new MemorySaveAdapter(),
     fixedStepSeconds: 1 / 60,
     hostSystems: [
+      createUnitSystem({ definitionLookup: getDefinition }),
       createCassandraWorldSessionSystem(),
       { id: "test.failure", requires: ["game.world-session-api"], initialize() { return {}; } }
     ],
