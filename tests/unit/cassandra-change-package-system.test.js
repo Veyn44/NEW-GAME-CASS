@@ -64,6 +64,10 @@ function makeStorage({ revision = 0, value = 2, failWrites = 0 } = {}) {
       snapshot = structuredClone(next);
       return { durable: true };
     },
+    tamperPendingCheckpoint() {
+      const pending = snapshot.pendingPackages[0];
+      if (pending) pending.checkpoint.majorState.revision += 1;
+    },
     get snapshot() { return structuredClone(snapshot); },
     get writes() { return writes; }
   };
@@ -185,6 +189,24 @@ test("failed promotion retains the old Major State and durable pending package f
   assert.equal(result.status, "applied");
   assert.equal(identityResolutions, 1);
   assert.equal(storage.snapshot.majorState.aggregates["inventory:crew"].state.ore, 6);
+});
+
+test("coordinator rejects a corrupted durable expedition-start checkpoint", async () => {
+  const storage = makeStorage();
+  const coordinator = createCassandraChangePackageCoordinator({
+    storage,
+    operationHandlers: handlers,
+    validateReturnManifest: () => true
+  });
+  const changePackage = await makePackage();
+  await coordinator.stage(changePackage, { checkpoint: { majorState: storage.snapshot.majorState } });
+  storage.tamperPendingCheckpoint();
+  await assert.rejects(
+    () => coordinator.apply(changePackage.packageId),
+    { code: "EXPEDITION_CHECKPOINT_CORRUPT" }
+  );
+  assert.equal(storage.snapshot.majorState.aggregates["inventory:crew"].state.ore, 2);
+  assert.equal(storage.snapshot.appliedLedger.length, 0);
 });
 
 test("stale touched aggregate marks package conflicted without applying any operation", async () => {
