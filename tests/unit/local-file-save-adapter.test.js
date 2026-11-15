@@ -102,6 +102,22 @@ test("local file adapter rejects malformed, incompatible and non-Cassandra files
   );
 });
 
+test("local file adapter safely rejects unsupported historical .cass envelope versions", async () => {
+  const adapter = new LocalFileSaveAdapter();
+  await adapter.importFile({ name: "current.cass", async text() { return envelope(); } });
+  await assert.rejects(
+    adapter.importFile({
+      name: "historical-v0.cass",
+      async text() {
+        return JSON.stringify({ format: "cassandra.save", fileFormatVersion: 0, data: sampleSave });
+      }
+    }),
+    (error) => error.code === "INCOMPATIBLE_SAVE_FILE"
+  );
+  assert.deepEqual(await adapter.read(DEV_LAB_SAVE_SLOT), sampleSave);
+  assert.equal(adapter.selectedFileName, "current.cass");
+});
+
 test("clearSelection forgets the current save target and imported data", async () => {
   const adapter = new LocalFileSaveAdapter();
   await adapter.importFile({ name: "current.cass", async text() { return envelope(); } });
