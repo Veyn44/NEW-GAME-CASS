@@ -128,7 +128,7 @@ Required restore behavior:
 
 The source audit confirms the current Persistence coordinator prepares all participants first but commits them sequentially with an `await` between participant commits. Separate World Context and Spatial Composition participants would therefore not guarantee an unobservable atomic pair. The recommended design is one composite placement-state participant: Entity Registry and World Registry restore first, then one synchronous composite commit swaps World Context and Spatial Composition together. The existing Persistence rollback then treats the pair as one transaction if a later participant fails.
 
-This proposal does not define legacy `.cass` migration. Legacy saves without spatial occupancy require a separate Cassandra-owned compatibility decision and representative fixtures before the persistence slice begins.
+This proposal does not define legacy `.cass` migration. Under the agreed policy, old saves without spatial occupancy are rejected unless Cassandra explicitly elects to support a specific version through a Cassandra-owned migration backed by real fixtures.
 
 ## 8. Failure behavior
 
