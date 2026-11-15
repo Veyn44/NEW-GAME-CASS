@@ -213,7 +213,7 @@ Implement or extract only what the source audit and agreed contracts show is nee
 - [x] No new branch without explaining the reason and obtaining user permission.
 - [ ] Reconcile remaining historical/current documentation against the post-PR #6 repository state.
 - [ ] Review and approve the Engine capability map; its proposed/open labels remain non-binding.
-- [ ] Define the first Engine capability contract and acceptance tests before implementation.
+- [ ] First design slice: define the world lifecycle contract (separate existence, loading, simulation, pause, selection/focus, rendering and disposal), then specify acceptance scenarios before implementation.
 - [ ] Investigate browser menu responsiveness and Pages deployment independently from Engine design.
 
 ## Technical commands and references
