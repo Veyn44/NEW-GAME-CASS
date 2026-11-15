@@ -1,13 +1,13 @@
 # Phase 3 Physical World — Implementation Plan
 
-**Status:** Working implementation plan; sequencing and file targets proposed, not approved for execution  
+**Status:** Working implementation plan; Slice 1 implemented and verified, later slices remain gated  
 **Branch:** `work`  
 **Source audit:** 2026-11-15  
 **Scope:** Implementation sequencing for reusable Engine grid/spatial capabilities and their Cassandra/Dev Lab integration
 
-This plan translates the current Phase 3 design material into an implementation sequence. It is a planning artifact only. It does not authorize source/runtime changes, a merge, or a change to existing game behavior.
+This plan translates the current Phase 3 design material into an implementation sequence. The user explicitly authorized implementation to begin on `work`. That authorization is being applied slice by slice: a completed, tested slice does not automatically authorize dependent or unrelated changes, and it does not authorize a merge to `main`.
 
-The Phase 3 brainstorm explicitly requires the complete design to be reviewed and approved before implementation begins. Several topics in Steps 7–9 remain open; this plan makes those dependencies visible instead of treating them as already decided.
+Several topics in Steps 7–9 remain open. Isolated Engine capabilities may proceed where their own contracts are settled; Cassandra integration and persistence remain gated by their outstanding design and source-audit requirements.
 
 ## 1. Starting point and constraints
 
@@ -120,16 +120,18 @@ Tasks:
 - No unresolved architectural choice blocks the first implementation slice.
 - Current-format save behavior and safe rejection of unsupported historical formats have a concrete test/fixture strategy; legacy migration fixtures are required only for explicitly supported migration paths.
 - Existing environment simulation behavior is covered by regression tests.
-- The full design is explicitly approved before code work begins.
+- The Grid Geometry contract and its relevant ownership/coordinate decisions are settled. Remaining Cassandra package/storage decisions do not block this isolated geometry slice.
 
 **No source changes in this slice.**
 
 ### Slice 1 — Grid Geometry primitives
 
-**Proposed files:**
-- Add `engine/spatial/grid-geometry.js`.
-- Add `tests/unit/grid-geometry.test.js` (or the repository's agreed spatial test folder).
-- Update `engine/spatial/README.md` only if the directory is created in this slice.
+<badge>Implemented · CI passed 2026-11-15</badge>
+
+**Files added:**
+- `engine/spatial/grid-geometry.js`.
+- `engine/spatial/README.md`.
+- `tests/unit/grid-geometry.test.js`.
 
 Tasks:
 - Validate optional grid descriptors with positive safe-integer width/height.
@@ -140,10 +142,20 @@ Tasks:
 - Provide Manhattan and Chebyshev distance helpers.
 - Keep non-grid Worlds valid and do not reinterpret World Registry dimensions.
 
-**Exit criteria:**
-- Geometry tests cover valid/invalid dimensions, integer/fractional coordinates, edges, rectangular grids, coordinate conversion, neighbors and distance metrics.
-- No cell contents, occupancy or game rules are introduced.
-- Existing World Registry and World Context tests remain unchanged and pass.
+**Implemented behavior:**
+- Positive safe-integer grid dimensions and safe-integer cell coordinates.
+- Half-open rectangular bounds and explicit out-of-bounds errors.
+- Continuous world-position to cell conversion using `floor`, including negative positions without clamping.
+- Approved anchor-cell center mapping `(x + 0.5, y + 0.5)`.
+- Deterministic 4-way and 8-way neighbors, clipped at edges with no wrapping.
+- Manhattan and Chebyshev distance helpers with safe-integer overflow rejection.
+- Immutable detached results and stable error codes.
+
+**Verification:**
+- 13 focused geometry tests added.
+- GitHub Actions `Core and host tests`: [run 43737845841](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43737845841) — `npm run test:all` passed (125 tests, 0 failures); browser entry-point syntax checks passed.
+- Existing World Registry and World Context files/tests were not changed.
+- No cell contents, occupancy, world descriptor integration or game rules were introduced.
 
 ### Slice 2 — Spatial Composition storage and occupancy
 
@@ -516,7 +528,7 @@ The proposal specifies:
 | Checkpoint | Required review |
 |---|---|
 | C0 — Design closure | Phase 3 Steps 1–10 reviewed; blocking questions resolved; explicit implementation approval |
-| C1 — Geometry | Grid descriptor and geometry tests; no changes to existing placement semantics |
+| C1 — Geometry | **Passed 2026-11-15** — geometry tests and full Core/host CI green; existing placement semantics untouched |
 | C2 — Composition | Ownership, footprints, overlap facts, atomic occupancy and sparse storage |
 | C3 — Queries | Read-only behavior, deterministic results, lifecycle and bounds outcomes |
 | C4 — Movement | Host policy boundary and atomic move results |
@@ -553,5 +565,5 @@ Any proposed exception must identify the concrete dependency and the smallest re
 
 **Compatibility policy:** Backward compatibility with arbitrary old `.cass` versions is not required. Unsupported versions may be rejected safely; selected migrations are optional and explicitly version-scoped.
 
-**Current action:** Document and review only. No source/runtime code changes are authorized by this plan. No PR merge or `main` update is implied.
+**Current action:** Slice 1 is implemented on `work` and CI-verified. Next is Slice 2 design-to-source mapping for Spatial Composition, including grid descriptor integration and the already-agreed placement/persistence boundaries. No PR merge or `main` update is implied.
 
