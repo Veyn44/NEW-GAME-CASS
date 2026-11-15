@@ -134,6 +134,7 @@ export class WorldContext {
   #entities;
   #worlds;
   #placements = new Map();
+  #spatialCoordinationRequired = false;
 
   constructor({ entityRegistry, worldRegistry } = {}) {
     if (!entityRegistry || typeof entityRegistry.get !== "function") {
@@ -147,6 +148,11 @@ export class WorldContext {
   }
 
   get size() { return this.#placements.size; }
+
+  requireSpatialCoordination(authority) {
+    if (authority !== PLACEMENT_AUTHORITY) throw new WorldContextError("PLACEMENT_AUTHORITY_REQUIRED", "Only Engine placement services may enable grid coordination.");
+    this.#spatialCoordinationRequired = true;
+  }
 
   getPlacement(entityId) {
     assertId(entityId, "Entity ID");
@@ -335,8 +341,9 @@ export class WorldContext {
 
   prepareRestore(snapshot, { deferReferenceValidation = false, authority = null } = {}) {
     const liveGridPlacement = [...this.#placements.values()].some((item) => item.type === "world" && this.#worlds.get(item.worldId)?.grid != null);
+    const snapshotHasWorldPlacement = Array.isArray(snapshot?.placements) && snapshot.placements.some((item) => item?.type === "world");
     const snapshotGridPlacement = Array.isArray(snapshot?.placements) && snapshot.placements.some((item) => item?.type === "world" && this.#worlds.get(item.worldId)?.grid != null);
-    if ((liveGridPlacement || snapshotGridPlacement) && authority !== PLACEMENT_AUTHORITY) {
+    if ((liveGridPlacement || snapshotGridPlacement || (this.#spatialCoordinationRequired && snapshotHasWorldPlacement)) && authority !== PLACEMENT_AUTHORITY) {
       throw new WorldContextError("GRID_COORDINATOR_REQUIRED", "Restoring grid-backed placements requires the composite Placement Coordinator participant.");
     }
     // Detach untrusted input once. The same immutable-by-ownership copy is
