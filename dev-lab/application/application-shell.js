@@ -233,6 +233,7 @@ function inspectGameplayEntity(entityId) {
 }
 
 function handleViewportEntitySelect(entityId) {
+  if (state.moveTestEntityMode) return;
   if (!entityId) {
     if (state.moveTestEntityMode) return;
     state.selectedTestEntityId = null;
@@ -634,7 +635,13 @@ function createDevLabRuntimeHost({
         defaultFileName: "save.cass",
       saveAdapter: state.saveAdapter,
       fileInput: workspaceFileInput,
-      onRestore: workspaceSession.synchronizeRestoredWorkspace,
+      onRestore() {
+        workspaceSession.synchronizeRestoredWorkspace();
+        state.selectedTestEntityId = null;
+        state.moveTestEntityMode = false;
+        refreshWorldMarkers();
+        updateSpatialTestControls();
+      },
       onStatus({ saveStatus, simulationStatus: nextSimulationStatus }) {
         workspaceSaveStatus.textContent = saveStatus;
         simulationStatus.textContent = nextSimulationStatus;
