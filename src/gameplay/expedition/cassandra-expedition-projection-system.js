@@ -139,13 +139,18 @@ export function createCassandraExpeditionProjectionSystem() {
       persistence = context.getService("core.persistence");
       worldSession = context.getService("game.world-session-api");
       unregisterPersistence = persistence.registerParticipant(persistenceParticipant);
-      unregisterTemporaryCleanup = worldSession.registerTemporaryWorldCleanup(({ temporaryWorldId }) => {
+      unregisterTemporaryCleanup = worldSession.registerTemporaryWorldCleanup(({ phase, temporaryWorldId }) => {
+        if (phase !== "prepare") {
+          fail("INVALID_PROJECTION_CLEANUP_PHASE",
+            "Expedition projection cleanup must be prepared before disposal.");
+        }
         if (projection && projection.toSnapshot().temporaryWorldId !== temporaryWorldId) {
           fail("PROJECTION_DISPOSAL_WORLD_MISMATCH",
-            "Projection cleanup callback received a different Temporary World ID.");
+            "Projection cleanup preparation received a different Temporary World ID.");
         }
-        projection = null;
-        return true;
+        // Do not mutate the projection during preflight. The returned commit
+        // runs only after the World and all scoped runtime state are removed.
+        return () => { projection = null; };
       });
       return { "game.expedition-projection-api": api };
     },
