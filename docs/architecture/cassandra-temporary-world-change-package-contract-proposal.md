@@ -550,24 +550,152 @@ Legacy `.cass` migration and the mapping of existing map/environment data into S
 31. Main World simulation resumes only after the package is resolved and the Temporary World transition is safely completed.
 32. Existing `.cass` compatibility and environment simulation behavior remain unchanged until their separate migration and regression gates are approved.
 
-## 14. Open implementation/design details
+
+## 14. Recommended technical defaults for implementation review
+
+**Status:** Proposed implementation defaults derived from the agreed package invariants; not yet an approved serialized schema or runtime API.
+
+### 14.1 Canonical package envelope
+
+Use one immutable package envelope with these conceptual fields:
+
+| Field | Purpose |
+|---|---|
+| `schemaVersion` | Cassandra change-package schema version, independent of Engine save/spatial schema |
+| `packageId` | Globally unique stable identity created once at finalization |
+| `sessionId` | Expedition session that produced the package |
+| `source` | Main World ID, persistent location ID/revision and Temporary World runtime ID |
+| `baseline` | Sorted list of touched campaign aggregate IDs and their expected revisions |
+| `projectionMappings` | Campaign identity ↔ encounter runtime identity mapping and baseline fingerprint |
+| `operations` | Ordered typed domain operations with stable operation IDs and dependencies |
+| `returnManifest` | Explicit final disposition/reconciliation for every persistent or transferable result |
+| `outcome` | End/Abandon result, Clear/Not Clear and final encounter outcome metadata |
+| `digest` | Integrity digest over canonical package content excluding the digest field itself |
+
+The package is finalized once, serialized canonically and never edited in place. Any corrected outcome is a new package with a new ID and an explicit replacement/reconciliation relationship.
+
+### 14.2 Aggregate revisions
+
+**Recommended default:** use a monotonically increasing safe-integer revision per persistent campaign aggregate, rather than one global campaign revision.
+
+- Every operation declares the aggregate it targets and the expected baseline revision.
+- All operations against the same aggregate in one package validate against the same baseline revision.
+- A successful package increments each touched aggregate exactly once, regardless of how many operations target it.
+- Unrelated aggregates may change without causing a false conflict.
+- A touched aggregate with a different current revision causes a package conflict; no automatic rebase is performed.
+- If an aggregate cannot yet provide a monotonic revision, use a stable content fingerprint as an explicitly marked fallback, not an implicit mixture of revision types.
+
+### 14.3 Typed operation envelope
+
+Each operation should contain:
+- Stable `operationId`, unique within the package.
+- Versioned `type` from Cassandra's operation registry.
+- Target aggregate identity and expected baseline revision.
+- Optional `dependsOn` operation IDs.
+- Typed payload with exact entity/resource/item identifiers and quantities.
+- Provenance/source references back to the encounter mapping or manifest entry.
+
+The package operation list is deterministic. Dependencies must be acyclic; independent operations are applied in stable operation-ID order. Unknown operation types, missing dependencies or cycles reject the entire package.
+
+Recommended operation families:
+- Entity create/update/retire for durable campaign identities.
+- Participant disposition/return for mapped pawns and shuttle objects.
+- Inventory stack transfer/add/remove/consume.
+- Resource quantity delta and extraction.
+- Persistent location terrain/object/resource change.
+- Encounter outcome and location Clear/Not Clear/Done metadata.
+- Reward/result creation.
+
+Avoid unrestricted JSON merge/patch operations. Each operation must validate domain constraints and declare its target aggregate.
+
+### 14.4 Identity for newly acquired objects
+
+Temporary runtime IDs must not become campaign IDs by accident.
+
+- New encounter results use stable package-local `resultKey` values.
+- Before Candidate State construction, Cassandra resolves each result key to a durable campaign identity.
+- The resolved mapping is stored in the durable pending Change Buffer before promotion, so a retry reuses the same identity.
+- The Applied ledger records the final `resultKey → campaignEntityId` mapping.
+- Replaying the same package cannot create a second identity for the same result key.
+
+### 14.5 Manifest and conservation
+
+Each persistent/transferable result must have exactly one final disposition:
+- `returned` to a campaign owner/destination,
+- `retainedAtLocation`,
+- `consumed`,
+- `destroyedOrLost` by an explicit gameplay consequence, or
+- `transient` under an explicit discard rule.
+
+For non-fungible objects, reconcile stable object/stack identity and exactly one disposition. For fungible resources, reconcile integer or fixed-precision quantities by resource type and unit; do not use floating-point quantities for conserved inventory.
+
+A package is invalid if an item, stack, pawn, reward or resource quantity is missing from the manifest, duplicated, assigned to multiple final destinations or reduced without an explicit gameplay operation.
+
+### 14.6 Digest and ledger
+
+**Recommended default:** calculate a SHA-256 digest over a canonical UTF-8 serialization of the finalized package excluding the digest field. Canonicalization must define stable object-key ordering, array ordering and numeric representation. The digest detects accidental or inconsistent mutation; it is not an authentication/signature mechanism.
+
+The Applied ledger entry should include:
+- Package ID and digest.
+- Session ID.
+- Resulting Major State/campaign revision.
+- Commit generation/sequence.
+- Resolved result-key identity map.
+- Applied status.
+
+Package ID reuse with another digest is a critical integrity error. An already-applied package with the same digest returns Already Applied without repeating operations.
+
+### 14.7 Candidate and promotion boundary
+
+The simplest initial model is:
+1. Keep Major State and durable pending Change Buffer in the authoritative campaign save.
+2. Build Candidate State as an isolated detached/copy-on-write result; Candidate need not be independently authoritative or survive a crash because it can be rebuilt from the same Major State and Change Buffer.
+3. Validate all operations, aggregate revisions, manifest entries, identity mappings and conservation invariants.
+4. Prepare one complete replacement campaign snapshot containing the new Major State, Applied ledger entry and completed/cleared pending-buffer status.
+5. Commit that replacement through one atomic durable storage operation.
+6. Treat the operation as successful only after the storage adapter confirms completion and the committed state can be reopened/validated.
+
+Before the commit, a crash recovers old Major State + pending Change Buffer. After the commit, a crash recovers new Major State + Applied ledger. No combination of separate writes may be treated as atomic.
+
+If the target backend cannot atomically replace one complete campaign save, use immutable generation files plus a single atomically replaced manifest/pointer that selects the committed generation. If the pointer itself cannot be atomically replaced, that backend cannot satisfy the campaign commit contract and must not be used for authoritative campaign saves.
+
+### 14.8 Current storage adapter limitation
+
+Source audit of `src/adapters/storage/local-file-save-adapter.js` confirms:
+- It accepts only the `dev-lab-workspace` slot.
+- Its `.cass` outer envelope is version 1.
+- With a File System Access handle it writes one complete file using `createWritable`, `write`, `close`, and attempts `abort` on failure.
+- Without a persistent file handle it exports a download; this is not an atomic replacement of an existing authoritative campaign save.
+- It is therefore a workspace adapter, not a campaign transaction coordinator or a multi-file transactional store.
+
+The future campaign persistence adapter must explicitly prove the required atomic replacement/generation-manifest guarantee on its target platform. Do not infer this guarantee from the existing workspace adapter or from successful JSON serialization.
+
+### 14.9 Open review points
+
+These defaults are proposed to make the design implementable. The remaining technical review should focus on:
+- Whether all persistent domain state can be packaged into one campaign snapshot for atomic replacement.
+- Which aggregates need independent revisions and what their canonical identities are.
+- The final operation family registry and payload schemas.
+- Whether SHA-256 canonical digest is appropriate for the browser/runtime target.
+- The actual campaign storage backend and its atomic promotion guarantee.
+
+No Engine API or source/runtime change is authorized by this proposal.
+
+## 15. Open implementation/design details
 
 The following remain proposals or require further review; this document does not silently decide them:
 
-- Exact package schema, operation names and canonical digest algorithm.
-- Exact campaign aggregate/versioning mechanism and whether versions are per record or per aggregate.
 - Exact persistent entity categories eligible for projection and return.
 - Exact disposition rules for each pawn/body/equipment category under End and Abandon.
 - Whether pending package recovery keeps the full frozen Temporary World snapshot or a smaller sufficient recovery checkpoint.
-- Exact persistence transaction coordinator and its integration with current Cassandra save participants.
-- Whether some operation families need explicitly independent subtransactions in a future gameplay design.
+- Exact persistence transaction coordinator and its integration with future Cassandra campaign save participants.
 - Exact location persistence policy for each location type (reusable, one-off, Done/retired).
 - Exact user-facing conflict/recovery flow.
 - Legacy `.cass` migration and spatial-state conversion, which remain outside this contract.
 
 The recommended default is a Cassandra-owned, all-or-nothing, version-checked, idempotent package with a durable pending state. Keep the Main World paused and the Temporary World frozen until the package is applied or an explicit recovery decision is made.
 
-## 15. Related documents
+## 16. Related documents
 
 - `phase-3-brainstorm.md`
 - `phase-3-implementation-plan.md`
