@@ -544,6 +544,7 @@ No implementation starts from this section until the complete specification is a
 - **World pause — Agreed:** Pausing the persistent world during a temporary encounter is Cassandra/game policy, not an Engine rule.
 - **World lifecycle — Agreed principle:** Existence, loading, simulation, pause, selection/focus, and rendering are separate concerns.
 - **Temporary-world result — Agreed concept:** The temporary world returns a delta/change package; the persistent world is updated using previous state plus changes rather than being wholly overwritten.
+- **Expedition return entitlement — Agreed (2026-11-15):** The player must receive every item, resource, pawn and reward owed by the finalized encounter outcome. Identity remapping, persistence, retries, crashes or Temporary World disposal must never silently lose it. Every relevant result needs an explicit disposition and auditable reconciliation; unresolved mappings block commit rather than dropping the result.
 - **Cassandra world scale — Recorded requirement:** 128×128 is a common secondary-world size; 256×256 must remain supported by the game.
 - **Grid topology — Agreed direction:** Square grid.
 - **Spatial occupancy — Agreed:** One coordinate can contain multiple independent entities and spatial contents.
