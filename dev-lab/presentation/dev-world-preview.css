@@ -450,3 +450,13 @@ canvas:active { cursor: grabbing; }
   letter-spacing: .05em;
   pointer-events: auto;
 }
+
+
+.spatial-inspector {
+  overflow-x: hidden;
+  overflow-y: auto;
+  pointer-events: auto;
+}
+@media(max-width:640px) {
+  .spatial-region-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
