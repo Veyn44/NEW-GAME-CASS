@@ -85,6 +85,12 @@ export class SpatialTestController {
     return this.#entities.get(entityId);
   }
 
+  removeAll() {
+    const removed = [];
+    for (const { entity } of this.list()) removed.push(this.remove(entity.id));
+    return Object.freeze(removed);
+  }
+
   #assertOwned(entityId) {
     const entity = this.#entities.get(entityId);
     if (!entity || entity.kind !== TEST_ENTITY_KIND || entity.metadata?.owner !== "dev-lab"
