@@ -47,7 +47,7 @@ The repository currently has no `engine/spatial/` directory or dedicated grid/co
 - Engine exposes generic spatial facts. Cassandra owns terrain, vacuum meaning, passability, buildability, movement speed, damage and gameplay outcomes.
 - Main World pause during an expedition remains Cassandra policy.
 - No background simulation is introduced for inactive worlds.
-- Existing `.cass` save compatibility must be preserved.
+- No backward compatibility guarantee is required for saves from older Cassandra versions. Unsupported old saves may be rejected safely; selected migrations are optional and explicitly version-scoped.
 - Existing tested environment/simulation behavior must not be changed without a demonstrated dependency and separate approval.
 
 ### 1.3 Source-audit limitation
@@ -102,12 +102,12 @@ Tasks:
 2. Complete the remaining Phase 3 design areas that are prerequisites: Step 7 ownership/transfer, Step 8 persistence and `.cass` compatibility, and Step 9 integrated acceptance.
 3. Resolve the placement-authority decision in Section 8.
 4. Locate the actual Cassandra movement, environment, world-generation, save/load and temporary-world/expedition code and tests.
-5. Record current `.cass` fixture coverage and expected load/save behavior before adding spatial snapshots.
+5. Record current supported `.cass` format/fixture coverage and expected rejection behavior for unsupported historical versions before adding spatial snapshots.
 6. Run and record the existing Core and application test suites on the untouched baseline.
 
 **Exit criteria:**
 - No unresolved architectural choice blocks the first implementation slice.
-- Existing save compatibility has a concrete test/fixture strategy.
+- Current-format save behavior and safe rejection of unsupported historical formats have a concrete test/fixture strategy; legacy migration fixtures are required only for explicitly supported migration paths.
 - Existing environment simulation behavior is covered by regression tests.
 - The full design is explicitly approved before code work begins.
 
@@ -218,9 +218,9 @@ Tasks:
 - Validate world IDs, grid bounds, entity references, footprints, stable IDs and duplicate occupancy during restore preparation.
 - Build restored spatial state off to the side; commit as one participant transaction and support rollback.
 - Ensure participant ordering works with World Registry and Entity Registry references.
-- Define migration behavior for saves that predate the spatial participant.
+- Define explicit rejection or an intentionally supported, version-scoped migration for saves that predate the spatial participant.
 - Preserve existing `.cass` envelopes, metadata and application-specific state contracts.
-- Decide explicitly whether absent spatial snapshots mean an empty legacy spatial state or require an application migration; never silently discard existing Cassandra map state.
+- Never interpret an absent spatial snapshot as empty by default. Reject the save unless a deliberately supported migration can derive the spatial state from authoritative legacy data.
 
 **Exit criteria:**
 - Save/load round trips preserve all authoritative spatial records.
@@ -291,7 +291,7 @@ Tasks:
 ### Slice 9 — End-to-end acceptance and release gate
 
 Tasks:
-- Run all existing Core, application and `.cass` compatibility tests.
+- Run all existing Core/application tests plus current-format save tests and safe-rejection tests for unsupported historical `.cass` versions.
 - Run all new geometry, composition, query, movement and persistence tests.
 - Run multi-world integration scenarios.
 - Verify Main World pause/Temporary World simulation/return behavior.
@@ -373,9 +373,10 @@ This is a conceptual dependency graph. Exact bootstrap service IDs and participa
 
 ### 6.3 Save compatibility
 
-- Preserve existing `.cass` format/envelope unless an explicit versioned migration is designed and approved.
-- Maintain representative legacy save fixtures.
-- Test both loading and re-saving legacy saves.
+- Version the `.cass` envelope and inner schemas explicitly.
+- No backward compatibility promise for prior game versions; unsupported historical versions may be rejected.
+- Maintain representative fixtures for currently supported formats and any specifically supported migration path.
+- Test clean rejection of unsupported versions and verify the source file/runtime remain unchanged.
 - Verify that spatial snapshot introduction cannot silently erase or reinterpret existing Cassandra map/environment data.
 - Treat migration failure as a failed load; do not partially commit registries or spatial state.
 
@@ -490,7 +491,7 @@ The proposal specifies:
 - Coordinate conversion rules for each legacy spatial source.
 - Platform-specific atomic replacement/backup guarantees and migration UI flow.
 
-**Gate:** Persistence integration (Slice 5) remains blocked until the migration contract, actual legacy sources and representative fixtures are reviewed and accepted.
+**Gate:** Persistence integration (Slice 5) remains blocked until the supported-format policy, actual current save sources and representative fixtures are reviewed and accepted. A universal legacy migration strategy is not a prerequisite.
 
 ## 9. Review checkpoints
 
@@ -528,7 +529,7 @@ Any proposed exception must identify the concrete dependency and the smallest re
 
 **Ready for detailed implementation review:** Grid Geometry, Spatial Composition, Spatial Queries and Movement & Collision each have a working proposal with acceptance scenarios.
 
-**Not yet implementation-ready:** Formal temporary-world change-package protocol and legacy `.cass` spatial migration/compatibility. The placement authority model is now agreed, while its integration mechanics remain a working contract proposal. Phase 3 Step 7 and Step 8 design work remains necessary; Step 9 must consolidate integrated acceptance.
+**Not yet implementation-ready:** Formal temporary-world change-package protocol and the exact supported save-version policy/fixtures still need final implementation-level closure. Backward compatibility with arbitrary old `.cass` versions is explicitly not required. The placement authority model is agreed, while its integration mechanics remain a working contract proposal. Phase 3 Step 7 and Step 8 design work remains necessary; Step 9 must consolidate integrated acceptance.
 
 **Current action:** Document and review only. No source/runtime code changes are authorized by this plan. No PR merge or `main` update is implied.
 
