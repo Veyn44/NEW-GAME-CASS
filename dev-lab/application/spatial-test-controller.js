@@ -19,6 +19,7 @@ export class SpatialTestController {
     if (!entityRegistry?.registerPersistent || !entityRegistry?.get || !entityRegistry?.list
       || !worldRegistry?.get || !worldRegistry?.activeWorldId
       || !spatialComposition?.getEntityOccupancy || !spatialComposition?.listEntityOccupancies
+      || !spatialComposition?.queryRegion
       || !placementCoordinator?.placeEntity || !placementCoordinator?.removeEntity
       || !spatialMovement?.moveEntity) {
       throw new TypeError("SpatialTestController requires the shared Engine spatial services.");
@@ -47,6 +48,12 @@ export class SpatialTestController {
     }
     const normalizedFootprint = normalizeFootprintOffsets(footprint);
     const cells = deriveFootprintCells({ anchor, footprint: normalizedFootprint, orientation, grid: world.grid });
+    const overlaps = this.#spatial.queryRegion(worldId, { type: "cells", cells }).entities;
+    if (overlaps.length > 0) {
+      const error = new Error("Test entity footprint overlaps an occupied entity.");
+      error.code = "DEV_LAB_OVERLAP";
+      throw error;
+    }
     const id = this.#nextId();
     const entity = this.#entities.registerPersistent({
       id,
