@@ -670,7 +670,7 @@ Source audit of `src/adapters/storage/local-file-save-adapter.js` confirms:
 
 The future campaign persistence adapter must explicitly prove the required atomic replacement/generation-manifest guarantee on its target platform. Do not infer this guarantee from the existing workspace adapter or from successful JSON serialization.
 
-A candidate browser implementation now stores the entire campaign snapshot (Major State, pending Change Buffer and Applied ledger) as one IndexedDB object-store record. Each promotion is one `readwrite` transaction requested with `durability: "strict"`; the adapter fails closed unless the transaction reports strict durability and resolves only after transaction completion. This is the selected backend direction for the browser host, but actual target-browser support and crash/reopen behavior must be verified before it is treated as production-ready.
+A candidate browser implementation now stores the entire campaign snapshot (Major State, pending Change Buffer and Applied ledger) as one IndexedDB object-store record. Each promotion is one `readwrite` transaction requested with `durability: "strict"`; the transaction reads the current record revision, compares it with the caller's expected revision, and writes the next generation in that same transaction. This provides atomic compare-and-swap across tabs/coordinator instances and prevents lost updates. The coordinator requires both `atomicReplace` and `compareAndSwap` capabilities. The adapter fails closed unless the transaction reports strict durability and resolves only after transaction completion. This is the selected backend direction for the browser host, but actual target-browser support and crash/reopen behavior must be verified before it is treated as production-ready.
 
 ### 14.9 Open review points
 
@@ -725,7 +725,7 @@ Implemented foundations:
 - A deliberately strict storage boundary requiring a whole-campaign-snapshot atomic replacement capability.
 
 Not yet implemented or proven:
-- A candidate browser campaign adapter now exists at `src/adapters/storage/indexeddb-campaign-save-adapter.js`. It stores the complete campaign snapshot as one IndexedDB object-store record and requires a strict-durability readwrite transaction. Focused adapter tests use a deterministic IndexedDB test double; actual browser/runtime support and crash-recovery behavior still require verification before production use.
+- A candidate browser campaign adapter now exists at `src/adapters/storage/indexeddb-campaign-save-adapter.js`. It stores the complete campaign snapshot as one IndexedDB object-store record, requires a strict-durability readwrite transaction and enforces cross-writer compare-and-swap using a monotonically increasing storage revision. Focused adapter tests use a deterministic IndexedDB test double; actual browser/runtime support and crash-recovery behavior still require verification before production use.
 - The existing `dev-lab-workspace` .cass adapter remains explicitly rejected by this coordinator.
 - No authoritative Cassandra aggregate model or complete domain operation registry is wired into the runtime.
 - No campaign projection builder, location-record store, expedition End/Abandon workflow, Temporary World disposal gate or recovery UI is integrated.
