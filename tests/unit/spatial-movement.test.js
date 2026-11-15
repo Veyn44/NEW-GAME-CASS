@@ -135,10 +135,13 @@ test("asynchronous, throwing and malformed policies fail without moving", async 
   const s = setup();
   place(s, "pawn:mover", { x: 1, y: 1 });
   const before = occupancy(s, "pawn:mover");
+  place(s, "pawn:other", { x: 5, y: 5 });
+  const otherBefore = occupancy(s, "pawn:other");
   assert.equal(s.movement.moveEntity("pawn:mover", { worldId: "grid-a", anchor: { x: 2, y: 2 } }, () => Promise.resolve(true)).code, "ASYNC_POLICY_UNSUPPORTED");
-  assert.equal(s.movement.moveEntity("pawn:mover", { worldId: "grid-a", anchor: { x: 2, y: 2 } }, () => { throw new Error("policy failure"); }).code, "POLICY_EVALUATION_FAILED");
-  assert.equal(s.movement.moveEntity("pawn:mover", { worldId: "grid-a", anchor: { x: 2, y: 2 } }, () => "yes").code, "INVALID_POLICY_RESULT");
+  assert.equal(s.movement.moveEntity("pawn:other", { worldId: "grid-a", anchor: { x: 6, y: 6 } }, () => { throw new Error("policy failure"); }).code, "POLICY_EVALUATION_FAILED");
+  assert.equal(s.movement.moveEntity("pawn:other", { worldId: "grid-a", anchor: { x: 6, y: 6 } }, () => "yes").code, "INVALID_POLICY_RESULT");
   assert.equal(occupancy(s, "pawn:mover"), before);
+  assert.equal(occupancy(s, "pawn:other"), otherBefore);
   await Promise.resolve();
 });
 
