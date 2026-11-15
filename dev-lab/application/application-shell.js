@@ -212,6 +212,7 @@ function refreshWorldMarkers() {
       id: entity.id,
       x: occupancy.anchor.x,
       y: occupancy.anchor.y,
+      cells: occupancy.cells,
       label: "TEST ENTITY"
     }));
   viewport.setWorldMarkers([...unitMarkers, ...testMarkers]);
