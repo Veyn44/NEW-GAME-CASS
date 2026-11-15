@@ -14,7 +14,9 @@ The Core is the domain-neutral runtime foundation for host applications. Cassand
 - `simulation-scheduler.js` — deterministic fixed-step execution, speed-snapshotted backlog and bounded catch-up.
 - `entity-registry.js` — stable entity identity, persistent/scoped lifecycles and metadata, independent of domain behavior and world placement.
 - `world-registry.js` — registration and activation of host-defined worlds, with opaque host metadata and an explicit optional grid capability.
-- `world-context.js` — exclusive entity placement and atomic transfer between world and storage locations.
+- `world-context.js` — exclusive world/storage association; direct grid-backed mutations require Placement Coordinator.
+- `../spatial/placement-coordinator.js` — atomic transaction boundary for grid placement, occupancy, lifecycle and composite restore.
+- `../spatial/spatial-composition.js` — sparse cell contents, canonical entity footprints and derived occupancy indexes.
 - `persistence.js` — adapter-neutral atomic save contract, schema migration and transactional participant restore.
 
 
@@ -55,7 +57,7 @@ A simulation task declares `systemId` matching a host system and a synchronous `
 
 ## Ownership boundaries
 
-Entity Registry owns identity. Domain systems own domain state. World Registry owns world definitions/activation. World Context owns entity placement. Core does not generate galaxies, maps, expeditions, scans, host-specific entities or game rules.
+Entity Registry owns identity. Domain systems own domain state. World Registry owns world definitions/activation. World Context owns world/storage association; Placement Coordinator atomically pairs grid placement with Spatial Composition occupancy and Entity Registry lifecycle changes. Direct one-sided grid mutation is rejected. Core does not generate galaxies, maps, expeditions, scans, host-specific entities or game rules.
 
 ## Minimal host integration
 
