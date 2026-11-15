@@ -60,7 +60,7 @@ export class PlacementCoordinator {
       this.#faulted = true; throw new PlacementCoordinatorError("PLACEMENT_INTEGRITY_MISMATCH", "WorldContext and Spatial Composition disagree.", { entityId });
     }
   }
-  #validateSnapshot(snapshot) {
+  #validateSnapshot(snapshot, { validateWorlds = true } = {}) {
     if (!snapshot || snapshot.version !== 1 || !snapshot.worldContext || !snapshot.spatialComposition) throw new PlacementCoordinatorError("INVALID_SNAPSHOT", "Invalid composite placement snapshot.");
     const placements = snapshot.worldContext.placements, occupancies = snapshot.spatialComposition.entityOccupancies ?? [];
     if (!Array.isArray(placements) || !Array.isArray(occupancies)) throw new PlacementCoordinatorError("INVALID_SNAPSHOT", "Composite collections must be arrays.");
@@ -72,11 +72,15 @@ export class PlacementCoordinator {
       byPlacement.set(item.entityId,item);
       const occupancy = byOccupancy.get(item.entityId);
       if (item.type !== "world") { if (occupancy) throw new PlacementCoordinatorError("UNEXPECTED_ENTITY_OCCUPANCY", "Stored entity has occupancy."); continue; }
-      const world = this.#worlds.get(item.worldId);
-      if (!world) throw new PlacementCoordinatorError("UNKNOWN_WORLD", "Snapshot references unknown world.", { worldId: item.worldId });
-      if (world.grid == null) { if (occupancy) throw new PlacementCoordinatorError("UNEXPECTED_ENTITY_OCCUPANCY", "Non-grid placement has occupancy.", { entityId: item.entityId }); }
-      else if (!occupancy || occupancy.worldId !== item.worldId || item.position.x !== occupancy.anchor?.x + 0.5 || item.position.y !== occupancy.anchor?.y + 0.5)
-        throw new PlacementCoordinatorError("PLACEMENT_INTEGRITY_MISMATCH", "Grid placement and occupancy anchor do not match.", { entityId: item.entityId });
+      if (validateWorlds) {
+        const world = this.#worlds.get(item.worldId);
+        if (!world) throw new PlacementCoordinatorError("UNKNOWN_WORLD", "Snapshot references unknown world.", { worldId: item.worldId });
+        if (world.grid == null && occupancy) throw new PlacementCoordinatorError("UNEXPECTED_ENTITY_OCCUPANCY", "Non-grid placement has occupancy.", { entityId: item.entityId });
+        if (world.grid != null && (!occupancy || occupancy.worldId !== item.worldId || item.position.x !== occupancy.anchor?.x + 0.5 || item.position.y !== occupancy.anchor?.y + 0.5))
+          throw new PlacementCoordinatorError("PLACEMENT_INTEGRITY_MISMATCH", "Grid placement and occupancy anchor do not match.", { entityId: item.entityId });
+      } else if (occupancy && (occupancy.worldId !== item.worldId || item.position.x !== occupancy.anchor?.x + 0.5 || item.position.y !== occupancy.anchor?.y + 0.5)) {
+        throw new PlacementCoordinatorError("PLACEMENT_INTEGRITY_MISMATCH", "Occupancy and placement anchor do not match.", { entityId: item.entityId });
+      }
     }
     for (const entityId of byOccupancy.keys()) { const p = byPlacement.get(entityId); if (!p || p.type !== "world" || p.worldId !== byOccupancy.get(entityId).worldId) throw new PlacementCoordinatorError("ORPHAN_ENTITY_OCCUPANCY", "Occupancy has no matching WorldContext placement.", { entityId }); }
     return true;
@@ -86,14 +90,15 @@ export class PlacementCoordinator {
     return Object.freeze({
       id, schemaVersion: 1, required: true, order,
       captureSnapshot: () => { this.#assertHealthy(); const snapshot = Object.freeze({ version: 1, worldContext: this.#worldContext.captureSnapshot(), spatialComposition: this.#spatial.captureSnapshot() }); this.#validateSnapshot(snapshot); return snapshot; },
-      validateSnapshot: (snapshot) => { try { this.#validateSnapshot(snapshot); this.#worldContext.prepareRestore(snapshot.worldContext,{deferReferenceValidation:true}); this.#spatial.prepareRestore(snapshot.spatialComposition); return true; } catch { return false; } },
+      validateSnapshot: (snapshot) => { try { this.#validateSnapshot(snapshot,{validateWorlds:false}); this.#worldContext.prepareRestore(snapshot.worldContext,{deferReferenceValidation:true}); this.#spatial.prepareRestore(snapshot.spatialComposition,{deferWorldValidation:true}); return true; } catch { return false; } },
       prepareRestore: (snapshot) => {
-        this.#assertHealthy(); this.#validateSnapshot(snapshot);
-        const worldTx = this.#worldContext.prepareRestore(snapshot.worldContext,{deferReferenceValidation:true}), spatialTx = this.#spatial.prepareRestore(snapshot.spatialComposition);
+        this.#assertHealthy(); this.#validateSnapshot(snapshot,{validateWorlds:false});
+        const worldTx = this.#worldContext.prepareRestore(snapshot.worldContext,{deferReferenceValidation:true}), spatialTx = this.#spatial.prepareRestore(snapshot.spatialComposition,{deferWorldValidation:true});
         let committed = false;
         return Object.freeze({
           commit: () => {
             if (committed) throw new PlacementCoordinatorError("RESTORE_ALREADY_COMMITTED","Restore already committed.");
+            this.#validateSnapshot(snapshot,{validateWorlds:true});
             worldTx.commit();
             try { spatialTx.commit(); }
             catch (error) { try { worldTx.rollback(); } catch (rollbackError) { this.#faulted=true; throw new PlacementCoordinatorError("FATAL_INTEGRITY_FAULT","Restore rollback failed.",{cause:error?.message,rollback:rollbackError?.message}); } throw error; }
