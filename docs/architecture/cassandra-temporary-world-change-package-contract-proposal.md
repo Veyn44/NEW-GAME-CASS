@@ -717,10 +717,10 @@ Implemented foundations:
 - Canonical JSON normalization and SHA-256 package integrity verification.
 - Versioned immutable package envelopes, explicit dispositions, per-aggregate baselines and typed operation dependencies.
 - Session-scoped campaign-entity ↔ Temporary World runtime-entity projection mapping in `src/gameplay/expedition/cassandra-expedition-projection.js`, with strict Engine identity/scope validation, one-to-one mapping, snapshot restore and exact-one manifest coverage for each projected persistent entity.\n- A Unit projection adapter in `src/gameplay/expedition/cassandra-unit-expedition-projection.js` now creates real scoped Temporary World Unit instances through the existing Unit API, records their persistent campaign mapping and retires any partially created projections if the batch fails.\n- `src/gameplay/expedition/cassandra-expedition-projection-system.js` now persists the mapping as a Cassandra participant after Entity Registry, Unit and World Session restoration; it validates restored identities only after those authoritative participants have committed.
-- Durable pending Change Buffer staging with an expedition-start checkpoint.
+- Durable pending Change Buffer staging with an expedition-start checkpoint protected by its own SHA-256 digest.
 - Candidate State construction from a detached Major State copy.
 - Per-aggregate conflict checks, handler-based typed operation validation/application and one revision increment per touched aggregate.
-- Stable result-key identity mapping checkpointed into the pending buffer before promotion.
+- Exact resultKey coverage: every new result key must resolve to one unique campaign entity ID; the mapping is checkpointed into the pending buffer and protected by its own SHA-256 digest before promotion.\n- Successful package promotion increments the Major State revision and each touched aggregate revision exactly once; typed handlers and read-only validators cannot change revision counters directly. Explicit no-op outcome packages are supported when the encounter has no aggregate mutations.
 - Idempotent Applied ledger checks and retry behavior.
 - A deliberately strict storage boundary requiring a whole-campaign-snapshot atomic replacement capability.
 
