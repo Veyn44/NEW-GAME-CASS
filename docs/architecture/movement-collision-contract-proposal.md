@@ -5,9 +5,9 @@
 **Branch:** `work`  
 **Source audit:** 2026-11-15
 
-This document defines the boundary between reusable Engine spatial operations and host-owned movement/collision behavior. It builds on the optional Grid Geometry and Spatial Composition contracts. It does not authorize source/runtime changes.
+This document defines the boundary between reusable Engine spatial operations and host-owned movement/collision behavior. It builds on the implemented Grid Geometry and Spatial Composition contracts. Slice 4 adds only the generic Engine movement transaction; Cassandra gameplay integration remains deferred.
 
-Technical defaults below are intended to guide the next implementation plan. They should be refined only where a real integration requirement appears.
+The ownership boundaries below are implemented as the Engine baseline. Any extension should be driven by a concrete host integration requirement.
 
 ## 1. Recommended scope decision
 
