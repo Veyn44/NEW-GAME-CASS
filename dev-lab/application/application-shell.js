@@ -396,7 +396,7 @@ function inspectSpatialCell(cell) {
         ? `MOVED · ${state.selectedTestEntityId} → (${cell.x}, ${cell.y})`
         : "ENTITY ALREADY AT TARGET";
     } else {
-      spatialTestStatus.textContent = `MOVE ${result.status.toUpperCase()} · ${result.code}`;
+      spatialTestStatus.textContent = `MOVE ${result.status.toUpperCase()} · ${result.code} · ${result.diagnostic?.overlaps.length ?? 0} OVERLAP(S)`;
     }
     updateSpatialTestControls();
   }
@@ -406,7 +406,8 @@ function inspectSpatialCell(cell) {
     spatialCellLabel.textContent = `${worldId} · (${inspection.cell.x}, ${inspection.cell.y})`;
     spatialCellData.textContent = JSON.stringify({
       contents: inspection.contents,
-      entities: inspection.entities
+      entities: inspection.entities,
+      lastMovement: state.spatialTestController?.getLastMovement() ?? null
     }, null, 2);
     updateSpatialTestControls();
     return inspection;
