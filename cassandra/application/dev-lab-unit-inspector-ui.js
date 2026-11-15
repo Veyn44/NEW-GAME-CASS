@@ -153,8 +153,10 @@ export function createCassandraDevLabUnitInspectorUi({
       "Definition": definition?.name ?? unit.definitionId,
       "Definition ID": unit.definitionId,
       "World": unit.placement?.worldId ?? "—",
-      "Tile X": unit.placement?.position?.x ?? "—",
-      "Tile Y": unit.placement?.position?.y ?? "—"
+      "Grid cell X": Number.isFinite(unit.position?.x) ? Math.floor(unit.position.x) : "—",
+      "Grid cell Y": Number.isFinite(unit.position?.y) ? Math.floor(unit.position.y) : "—",
+      "Movement X": unit.position?.x ?? "—",
+      "Movement Y": unit.position?.y ?? "—"
     });
     appendAttributeRows(documentRef, details, {
       "Entity type": definition?.entityType ?? "—",
@@ -199,8 +201,8 @@ export function createCassandraDevLabUnitInspectorUi({
       appendAttributeRows(documentRef, ui.unitProfileAttributes, { Record: "No personal attributes recorded." });
     }
     ui.unitProfileInstance.textContent = "LIVE WORLD INSTANCE";
-    ui.unitProfileLocation.textContent = unit.placement?.position
-      ? `LOCATION · ${unit.placement.position.x}, ${unit.placement.position.y}`
+    ui.unitProfileLocation.textContent = unit.position
+      ? `LOCATION · ${unit.position.x.toFixed(2)}, ${unit.position.y.toFixed(2)}`
       : "LOCATION · UNKNOWN";
     ui.unitProfile.hidden = false;
     ui.quickSelectInfo.textContent = "CLOSE INFO";
