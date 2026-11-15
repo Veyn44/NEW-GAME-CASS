@@ -190,13 +190,16 @@ export class SpatialComposition {
       entityOccupancies: Object.freeze(this.listEntityOccupancies().map((r) => ({ entityId: r.entityId, worldId: r.worldId,
         anchor: { x: r.anchor.x, y: r.anchor.y }, footprint: r.footprint.map((p) => ({ x: p.x, y: p.y })), orientation: r.orientation }))) });
   }
-  prepareRestore(snapshot) {
-    const next = this.#parse(snapshot), previous = { contents: this.#contents, byCell: this.#byCell, reserved: this.#reserved, entityOccupancies: this.#entityOccupancies, entitiesByCell: this.#entitiesByCell };
+  prepareRestore(snapshot, { deferWorldValidation = false } = {}) {
+    const stableSnapshot = clone(snapshot, "snapshot");
+    const next = deferWorldValidation ? null : this.#parse(stableSnapshot);
+    const previous = { contents: this.#contents, byCell: this.#byCell, reserved: this.#reserved, entityOccupancies: this.#entityOccupancies, entitiesByCell: this.#entitiesByCell };
     let committed = false;
     return Object.freeze({
       commit: () => {
         if (committed) throw new SpatialCompositionError("RESTORE_ALREADY_COMMITTED", "Restore transaction was already committed.");
-        this.#contents = next.contents; this.#byCell = next.byCell; this.#reserved = next.reserved; this.#entityOccupancies = next.entityOccupancies; this.#entitiesByCell = next.entitiesByCell; committed = true;
+        const parsed = next ?? this.#parse(stableSnapshot);
+        this.#contents = parsed.contents; this.#byCell = parsed.byCell; this.#reserved = parsed.reserved; this.#entityOccupancies = parsed.entityOccupancies; this.#entitiesByCell = parsed.entitiesByCell; committed = true;
       },
       rollback: () => {
         if (!committed) return false;
