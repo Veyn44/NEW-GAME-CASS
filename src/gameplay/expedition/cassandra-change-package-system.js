@@ -442,7 +442,7 @@ export function createCassandraChangePackageCoordinator({
   }
 
   return Object.freeze({
-    async stage(immutablePackage, { checkpoint } = {}) {
+    async stage(changePackage, { checkpoint } = {}) {
       const immutablePackage = deepFreeze(cloneJson(changePackage));
       await verifyCassandraChangePackage(immutablePackage);
       const snapshot = await loadSnapshot();
