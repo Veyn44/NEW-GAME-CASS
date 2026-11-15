@@ -75,6 +75,7 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
   let temporaryWorldId = null;
   let worldTimes = new Map();
   let unregisterPersistence = null;
+  let temporaryDisposalInProgress = false;
 
   function commitPendingStepIfSuccessful() {
     if (!pendingStep || scheduler.snapshot.tick < pendingStep.tick) return false;
@@ -188,6 +189,12 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
     },
 
     async completeTemporaryWorld({ packageId, digest } = {}) {
+      if (temporaryDisposalInProgress) {
+        throw new CassandraWorldSessionError("TEMPORARY_DISPOSAL_IN_PROGRESS",
+          "Temporary World disposal is already in progress.");
+      }
+      temporaryDisposalInProgress = true;
+      try {
       commitPendingStepIfSuccessful();
       if (temporaryWorldId === null) {
         throw new CassandraWorldSessionError("NO_TEMPORARY_WORLD", "There is no Temporary World to complete.");
@@ -217,9 +224,13 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
       // preflight from partially disposing the Temporary World.
       const cleanupCommits = [];
       for (const handler of temporaryWorldCleanupHandlers) {
-        const commit = await handler(Object.freeze({
+        const commit = handler(Object.freeze({
           phase: "prepare", packageId, digest, temporaryWorldId: id
         }));
+        if (commit && typeof commit.then === "function") {
+          throw new CassandraWorldSessionError("ASYNC_TEMPORARY_CLEANUP_PREPARATION",
+            "Temporary World cleanup preparation must be synchronous.");
+        }
         if (typeof commit !== "function") {
           throw new CassandraWorldSessionError("INVALID_TEMPORARY_CLEANUP_PLAN",
             "Temporary World cleanup handlers must return a commit function during prepare.");
@@ -296,6 +307,9 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
       worldTimes.delete(id);
       pendingStep = null;
       return api.getState();
+      } finally {
+        temporaryDisposalInProgress = false;
+      }
     },
 
     advance(deltaSeconds, tick = null) {
