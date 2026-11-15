@@ -1,3 +1,5 @@
+import { PLACEMENT_AUTHORITY } from "../spatial/placement-authority.js";
+
 const ENTITY_ID_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9:._-]{0,159}$/;
 const ENTITY_KIND_PATTERN = /^[a-z][a-z0-9.-]*$/;
 const SNAPSHOT_VERSION = 2;
@@ -142,6 +144,7 @@ function validateRecord(raw, index) {
  */
 export class EntityRegistry {
   #entities = new Map();
+  #spatialOccupancyGuard = null;
   #idFactory;
   #scopeCounters = new Map();
   #logger;
@@ -227,6 +230,7 @@ export class EntityRegistry {
    */
   store(id) {
     const current = this.#require(id);
+    if (this.#spatialOccupancyGuard?.(id)) throw new EntityRegistryError("GRID_COORDINATOR_REQUIRED", "An entity with grid occupancy must be stored through PlacementCoordinator.", { id });
     if (current.status !== "active" || current.scope !== "scoped") {
       throw new EntityRegistryError("ENTITY_NOT_STORABLE", `Entity "${id}" is not an active scoped entity.`, { id, scope: current.scope, status: current.status });
     }
@@ -237,6 +241,33 @@ export class EntityRegistry {
     this.#entities.set(id, updated);
     this.#log("info", "Scoped entity transferred to persistent storage.", { entityId: id, scopeId: current.scopeId });
     return updated;
+  }
+
+  setSpatialOccupancyGuard(guard, authority) {
+    if (authority !== PLACEMENT_AUTHORITY) throw new EntityRegistryError("PLACEMENT_AUTHORITY_REQUIRED", "Only Engine placement services may install the occupancy guard.");
+    if (typeof guard !== "function") throw new EntityRegistryError("INVALID_OCCUPANCY_GUARD", "Occupancy guard must be a function.");
+    if (this.#spatialOccupancyGuard && this.#spatialOccupancyGuard !== guard) throw new EntityRegistryError("OCCUPANCY_GUARD_ALREADY_SET", "Occupancy guard already installed.");
+    this.#spatialOccupancyGuard = guard;
+  }
+
+  prepareCoordinatedLifecycleChange(id, operation, authority) {
+    if (authority !== PLACEMENT_AUTHORITY) throw new EntityRegistryError("PLACEMENT_AUTHORITY_REQUIRED", "Only PlacementCoordinator may prepare lifecycle changes.");
+    const current = this.#require(id); let next;
+    if (operation === "store") {
+      if (current.status !== "active" || current.scope !== "scoped") throw new EntityRegistryError("ENTITY_NOT_STORABLE", "Only active scoped entities can be stored.", { id });
+      next = freezeRecord({ ...current, scope: "persistent", scopeId: null, originScopeId: current.scopeId, status: "stored" });
+    } else if (operation === "activate") {
+      if (current.status !== "stored") throw new EntityRegistryError("ENTITY_NOT_STORED", "Only stored entities can be activated.", { id });
+      next = freezeRecord({ ...current, status: "active" });
+    } else if (operation === "remove") {
+      if (current.status === "removed") throw new EntityRegistryError("ENTITY_REMOVED", "Entity is already removed.", { id });
+      next = freezeRecord({ ...current, status: "removed" });
+    } else throw new EntityRegistryError("INVALID_LIFECYCLE_OPERATION", "Unsupported lifecycle operation.", { operation });
+    let committed = false;
+    return Object.freeze({
+      commit: () => { if (committed) throw new EntityRegistryError("TRANSACTION_ALREADY_COMMITTED", "Lifecycle transaction already committed."); this.#entities.set(id, next); committed = true; },
+      rollback: () => { if (!committed) return false; this.#entities.set(id, current); committed = false; return true; }
+    });
   }
 
   /** Marks a stored identity as active again; world placement is handled elsewhere. */
@@ -253,6 +284,7 @@ export class EntityRegistry {
   /** Creates a tombstone. IDs are never reusable within this registry. */
   remove(id) {
     const current = this.#require(id);
+    if (this.#spatialOccupancyGuard?.(id)) throw new EntityRegistryError("GRID_COORDINATOR_REQUIRED", "An entity with grid occupancy must be retired through PlacementCoordinator.", { id });
     if (current.status === "removed") return false;
     this.#entities.set(id, freezeRecord({ ...current, status: "removed" }));
     return true;
