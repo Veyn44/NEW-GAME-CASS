@@ -213,7 +213,7 @@ test("IndexedDB campaign adapter leaves the previous snapshot intact when a tran
     appliedLedger: []
   };
   await assert.rejects(
-    () => adapter.writeCampaignSnapshotAtomic(next, 0),
+    () => adapter.writeCampaignSnapshotAtomic(next, 1),
     { code: "INDEXEDDB_WRITE_FAILED" }
   );
   assert.deepEqual(await adapter.loadCampaignSnapshot(), {
