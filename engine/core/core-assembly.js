@@ -133,7 +133,7 @@ export function createCoreAssembly({
       id: "core.spatial-composition",
       provides: [SERVICE.spatialComposition],
       requires: [SERVICE.worlds],
-      initialize(context) { return { [SERVICE.spatialComposition]: new SpatialComposition({ worldRegistry: required(context, SERVICE.worlds) }) }; }
+      initialize(context) { return { [SERVICE.spatialComposition]: new SpatialComposition({ worldRegistry: required(context, SERVICE.worlds), entityRegistry: required(context, SERVICE.entities) }) }; }
     },
     {
       id: "core.placement-coordinator",
