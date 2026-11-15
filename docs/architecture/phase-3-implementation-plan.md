@@ -1,6 +1,6 @@
 # Phase 3 Physical World — Implementation Plan
 
-**Status:** Slices 1–6 are implemented on `work`; the first Dev Lab spatial-inspection sub-slice is implemented. CI/manual integrated acceptance for the latest changes is not yet confirmed.  
+**Status:** Slices 1–6 are implemented on `work`; Dev Lab now has initial Engine-backed cell inspection and spatial test-entity spawn/move/retire workflows. CI/manual integrated acceptance for the latest changes is not yet confirmed.  
 **Branch:** `work`  
 **Source audit:** 2026-11-15  
 **Scope:** Implementation sequencing for reusable Engine grid/spatial capabilities and their Cassandra/Dev Lab integration
@@ -365,9 +365,13 @@ Tasks:
 - `dev-lab/application/spatial-inspector.js` provides a read-only adapter over `SpatialComposition.queryCell`.
 - `shared/presentation/world-viewport.js` reports the clicked grid cell while paused; the Dev Lab panel displays that cell's contents and entity occupancy.
 - `tests/unit/dev-lab-spatial-inspector.test.js` covers empty-cell inspection, invalid coordinates and the shared Engine API boundary.
-- `.github/workflows/core-tests.yml` now syntax-checks the updated viewport and Dev Lab spatial-inspector modules; the new test is included by the existing `tests/unit/*.test.js` command.
+- `dev-lab/application/spatial-test-controller.js` creates and retires test entities through Entity Registry and Placement Coordinator, and moves them through Engine Spatial Movement with a Dev Lab-owned overlap policy.
+- Dev Lab can spawn 1×1 and 2×2 test footprints, select a test entity, enter move mode, click a target cell, and see moved/rejected outcomes. Reset retires disposable test entities; restored saves rebuild markers and clear stale UI selection.
+- Spawn and move reject occupied cells; test entities remain distinguishable from host-owned game entities and cannot be mutated through the test controller.
+- `tests/unit/spatial-test-controller.test.js` covers spawn, multi-cell occupancy, overlap rejection, movement, retirement and authority boundaries.
+- `.github/workflows/core-tests.yml` syntax-checks the updated viewport and Dev Lab spatial modules; both new test files are included by the existing `tests/unit/*.test.js` command.
 
-**Not yet implemented:** footprint/region/query controls, entity movement test controls, visual overlap results and full standalone-vs-Cassandra-hosted Dev Lab acceptance. The current panel is read-only and intentionally does not create test entities or content.
+**Not yet implemented:** richer region/radius/neighborhood query controls, visual footprint overlays, movement traces and full standalone-vs-Cassandra-hosted Dev Lab acceptance. The current test tools intentionally use a small explicit Dev Lab collision policy and do not define Cassandra passability or gameplay movement rules.
 
 **Target area:** Existing Dev Lab application/presentation modules; exact paths to be confirmed from current source before edits.
 
