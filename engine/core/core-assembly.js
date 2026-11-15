@@ -7,6 +7,7 @@ import { WorldRegistry } from "./world-registry.js";
 import { WorldContext } from "./world-context.js";
 import { SpatialComposition } from "../spatial/spatial-composition.js";
 import { PlacementCoordinator } from "../spatial/placement-coordinator.js";
+import { SpatialMovement } from "../spatial/spatial-movement.js";
 import { Persistence } from "./persistence.js";
 import { SystemBootstrap } from "./system-bootstrap.js";
 
@@ -19,6 +20,7 @@ const SERVICE = Object.freeze({
   worldContext: "core.world-context",
   spatialComposition: "core.spatial-composition",
   placementCoordinator: "core.placement-coordinator",
+  spatialMovement: "core.spatial-movement",
   scheduler: "core.scheduler",
   persistence: "core.persistence"
 });
@@ -145,6 +147,19 @@ export function createCoreAssembly({
           entityRegistry: required(context, SERVICE.entities), worldRegistry: required(context, SERVICE.worlds),
           worldContext: required(context, SERVICE.worldContext), spatialComposition: required(context, SERVICE.spatialComposition),
           onFatalIntegrityFault: () => clock.pause("core.placement-integrity-fault")
+        }) };
+      }
+    },
+    {
+      id: "core.spatial-movement",
+      provides: [SERVICE.spatialMovement],
+      requires: [SERVICE.entities, SERVICE.worlds, SERVICE.spatialComposition, SERVICE.placementCoordinator],
+      initialize(context) {
+        return { [SERVICE.spatialMovement]: new SpatialMovement({
+          entityRegistry: required(context, SERVICE.entities),
+          worldRegistry: required(context, SERVICE.worlds),
+          spatialComposition: required(context, SERVICE.spatialComposition),
+          placementCoordinator: required(context, SERVICE.placementCoordinator)
         }) };
       }
     },
