@@ -109,7 +109,7 @@ The current audited `.cass` workspace save is not a future campaign save and is 
 These items are not contradictions; they must be resolved before the dependent implementation slice:
 
 1. **Placement integration:** exact coordinator location/API, prepared-state transaction mechanism, mutation encapsulation, observer/persistence safe boundary and rollback implementation. The coordinate mapping is now approved.
-2. **Coordinate mapping:** confirm the grid-anchor ↔ World Context position rule and define migration behavior only for any specifically supported legacy source.
+2. **Legacy coordinate migration:** define a source-specific conversion only for any old save version Cassandra deliberately chooses to support; otherwise reject it safely. Never round fractional positions implicitly.
 3. **Persistence registration:** finalize the composite placement participant ID/schema, dependency order, cross-service validation, fatal rollback behavior and restore tests.
 4. **Save support matrix:** declare which current outer/inner/participant/content versions are accepted; reject everything else clearly. Golden fixtures must be generated from actual supported outputs.
 5. **Campaign save model:** identify the future campaign save identity and authoritative campaign/location/environment participants; do not infer them from the current workspace save.
