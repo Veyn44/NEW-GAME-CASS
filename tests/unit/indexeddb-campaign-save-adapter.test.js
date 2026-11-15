@@ -161,7 +161,8 @@ test("IndexedDB campaign adapter rejects stale cross-writer revisions", async ()
   });
   const secondWriter = new IndexedDbCampaignSaveAdapter({
     indexedDBRef,
-    campaignId: "campaign:cas"
+    campaignId: "campaign:cas",
+    initialSnapshot: initial
   });
   assert.equal((await firstWriter.loadCampaignSnapshot()).revision, 0);
   assert.equal((await secondWriter.loadCampaignSnapshot()).revision, 0);
