@@ -1,0 +1,263 @@
+const SNAPSHOT_VERSION = 1;
+const WORLD_ID = /^[a-zA-Z0-9][a-zA-Z0-9:._-]{0,159}$/;
+
+export class CassandraWorldSessionError extends Error {
+  constructor(code, message, details = {}) {
+    super(message);
+    this.name = "CassandraWorldSessionError";
+    this.code = code;
+    this.details = Object.freeze({ ...details });
+  }
+}
+
+function assertWorldId(value, label = "World ID") {
+  if (typeof value !== "string" || !WORLD_ID.test(value)) {
+    throw new CassandraWorldSessionError("INVALID_WORLD_ID", `${label} must be a stable ID.`, { value });
+  }
+  return value;
+}
+
+function parseSnapshot(snapshot) {
+  if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)
+    || snapshot.version !== SNAPSHOT_VERSION
+    || !Array.isArray(snapshot.worldTimes)) {
+    throw new CassandraWorldSessionError("INVALID_SNAPSHOT", "World session snapshot has an unsupported version or shape.");
+  }
+  const mainWorldId = assertWorldId(snapshot.mainWorldId, "Main World ID");
+  const temporaryWorldId = snapshot.temporaryWorldId === null
+    ? null : assertWorldId(snapshot.temporaryWorldId, "Temporary World ID");
+  const activeWorldId = assertWorldId(snapshot.activeWorldId, "Active World ID");
+  if (temporaryWorldId && temporaryWorldId === mainWorldId) {
+    throw new CassandraWorldSessionError("INVALID_SNAPSHOT", "Main and Temporary World IDs must be different.");
+  }
+  if (activeWorldId !== mainWorldId && activeWorldId !== temporaryWorldId) {
+    throw new CassandraWorldSessionError("INVALID_SNAPSHOT", "Active World must be the Main or Temporary World.");
+  }
+  const worldTimes = new Map();
+  for (const [index, entry] of snapshot.worldTimes.entries()) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      throw new CassandraWorldSessionError("INVALID_SNAPSHOT", `World time at index ${index} must be an object.`);
+    }
+    const worldId = assertWorldId(entry.worldId);
+    if (!Number.isFinite(entry.seconds) || entry.seconds < 0 || worldTimes.has(worldId)) {
+      throw new CassandraWorldSessionError("INVALID_SNAPSHOT", `World time for "${worldId}" is invalid or duplicated.`, { worldId });
+    }
+    worldTimes.set(worldId, entry.seconds);
+  }
+  if (!worldTimes.has(mainWorldId) || (temporaryWorldId && !worldTimes.has(temporaryWorldId))) {
+    throw new CassandraWorldSessionError("INVALID_SNAPSHOT", "World session snapshot is missing a required local clock.");
+  }
+  return Object.freeze({
+    mainWorldId,
+    temporaryWorldId,
+    activeWorldId,
+    worldTimes
+  });
+}
+
+/**
+ * Cassandra-owned Main/Temporary World session policy.
+ * Engine World Registry owns descriptors and active selection; this system
+ * owns the single temporary-session rule and independent local simulated time.
+ */
+export function createCassandraWorldSessionSystem() {
+  let worlds;
+  let persistence;
+  let mainWorldId = null;
+  let temporaryWorldId = null;
+  let worldTimes = new Map();
+  let unregisterPersistence = null;
+
+  function requireGridWorld(worldId, label) {
+    const world = worlds.get(assertWorldId(worldId));
+    if (!world || world.status === "closed" || world.grid == null) {
+      throw new CassandraWorldSessionError("GRID_WORLD_REQUIRED", `${label} must be an available grid-backed World.`, { worldId });
+    }
+    return world;
+  }
+
+  const api = Object.freeze({
+    registerMainWorld(worldId) {
+      const id = assertWorldId(worldId, "Main World ID");
+      requireGridWorld(id, "Main World");
+      if (mainWorldId !== null && mainWorldId !== id) {
+        throw new CassandraWorldSessionError("MAIN_WORLD_ALREADY_REGISTERED", "Use setMainWorldWorld() to change the selected Main World.", { current: mainWorldId, requested: id });
+      }
+      mainWorldId = id;
+      if (!worldTimes.has(id)) worldTimes.set(id, 0);
+      if (worlds.activeWorldId !== id) worlds.activateWorld(id);
+      return api.getState();
+    },
+
+    setMainWorldWorld(worldId) {
+      const id = assertWorldId(worldId, "Main World ID");
+      requireGridWorld(id, "Main World");
+      if (temporaryWorldId !== null) {
+        throw new CassandraWorldSessionError("TEMPORARY_WORLD_PENDING", "Return from or resolve the Temporary World before changing the Main World.");
+      }
+      mainWorldId = id;
+      if (!worldTimes.has(id)) worldTimes.set(id, 0);
+      worlds.activateWorld(id);
+      return api.getState();
+    },
+
+    beginTemporaryWorld({ worldId, width = 128, height = 128 } = {}) {
+      if (mainWorldId === null) {
+        throw new CassandraWorldSessionError("MAIN_WORLD_NOT_REGISTERED", "Register the Main World before starting a Temporary World.");
+      }
+      if (temporaryWorldId !== null) {
+        throw new CassandraWorldSessionError("TEMPORARY_WORLD_ALREADY_EXISTS", "Only one Temporary World may belong to a Cassandra session.", { temporaryWorldId });
+      }
+      const id = assertWorldId(worldId, "Temporary World ID");
+      if (!Number.isSafeInteger(width) || width <= 0 || !Number.isSafeInteger(height) || height <= 0) {
+        throw new CassandraWorldSessionError("INVALID_WORLD_SIZE", "Temporary World grid dimensions must be positive safe integers.", { width, height });
+      }
+      if (worlds.has(id)) {
+        throw new CassandraWorldSessionError("DUPLICATE_WORLD_ID", `World "${id}" already exists.`, { worldId: id });
+      }
+      worlds.registerWorld({
+        worldId: id,
+        type: "cassandra-temporary",
+        dimensions: { width, height },
+        grid: { width, height },
+        coordinateSystem: "tiles",
+        metadata: { role: "temporary" }
+      });
+      temporaryWorldId = id;
+      worldTimes.set(id, 0);
+      worlds.activateWorld(id);
+      return api.getState();
+    },
+
+    enterTemporaryWorld() {
+      if (temporaryWorldId === null) {
+        throw new CassandraWorldSessionError("NO_TEMPORARY_WORLD", "There is no Temporary World to enter.");
+      }
+      requireGridWorld(temporaryWorldId, "Temporary World");
+      worlds.activateWorld(temporaryWorldId);
+      return api.getState();
+    },
+
+    returnToMainWorld() {
+      if (mainWorldId === null) {
+        throw new CassandraWorldSessionError("MAIN_WORLD_NOT_REGISTERED", "No Main World is registered.");
+      }
+      requireGridWorld(mainWorldId, "Main World");
+      if (worlds.activeWorldId === mainWorldId) return api.getState();
+      worlds.activateWorld(mainWorldId);
+      return api.getState();
+    },
+
+    advance(deltaSeconds) {
+      if (!Number.isFinite(deltaSeconds) || deltaSeconds < 0) {
+        throw new CassandraWorldSessionError("INVALID_TIME_DELTA", "World time delta must be a finite non-negative number.", { deltaSeconds });
+      }
+      const activeWorldId = worlds.activeWorldId;
+      if (!activeWorldId || (activeWorldId !== mainWorldId && activeWorldId !== temporaryWorldId)) return false;
+      worldTimes.set(activeWorldId, (worldTimes.get(activeWorldId) ?? 0) + deltaSeconds);
+      return true;
+    },
+
+    getWorldTime(worldId) {
+      const id = assertWorldId(worldId);
+      if (!worldTimes.has(id)) {
+        throw new CassandraWorldSessionError("UNKNOWN_WORLD_CLOCK", `World "${id}" has no Cassandra local clock.`, { worldId: id });
+      }
+      return worldTimes.get(id);
+    },
+
+    getState() {
+      return Object.freeze({
+        mainWorldId,
+        temporaryWorldId,
+        activeWorldId: worlds.activeWorldId,
+        inTemporaryWorld: temporaryWorldId !== null && worlds.activeWorldId === temporaryWorldId,
+        worldTimes: Object.freeze([...worldTimes.entries()]
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([worldId, seconds]) => Object.freeze({ worldId, seconds })))
+      });
+    }
+  });
+
+  const persistenceParticipant = Object.freeze({
+    id: "game.world-session",
+    schemaVersion: SNAPSHOT_VERSION,
+    required: true,
+    order: 20,
+    captureSnapshot() {
+      if (mainWorldId === null) {
+        throw new CassandraWorldSessionError("MAIN_WORLD_NOT_REGISTERED", "Cannot save a world session without a Main World.");
+      }
+      return Object.freeze({
+        version: SNAPSHOT_VERSION,
+        mainWorldId,
+        temporaryWorldId,
+        activeWorldId: worlds.activeWorldId,
+        worldTimes: Object.freeze([...worldTimes.entries()]
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([worldId, seconds]) => Object.freeze({ worldId, seconds })))
+      });
+    },
+    validateSnapshot(snapshot) {
+      try { parseSnapshot(snapshot); return true; }
+      catch { return false; }
+    },
+    prepareRestore(snapshot) {
+      const next = parseSnapshot(snapshot);
+      const previous = {
+        mainWorldId,
+        temporaryWorldId,
+        worldTimes
+      };
+      let committed = false;
+      return Object.freeze({
+        commit() {
+          const main = requireGridWorld(next.mainWorldId, "Restored Main World");
+          const temporary = next.temporaryWorldId
+            ? requireGridWorld(next.temporaryWorldId, "Restored Temporary World") : null;
+          if (worlds.activeWorldId !== next.activeWorldId
+            || (temporary && temporary.worldId === main.worldId)) {
+            throw new CassandraWorldSessionError("WORLD_SESSION_REGISTRY_MISMATCH", "Restored World Registry state does not match the Cassandra session snapshot.");
+          }
+          for (const worldId of next.worldTimes.keys()) {
+            const world = worlds.get(worldId);
+            if (!world || world.status === "closed") {
+              throw new CassandraWorldSessionError("UNKNOWN_WORLD_CLOCK", `World time references unavailable World "${worldId}".`, { worldId });
+            }
+          }
+          mainWorldId = next.mainWorldId;
+          temporaryWorldId = next.temporaryWorldId;
+          worldTimes = new Map(next.worldTimes);
+          committed = true;
+        },
+        rollback() {
+          if (!committed) return false;
+          mainWorldId = previous.mainWorldId;
+          temporaryWorldId = previous.temporaryWorldId;
+          worldTimes = previous.worldTimes;
+          committed = false;
+          return true;
+        }
+      });
+    }
+  });
+
+  return Object.freeze({
+    id: "game.world-session",
+    provides: ["game.world-session-api"],
+    requires: ["core.world-registry", "core.persistence"],
+    initialize(context) {
+      worlds = context.getService("core.world-registry");
+      persistence = context.getService("core.persistence");
+      unregisterPersistence = persistence.registerParticipant(persistenceParticipant);
+      return { "game.world-session-api": api };
+    },
+    destroy() {
+      unregisterPersistence?.();
+      unregisterPersistence = null;
+      mainWorldId = null;
+      temporaryWorldId = null;
+      worldTimes = new Map();
+    }
+  });
+}
