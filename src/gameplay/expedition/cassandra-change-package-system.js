@@ -612,7 +612,7 @@ export function createCassandraChangePackageCoordinator({
             "Typed operation handlers may not replace or mutate their target aggregate revision.",
             { aggregateId: operation.aggregateId });
         }
-        candidate.aggregates[operation.aggregateId] = workingAggregate;
+        candidate.aggregates[operation.aggregateId] = cloneJson(workingAggregate);
       }
       const touched = new Set(changePackage.baseline.map((entry) => entry.aggregateId));
       for (const baseline of changePackage.baseline) {
