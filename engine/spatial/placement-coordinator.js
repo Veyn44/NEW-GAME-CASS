@@ -1,11 +1,12 @@
 import { PLACEMENT_AUTHORITY } from "./placement-authority.js";
 import { deriveFootprintCells } from "./spatial-composition.js";
+import { MOVEMENT_AUTHORITY } from "./movement-authority.js";
 
 export class PlacementCoordinatorError extends Error {
   constructor(code, message, details = {}) { super(message); this.name = "PlacementCoordinatorError"; this.code = code; this.details = Object.freeze({ ...details }); }
 }
 export class PlacementCoordinator {
-  #entities; #worlds; #worldContext; #spatial; #faulted = false; #onFatalIntegrityFault;
+  #entities; #worlds; #worldContext; #spatial; #faulted = false; #onFatalIntegrityFault; #policyEvaluation = 0;
   constructor({ entityRegistry, worldRegistry, worldContext, spatialComposition, onFatalIntegrityFault = null } = {}) {
     if (!entityRegistry?.get || !entityRegistry?.setSpatialOccupancyGuard || !worldRegistry?.get ||
         !worldContext?.prepareCoordinatedPlacementChange || !spatialComposition?.prepareEntityOccupancyChange) throw new PlacementCoordinatorError("INVALID_DEPENDENCY", "PlacementCoordinator requires EntityRegistry, WorldRegistry, WorldContext and SpatialComposition.");
@@ -15,6 +16,14 @@ export class PlacementCoordinator {
     this.#entities.setSpatialOccupancyGuard((id) => this.#spatial.hasEntityOccupancy(id), PLACEMENT_AUTHORITY);
   }
   get isFaulted() { return this.#faulted; }
+  withPolicyEvaluation(callback, authority) {
+    if (authority !== MOVEMENT_AUTHORITY || typeof callback !== "function") throw new PlacementCoordinatorError("MOVEMENT_AUTHORITY_REQUIRED", "Policy evaluation requires the internal movement capability.");
+    this.#policyEvaluation += 1;
+    try { return callback(); } finally { this.#policyEvaluation -= 1; }
+  }
+  #assertMutationAllowed() {
+    if (this.#policyEvaluation > 0) throw new PlacementCoordinatorError("PLACEMENT_MUTATION_DURING_POLICY", "Placement cannot change during movement policy evaluation.");
+  }
   placeEntity(entityId, target) {
     this.#assertHealthy();
     if (this.#worldContext.getPlacement(entityId)) throw new PlacementCoordinatorError("ENTITY_ALREADY_PLACED", "Entity already has a placement.", { entityId });
