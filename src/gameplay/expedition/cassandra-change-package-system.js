@@ -438,6 +438,12 @@ export function createCassandraChangePackageCoordinator({
         "Reopened campaign snapshot has a different storage revision.",
         { expectedRevision: result.revision, actualRevision: reopened.__storageRevision });
     }
+    const reopenedPayload = cloneState(reopened);
+    delete reopenedPayload.__storageRevision;
+    if (canonicalStringify(reopenedPayload) !== canonicalStringify(payload)) {
+      fail("CAMPAIGN_COMMIT_VERIFICATION_FAILED",
+        "Reopened campaign snapshot does not match the complete committed candidate.");
+    }
     return reopened;
   }
 
