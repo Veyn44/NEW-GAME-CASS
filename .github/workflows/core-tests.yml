@@ -39,5 +39,4 @@ jobs:
           node --check shared/application/definition-catalog-controller.js
           node --check shared/presentation/world-viewport.js
           node --check shared/presentation/world-viewport-model.js
-          node --check shared/presentation/world-viewport.js
           node --check shared/input/viewport-input-controller.js
