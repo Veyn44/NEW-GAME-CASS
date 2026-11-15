@@ -54,6 +54,7 @@ async function setup({ isPackageApplied = async () => true } = {}) {
   return {
     runtime,
     context,
+    worlds,
     unitApi,
     campaignUnits: [first, second],
     entityRegistry: context.getService("core.entity-registry"),
