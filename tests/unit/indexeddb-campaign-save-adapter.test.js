@@ -198,13 +198,15 @@ test("IndexedDB campaign adapter rejects stale cross-writer revisions", async ()
 });
 
 test("IndexedDB campaign adapter leaves the previous snapshot intact when a transaction aborts", async () => {
-  const indexedDBRef = new FakeIndexedDB({ failNextCommit: true });
+  const indexedDBRef = new FakeIndexedDB();
   const initial = initialSnapshot();
   const adapter = new IndexedDbCampaignSaveAdapter({
     indexedDBRef,
     campaignId: "campaign:abort",
     initialSnapshot: initial
   });
+  await adapter.writeCampaignSnapshotAtomic(initial, 0);
+  indexedDBRef.databases.get("cassandra-campaign-storage").failNextCommit = true;
   const next = {
     majorState: { revision: 2, aggregates: { "inventory:crew": { revision: 1, state: { ore: 9 } } } },
     pendingPackages: [{ packageId: "package:abort" }],
@@ -216,7 +218,7 @@ test("IndexedDB campaign adapter leaves the previous snapshot intact when a tran
   );
   assert.deepEqual(await adapter.loadCampaignSnapshot(), {
     snapshot: initial,
-    revision: 0
+    revision: 1
   });
   adapter.close();
 });
