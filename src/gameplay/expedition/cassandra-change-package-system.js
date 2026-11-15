@@ -292,6 +292,14 @@ export async function createCassandraChangePackage(input) {
   const projectionMappings = validateProjectionMappings(input.projectionMappings ?? [], baseline);
   const operations = validateOperations(input.operations, baseline);
   orderOperations(operations);
+  const operationAggregateIds = new Set(operations.map((operation) => operation.aggregateId));
+  for (const entry of baseline) {
+    if (!operationAggregateIds.has(entry.aggregateId)) {
+      fail("UNUSED_AGGREGATE_BASELINE",
+        "Every package aggregate baseline must be targeted by at least one typed operation.",
+        { aggregateId: entry.aggregateId });
+    }
+  }
   const returnManifest = validateManifest(input.returnManifest);
   if (!input.outcome || !["end", "abandon"].includes(input.outcome.kind)
     || !["clear", "notClear"].includes(input.outcome.encounter)) {
