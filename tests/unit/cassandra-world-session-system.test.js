@@ -160,6 +160,44 @@ test("Cassandra session allows only one Temporary World and retains it for safe 
   }
 });
 
+test("Temporary World disposal requires the exact applied package identity and digest", async () => {
+  const expected = {
+    packageId: "package:verified-return",
+    digest: "b".repeat(64)
+  };
+  const calls = [];
+  const state = await setup({
+    isPackageApplied: async (packageId, digest) => {
+      calls.push({ packageId, digest });
+      return packageId === expected.packageId && digest === expected.digest && false;
+    }
+  });
+  try {
+    state.session.beginTemporaryWorld({ worldId: "encounter:unapplied-return", width: 32, height: 32 });
+    const spatial = state.context.getService("core.spatial-composition");
+    spatial.addCellContent({
+      contentId: "content:unapplied-preserve",
+      worldId: "encounter:unapplied-return",
+      cell: { x: 2, y: 3 },
+      categoryId: "terrain",
+      layerId: "ground",
+      payload: { material: "test-rock" }
+    });
+    state.session.returnToMainWorld();
+
+    await assert.rejects(
+      () => state.session.completeTemporaryWorld(expected),
+      { code: "CHANGE_PACKAGE_NOT_APPLIED" }
+    );
+    assert.deepEqual(calls, [expected]);
+    assert.equal(state.worlds.has("encounter:unapplied-return"), true);
+    assert.equal(state.session.getState().temporaryWorldId, "encounter:unapplied-return");
+    assert.equal(spatial.listContents({ worldId: "encounter:unapplied-return" }).length, 1);
+  } finally {
+    await state.runtime.destroy();
+  }
+});
+
 test("Temporary World cleanup preflight failure leaves the World and its contents intact", async () => {
   const state = await setup();
   try {
