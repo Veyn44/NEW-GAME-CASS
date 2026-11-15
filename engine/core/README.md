@@ -13,7 +13,7 @@ The Core is the domain-neutral runtime foundation for host applications. Cassand
 - `game-clock.js` — configurable simulation clock and pause/speed state.
 - `simulation-scheduler.js` — deterministic fixed-step execution, speed-snapshotted backlog and bounded catch-up.
 - `entity-registry.js` — stable entity identity, persistent/scoped lifecycles and metadata, independent of domain behavior and world placement.
-- `world-registry.js` — registration and activation of host-defined worlds, with opaque host metadata.
+- `world-registry.js` — registration and activation of host-defined worlds, with opaque host metadata and an explicit optional grid capability.
 - `world-context.js` — exclusive entity placement and atomic transfer between world and storage locations.
 - `persistence.js` — adapter-neutral atomic save contract, schema migration and transactional participant restore.
 
@@ -28,8 +28,10 @@ The Core is the domain-neutral runtime foundation for host applications. Cassand
 - `registerScoped({ scopeId, localId?, kind, metadata? })` registers an identity inside an opaque host scope. Generated IDs use `scope:<scopeId>:<localId>`; numeric local IDs are sequenced without reusing reserved IDs.
 - `store(id)` changes an active scoped identity to the stored lifecycle state; `activateStored(id)` reactivates it without changing identity. Domain state is saved by its owning participant.
 - World types are host-defined lowercase IDs. `metadata` is opaque, deeply copied and immutable; Core does not interpret location or encounter concepts.
+- `registerWorld({ grid: { width, height } })` explicitly enables a finite grid with positive safe-integer cell dimensions. Omitted/`null` grid means non-grid; generic world dimensions never imply grid capability.
+- The immutable world descriptor and its snapshot carry `grid: null` or the validated grid dimensions.
 - World Context validates existence, lifecycle and coordinates, but leaves scope-to-world policy to host systems.
-- Entity Registry and World Registry snapshots use schema version 2 and migrate their version-one formats. Entity IDs remain unchanged during migration.
+- Entity Registry snapshots use schema version 2. World Registry snapshots use schema version 3 and migrate known version-one and version-two formats to explicit non-grid descriptors. Entity IDs remain unchanged during migration.
 
 ## Composition contract
 
@@ -47,7 +49,7 @@ A simulation task declares `systemId` matching a host system and a synchronous `
 - Event delivery is synchronous and sequential. Asynchronous handlers fault the bus and require runtime reconstruction. A drain-limit fault retains the queue and blocks new publishes until the source is corrected and `drainPending()` is called.
 - Scheduler updates are synchronous fixed steps. Promise-returning updates fault the scheduler; simulation time is committed only after all tasks complete.
 - Scaled simulation time uses the configurable Game Clock. Pause reasons are independent and composable.
-- Entity Registry and World Registry provide explicit version-one to version-two snapshot migrations for the generalized scope and metadata contracts.
+- Entity Registry provides its explicit version-one to version-two snapshot migration. World Registry provides scoped version-one and version-two migrations to schema version three for the optional grid capability.
 - Persistence calls are rejected immediately when invoked inside a simulation step, during pending Event Bus delivery, or while Scheduler is faulted. There is no deferred safe-boundary queue.
 - Persistence uses `read` and `writeAtomic` adapters and participant prepare/commit/rollback. `MemorySaveAdapter` is a test/development adapter, not durable production storage; the test fixture supplies it explicitly.
 
