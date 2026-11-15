@@ -6,7 +6,7 @@ import { MemorySaveAdapter } from "../../engine/core/persistence.js";
 import { registerDefinition, getDefinition, clearDefinitionsForTests } from "../../engine/database/definition-registry.js";
 import { createUnitSystem } from "../../src/gameplay/unit/unit-system.js";
 
-function setup() {
+function setup({ movementPolicy } = {}) {
   clearDefinitionsForTests();
   registerDefinition({
     id: "unit.test-worker",
@@ -17,13 +17,13 @@ function setup() {
   });
   const runtime = createGameRuntime({
     saveAdapter: new MemorySaveAdapter(),
-    hostSystems: [createUnitSystem({ definitionLookup: getDefinition })]
+    hostSystems: [createUnitSystem({ definitionLookup: getDefinition, movementPolicy })]
   });
   return { runtime };
 }
 
-async function startWithWorld() {
-  const setupResult = setup();
+async function startWithWorld(options = {}) {
+  const setupResult = setup(options);
   const context = await setupResult.runtime.start();
   const worlds = context.getService("core.world-registry");
   worlds.registerWorld({
@@ -175,6 +175,33 @@ test("Grid occupancy advances only when fractional movement crosses a cell bound
     assert.deepEqual(crossed.placement.position, { x: 20.5, y: 21.5 });
     assert.deepEqual(spatial.getCellEntities("unit-test-world", { x: 19, y: 21 }), []);
     assert.deepEqual(spatial.getCellEntities("unit-test-world", { x: 20, y: 21 }), [unit.id]);
+  } finally {
+    await state.runtime.destroy();
+    clearDefinitionsForTests();
+  }
+});
+
+test("Cassandra movement policy can reject a cell transition without changing progress or occupancy", async () => {
+  const state = await startWithWorld({ movementPolicy: () => false });
+  try {
+    const unit = state.units.createUnit({
+      definitionId: "unit.test-worker",
+      worldId: "unit-test-world",
+      position: { x: 19, y: 21 }
+    });
+    assert.throws(
+      () => state.units.moveUnit(unit.id, { x: 20.1, y: 21.5 }),
+      { code: "POLICY_REJECTED" }
+    );
+    assert.deepEqual(state.units.getUnit(unit.id).position, { x: 19.5, y: 21.5 });
+    assert.deepEqual(
+      state.context.getService("core.spatial-composition").getCellEntities("unit-test-world", { x: 19, y: 21 }),
+      [unit.id]
+    );
+    assert.deepEqual(
+      state.context.getService("core.spatial-composition").getCellEntities("unit-test-world", { x: 20, y: 21 }),
+      []
+    );
   } finally {
     await state.runtime.destroy();
     clearDefinitionsForTests();
