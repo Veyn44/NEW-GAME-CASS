@@ -315,6 +315,48 @@ test("IndexedDB campaign adapter refuses to overwrite a corrupt existing snapsho
   adapter.close();
 });
 
+test("IndexedDB campaign adapter closes a connection that succeeds after a blocked-open rejection", async () => {
+  const backingIndexedDB = new FakeIndexedDB();
+  const lateDatabase = new FakeDatabase(true);
+  lateDatabase.createObjectStore("campaign-snapshots");
+  let lateDatabaseClosed = false;
+  lateDatabase.close = () => { lateDatabaseClosed = true; };
+  let openCount = 0;
+  const indexedDBRef = {
+    open(name, version) {
+      openCount += 1;
+      if (openCount > 1) return backingIndexedDB.open(name, version);
+      const request = {};
+      queueMicrotask(() => {
+        request.onblocked?.();
+        queueMicrotask(() => {
+          request.result = lateDatabase;
+          request.onsuccess?.();
+        });
+      });
+      return request;
+    }
+  };
+  const adapter = new IndexedDbCampaignSaveAdapter({
+    indexedDBRef,
+    campaignId: "campaign:blocked-open",
+    initialSnapshot: initialSnapshot()
+  });
+
+  await assert.rejects(
+    () => adapter.loadCampaignSnapshot(),
+    { code: "INDEXEDDB_OPEN_BLOCKED" }
+  );
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(lateDatabaseClosed, true);
+  assert.deepEqual(await adapter.loadCampaignSnapshot(), {
+    snapshot: initialSnapshot(),
+    revision: 0
+  });
+  adapter.close();
+});
+
 test("IndexedDB campaign adapter requires IndexedDB and a stable campaign identity", () => {
   assert.throws(
     () => new IndexedDbCampaignSaveAdapter({ indexedDBRef: null, campaignId: "campaign:one" }),
