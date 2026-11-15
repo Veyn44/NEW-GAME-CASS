@@ -273,3 +273,8 @@ The proposed sequence below is the recommended dependency order, not authorizati
 
 Manual release checks are prepared but intentionally not executed during implementation:
 - `docs/architecture/phase-3-manual-acceptance-checklist.md` covers browser UI, strict IndexedDB durability/CAS, interrupted promotion recovery, target-size performance and regression checks for the previously validated environment simulation.
+
+
+## 2026-11-15 — Change Package handler isolation
+
+The coordinator no longer gives typed operation handlers a mutable reference to Candidate State. Validation receives a frozen detached snapshot; application receives that same read-only view plus a detached mutable copy of the target aggregate. After the handler returns, the coordinator validates the aggregate revision and clones the result back into Candidate State. A handler retaining its working-copy reference cannot mutate Candidate State after return. Regression coverage verifies attempted cross-aggregate mutation is ineffective and retained references cannot alter the committed campaign snapshot. GitHub Actions run `43762111707` passed Core 205/205 and host 240/240.
