@@ -206,12 +206,20 @@ export class IndexedDbCampaignSaveAdapter {
     }
     const completed = transactionResult(transaction);
     let conflict = false;
+    let corruptRecord = false;
     let nextRevision = null;
     const store = transaction.objectStore(this.#storeName);
     const currentRequest = store.get(this.#campaignId);
     currentRequest.onsuccess = () => {
-      const currentRevision = currentRequest.result?.revision ?? 0;
-      if (!Number.isSafeInteger(currentRevision) || currentRevision !== expectedRevision) {
+      const currentRecord = currentRequest.result;
+      if (currentRecord && (currentRecord.campaignId !== this.#campaignId
+        || !Number.isSafeInteger(currentRecord.revision) || currentRecord.revision < 1)) {
+        corruptRecord = true;
+        try { transaction.abort(); } catch { /* The transaction may already be aborting. */ }
+        return;
+      }
+      const currentRevision = currentRecord?.revision ?? 0;
+      if (currentRevision !== expectedRevision) {
         conflict = true;
         try { transaction.abort(); } catch { /* The transaction may already be aborting. */ }
         return;
@@ -234,6 +242,9 @@ export class IndexedDbCampaignSaveAdapter {
         fail("CAMPAIGN_STORAGE_CONFLICT",
           "Another writer committed a newer campaign snapshot; reload and reconcile before retrying.",
           error);
+      }
+      if (corruptRecord) {
+        fail("INVALID_CAMPAIGN_RECORD", "Campaign record is corrupt; refusing to replace it.", error);
       }
       fail("INDEXEDDB_WRITE_FAILED",
         "The atomic campaign snapshot transaction did not complete.", error);
