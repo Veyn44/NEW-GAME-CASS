@@ -45,3 +45,14 @@ export function querySpatialFootprint(spatialComposition, entityId) {
   }
   return spatialComposition.getEntityFootprint(entityId);
 }
+
+
+export function querySpatialRegion(spatialComposition, worldId, region, filters = {}) {
+  if (!spatialComposition || typeof spatialComposition.queryRegion !== "function") {
+    throw new TypeError("Dev Lab region inspection requires Engine Spatial Composition.");
+  }
+  if (typeof worldId !== "string" || !worldId.trim()) {
+    throw new TypeError("A world ID is required for spatial region inspection.");
+  }
+  return spatialComposition.queryRegion(worldId, region, filters);
+}
