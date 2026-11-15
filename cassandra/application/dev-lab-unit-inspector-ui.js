@@ -133,6 +133,7 @@ export function createCassandraDevLabUnitInspectorUi({
     closeProfile();
     selectedUnitId = unit.id;
     const definition = definitionLookup(unit.definitionId);
+    const movementPosition = unit.position ?? unit.placement?.position ?? null;
     ui.quickSelectKind.textContent = "UNIT";
     ui.quickSelectName.textContent = definition?.name ?? "Unknown definition";
     ui.quickSelectSummary.textContent = definition?.description ?? "Live world instance.";
@@ -153,10 +154,10 @@ export function createCassandraDevLabUnitInspectorUi({
       "Definition": definition?.name ?? unit.definitionId,
       "Definition ID": unit.definitionId,
       "World": unit.placement?.worldId ?? "—",
-      "Grid cell X": Number.isFinite(unit.position?.x) ? Math.floor(unit.position.x) : "—",
-      "Grid cell Y": Number.isFinite(unit.position?.y) ? Math.floor(unit.position.y) : "—",
-      "Movement X": unit.position?.x ?? "—",
-      "Movement Y": unit.position?.y ?? "—"
+      "Grid cell X": Number.isFinite(movementPosition?.x) ? Math.floor(movementPosition.x) : "—",
+      "Grid cell Y": Number.isFinite(movementPosition?.y) ? Math.floor(movementPosition.y) : "—",
+      "Movement X": movementPosition?.x ?? "—",
+      "Movement Y": movementPosition?.y ?? "—"
     });
     appendAttributeRows(documentRef, details, {
       "Entity type": definition?.entityType ?? "—",
@@ -179,6 +180,7 @@ export function createCassandraDevLabUnitInspectorUi({
       return;
     }
     const definition = definitionLookup(unit.definitionId);
+    const movementPosition = unit.position ?? unit.placement?.position ?? null;
     ui.unitProfileName.textContent = definition?.name ?? "Unknown unit";
     ui.unitProfileCategory.textContent = definition?.category ?? "UNIT";
     ui.unitProfileDescription.textContent = definition?.description ?? "No personal record is available.";
@@ -201,8 +203,8 @@ export function createCassandraDevLabUnitInspectorUi({
       appendAttributeRows(documentRef, ui.unitProfileAttributes, { Record: "No personal attributes recorded." });
     }
     ui.unitProfileInstance.textContent = "LIVE WORLD INSTANCE";
-    ui.unitProfileLocation.textContent = unit.position
-      ? `LOCATION · ${unit.position.x.toFixed(2)}, ${unit.position.y.toFixed(2)}`
+    ui.unitProfileLocation.textContent = movementPosition
+      ? `LOCATION · ${movementPosition.x.toFixed(2)}, ${movementPosition.y.toFixed(2)}`
       : "LOCATION · UNKNOWN";
     ui.unitProfile.hidden = false;
     ui.quickSelectInfo.textContent = "CLOSE INFO";
