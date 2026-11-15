@@ -181,37 +181,24 @@ Tasks:
 
 ### Slice 2 — Spatial Composition storage and occupancy
 
-**Status:** Slice 2a implemented; coordinated entity occupancy remains pending.
+**Status:** Slice 2a and Slice 2b implemented and verified; query and movement slices remain gated.
 
-**Implemented sub-slice (2a):**
-- Added `engine/spatial/spatial-composition.js` and `tests/unit/spatial-composition.test.js`.
-- Sparse cell-associated content with stable IDs, host-defined categories, optional layers and detached JSON-like payloads.
-- Multiple contents may coexist in one cell, including repeated categories/layers; Engine imposes no overlap rule.
-- Empty cells remain implicit; deleting the final content removes the sparse cell index.
-- Content IDs remain reserved after removal and are preserved in snapshots.
-- Deterministic ordering, grid/world validation and staged snapshot restore with rollback.
-- Pure footprint normalization, quarter-turn transforms and complete bounds-checked cell derivation.
+**Slice 2a — cell content and footprint geometry:**
+- Sparse cell-associated content, stable IDs, categories/layers, immutable payloads, deterministic snapshots and pure footprint geometry are implemented in `engine/spatial/spatial-composition.js`.
 
-**Deliberately not implemented yet:**
-- No public entity-backed occupancy mutation API or entity-to-cell reverse index.
-- No World Context placement changes and no Core Assembly/persistence participant registration.
+**Slice 2b — coordinated entity occupancy:**
+- Added canonical one-record-per-entity occupancy (world, anchor, footprint, orientation) and derived cell-to-entity indexes.
+- Added `engine/spatial/placement-coordinator.js` as the required grid placement mutation boundary.
+- Grid anchor maps to WorldContext position `(x + 0.5, y + 0.5)`; multi-cell entity identity is not duplicated.
+- Grid placement, relocation, rotation/footprint replacement, grid-world transfer, grid-to-non-grid transfer, grid-to-storage, storage-to-grid and retirement are prepared and committed synchronously across WorldContext, EntityRegistry lifecycle and Spatial Composition.
+- Direct one-sided WorldContext grid placement/move/storage/removal and direct EntityRegistry store/removal while grid-occupied are rejected.
+- Core Assembly registers Spatial Composition and Placement Coordinator.
+- Core Persistence uses one composite `core.spatial-placement` participant for WorldContext + Spatial Composition. Entity Registry and World Registry restore first; the composite validates the pair and commits both services in one synchronous participant call.
+- Added unit and Core integration tests for occupancy indexes, atomic moves, lifecycle transitions, direct-mutation guards, composite restore and real save/load round-trip.
 
-The placement integration audit showed that independently mutating World Context and Spatial Composition would expose divergent authoritative state. Entity occupancy is therefore gated on the coordinated prepared-state boundary; this preserves the agreed model rather than weakening its atomicity requirement.
+**Ownership boundary:** Engine permits overlapping entity footprints; host/game policy decides whether overlap is legal. No pathfinding, passability, collision response or Cassandra movement rules are implemented here.
 
-**Next sub-slice (2b):**
-- Introduce an Engine-owned placement coordinator/prepared transaction boundary.
-- Coordinate World Context placement and Spatial Composition occupancy in one synchronous commit.
-- Keep lower-level occupancy mutation inaccessible to ordinary application callers.
-- Cross-check entity lifecycle and world/grid references before commit.
-- Add occupancy, footprint replacement, move/removal and failure-atomicity tests.
-
-**Full Slice 2 exit criteria remain:**
-- Multiple contents and multiple entities can coexist at one coordinate where host policy permits.
-- Multi-cell entity identity is not duplicated.
-- Invalid footprint operations preserve prior authoritative state.
-- Forward and reverse indexes agree after every committed mutation.
-- Sparse empty cells are not materialized.
-- Deterministic snapshot capture is possible.
+**Verification:** Final CI checkpoint is recorded in the implementation session; do not infer Cassandra integration from this Engine slice.
 
 ### Slice 3 — Spatial Query surface
 
@@ -597,3 +584,11 @@ Any proposed exception must identify the concrete dependency and the smallest re
 
 **Current action:** Slice 1 is implemented on `work` and CI-verified. Next is Slice 2 design-to-source mapping for Spatial Composition, including grid descriptor integration and the already-agreed placement/persistence boundaries. No PR merge or `main` update is implied.
 
+
+
+## Slice 2b implementation checkpoint
+
+- Placement Coordinator and composite persistence participant implemented on `work`.
+- Grid placement authority is enforced through an internal Engine capability; direct one-sided mutation and restore are rejected.
+- Composite snapshots persist WorldContext and Spatial Composition together; derived cell indexes are rebuilt on restore.
+- Cassandra Unit/Colony Control movement, viewport interpolation, environment simulation and world generation were not changed.
