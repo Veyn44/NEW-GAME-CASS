@@ -305,6 +305,55 @@ The proposed recovery behavior is:
 
 Exact status names and user-facing recovery UI are implementation details.
 
+## 7.4 Two-state staging model: Major State + Change Buffer
+
+**Agreed architectural direction (2026-11-15):** The persistent campaign must retain a complete, last-known-good Major State separately from the uncommitted expedition changes. The new state is calculated as:
+
+`Candidate State = Major State + Change Buffer`
+
+The Change Buffer must never mutate the Major State in place.
+
+### State layers
+
+1. **Major State (authoritative baseline):** The last complete, validated and committed campaign/location state. It remains immutable for the duration of a package-application attempt.
+2. **Change Buffer (staged delta):** The complete, separately retained set of finalized expedition changes, including the return manifest, typed operations, preconditions and provenance. It is not yet authoritative campaign state.
+3. **Candidate State (staged result):** A separate prepared result calculated by applying the complete Change Buffer to the Major State. It must not be exposed as committed state while validation is in progress.
+4. **Committed Major State:** Only after complete validation and successful atomic commit does the Candidate State replace the previous Major State as the new authoritative baseline.
+
+The Change Buffer is logically a staging/cache layer, but it must be durably persisted. A volatile in-memory cache alone is insufficient because a crash must not destroy the only copy of what the expedition earned or changed.
+
+### Required processing sequence
+
+1. Freeze and finalize the expedition outcome.
+2. Persist the complete Change Buffer and the expedition-start rollback checkpoint.
+3. Keep the current Major State unchanged.
+4. Build Candidate State in isolated staging storage from Major State plus the complete Change Buffer.
+5. Validate identities, ownership, quantities, dispositions, preconditions, resource conservation and all domain invariants against the Candidate State.
+6. If validation succeeds, atomically promote Candidate State to the new Major State and mark the package Applied in the same durable transaction.
+7. Only after durable confirmation may the old baseline/checkpoint and Temporary World data be retired according to the recovery policy.
+
+The old Major State must remain available until the new Major State and Applied ledger are durably confirmed. There must never be an interval where neither a complete old state nor a complete new state is recoverable.
+
+### Failure and rollback rules
+
+- **Candidate calculation or validation failure:** discard the Candidate State. The Major State remains exactly unchanged. Do not apply any prefix of the Change Buffer.
+- **Transient storage/commit failure:** retain the durable Change Buffer and old Major State; discard any incomplete Candidate State and retry the same package from the same baseline. Do not regenerate expedition rewards or consequences.
+- **Entitlement, identity or conservation invariant violation:** treat this as a critical integrity failure, not as a normal gameplay loss. Do not commit the package. Roll the campaign back to its expedition-start Major State/checkpoint and reset/restore the entire expedition from its start checkpoint, rather than returning a partially reconciled result. The player may lose the progress of that expedition attempt, but must not lose assets they had before it or receive a corrupted partial result.
+- **Unrecoverable inability to prove a complete state:** fail closed. Keep Main World simulation disabled and retain all available checkpoints, buffers and diagnostics. Never choose a partial state or silently discard an unresolved entitlement.
+
+A legitimate in-game loss remains possible only when it is an explicit, validated gameplay consequence represented in the finalized Change Buffer. A mismatch, missing mapping, failed write or broken reconciliation is never a gameplay loss.
+
+### Atomic promotion
+
+The implementation may use snapshots, copy-on-write, versioned save slots, transactional storage or another mechanism, but its observable guarantee must be equivalent:
+- The old Major State remains readable and recoverable during staging.
+- Candidate State is isolated until fully validated.
+- Promotion is atomic from the perspective of all campaign readers.
+- The package Applied marker and the new Major State become durable together.
+- Recovery after interruption selects either the complete old Major State with its pending Change Buffer, or the complete new Major State with the package marked Applied. It must never select a half-written mixture.
+
+This contract describes logical state ownership and failure guarantees; it does not prescribe a specific in-memory data structure or storage technology.
+
 ## 8. End Expedition and Abandon Expedition
 
 These are distinct Cassandra outcomes and must not be collapsed into a generic close operation.
@@ -390,16 +439,23 @@ If package creation or persistence fails:
 - Keep it frozen and retain enough state to retry finalization safely.
 - Do not rerun already completed final consequences without an explicit idempotent checkpoint.
 
-If validation detects a conflict:
-- Keep the package and diagnostics.
+If validation detects an ordinary stale-state conflict:
+- Keep the immutable package and diagnostics.
 - Do not commit any operation.
-- Keep the encounter/session recoverable and do not resume Main World simulation until Cassandra has resolved the pending expedition according to an explicit recovery policy.
+- Keep the encounter/session recoverable and do not resume Main World simulation until Cassandra resolves the conflict.
 
-If preparation or commit fails:
+If Candidate State preparation or transient commit I/O fails:
 - Commit no partial domain changes.
-- Retain the durable pending package.
-- Keep the Temporary World frozen or retain a durable recovery checkpoint sufficient to inspect/retry.
-- Retry the same immutable package; do not regenerate rewards or consequences.
+- Keep the old Major State unchanged and retain the durable Change Buffer.
+- Discard only the incomplete Candidate State and retry from the same baseline.
+
+If an entitlement, identity-mapping or conservation invariant fails:
+- Treat it as a critical integrity failure.
+- Do not return a partial result or reinterpret the missing result as a gameplay loss.
+- Roll the campaign back to the expedition-start Major State/checkpoint and reset/restore the complete expedition from its start checkpoint.
+- Preserve diagnostics and recovery data until the rollback is confirmed.
+
+If the process crashes during staging or promotion, recovery must select either the complete old Major State plus pending Change Buffer, or the complete new Major State plus Applied ledger. A half-written mixed state is never acceptable.
 
 If the process crashes after package persistence but before commit:
 - Restore the pending package and frozen/recoverable encounter state.
