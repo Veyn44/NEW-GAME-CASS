@@ -354,11 +354,21 @@ export function createCassandraChangePackageCoordinator({
       }
 
       const candidate = cloneState(majorState);
-      const resolvedResultIdentities = pending.resolvedResultIdentities
+      let resolvedResultIdentities = pending.resolvedResultIdentities
         && Object.keys(pending.resolvedResultIdentities).length
         ? cloneState(pending.resolvedResultIdentities)
-        : cloneState(await resolveResultIdentities(changePackage, candidate));
-      pending.resolvedResultIdentities = resolvedResultIdentities;
+        : null;
+      if (resolvedResultIdentities === null) {
+        resolvedResultIdentities = cloneState(await resolveResultIdentities(changePackage, candidate));
+        // Persist result-key identities before candidate construction/commit so retries
+        // cannot allocate a different durable identity after an interrupted promotion.
+        pending.resolvedResultIdentities = resolvedResultIdentities;
+        const identityCheckpoint = await writeSnapshot(snapshot);
+        const refreshedPending = identityCheckpoint.pendingPackages.find((entry) => entry.packageId === packageId);
+        if (!refreshedPending || refreshedPending.digest !== changePackage.digest) {
+          fail("IDENTITY_CHECKPOINT_LOST", "Resolved result identities were not retained in the pending Change Buffer.");
+        }
+      }
       const ordered = orderOperations(changePackage.operations);
       for (const operation of ordered) {
         const handler = operationHandlers[operation.type];
