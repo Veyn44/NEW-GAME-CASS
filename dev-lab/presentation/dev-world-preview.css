@@ -412,3 +412,9 @@ canvas:active { cursor: grabbing; }
 @media(max-width:760px) {
   #spatial-test-status { flex-basis: 100%; }
 }
+
+
+.spatial-inspector-actions { display: flex; flex-wrap: wrap; gap: 4px; pointer-events: auto; }
+.spatial-inspector-actions button { min-height: 25px; padding: 3px 6px; font-size: 8px; letter-spacing: .04em; pointer-events: auto; }
+.spatial-inspector-actions button:disabled { opacity: .35; cursor: not-allowed; }
+.spatial-inspector pre { max-height: 28vh; }
