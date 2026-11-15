@@ -98,9 +98,9 @@ These distinctions matter: do not replace working Core contracts just because a 
 | Pathfinding / AI | Not currently required; avoid speculative Engine scope | Could provide test visualization later | Game feature; design when actual gameplay requires it |
 | Environment simulation | Existing tested simulation behavior must be preserved; generic reusable mechanisms only | Inspect and test environment state | Owns game-specific environmental meaning, thresholds and consequences |
 | Input infrastructure | Owns only domain-neutral input/action routing contracts that are proven reusable | Browser/device input adapters and editor shortcuts | Game action mapping, control eligibility and player-control rules |
-| Control Modes | Generic routing primitives may belong in Engine; exact contract remains open | Debug/authoring modes and tool selection | Game modes such as direct Pawn control, interaction and gameplay commands |
+| Control Modes and camera/input relationship | **Owns** the generic mode lifecycle, input/action routing, possession/release, general pause/inspection behavior and camera behavior contracts; exact public API and adapter split remain to design | Supplies physical input/device adapters and developer modes/tools | Supplies concrete actions, key bindings, eligibility/transition rules and controlled-entity behavior |
 | Rendering and viewport | No browser/DOM or app UI in Core; generic renderer abstraction only if a real need appears | Editor viewport, overlays, selection, gizmos and diagnostics | Player-facing game rendering and UI |
-| Database / content definitions | Generic package/registry/schema mechanisms only if confirmed reusable | Browse, inspect, validate and test packages | Owns Cassandra definitions, balance and game content |
+| Database / content definitions | **Owns** generic registries, loading/import contracts, schemas, validation and definition/instance mechanics | Browse, inspect, validate and test packages without assuming Cassandra content | Owns Cassandra definitions, balance and game content |
 | Persistence mechanism | **Owns** generic snapshot/restore contracts, migrations and transaction coordination | Owns Dev Lab adapter, workspace format and workspace identity | Owns Cassandra adapter, save format and save identity |
 | Cross-world expedition result | At most generic atomic transaction/change-application primitives, if justified | Test generic transfer/rollback mechanisms | Owns expedition creation, participating entities, result rules and commit/abandon decisions |
 | Universe map and procedural generation | No Cassandra universe model | Could inspect generated test data | **Owns** galaxy hierarchy, scans, seeds, discoveries and location records |
@@ -193,7 +193,7 @@ Cassandra needs to ask questions such as:
 **Cassandra ownership:** meaning of the results for construction, movement, combat, environment and gameplay.  
 **Dev Lab ownership:** query inspector, overlays and test tools.
 
-### 4.5 Movement and collision
+### 4.5 Input, Control Modes and camera behavior\n\nThe roadmap already records an agreed conceptual ownership boundary: Engine owns the general input/action registration and routing mechanism, Control Modes, general pause behavior and camera behavior contracts. Cassandra supplies concrete game actions, key bindings, eligibility and transition rules, and the behavior of a controlled entity. Dev Lab supplies physical browser/device input adapters and developer/editor modes.\n\nThe exact Control Mode list, public APIs, camera adapter boundary and pause/inspection interaction still need design. This is not permission to move browser DOM handling into Engine Core. The existing generic input service is a foundation, not proof that the complete Control Modes system is implemented.\n\n### 4.6 Movement and collision
 
 The current Cassandra Pawn movement is game-specific: Draft state, leader eligibility, WASD meaning, speed, diagonal normalization and gameplay consequences belong to Cassandra.
 
@@ -207,7 +207,7 @@ Do not move Cassandra's current movement rules into Engine. Do not assume that e
 
 **Open scope decision:** whether movement/collision primitives are part of this physical-world phase or a later Engine capability. Pathfinding and AI are not implied by the current requirement.
 
-### 4.6 Temporary-world result and persistence
+### 4.7 Temporary-world result and persistence
 
 Cassandra's expedition concept is:
 
@@ -225,7 +225,7 @@ The conceptual formula is `newState = previousState + changes`, not replacement 
 
 **Open:** package shape, identity mapping, stale/conflicting changes, validation, atomicity, rollback and failure recovery.
 
-### 4.7 Location persistence versus runtime worlds
+### 4.8 Location persistence versus runtime worlds
 
 Cassandra distinguishes a location's durable record from a currently instantiated Temporary World. A location may be reconstructed from a seed and persistent changes; transient enemy instances need not be saved.
 
@@ -307,8 +307,8 @@ The gaps below are derived from the current source and the agreed requirements. 
 | E7 | Generic movement/collision primitives | Needed only if shared by multiple hosts/systems; policy remains host-owned | After E4–E6 | Scope open |
 | E8 | Generic transactional change application | Could support temporary-world results without replacing unrelated state | Cassandra transfer concept | Reuse not yet proven |
 | E9 | Persistence of new spatial/world state | Grid/occupancy/lifecycle data must survive save/restore where applicable | After spatial contracts | Required once data model exists |
-| E10 | Input/action/control-mode contracts | Need to separate physical input collection, generic routing and game actions | Cross-cutting | Existing input service exists; broader modes open |
-| E11 | Data/package registry and validation contract | Dev Lab must inspect packages without assuming Cassandra content | Cross-cutting | Ownership direction in roadmap; audit exact current implementation |
+| E10 | Complete generic input/action and Control Modes contracts | Roadmap assigns mode lifecycle, action routing, possession/release, general pause/inspection and camera behavior to Engine; browser/device adapters stay in host apps | Cross-cutting | Ownership agreed; exact API and adapter split open |
+| E11 | Data/package registry, loading, schemas and validation | Dev Lab must inspect packages without assuming Cassandra content | Cross-cutting | Engine ownership agreed; audit exact current implementation and gaps |
 | E12 | Performance and determinism criteria for spatial systems | Needed before selecting indexes/storage and test expectations | After requirements | Not specified |
 
 ### Explicitly not Engine work
