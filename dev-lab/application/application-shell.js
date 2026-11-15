@@ -10,6 +10,7 @@ import { getDefinition, listDefinitionIndex, getCategories, loadDefinitionDetail
 import { createViewportInputController } from "../../shared/input/viewport-input-controller.js";
 import { createApplicationRuntimeHost } from "../../shared/application/runtime-host.js";
 import { querySpatialCell } from "./spatial-inspector.js";
+import { SpatialTestController } from "./spatial-test-controller.js";
 
 const views = [...document.querySelectorAll("[data-view]")];
 const databaseView = document.querySelector('[data-view="database"]');
@@ -22,6 +23,11 @@ const databaseModeLabel = document.querySelector("#database-mode-label");
 const simulationStatus = document.querySelector("#simulation-status");
 const spatialCellLabel = document.querySelector("#spatial-cell-label");
 const spatialCellData = document.querySelector("#spatial-cell-data");
+const testEntityFootprint = document.querySelector("#test-entity-footprint");
+const createTestEntityButton = document.querySelector("#create-spatial-test-entity");
+const moveTestEntityButton = document.querySelector("#move-spatial-test-entity");
+const removeTestEntityButton = document.querySelector("#remove-spatial-test-entity");
+const spatialTestStatus = document.querySelector("#spatial-test-status");
 const pointerStatus = document.querySelector("#pointer-status");
 const viewportPanel = document.querySelector(".viewport-panel");
 const canvas = document.querySelector("#world-canvas");
@@ -68,6 +74,9 @@ const state = {
   placementCoordinatorApi: null,
   entityRegistry: null,
   selectedSpatialCell: null,
+  spatialTestController: null,
+  selectedTestEntityId: null,
+  moveTestEntityMode: false,
   clock: null,
   worldRegistry: null,
   persistenceApi: null,
@@ -188,7 +197,7 @@ pauseMenuController = createPauseMenuController({
 function refreshWorldMarkers() {
   const units = state.gameplayApi?.listUnits() ?? [];
   const activeWorldId = state.worldRegistry?.activeWorldId;
-  viewport.setWorldMarkers(units
+  const unitMarkers = units
     .filter((unit) => unit.placement?.type === "world"
       && unit.placement.worldId === activeWorldId)
     .map((unit) => ({
@@ -196,7 +205,16 @@ function refreshWorldMarkers() {
       x: unit.placement.position.x,
       y: unit.placement.position.y,
       label: getDefinition(unit.definitionId)?.name ?? unit.definitionId
-    })));
+    }));
+  const testMarkers = (state.spatialTestController?.list() ?? [])
+    .filter(({ occupancy }) => occupancy.worldId === activeWorldId)
+    .map(({ entity, occupancy }) => ({
+      id: entity.id,
+      x: occupancy.anchor.x,
+      y: occupancy.anchor.y,
+      label: "TEST ENTITY"
+    }));
+  viewport.setWorldMarkers([...unitMarkers, ...testMarkers]);
 }
 
 function clearSelection() {
@@ -214,9 +232,108 @@ function inspectGameplayEntity(entityId) {
   return unit;
 }
 
+function handleViewportEntitySelect(entityId) {
+  if (!entityId) {
+    if (state.moveTestEntityMode) return;
+    state.selectedTestEntityId = null;
+    updateSpatialTestControls();
+    inspectGameplayEntity(null);
+    return;
+  }
+  const testEntity = state.spatialTestController?.list().find(({ entity }) => entity.id === entityId);
+  if (testEntity) {
+    state.selectedTestEntityId = entityId;
+    viewport.setSelectedWorldMarker(entityId);
+    updateSpatialTestControls();
+    inspectSpatialCell(testEntity.occupancy.anchor);
+    return;
+  }
+  state.selectedTestEntityId = null;
+  updateSpatialTestControls();
+  inspectGameplayEntity(entityId);
+}
+
+function updateSpatialTestControls() {
+  const hasController = Boolean(state.spatialTestController);
+  const hasSelection = Boolean(state.selectedTestEntityId
+    && state.spatialTestController?.list().some(({ entity }) => entity.id === state.selectedTestEntityId));
+  createTestEntityButton.disabled = !hasController || !state.paused || state.placementActive;
+  moveTestEntityButton.disabled = !hasSelection || !state.paused;
+  removeTestEntityButton.disabled = !hasSelection || !state.paused;
+  moveTestEntityButton.textContent = state.moveTestEntityMode ? "CANCEL MOVE" : "MOVE SELECTED";
+  moveTestEntityButton.dataset.active = String(state.moveTestEntityMode);
+  testEntityFootprint.disabled = !state.paused;
+}
+
+function createSpatialTestEntity() {
+  if (!state.paused || !state.spatialTestController || !state.worldRegistry) return;
+  const world = state.worldRegistry.get(state.worldRegistry.activeWorldId);
+  const footprint = testEntityFootprint.value === "square-2"
+    ? [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }]
+    : [{ x: 0, y: 0 }];
+  const anchor = state.selectedSpatialCell ?? {
+    x: Math.floor(world.grid.width / 2),
+    y: Math.floor(world.grid.height / 2)
+  };
+  try {
+    const created = state.spatialTestController.create({ anchor, footprint });
+    state.selectedTestEntityId = created.entity.id;
+    state.moveTestEntityMode = false;
+    refreshWorldMarkers();
+    viewport.setSelectedWorldMarker(created.entity.id);
+    inspectSpatialCell(anchor);
+    spatialTestStatus.textContent = `CREATED · ${created.entity.id} · ${created.occupancy.cells.length} CELLS`;
+    updateSpatialTestControls();
+  } catch (error) {
+    spatialTestStatus.textContent = `CREATE REJECTED · ${error.code ?? error.message}`;
+  }
+}
+
+function toggleSpatialTestMoveMode() {
+  if (!state.paused || !state.selectedTestEntityId) return;
+  state.moveTestEntityMode = !state.moveTestEntityMode;
+  spatialTestStatus.textContent = state.moveTestEntityMode
+    ? "MOVE MODE · CLICK A TARGET GRID CELL"
+    : "MOVE MODE CANCELLED";
+  updateSpatialTestControls();
+}
+
+function removeSelectedSpatialTestEntity() {
+  if (!state.paused || !state.selectedTestEntityId || !state.spatialTestController) return;
+  const removedId = state.selectedTestEntityId;
+  try {
+    state.spatialTestController.remove(removedId);
+    state.selectedTestEntityId = null;
+    state.moveTestEntityMode = false;
+    viewport.setSelectedWorldMarker(null);
+    refreshWorldMarkers();
+    spatialTestStatus.textContent = `RETIRED · ${removedId}`;
+    updateSpatialTestControls();
+    if (state.selectedSpatialCell) inspectSpatialCell(state.selectedSpatialCell);
+  } catch (error) {
+    spatialTestStatus.textContent = `REMOVE FAILED · ${error.code ?? error.message}`;
+  }
+}
+
 function inspectSpatialCell(cell) {
   const worldId = state.worldRegistry?.activeWorldId;
   if (!state.spatialApi || !worldId || !cell) return null;
+  if (state.moveTestEntityMode && state.selectedTestEntityId) {
+    const result = state.spatialTestController.move(state.selectedTestEntityId, {
+      worldId,
+      anchor: cell
+    });
+    if (result.status === "moved" || result.status === "unchanged") {
+      refreshWorldMarkers();
+      viewport.setSelectedWorldMarker(state.selectedTestEntityId);
+      spatialTestStatus.textContent = result.status === "moved"
+        ? `MOVED · ${state.selectedTestEntityId} → (${cell.x}, ${cell.y})`
+        : "ENTITY ALREADY AT TARGET";
+    } else {
+      spatialTestStatus.textContent = `MOVE ${result.status.toUpperCase()} · ${result.code}`;
+    }
+    updateSpatialTestControls();
+  }
   try {
     const inspection = querySpatialCell(state.spatialApi, worldId, cell);
     state.selectedSpatialCell = inspection.cell;
@@ -251,9 +368,10 @@ function updateSimulationUi() {
   viewport.setWorldInteraction({
     paused: state.paused,
     inspectionEnabled: true,
-    onSelect: inspectGameplayEntity,
+    onSelect: handleViewportEntitySelect,
     onInspectCell: inspectSpatialCell
   });
+  updateSpatialTestControls();
   if (controlState?.drafted && controlState.leaderId) {
     inspectGameplayEntity(controlState.leaderId);
   } else if (state.gameplayUi?.getSelectedUnitId()) {
@@ -410,8 +528,29 @@ document.addEventListener("visibilitychange", () => {
 });
 
 
-worldSizeSelect.addEventListener("change", () => workspaceSession.changeWorld());
-resetLabButton.addEventListener("click", () => workspaceSession.reset());
+worldSizeSelect.addEventListener("change", () => {
+  workspaceSession.changeWorld();
+  state.selectedTestEntityId = null;
+  state.moveTestEntityMode = false;
+  refreshWorldMarkers();
+  updateSpatialTestControls();
+});
+resetLabButton.addEventListener("click", () => {
+  try {
+    state.spatialTestController?.removeAll();
+  } catch (error) {
+    spatialTestStatus.textContent = `RESET CLEANUP FAILED · ${error.code ?? error.message}`;
+    return;
+  }
+  state.selectedTestEntityId = null;
+  state.moveTestEntityMode = false;
+  workspaceSession.reset();
+  refreshWorldMarkers();
+  updateSpatialTestControls();
+});
+createTestEntityButton.addEventListener("click", createSpatialTestEntity);
+moveTestEntityButton.addEventListener("click", toggleSpatialTestMoveMode);
+removeTestEntityButton.addEventListener("click", removeSelectedSpatialTestEntity);
 
 saveWorkspaceButton.addEventListener("click", () => state.workspacePersistence?.save());
 saveWorkspaceAsButton.addEventListener("click", () => state.workspacePersistence?.saveAs());
@@ -477,6 +616,13 @@ function createDevLabRuntimeHost({
     state.placementCoordinatorApi = services.placementCoordinatorApi ?? null;
     state.entityRegistry = services.entityRegistry ?? null;
     state.persistenceApi = services.persistenceApi;
+    state.spatialTestController = new SpatialTestController({
+      entityRegistry: state.entityRegistry,
+      worldRegistry: worlds,
+      spatialComposition: state.spatialApi,
+      placementCoordinator: state.placementCoordinatorApi,
+      spatialMovement: state.spatialMovementApi
+    });
     state.workspacePersistence = createFilePersistenceController({
       persistenceApi: services.persistenceApi,
       saveSlot: "dev-lab-workspace",
