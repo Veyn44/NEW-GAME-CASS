@@ -815,3 +815,44 @@ production modules are unchanged.
   user's responsibility; the standalone Engine-only Dev Lab is not a required
   acceptance target unless the user chooses to develop it further.
 - Do not merge to `main` as part of this cleanup.
+
+
+## 19. Engine / Cassandra / Dev Lab capability review — 2026-11-15
+
+### User direction confirmed
+
+- The user accepted the capability review as a practical summary of the recent design discussions and prefers to proceed incrementally rather than spend another long session re-reading every line.
+- Engine, Dev Lab and Cassandra remain separate responsibility areas with one-way dependencies into Engine.
+- Cassandra and Dev Lab are separate applications and will not communicate through or exchange save files. Cross-application save compatibility is not a requirement.
+- The current shared save adapter/slot/state identity is transitional debt. The target is separate application-owned persistence adapters, formats/envelopes and identities, while Engine retains generic persistence coordination only.
+- This confirmation does not approve every proposed/open feature in the capability review and does not authorize source implementation.
+
+### Consolidated review
+
+Added `docs/architecture/engine-game-devlab-capability-map.md` as a working capability and ownership map. It records:
+
+- what Engine Core currently provides and what it does not provide (in particular, current World Context placement is not grid occupancy, and the visual viewport grid is not authoritative physical state);
+- the Engine capabilities implied by Cassandra's agreed direction: world lifecycle, grid geometry, spatial composition/occupancy, multi-cell footprints, spatial queries, and potentially movement/collision and transactional change application;
+- Cassandra-owned systems such as universe generation, scans, expeditions, resources, mining, combat, Clear/Done and remote bases;
+- Dev Lab-owned editor, inspection, diagnostics, test scenarios, browser adapters and workspace workflow;
+- the distinction between agreed direction, proposals and unresolved contracts.
+
+The review is a navigation/ownership aid, not a complete implementation specification. Its open items must be designed before implementation, and proposals remain non-binding.
+
+### Documentation alignment performed
+
+- Updated `NEXT_STEPS.md`: PR #6 restructuring is now recorded as completed; stale Phase 2 “not started” execution checkboxes were replaced with the actual next design/verification steps. Phase 3 now references per-application save/load verification rather than generic cross-app compatibility.
+- Updated `PROJECT_HISTORY.md`: recorded PR #6 and its merge commit as the completed architecture milestone.
+- Updated `docs/architecture/application-boundaries.md`: explicitly recorded that Cassandra and Dev Lab save domains must be isolated and cross-save is out of scope.
+- Added the capability review link to the current roadmap.
+
+### Current verification and limitations
+
+- The read-only audit baseline previously inspected GitHub Actions run [#644](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43697707032) for the then-current `work` commit: Core 198/198 and Host 112/112 passed.
+- That CI run is not evidence for the documentation-only commits in this section; check the latest run for the current `work` HEAD if a fresh CI result is needed.
+- There is no browser E2E evidence. The menu-button responsiveness issue and manual Pages acceptance remain unresolved.
+- No source code, runtime behavior, environment simulation, save format, or application entry point was changed in this documentation pass.
+
+### Next safe step
+
+Use the capability map as the shared reference and proceed one Engine capability at a time. Before implementation, select the first concrete capability, define its public contract and acceptance tests, and check the existing Core behavior/source again. Do not reopen already agreed Cassandra gameplay details unless a concrete Engine dependency requires it. Do not merge to `main` without explicit user approval.
