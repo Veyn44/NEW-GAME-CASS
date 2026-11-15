@@ -23,6 +23,8 @@ jobs:
           node --check tests/unit/cassandra-runtime-host.test.js
           node --check cassandra/application/dev-lab-gameplay-controller.js
           node --check cassandra/application/dev-lab-unit-inspector-ui.js
+          node --check src/gameplay/unit/unit-system.js
+          node --check src/gameplay/colony/colony-control-system.js
           node --check dev-lab/application/application-shell.js
           node --check dev-lab/application/standalone-entry.js
           node --check dev-lab/application/create-dev-lab-runtime.js
