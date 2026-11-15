@@ -1,6 +1,6 @@
 # Phase 3 Physical World — Implementation Plan
 
-**Status:** Slice 1 and Slice 2 (2a/2b) implemented and verified; later query/movement/application slices remain gated  
+**Status:** Slices 1–4 implemented; coordinated placement persistence and Core Assembly integration are implemented on `work`. CI/manual integrated acceptance for the latest persistence addition is not yet confirmed.  
 **Branch:** `work`  
 **Source audit:** 2026-11-15  
 **Scope:** Implementation sequencing for reusable Engine grid/spatial capabilities and their Cassandra/Dev Lab integration
@@ -260,7 +260,19 @@ Behavior:
 
 ### Slice 5 — Persistence and restore integration
 
-**Proposed files:**
+**Status:** Implemented on `work`; automated test coverage is present, but the latest change still requires a confirmed CI run.
+
+**Implemented files and behavior:**
+- `engine/spatial/placement-coordinator.js` owns the composite `core.spatial-placement` persistence participant.
+- The participant captures World Context and Spatial Composition canonical snapshots together, validates their consistency, prepares both replacements and commits/rolls them back as one synchronous aggregate.
+- `engine/core/core-assembly.js` registers Entity Registry, World Registry and the composite placement participant in dependency order; it does not register duplicate independent placement snapshots.
+- Fatal rollback-integrity failure faults the coordinator and pauses the Core clock through the host callback.
+- `tests/unit/placement-coordinator.test.js` covers composite restore, mismatch rejection, authority guards, rollback integrity faulting and rollback when a later Persistence participant fails.
+- `tests/core-integration.test.js` covers the real Core Assembly grid placement save/load round-trip and cross-registry restore rollback.
+
+**Remaining verification:** Confirm a CI run on the current `work` head and keep unsupported historical save rejection covered. The test additions are not a claim that the latest CI has passed.
+
+**Original implementation checklist (completed unless noted):**
 - Add an Engine-owned composite placement-state persistence coordinator/participant (detailed in Section 14 of `spatial-placement-integration-contract-proposal.md`) that captures World Context and Spatial Composition canonical snapshots together.
 - Keep Entity Registry and World Registry as earlier restore dependencies; restore the composite placement state after both.
 - Do not register independent World Context and Spatial Composition participants for the same canonical placement state in one Core assembly.
@@ -290,7 +302,17 @@ Tasks:
 
 ### Slice 6 — Runtime assembly and Core integration
 
-**Proposed files:**
+**Status:** Core Assembly integration is implemented on `work`; final CI and non-spatial regression acceptance remain verification gates.
+
+**Implemented:**
+- `engine/core/core-assembly.js` registers Spatial Composition, Placement Coordinator and Spatial Movement with explicit service IDs and dependency declarations.
+- Persistence registers the composite placement participant after Entity Registry and World Registry.
+- The Core service graph remains application-neutral and does not import Cassandra or Dev Lab.
+- `tests/core-integration.test.js` verifies grid placement persistence through the actual Core Assembly and retains non-grid World Context behavior coverage.
+
+**Remaining:** Confirm current CI results, teardown/lifecycle regression coverage, and the full non-spatial host suite on the latest head.
+
+**Original implementation checklist:**
 - Update `engine/core/core-assembly.js`.
 - Update `engine/core/README.md`.
 - Extend `tests/core-integration.test.js` and add spatial assembly tests as needed.
