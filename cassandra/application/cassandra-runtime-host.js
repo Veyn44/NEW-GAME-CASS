@@ -4,6 +4,7 @@ import { getDefinition } from "../../engine/database/definition-registry.js";
 import { createUnitSystem } from "../../src/gameplay/unit/unit-system.js";
 import { createColonyControlSystem } from "../../src/gameplay/colony/colony-control-system.js";
 import { createCassandraWorldSessionSystem } from "../../src/gameplay/world/cassandra-world-session-system.js";
+import { createCassandraExpeditionProjectionSystem } from "../../src/gameplay/expedition/cassandra-expedition-projection-system.js";
 import { createCassandraDevLabGameplayController } from "./dev-lab-gameplay-controller.js";
 import { createCassandraDevLabUnitInspectorUi } from "./dev-lab-unit-inspector-ui.js";
 import { createApplicationRuntimeHost } from "../../shared/application/runtime-host.js";
@@ -24,7 +25,8 @@ export function createCassandraRuntime({
       createInputSystem({ inputController }),
       createUnitSystem({ definitionLookup: getDefinition }),
       createColonyControlSystem(),
-      createCassandraWorldSessionSystem()
+      createCassandraWorldSessionSystem(),
+      createCassandraExpeditionProjectionSystem()
     ],
     simulationTasks: [{
       systemId: "game.colony-control",
@@ -64,6 +66,7 @@ export function resolveCassandraRuntimeServices(context) {
     persistenceApi: context.getService("core.persistence"),
     clock: context.getService("core.game-clock"),
     worldSessionApi: context.getService("game.world-session-api"),
+    expeditionProjectionApi: context.getService("game.expedition-projection-api"),
     gameplayApi,
     gameplayUi
   };
