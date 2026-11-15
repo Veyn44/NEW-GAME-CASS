@@ -407,7 +407,12 @@ test("coordinator isolates handlers from undeclared and retained candidate state
   const coordinator = createCassandraChangePackageCoordinator({
     storage,
     operationHandlers: isolatedHandlers,
-    validateReturnManifest: () => true,
+    validateReturnManifest: async () => {
+      // This is the final reconciliation point, before campaign promotion.
+      // A retained handler reference must already be detached from Candidate State.
+      if (escapedAggregate) escapedAggregate.state.ore = 888;
+      return true;
+    },
     resolveResultIdentities
   });
   const changePackage = await makePackage();
