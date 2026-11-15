@@ -269,3 +269,7 @@ The proposed sequence below is the recommended dependency order, not authorizati
 - `cass-save-compatibility-migration-proposal.md`
 - `phase-3-implementation-plan.md`
 - `phase-3-brainstorm.md`
+
+
+Manual release checks are prepared but intentionally not executed during implementation:
+- `docs/architecture/phase-3-manual-acceptance-checklist.md` covers browser UI, strict IndexedDB durability/CAS, interrupted promotion recovery, target-size performance and regression checks for the previously validated environment simulation.
