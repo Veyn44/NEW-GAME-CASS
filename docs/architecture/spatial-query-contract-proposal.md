@@ -1,6 +1,6 @@
 # Spatial Query Contract — Working Proposal
 
-**Status:** Working proposal; query ownership and read-only direction recommended, technical defaults proposed  
+**Status:** Slice 3 implemented on `work`; read-only query baseline verified by unit tests, host-specific integration remains later work  
 **Scope:** Generic read/query interface over grid cells, spatial contents, entity occupancy and footprints  
 **Branch:** `work`  
 **Source audit:** 2026-11-15
@@ -401,10 +401,10 @@ These may be added when a concrete host requirement justifies them, without chan
 
 ## 18. Review status
 
-**Recommended baseline:** Read-only, bounded, deterministic queries over the Spatial Composition service, with explicit geometry, filters and lifecycle availability outcomes.
+**Implemented baseline:** Read-only, bounded, deterministic queries over Spatial Composition, with explicit geometry and filters. Unknown worlds, non-grid worlds, closed worlds, malformed geometry and out-of-bounds regions are rejected distinctly. The current runtime has no separate unloaded-snapshot state to query.
 
 **Agreed project constraints retained:** Optional grid; sparse/implicit empty cells; multiple contents per cell; entity identity independent of footprint size; category/layer/entity kind are distinct; Engine exposes generic facts while Cassandra owns gameplay meaning.
 
 **Technical defaults proposed:** Query families, half-open rectangles, reject-by-default bounds behavior, explicit clipping, deterministic row-major ordering, immutable consistent results, no implicit loading, and sparse/indexed implementation.
 
-**Still open for later implementation planning:** Exact public method names and signatures, result object schemas, concrete error code names, category/layer index strategy, and integration/restore readiness wiring.
+**Implemented on `work` (Slice 3):** `queryCell`, `queryRegion`, `queryEntitiesInRegion`, `getEntityFootprint`, `queryNeighbors` and `queryRadius`. Cell and region results separate content records from entity occupancy, entity-oriented results deduplicate by ID and include matched cells, category/layer/kind filters remain distinct, rectangle bounds are half-open and reject clipping implicitly, explicit cell sets are deduplicated and row-major normalized, and returned snapshots are immutable. Region queries report only occupied cells; untouched cells remain implicit. Entity-kind filters use Entity Registry metadata supplied by Core Assembly.\n\n**Deferred:** Lifecycle availability for genuinely unloaded/disposed spatial snapshots (the current in-memory Spatial Composition has no independent unloaded snapshot state), category/layer secondary indexes pending profiling, async/paginated queries, arbitrary predicates, and query subscriptions. Cassandra and Dev Lab adoption remains separate.
