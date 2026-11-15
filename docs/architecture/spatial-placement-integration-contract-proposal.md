@@ -1,6 +1,6 @@
 # Spatial Placement Integration Contract — Working Proposal
 
-**Status:** Working proposal; placement ownership direction approved, integration mechanics not yet approved as implementation specification  
+**Status:** Placement ownership and grid-anchor coordinate mapping approved; integration mechanics remain a working proposal  
 **Branch:** `work`  
 **Decision recorded:** 2026-11-15  
 **Scope:** Coordinated placement between Engine Core World Context and Engine Spatial Composition
@@ -76,7 +76,7 @@ The integration must define one deterministic conversion/representation rule bet
 - Keep the anchor distinct from the entity's occupied-cell set; a multi-cell footprint remains one entity placement.
 - Never infer grid capability solely from existing World Context dimensions.
 
-The preferred default for an entity whose World Context position represents its logical grid location is to map the anchor to its cell center. This is a proposed mapping, not yet an approved API-level requirement. If current Cassandra placement semantics require a different interpretation, the adapter must preserve those semantics and document the mapping explicitly.
+**Agreed direction (2026-11-15):** For every grid-backed entity, the World Context world-space position is the center of its anchor cell: `worldX = anchorX + 0.5`, `worldY = anchorY + 0.5`. The grid anchor remains an integer cell coordinate and is not the center of the complete multi-cell footprint. Non-grid world positions remain continuous and are not subject to this conversion. Implementations and restore validation must use this one deterministic mapping; they must not silently round legacy fractional positions into grid anchors.
 
 ## 5. Operation coverage
 
