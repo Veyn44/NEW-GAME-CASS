@@ -92,6 +92,13 @@
           <aside id="spatial-inspector" class="spatial-inspector" aria-label="Engine spatial inspector">
             <strong>ENGINE / SPATIAL INSPECTOR</strong>
             <span id="spatial-cell-label">Select a cell</span>
+            <div class="spatial-inspector-actions">
+              <button id="spatial-neighbors-four" type="button" disabled>4-WAY</button>
+              <button id="spatial-neighbors-eight" type="button" disabled>8-WAY</button>
+              <button id="spatial-radius-manhattan" type="button" disabled>MANHATTAN 2</button>
+              <button id="spatial-radius-chebyshev" type="button" disabled>CHEBYSHEV 2</button>
+              <button id="spatial-footprint" type="button" disabled>FOOTPRINT</button>
+            </div>
             <pre id="spatial-cell-data">Click a grid cell while paused to inspect its contents and entity occupancy.</pre>
           </aside>
           <aside id="pause-menu" class="pause-menu" aria-label="Pause menu" hidden>
