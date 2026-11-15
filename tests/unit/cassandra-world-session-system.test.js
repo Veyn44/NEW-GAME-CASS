@@ -70,6 +70,47 @@ test("Cassandra runtime advances only the active World's local clock per simulat
   }
 });
 
+test("Cassandra World local time does not commit when a later task faults the simulation step", async () => {
+  const runtime = createGameRuntime({
+    saveAdapter: new MemorySaveAdapter(),
+    hostSystems: [
+      createCassandraWorldSessionSystem(),
+      { id: "test.failure", initialize() { return {}; } }
+    ],
+    simulationTasks: [
+      {
+        systemId: "game.world-session",
+        update({ deltaSeconds, tick, context }) {
+          context.getService("game.world-session-api").advance(deltaSeconds, tick);
+        }
+      },
+      {
+        systemId: "test.failure",
+        update() {
+          throw new Error("intentional test failure");
+        }
+      }
+    ]
+  });
+  try {
+    const context = await runtime.start();
+    const worlds = context.getService("core.world-registry");
+    worlds.registerWorld({
+      worldId: "fault-main",
+      type: "cassandra-main",
+      dimensions: { width: 16, height: 16 },
+      grid: { width: 16, height: 16 }
+    });
+    const session = context.getService("game.world-session-api");
+    session.registerMainWorld("fault-main");
+    assert.throws(() => runtime.advance(1 / 60));
+    assert.equal(context.getService("core.scheduler").snapshot.tick, 0);
+    assert.equal(session.getWorldTime("fault-main"), 0);
+  } finally {
+    await runtime.destroy();
+  }
+});
+
 test("Cassandra Main World local time pauses while Temporary World is active", async () => {
   const state = await setup();
   try {
