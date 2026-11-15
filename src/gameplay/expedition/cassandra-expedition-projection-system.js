@@ -44,6 +44,7 @@ export function createCassandraExpeditionProjectionSystem() {
   let worldSession;
   let projection = null;
   let unregisterPersistence = null;
+  let unregisterTemporaryCleanup = null;
 
   function restoreProjection(snapshot) {
     if (snapshot === null) return null;
@@ -138,9 +139,19 @@ export function createCassandraExpeditionProjectionSystem() {
       persistence = context.getService("core.persistence");
       worldSession = context.getService("game.world-session-api");
       unregisterPersistence = persistence.registerParticipant(persistenceParticipant);
+      unregisterTemporaryCleanup = worldSession.registerTemporaryWorldCleanup(({ temporaryWorldId }) => {
+        if (projection && projection.toSnapshot().temporaryWorldId !== temporaryWorldId) {
+          fail("PROJECTION_DISPOSAL_WORLD_MISMATCH",
+            "Projection cleanup callback received a different Temporary World ID.");
+        }
+        projection = null;
+        return true;
+      });
       return { "game.expedition-projection-api": api };
     },
     destroy() {
+      unregisterTemporaryCleanup?.();
+      unregisterTemporaryCleanup = null;
       unregisterPersistence?.();
       unregisterPersistence = null;
       projection = null;
