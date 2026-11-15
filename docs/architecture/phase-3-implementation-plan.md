@@ -244,9 +244,9 @@ Behavior:
 - Requires a synchronous host policy per call; no default allow/block policy exists in Engine.
 - Accepts boolean or structured `{ accepted, code?, reason? }` decisions.
 - Commits accepted moves only through Placement Coordinator.
-- Returns stable `moved`, `unchanged`, `rejected`, `invalid`, `out-of-bounds` or `unavailable` outcomes.
+- Returns stable `moved`, `unchanged`, `rejected`, `invalid`, `out-of-bounds`, `unavailable`, `policy-error` or `failed` outcomes.
 - Policy rejection, malformed/throwing/async policy and bounds failure leave the previous placement unchanged.
-- Re-entrant movement of the same entity is rejected.
+- Re-entrant movement of the same entity is rejected, including while an unsupported asynchronous policy is still settling.
 
 **Exit criteria covered by focused tests:**
 - Multi-cell translation and rotation, including removal of all old occupied cells.
@@ -254,7 +254,7 @@ Behavior:
 - Host policy can accept overlap or reject a target.
 - Cross-grid-world relocation preserves entity identity.
 - Same-position, out-of-bounds footprint, unavailable/non-grid/closed world and invalid entity cases.
-- Policy rejection, exception, async/malformed return and re-entrant attempt.
+- Policy rejection, exception, async/malformed return, sync and async mutation attempts, decision-accessor mutation, and re-entrant attempt.
 
 **Boundary note:** The policy receives immutable facts and is synchronous. During evaluation, Engine guards Spatial Composition content/occupancy writes and Placement Coordinator commits/restore rollbacks; policy decision properties are normalized under the same guard. The host must still avoid mutating unrelated external state captured by its closure. Cassandra movement, speed, input, interpolation, passability and collision consequences remain untouched.
 
@@ -562,8 +562,8 @@ The proposal specifies:
 | C0 — Scoped design closure | Per-slice contracts closed before execution; downstream design gates remain separate; explicit user authorization required for each implementation scope |
 | C1 — Geometry | **Passed 2026-11-15** — pure geometry and explicit World Registry grid capability; full Core/host CI green; existing placement semantics untouched |
 | C2 — Composition | **Passed 2026-11-15** — sparse content, footprints, occupancy, Placement Coordinator and composite persistence implemented; full CI green |
-| C3 — Queries | **Implemented on work 2026-11-15** — read-only cell/region/entity/footprint/neighbor/radius queries; focused tests added; final CI pending |
-| C4 — Movement | **Implemented on work 2026-11-15** — host-policy transaction and focused tests added; final CI pending |
+| C3 — Queries | **Passed 2026-11-15** — read-only queries, deterministic ordering and immutable results; full Core/host CI green |
+| C4 — Movement | **Passed 2026-11-15** — host-policy transaction, atomic placement commit and mutation guards; full Core/host CI green |
 | C5 — Persistence | Current supported-save fixtures, explicit unsupported-version rejection, snapshot/restore ordering and rollback |
 | C6 — Core integration | Service registration, dependency order and non-grid compatibility |
 | C7 — Cassandra | Existing gameplay/environment regressions and expedition workflow |
@@ -597,7 +597,7 @@ Any proposed exception must identify the concrete dependency and the smallest re
 
 **Compatibility policy:** Backward compatibility with arbitrary old `.cass` versions is not required. Unsupported versions may be rejected safely; selected migrations are optional and explicitly version-scoped.
 
-**Current action:** Slices 1, 1b, 2a/2b, 3 and 4 are implemented on `work`; Slice 4 verification is pending final CI. Next proposed work is Slice 5 — persistence and restore integration — which remains a separate scope and requires explicit authorization. No PR merge or `main` update is implied.
+**Current action:** Slices 1, 1b, 2a/2b, 3 and 4 are implemented and CI-verified on `work`. Next proposed work is Slice 5 — persistence and restore integration — which remains a separate scope and requires explicit authorization. No PR merge or `main` update is implied.
 
 
 
@@ -628,3 +628,12 @@ Any proposed exception must identify the concrete dependency and the smallest re
 - Added focused movement tests for acceptance, rejection, bounds, overlap, rotation, cross-world relocation, same-position and policy failure behavior.
 - Cassandra Pawn/Unit movement, input, speed, interpolation, environment simulation, world generation and Dev Lab were not changed.
 - Final CI verification is pending.
+
+
+## Slice 4 verification checkpoint
+
+- Final CI run: `43749324541` — [GitHub Actions](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43749324541)
+- Core tests: 205/205 passed.
+- Host tests: 175/175 passed.
+- Browser entry-point syntax check: passed.
+- No Cassandra Pawn/Unit movement, speed, input, viewport interpolation, passability, environment simulation or collision consequences were changed.
