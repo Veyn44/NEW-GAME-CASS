@@ -65,6 +65,10 @@ function normalizeMapping(input, entityRegistry, temporaryWorldId) {
   if (typeof input.transferEligible !== "boolean") {
     fail("INVALID_TRANSFER_ELIGIBILITY", "Projection mapping must declare transfer eligibility.", { campaignEntityId });
   }
+  if (input.baselineFingerprint !== undefined && input.baselineFingerprint !== null
+    && typeof input.baselineFingerprint !== "string") {
+    fail("INVALID_PROJECTION_FINGERPRINT", "Baseline fingerprint must be a string or null.", { campaignEntityId });
+  }
   const { campaignEntity, temporaryEntity } = validateEntityPair(
     entityRegistry, campaignEntityId, temporaryEntityId, temporaryWorldId
   );
@@ -178,10 +182,16 @@ export function createCassandraExpeditionProjection({
         if (entry?.campaignEntityId) {
           const id = assertId(entry.campaignEntityId, "Manifest campaign entity ID");
           counts.set(id, (counts.get(id) ?? 0) + 1);
-          if (!mappings.has(id)) {
+          const mapping = mappings.get(id);
+          if (!mapping) {
             fail("UNKNOWN_MANIFEST_CAMPAIGN_ENTITY", "Return manifest references an entity outside this expedition projection.", {
               campaignEntityId: id
             });
+          }
+          if (!mapping.transferEligible && entry.disposition === "returned") {
+            fail("ENTITY_NOT_TRANSFER_ELIGIBLE",
+              "An entity that is not eligible for transfer cannot have a returned disposition.",
+              { campaignEntityId: id });
           }
         }
       }
