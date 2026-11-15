@@ -308,6 +308,31 @@ test("coordinator rejects operation handlers that mutate revision counters direc
   assert.equal(storage.snapshot.majorState.aggregates["inventory:crew"].revision, 0);
 });
 
+test("coordinator snapshots operation handlers when it is constructed", async () => {
+  const storage = makeStorage();
+  const mutableHandlers = {
+    "inventory.add": {
+      validate: () => true,
+      apply({ aggregate, operation }) {
+        aggregate.state.ore += operation.payload.amount;
+      }
+    }
+  };
+  const coordinator = createCassandraChangePackageCoordinator({
+    storage,
+    operationHandlers: mutableHandlers,
+    validateReturnManifest: () => true,
+    resolveResultIdentities
+  });
+  mutableHandlers["inventory.add"].apply = ({ aggregate }) => {
+    aggregate.state.ore = 999;
+  };
+  const changePackage = await makePackage();
+  await coordinator.stage(changePackage, { checkpoint: { majorState: storage.snapshot.majorState } });
+  await coordinator.apply(changePackage.packageId);
+  assert.equal(storage.snapshot.majorState.aggregates["inventory:crew"].state.ore, 6);
+});
+
 test("coordinator exposes immutable package operations and resolved result identities to handlers", async () => {
   const storage = makeStorage();
   const guardedHandlers = {
