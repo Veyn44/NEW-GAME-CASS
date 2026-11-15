@@ -165,7 +165,10 @@ test("stale touched aggregate marks package conflicted without applying any oper
   const storage = makeStorage({ revision: 1, value: 9 });
   const coordinator = createCassandraChangePackageCoordinator({ storage, operationHandlers: handlers, validateReturnManifest: () => true });
   const changePackage = await makePackage();
-  await coordinator.stage(changePackage, { checkpoint: { majorState: storage.snapshot.majorState } });
+  const expeditionStart = storage.snapshot.majorState;
+  expeditionStart.aggregates["inventory:crew"].revision = 0;
+  expeditionStart.aggregates["inventory:crew"].state.ore = 2;
+  await coordinator.stage(changePackage, { checkpoint: { majorState: expeditionStart } });
   const result = await coordinator.apply(changePackage.packageId);
   assert.equal(result.status, "conflict");
   assert.equal(storage.snapshot.majorState.aggregates["inventory:crew"].state.ore, 9);
