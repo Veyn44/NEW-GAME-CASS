@@ -376,17 +376,20 @@ export function createCassandraChangePackageCoordinator({
             { aggregateId: baseline.aggregateId });
         }
       }
+      const checkpointDigest = await sha256(canonicalStringify(checkpoint));
       snapshot.pendingPackages.push({
         packageId: changePackage.packageId,
         digest: changePackage.digest,
         changePackage: cloneState(changePackage),
         checkpoint: cloneState(checkpoint),
+        checkpointDigest,
         status: "pending",
         resolvedResultIdentities: {}
       });
       const reopened = await writeSnapshot(snapshot);
       const retained = reopened.pendingPackages.find((entry) => entry.packageId === changePackage.packageId);
       if (!retained || retained.digest !== changePackage.digest
+        || retained.checkpointDigest !== checkpointDigest
         || canonicalStringify(retained.checkpoint) !== canonicalStringify(checkpoint)) {
         fail("CHANGE_BUFFER_DURABILITY_UNCONFIRMED",
           "The reopened campaign snapshot does not contain the complete pending package and expedition checkpoint.");
@@ -413,6 +416,12 @@ export function createCassandraChangePackageCoordinator({
       const changePackage = pending.changePackage;
       await verifyCassandraChangePackage(changePackage);
       if (pending.digest !== changePackage.digest) fail("PENDING_PACKAGE_CORRUPT", "Pending package digest does not match its envelope.");
+      if (typeof pending.checkpointDigest !== "string"
+        || await sha256(canonicalStringify(pending.checkpoint)) !== pending.checkpointDigest) {
+        fail("EXPEDITION_CHECKPOINT_CORRUPT",
+          "The durable expedition-start checkpoint does not match its SHA-256 digest.",
+          { packageId });
+      }
       if (applied) fail("PACKAGE_LEDGER_INCONSISTENT", "Package exists in both pending and applied records.");
 
       const majorState = snapshot.majorState;
