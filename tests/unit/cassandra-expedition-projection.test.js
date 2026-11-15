@@ -127,6 +127,20 @@ test("every projected persistent entity requires exactly one manifest dispositio
   ]), true);
 });
 
+test("expedition projection refuses return dispositions for non-transferable entities", () => {
+  const projection = createProjection();
+  projection.add({ ...pawnMapping, transferEligible: false });
+  assert.throws(
+    () => projection.validateReturnManifest([
+      { campaignEntityId: "campaign:pawn:one", disposition: "returned" }
+    ]),
+    { code: "ENTITY_NOT_TRANSFER_ELIGIBLE" }
+  );
+  assert.equal(projection.validateReturnManifest([
+    { campaignEntityId: "campaign:pawn:one", disposition: "retainedAtLocation" }
+  ]), true);
+});
+
 test("expedition projection snapshot restores only against the same session and valid Engine identities", () => {
   const registry = makeRegistry();
   const projection = createProjection(registry);
