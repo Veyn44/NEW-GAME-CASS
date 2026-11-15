@@ -234,3 +234,22 @@ test("async policy cannot mutate spatial services after its first await", async 
   assert.equal(s.spatial.getContent("wall:async"), null);
   assert.deepEqual(occupancy(s, "pawn:mover").anchor, { x: 1, y: 1 });
 });
+
+test("async policy keeps the mover reentrancy guard until settlement", async () => {
+  const s = setup();
+  place(s, "pawn:mover", { x: 1, y: 1 });
+  let completion;
+  let nested;
+  const result = s.movement.moveEntity("pawn:mover", { worldId: "grid-a", anchor: { x: 2, y: 2 } }, () => {
+    completion = (async () => {
+      await Promise.resolve();
+      nested = s.movement.moveEntity("pawn:mover", { worldId: "grid-a", anchor: { x: 3, y: 3 } }, () => true);
+      return true;
+    })();
+    return completion;
+  });
+  assert.equal(result.code, "ASYNC_POLICY_UNSUPPORTED");
+  await completion;
+  assert.equal(nested.code, "REENTRANT_MOVEMENT");
+  assert.deepEqual(occupancy(s, "pawn:mover").anchor, { x: 1, y: 1 });
+});
