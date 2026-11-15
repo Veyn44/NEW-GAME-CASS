@@ -298,15 +298,20 @@ Audited on branch work:
 
 No source/runtime code was changed during this audit.
 
-## 11. Open decisions before implementation
+## 11. Decisions and open implementation details
 
-1. Confirm the explicit separation between current Dev Lab/workspace saves and future Cassandra campaign saves (recommended: yes, no cross-save conversion).
-2. Define the first authoritative Cassandra campaign save schema and its state identity when the campaign data model is ready.
-3. Decide the application preflight migration integration point.
-4. Define exact coordinate conversion for each legacy spatial source before deriving grid occupancy.
-5. Audit the actual legacy environment/map/resource persistence format before writing any environment migration.
-6. Define the golden .cass fixtures and the platform's atomic replacement/backup guarantees.
-7. Decide whether legacy saves are upgraded only by creating a new file, or whether a later explicit in-place upgrade is supported.
+**Agreed application boundary (previously decided):**
+- Cassandra and Dev Lab are separate applications with separate persistence identities and formats.
+- No cross-save compatibility or cross-save converter is a goal.
+- The current Dev Lab/workspace .cass path must not be interpreted as a Cassandra campaign save.
+
+**Still open before implementation:**
+1. Define the first authoritative Cassandra campaign save schema and its state identity when the campaign data model is ready.
+2. Decide the application preflight migration integration point.
+3. Define exact coordinate conversion for each legacy spatial source before deriving grid occupancy.
+4. Audit the actual legacy environment/map/resource persistence format before writing any environment migration.
+5. Define the golden .cass fixtures and the platform's atomic replacement/backup guarantees.
+6. Decide whether legacy saves are upgraded only by creating a new file, or whether a later explicit in-place upgrade is supported.
 
 **Recommended default:** Keep the existing workspace .cass contract isolated; define a distinct campaign save identity/schema; add an application-owned preflight migration that derives every new required snapshot from authoritative legacy data; preserve the source file; and reject any migration that cannot prove data preservation.
 
