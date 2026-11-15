@@ -157,6 +157,28 @@ Tasks:
 - Existing World Registry and World Context files/tests were not changed.
 - No cell contents, occupancy, world descriptor integration or game rules were introduced.
 
+### Slice 1b — World Registry grid capability descriptor
+
+**Status:** Implemented and verified 2026-11-15.
+
+**Files changed:**
+- `engine/core/world-registry.js`.
+- `tests/world-registry.test.js`.
+- `tests/core-integration.test.js`.
+
+**Implemented behavior:**
+- `registerWorld()` accepts an optional `grid: { width, height }`; omitted or `null` means no grid.
+- The immutable World descriptor exposes `grid: null` or a validated positive safe-integer grid descriptor.
+- Generic World `dimensions` remain unchanged and do not imply grid support; grid dimensions are stored separately.
+- World Registry snapshot schema is now version 3.
+- Explicit version-1 and version-2 snapshot migrations add `grid: null` while preserving existing world metadata/reference migration behavior.
+- Snapshot validation requires the explicit grid field and rejects malformed descriptors.
+
+**Verification:**
+- Tests cover non-grid defaults, independent grid/world dimensions, immutability, invalid registration, snapshot round-trip, malformed snapshots and v1/v2 migration.
+- GitHub Actions [run 43738206447](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43738206447) — Core suite 204/204 passed, host suite 125/125 passed, browser syntax checks passed.
+- No World Context placement semantics or Core Assembly service registration changed.
+
 ### Slice 2 — Spatial Composition storage and occupancy
 
 **Proposed files:**
@@ -528,7 +550,7 @@ The proposal specifies:
 | Checkpoint | Required review |
 |---|---|
 | C0 — Scoped design closure | Per-slice contracts closed before execution; downstream design gates remain separate; explicit user authorization required for each implementation scope |
-| C1 — Geometry | **Passed 2026-11-15** — geometry tests and full Core/host CI green; existing placement semantics untouched |
+| C1 — Geometry | **Passed 2026-11-15** — pure geometry and explicit World Registry grid capability; full Core/host CI green; existing placement semantics untouched |
 | C2 — Composition | Ownership, footprints, overlap facts, atomic occupancy and sparse storage |
 | C3 — Queries | Read-only behavior, deterministic results, lifecycle and bounds outcomes |
 | C4 — Movement | Host policy boundary and atomic move results |
