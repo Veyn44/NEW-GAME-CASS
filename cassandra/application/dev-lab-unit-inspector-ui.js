@@ -29,6 +29,11 @@ const MARKUP = `
   </aside>
 `;
 
+function formatCoordinate(value) {
+  if (!Number.isFinite(value)) return "—";
+  return Number.isInteger(value) ? String(value) : value.toFixed(2);
+}
+
 function renderValue(value) {
   if (value === null) return "—";
   if (Array.isArray(value)) return value.length ? value.map(renderValue).join(", ") : "None";
@@ -204,7 +209,7 @@ export function createCassandraDevLabUnitInspectorUi({
     }
     ui.unitProfileInstance.textContent = "LIVE WORLD INSTANCE";
     ui.unitProfileLocation.textContent = movementPosition
-      ? `LOCATION · ${movementPosition.x.toFixed(2)}, ${movementPosition.y.toFixed(2)}`
+      ? `LOCATION · ${formatCoordinate(movementPosition.x)}, ${formatCoordinate(movementPosition.y)}`
       : "LOCATION · UNKNOWN";
     ui.unitProfile.hidden = false;
     ui.quickSelectInfo.textContent = "CLOSE INFO";
