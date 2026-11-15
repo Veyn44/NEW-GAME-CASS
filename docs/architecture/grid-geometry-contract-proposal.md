@@ -28,7 +28,7 @@ This document defines the first usable grid contract for Engine. It separates ge
 - Spatial Composition consumes the descriptor and owns the actual cell-associated contents and entity occupancy.
 - Initial scope does not include changing grid dimensions or adding/removing grid capability after World creation.
 
-The exact descriptor property/API names and snapshot field layout remain implementation details to verify against the existing World Registry contract. This ownership choice is settled; it does not authorize source/runtime changes.
+The implementation uses an explicit optional `grid` field on each World Registry descriptor. `null` means the World has no grid; an object `{ width, height }` declares the immutable grid dimensions. Generic `dimensions` remain unchanged and never imply grid capability. World Registry snapshot schema is version 3; the current implementation includes scoped migrations from World Registry snapshot versions 1 and 2, adding `grid: null` to those historical non-grid records.
 
 ## 2. Coordinate contract
 
@@ -164,7 +164,9 @@ Neighbor queries return only in-bounds coordinates by default. If callers need b
 
 The `work` source audit shows:
 
-- `WorldRegistry` already records positive finite `width` and `height`, but does not mark a world as grid-enabled.
+- `WorldRegistry` now records an explicit optional `grid` descriptor (`null` for non-grid worlds); generic positive-finite world `dimensions` do not imply grid capability.
+- Grid dimensions are validated by the pure `Grid Geometry` module and stored as immutable positive safe integers.
+- World Registry snapshot schema is version 3, with explicit version-1 and version-2 migration paths that preserve historical worlds as non-grid.
 - `WorldContext` stores one placement per entity as finite `x/y` values and validates those positions against world dimensions. It has no cell model or occupancy index.
 - The current Dev Lab viewport already uses a square tile grid, sizes 64/128/256, integer tile addressing and marker centers at `x + 0.5, y + 0.5`.
 - The viewport is presentation code; it must not become the Engine's spatial authority.
