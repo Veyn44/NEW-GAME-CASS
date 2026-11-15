@@ -1,4 +1,5 @@
 import { assertCellInBounds, validateCellCoordinate } from "./grid-geometry.js";
+import { PLACEMENT_AUTHORITY } from "./placement-authority.js";
 
 const VERSION = 1;
 const ID = /^[a-zA-Z0-9][a-zA-Z0-9:._-]{0,159}$/;
@@ -104,12 +105,51 @@ export function deriveFootprintCells({ anchor, footprint, orientation = 0, grid 
  */
 export class SpatialComposition {
   #worlds; #idFactory; #contents = new Map(); #byCell = new Map(); #reserved = new Set();
+  #entityOccupancies = new Map(); #entitiesByCell = new Map();
   constructor({ worldRegistry, idFactory = defaultIdFactory } = {}) {
     if (!worldRegistry || typeof worldRegistry.get !== "function") throw new SpatialCompositionError("INVALID_WORLD_REGISTRY", "A WorldRegistry-compatible service is required.");
     if (typeof idFactory !== "function") throw new SpatialCompositionError("INVALID_ID_FACTORY", "idFactory must be a function.");
     this.#worlds = worldRegistry; this.#idFactory = idFactory;
   }
   get size() { return this.#contents.size; }
+  get entityOccupancyCount() { return this.#entityOccupancies.size; }
+  hasEntityOccupancy(entityId) { return this.#entityOccupancies.has(id(entityId, "Entity ID")); }
+  getEntityOccupancy(entityId) { return this.#entityOccupancies.get(id(entityId, "Entity ID")) ?? null; }
+  listEntityOccupancies({ worldId = null } = {}) {
+    if (worldId !== null) id(worldId, "World ID");
+    return Object.freeze([...this.#entityOccupancies.values()].filter((r) => worldId === null || r.worldId === worldId).sort((a,b) => a.entityId.localeCompare(b.entityId)));
+  }
+  getCellEntities(worldId, cell) {
+    const world = this.#requireGridWorld(worldId), point = this.#cell(cell, world), ids = this.#entitiesByCell.get(cellKey(worldId, point));
+    return Object.freeze(ids ? [...ids].sort() : []);
+  }
+  prepareEntityOccupancyChange(entityId, nextOccupancy, authority) {
+    if (authority !== PLACEMENT_AUTHORITY) throw new SpatialCompositionError("PLACEMENT_AUTHORITY_REQUIRED", "Only PlacementCoordinator may change entity occupancy.");
+    const key = id(entityId, "Entity ID"); let nextRecord = null;
+    if (nextOccupancy !== null) {
+      if (!nextOccupancy || typeof nextOccupancy !== "object" || Array.isArray(nextOccupancy)) throw new SpatialCompositionError("INVALID_OCCUPANCY", "Occupancy must be an object or null.");
+      const world = this.#requireGridWorld(nextOccupancy.worldId), anchor = this.#cell(nextOccupancy.anchor, world);
+      const footprint = normalizeFootprintOffsets(nextOccupancy.footprint), orientation = nextOccupancy.orientation ?? 0;
+      const cells = deriveFootprintCells({ anchor, footprint, orientation, grid: world.grid });
+      nextRecord = Object.freeze({ entityId: key, worldId: nextOccupancy.worldId, anchor, footprint, orientation, cells });
+    }
+    const previousMaps = { occupancies: this.#entityOccupancies, byCell: this.#entitiesByCell };
+    const nextOccupancies = new Map(this.#entityOccupancies), nextByCell = new Map([...this.#entitiesByCell].map(([k,v]) => [k,new Set(v)]));
+    const previous = nextOccupancies.get(key) ?? null;
+    if (previous) for (const cell of previous.cells) {
+      const k = cellKey(previous.worldId, cell), ids = nextByCell.get(k); ids?.delete(key); if (ids?.size === 0) nextByCell.delete(k);
+    }
+    if (nextRecord) {
+      nextOccupancies.set(key, nextRecord);
+      for (const cell of nextRecord.cells) { const k = cellKey(nextRecord.worldId, cell), ids = nextByCell.get(k) ?? new Set(); ids.add(key); nextByCell.set(k, ids); }
+    } else nextOccupancies.delete(key);
+    let committed = false;
+    return Object.freeze({
+      previous, current: nextRecord,
+      commit: () => { if (committed) throw new SpatialCompositionError("TRANSACTION_ALREADY_COMMITTED", "Occupancy transaction already committed."); this.#entityOccupancies = nextOccupancies; this.#entitiesByCell = nextByCell; committed = true; },
+      rollback: () => { if (!committed) return false; this.#entityOccupancies = previousMaps.occupancies; this.#entitiesByCell = previousMaps.byCell; committed = false; return true; }
+    });
+  }
   getContent(contentId) { return this.#contents.get(id(contentId, "Content ID")) ?? null; }
   listContents({ worldId = null, categoryId = null, layerId = null } = {}) {
     if (worldId !== null) id(worldId, "World ID");
@@ -146,19 +186,21 @@ export class SpatialComposition {
   captureSnapshot() {
     return Object.freeze({ version: VERSION, reservedContentIds: Object.freeze([...this.#reserved].sort()),
       contents: Object.freeze(this.listContents().map((r) => ({ contentId: r.contentId, worldId: r.worldId,
-        cell: { x: r.cell.x, y: r.cell.y }, categoryId: r.categoryId, layerId: r.layerId, payload: r.payload }))) });
+        cell: { x: r.cell.x, y: r.cell.y }, categoryId: r.categoryId, layerId: r.layerId, payload: r.payload }))),
+      entityOccupancies: Object.freeze(this.listEntityOccupancies().map((r) => ({ entityId: r.entityId, worldId: r.worldId,
+        anchor: { x: r.anchor.x, y: r.anchor.y }, footprint: r.footprint.map((p) => ({ x: p.x, y: p.y })), orientation: r.orientation }))) });
   }
   prepareRestore(snapshot) {
-    const next = this.#parse(snapshot), previous = { contents: this.#contents, byCell: this.#byCell, reserved: this.#reserved };
+    const next = this.#parse(snapshot), previous = { contents: this.#contents, byCell: this.#byCell, reserved: this.#reserved, entityOccupancies: this.#entityOccupancies, entitiesByCell: this.#entitiesByCell };
     let committed = false;
     return Object.freeze({
       commit: () => {
         if (committed) throw new SpatialCompositionError("RESTORE_ALREADY_COMMITTED", "Restore transaction was already committed.");
-        this.#contents = next.contents; this.#byCell = next.byCell; this.#reserved = next.reserved; committed = true;
+        this.#contents = next.contents; this.#byCell = next.byCell; this.#reserved = next.reserved; this.#entityOccupancies = next.entityOccupancies; this.#entitiesByCell = next.entitiesByCell; committed = true;
       },
       rollback: () => {
         if (!committed) return false;
-        this.#contents = previous.contents; this.#byCell = previous.byCell; this.#reserved = previous.reserved; committed = false; return true;
+        this.#contents = previous.contents; this.#byCell = previous.byCell; this.#reserved = previous.reserved; this.#entityOccupancies = previous.entityOccupancies; this.#entitiesByCell = previous.entitiesByCell; committed = false; return true;
       }
     });
   }
@@ -172,7 +214,7 @@ export class SpatialComposition {
       if (reserved.has(key)) throw new SpatialCompositionError("DUPLICATE_RESERVED_ID", `Reserved ID "${key}" is duplicated.`);
       reserved.add(key);
     }
-    const contents = new Map(), byCell = new Map();
+    const contents = new Map(), byCell = new Map(), entityOccupancies = new Map(), entitiesByCell = new Map();
     for (const raw of safe.contents) {
       if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new SpatialCompositionError("INVALID_SNAPSHOT", "Content record must be an object.");
       const key = id(raw.contentId, "Content ID");
@@ -186,7 +228,19 @@ export class SpatialComposition {
       if (!byCell.has(indexKey)) byCell.set(indexKey, new Set());
       byCell.get(indexKey).add(key);
     }
-    return { contents, byCell, reserved };
+    const rawOccupancies = safe.entityOccupancies ?? [];
+    if (!Array.isArray(rawOccupancies)) throw new SpatialCompositionError("INVALID_SNAPSHOT", "entityOccupancies must be an array.");
+    for (const raw of rawOccupancies) {
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new SpatialCompositionError("INVALID_SNAPSHOT", "Entity occupancy must be an object.");
+      const entityId = id(raw.entityId, "Entity ID");
+      if (entityOccupancies.has(entityId)) throw new SpatialCompositionError("DUPLICATE_ENTITY_OCCUPANCY", `Entity "${entityId}" has duplicate occupancy records.`);
+      const world = this.#requireGridWorld(raw.worldId), anchor = this.#cell(raw.anchor, world);
+      const footprint = normalizeFootprintOffsets(raw.footprint), orientation = raw.orientation ?? 0;
+      const cells = deriveFootprintCells({ anchor, footprint, orientation, grid: world.grid });
+      entityOccupancies.set(entityId, Object.freeze({ entityId, worldId: raw.worldId, anchor, footprint, orientation, cells }));
+      for (const cell of cells) { const k = cellKey(raw.worldId, cell), ids = entitiesByCell.get(k) ?? new Set(); ids.add(entityId); entitiesByCell.set(k, ids); }
+    }
+    return { contents, byCell, reserved, entityOccupancies, entitiesByCell };
   }
   #cell(cell, world) {
     try { return assertCellInBounds(cell, world.grid); }
