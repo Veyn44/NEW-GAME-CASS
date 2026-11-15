@@ -594,28 +594,25 @@ export function createCassandraChangePackageCoordinator({
           resolvedResultIdentities
         });
         if (valid !== true) fail("OPERATION_REJECTED", "A typed operation failed validation.", { operationId: operation.operationId });
-        const beforeApply = cloneJson(candidate);
+        // Handlers receive detached data only. The candidate is a frozen
+        // read-only view and the target aggregate is a private working copy;
+        // retaining either reference cannot mutate the candidate after apply.
+        const workingAggregate = cloneJson(aggregate);
         await handler.apply({
-          candidate,
-          aggregate,
+          candidate: deepFreeze(cloneJson(candidate)),
+          aggregate: workingAggregate,
           operation,
           changePackage,
           resolvedResultIdentities
         });
-        const updatedAggregate = candidate.aggregates?.[operation.aggregateId];
-        if (!updatedAggregate || typeof updatedAggregate !== "object"
-          || updatedAggregate.revision !== operation.expectedRevision) {
+        if (!workingAggregate || typeof workingAggregate !== "object"
+          || Array.isArray(workingAggregate)
+          || workingAggregate.revision !== operation.expectedRevision) {
           fail("OPERATION_MUTATED_AGGREGATE_REVISION",
-            "Typed operation handlers may not remove their target aggregate or mutate its revision.",
+            "Typed operation handlers may not replace or mutate their target aggregate revision.",
             { aggregateId: operation.aggregateId });
         }
-        const allowedCandidate = cloneJson(beforeApply);
-        allowedCandidate.aggregates[operation.aggregateId] = cloneJson(updatedAggregate);
-        if (canonicalStringify(candidate) !== canonicalStringify(allowedCandidate)) {
-          fail("OPERATION_MUTATED_UNDECLARED_STATE",
-            "A typed operation handler may mutate only the aggregate declared by its operation.",
-            { operationId: operation.operationId, aggregateId: operation.aggregateId });
-        }
+        candidate.aggregates[operation.aggregateId] = workingAggregate;
       }
       const touched = new Set(changePackage.baseline.map((entry) => entry.aggregateId));
       for (const baseline of changePackage.baseline) {
