@@ -114,6 +114,32 @@ test("change package rejects missing dispositions and inconsistent operation bas
   );
 });
 
+test("change package validates one-to-one projection mappings against aggregate baselines", async () => {
+  const mapping = {
+    campaignEntityId: "campaign:pawn:one",
+    temporaryEntityId: "scope:world:temp:one:1",
+    aggregateId: "inventory:crew",
+    baselineRevision: 0,
+    projectionRole: "participant",
+    transferEligible: true
+  };
+  const changePackage = await makePackage({ projectionMappings: [mapping] });
+  assert.equal(changePackage.projectionMappings.length, 1);
+  await assert.rejects(
+    () => makePackage({ projectionMappings: [{ ...mapping, baselineRevision: 2 }] }),
+    { code: "PROJECTION_BASELINE_MISMATCH" }
+  );
+  await assert.rejects(
+    () => makePackage({
+      projectionMappings: [
+        mapping,
+        { ...mapping, campaignEntityId: "campaign:pawn:two" }
+      ]
+    }),
+    { code: "DUPLICATE_PROJECTION_MAPPING" }
+  );
+});
+
 test("coordinator stages a durable buffer then promotes Major State and Applied ledger together", async () => {
   const storage = makeStorage();
   const coordinator = createCassandraChangePackageCoordinator({ storage, operationHandlers: handlers, validateReturnManifest: () => true });
