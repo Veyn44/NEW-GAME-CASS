@@ -82,6 +82,18 @@ Rendering is presentation owned by the host/application, not by Engine Core worl
 - A world may receive simulation steps without being rendered.
 - Rendering or hiding a world must not implicitly change its simulation participation.
 
+### 2.7 Ownership of runtime state
+
+The existing World Registry remains the owner of persistent world identity and descriptors. A separate Engine-owned runtime lifecycle/simulation-state service is proposed for each registered world. Its responsibilities are limited to:
+- tracking the runtime state (Unloaded, Loading, Ready, Disposing, Disposed);
+- tracking whether simulation participation is enabled;
+- tracking independent pause reasons;
+- owning the committed per-world simulated time and completed-step counter;
+- supplying the scheduler's immutable participant snapshot.
+
+The runtime service does not load map contents, create domain systems, own rendering, or decide host policy. The host performs the actual load/build/teardown work and reports successful or failed lifecycle transitions to the service. A world cannot become Ready until the host confirms its required data and runtime services are prepared.
+
+Do not add these fields to the existing World descriptor. Registration/selection and runtime residency are separate lifecycles.
 ## 3. Allowed lifecycle transitions
 
 The following is the proposed runtime transition contract.
@@ -144,6 +156,32 @@ If no world participates, the host may allow the runtime's global clock to remai
 - The global scheduler's existing backlog, speed-snapshot, bounded catch-up and overload semantics must be preserved unless a separately reviewed design explicitly changes them.
 - Rendering frequency must not affect simulation time.
 
+### 4.5 Task scope and execution order
+
+The proposed scheduler extension keeps one ordered simulation-task sequence and gives each task an explicit execution scope:
+
+- **Global task:** executes once per global simulation round.
+- **World task:** executes once for each world in that round's immutable participant snapshot.
+- Existing tasks default to Global scope so current hosts retain their present behavior until they explicitly opt into world-scoped execution.
+- Tasks continue to follow the single dependency order validated by SystemRegistry/Bootstrap. Do not create a second dependency graph or separate unordered global/world task arrays.
+- The scheduler walks tasks in dependency order. A Global task runs once at its position. A World task runs for each participant in canonical ascending world-ID order before the scheduler advances to the next task. This defines the interleaving rather than relying on array grouping or host iteration order.
+- Existing global tasks retain global-tick frequency semantics. A World task's `everyTicks` frequency is evaluated against that world's own completed-step counter, not the global tick, so a paused world does not lose local cadence while other worlds advance.
+- A World task receives both the global round context and an immutable world context containing at least world ID, next local step number, current local simulated time and the proposed post-step local time. The existing global `tick` and global time fields remain global; world-local fields must be named distinctly.
+- If no world participates, no simulation round is run: neither global nor world simulation tasks execute and the global simulation clock does not advance. Host maintenance that must run without simulated worlds is not a simulation task.
+
+### 4.6 Round commit boundary
+
+After every scheduled task in the round has completed successfully:
+
+1. Validate the proposed next global time and every participant's next local time and step counter before mutating any clock state.
+2. Commit the global clock once and each participating world's local simulated time and completed-step counter once, in one synchronous commit section with no callbacks or event delivery between assignments.
+3. Only after the complete commit may the scheduler publish the completed-round result/diagnostics.
+
+If validation or any task fails, no global or per-world time value is committed for that round. The current global scheduler fail-stop rule applies. This does not roll back domain mutations already made by tasks; the runtime remains faulted and must not resume as if the round were clean.
+
+The commit boundary is an Engine contract, not a requirement that arbitrary domain state be transactionally copied. The first implementation should use prevalidated, non-throwing state assignments for the time counters and should fault the runtime if an invariant is violated.
+
+
 ## 5. Failure isolation
 
 Proposed failure domains:
@@ -181,6 +219,15 @@ Engine Core does not decide:
 
 The host supplies explicit lifecycle and participation commands. Focus and rendering remain independent of those commands.
 
+### 6.1 Compatibility with the existing World Registry active selection
+
+The current `WorldRegistry` has a singular `activeWorldId` and `active/inactive/closed` descriptor status. Existing Cassandra systems use this as the current gameplay/control world: Colony Control checks that the leader is placed in the active world, and Cassandra World Session uses it to select which world's local time receives the current step.
+
+Do not reinterpret `activeWorldId` as loaded, Ready, simulation-enabled, or focused. Do not make multiple descriptors active as a shortcut to multi-world simulation. Preserve its existing single-selection behavior for compatibility. The new runtime lifecycle and simulation participation state must be separate, and the Engine scheduler must select participants from that runtime state rather than from `activeWorldId`.
+
+This also means focus may often follow the active gameplay world in a host UI, but the two concepts are not the same contract and must not be coupled in Engine Core.
+
+
 ## 7. Persistence and restore
 
 ### 7.1 Persistent data
@@ -188,36 +235,42 @@ The host supplies explicit lifecycle and participation commands. Focus and rende
 The save model must be able to restore:
 - registered world identities and descriptors;
 - each world's domain-owned state through its owning persistence participants;
-- each world's committed simulated-time value;
+- each world's committed simulated-time value and completed-step counter;
 - any additional stable lifecycle metadata required to reconstruct a Ready runtime safely.
+
+The per-world time and completed-step counter belong to the Engine runtime simulation-state participant, not to a Cassandra-specific session system. A completed-step counter is persisted because World-task cadence is based on local steps and must survive save/restore without depending on another world's global tick count.
 
 ### 7.2 Runtime-only state
 
 Do not blindly restore transient runtime flags such as:
 - currently executing;
-- loading in progress;
-- disposing in progress;
+- Loading or Disposing in progress;
+- Ready (it must be re-established by the host after runtime reconstruction);
+- simulation participation enabled;
+- pause reasons;
 - focused;
 - currently rendered;
 - active simulation task invocation.
 
-These are reconstructed or selected by the host after restore.
+The existing World Registry's `activeWorldId` remains a separate persisted host/gameplay selection for compatibility; restoring it must not imply Ready state or simulation participation.
 
-### 7.3 Safe restore default
+### 7.3 Safe restore default and ordering
 
 After a save is loaded:
-- world data may be restored and worlds may be prepared as Ready;
-- simulation participation defaults to Disabled;
-- no world automatically begins simulating merely because it was active before saving;
-- focus and rendering are selected by the host;
-- the host explicitly authorizes simulation after its own initialization and validation are complete.
+- world descriptors and domain-owned persistent state are restored transactionally by their persistence participants;
+- Engine per-world committed time and completed-step counters are restored;
+- all runtime lifecycle records begin Unloaded, with participation Disabled and no transient pause reasons;
+- the host reconstructs each desired world runtime and explicitly reports successful readiness;
+- the host explicitly enables simulation only after its own initialization and validation are complete;
+- focus and rendering are selected independently by the host.
 
-A partially restored or failed world must not receive simulation steps.
+A partially restored or failed world must not receive simulation steps. Persistence restore itself does not load map data or mark worlds Ready.
 
 ### 7.4 Transactional restore
 
-Preserve the existing prepare/commit/rollback persistence model. World lifecycle state must participate in restore without leaving the runtime half-restored if a participant fails.
+Preserve the existing prepare/commit/rollback persistence model. The Engine runtime simulation-state participant must validate that every saved world-time record references a registered, non-closed world and that time/counter values are finite and non-negative. Restore must not leave a partially replaced time table if a later participant fails.
 
+Lifecycle runtime records are reconstructed after persistence restore; they are not partially committed by the save transaction.
 ## 8. Host examples
 
 ### Cassandra: expedition
@@ -279,18 +332,25 @@ This contract does not design or implement:
 ## 11. Current implementation facts and required migration caution
 
 Source audit on work confirms:
-- WorldRegistry supports multiple registered descriptors, but activeWorldId is singular; activating another world deactivates the previous one.
-- WorldRegistry.list() returns descriptors sorted with localeCompare. That is deterministic within a given runtime configuration, but it is not by itself a cross-locale canonical ordering contract.
-- GameClock is one global clock with one global set of pause reasons and one committed totalSeconds value.
+- WorldRegistry supports multiple registered descriptors, but `activeWorldId` is singular; activating another world deactivates the previous one.
+- The active-world selection is used by Cassandra gameplay/control code, not merely presentation: Colony Control checks the leader's placement against `activeWorldId`, and Cassandra World Session uses it to choose the world whose local time advances.
+- WorldRegistry currently persists descriptors and the single active-world reference. Its `active/inactive/closed` status is not runtime readiness.
+- GameClock is one global clock with one global set of pause reasons and one committed `totalSeconds` value.
 - SimulationScheduler is global, executes its task list synchronously in the dependency order supplied by Core Assembly, and commits one global clock step only after all tasks in that step complete.
+- CoreAssembly currently supplies one flat global `simulationTasks` list. Task callbacks receive a global step context and the Core service context, not a world-scoped execution context.
 - Scheduler task failure faults and globally pauses the scheduler; it does not roll back mutations made by tasks that ran earlier in the failed step.
-- CoreAssembly currently supplies one global list of simulationTasks; task callbacks receive a global step context and the Core service context, not a world-scoped execution context.
 - WorldContext stores entity placement, not world runtime lifecycle or per-world simulation time.
-- World Registry snapshots persist world descriptors and the single active-world reference; they do not persist world runtime readiness, participation or local simulated time.
-- Persistence already supports participant snapshots, migration, and transactional prepare/commit/rollback for participating state.
+- Persistence already provides participant snapshots, migration, safe-boundary serialization, and transactional prepare/commit/rollback. It does not currently own Engine per-world simulation time or runtime readiness.
+- Cassandra's `CassandraWorldSessionSystem` currently owns a host-specific `worldTimes` map and commits a pending local-time increment after the global scheduler tick succeeds. Its `advance()` selects only `WorldRegistry.activeWorldId`. This is a valid Cassandra-specific bridge for the current one-active-world model, not a reusable Engine multi-world contract.
 
-Therefore, multi-world simulation requires a staged scheduler/task-context and persistence extension. It must not be implemented by merely allowing multiple registry entries to have status active, by iterating a mutable world list during a step, or by adding unrelated booleans without transition validation.
+The proposed migration is therefore:
+1. Add a distinct Engine runtime lifecycle/simulation-state owner without changing World Registry's current identity/active-selection semantics.
+2. Extend the scheduler with explicit Global and World task scopes in one dependency-ordered task sequence, immutable participant snapshots, and the round commit boundary above.
+3. Add persistence for per-world committed time and local completed-step counters; restore worlds Unloaded and simulation-disabled.
+4. Migrate Cassandra's local time accounting to the Engine service while leaving Main/Temporary World policy, active-world selection and encounter rules in Cassandra.
+5. Add multi-world scheduler, lifecycle, persistence and host-integration tests before enabling more than one Cassandra world to participate.
 
+Do not implement this by merely allowing multiple World Registry descriptors to have status `active`, by advancing each world's time from a host-side task after the scheduler tick, or by iterating a mutable world list during a step.
 ## 12. Review status
 
 **Agreed direction:**
@@ -302,11 +362,10 @@ Therefore, multi-world simulation requires a staged scheduler/task-context and p
 - shared infrastructure failures may stop the runtime.
 
 **Proposal still requiring review:**
-- exact public API and runtime-state representation;
-- exact division and ordering of global tasks versus world-scoped tasks within one global round;
-- how the scheduler atomically commits per-world local time alongside the single global time value;
-- whether a failed world step is recoverable only by restore/rebuild or may gain transactional rollback later;
-- exact restore readiness sequence and snapshot schema;
-- lifecycle transition error codes and event/diagnostic names.
+- final public service/API names and the exact lifecycle transition result/error shapes;
+- exact ownership and registration order of the new Engine runtime-state persistence participant relative to domain participants;
+- whether a future version should support transactional rollback or isolated continuation after a world-local task failure.
+
+The initial execution ordering, task scopes, per-world cadence, time-commit boundary, active-world compatibility rule and restore default are now specified above.
 
 No source-code implementation is authorized by this document.
