@@ -281,12 +281,12 @@ export async function createCassandraChangePackage(input) {
   const source = cloneJson(input.source, "source");
   assertId(source.mainWorldId, "Source Main World ID");
   assertId(source.temporaryWorldId, "Source Temporary World ID");
+  assertId(source.locationId, "Source location ID");
   if (source.mainWorldId === source.temporaryWorldId) {
     fail("INVALID_PACKAGE_SOURCE", "Source Main and Temporary World IDs must be different.");
   }
-  if (source.locationRevision !== undefined
-    && (!Number.isSafeInteger(source.locationRevision) || source.locationRevision < 0)) {
-    fail("INVALID_PACKAGE_SOURCE", "Location revision must be a non-negative safe integer.");
+  if (!Number.isSafeInteger(source.locationRevision) || source.locationRevision < 0) {
+    fail("INVALID_PACKAGE_SOURCE", "Source location revision must be a non-negative safe integer.");
   }
   const baseline = validateBaseline(input.baseline);
   const projectionMappings = validateProjectionMappings(input.projectionMappings ?? [], baseline);
