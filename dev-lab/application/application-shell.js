@@ -236,7 +236,9 @@ function clearSelection() {
 function inspectGameplayEntity(entityId) {
   const unit = state.gameplayUi?.inspectUnit(entityId) ?? null;
   if (!unit) {
+    if (!entityId) state.selectedSpatialEntityId = null;
     viewport.setSelectedWorldMarker(null);
+    updateSpatialTestControls();
     return null;
   }
   state.selectedSpatialEntityId = unit.id;
@@ -249,9 +251,10 @@ function handleViewportEntitySelect(entityId) {
   if (state.moveTestEntityMode) return;
   if (!entityId) {
     if (state.moveTestEntityMode) return;
+    state.selectedSpatialEntityId = null;
     state.selectedTestEntityId = null;
-    updateSpatialTestControls();
     inspectGameplayEntity(null);
+    updateSpatialTestControls();
     return;
   }
   const testEntity = state.spatialTestController?.list().find(({ entity }) => entity.id === entityId);
@@ -338,6 +341,7 @@ function createSpatialTestEntity() {
   };
   try {
     const created = state.spatialTestController.create({ anchor, footprint });
+    state.selectedSpatialEntityId = created.entity.id;
     state.selectedTestEntityId = created.entity.id;
     state.moveTestEntityMode = false;
     refreshWorldMarkers();
@@ -594,6 +598,7 @@ document.addEventListener("visibilitychange", () => {
 worldSizeSelect.addEventListener("change", () => {
   workspaceSession.changeWorld();
   state.selectedTestEntityId = null;
+  state.selectedSpatialEntityId = null;
   state.selectedSpatialCell = null;
   state.moveTestEntityMode = false;
   inspectSpatialCell({ x: 0, y: 0 });
@@ -608,6 +613,7 @@ resetLabButton.addEventListener("click", () => {
     return;
   }
   state.selectedTestEntityId = null;
+  state.selectedSpatialEntityId = null;
   state.moveTestEntityMode = false;
   workspaceSession.reset();
   refreshWorldMarkers();
@@ -707,6 +713,7 @@ function createDevLabRuntimeHost({
       onRestore() {
         workspaceSession.synchronizeRestoredWorkspace();
         state.selectedTestEntityId = null;
+        state.selectedSpatialEntityId = null;
         state.moveTestEntityMode = false;
         refreshWorldMarkers();
         updateSpatialTestControls();
