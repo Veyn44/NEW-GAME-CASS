@@ -494,8 +494,8 @@ export function createCassandraChangePackageCoordinator({
           "A conflicted immutable package requires an explicit reconciliation/replacement workflow.",
           { packageId });
       }
-      const changePackage = pending.changePackage;
-      await verifyCassandraChangePackage(changePackage);
+      await verifyCassandraChangePackage(pending.changePackage);
+      const changePackage = deepFreeze(cloneJson(pending.changePackage));
       if (pending.digest !== changePackage.digest) fail("PENDING_PACKAGE_CORRUPT", "Pending package digest does not match its envelope.");
       if (typeof pending.checkpointDigest !== "string"
         || await sha256(canonicalStringify(pending.checkpoint)) !== pending.checkpointDigest) {
@@ -558,6 +558,8 @@ export function createCassandraChangePackageCoordinator({
             { packageId });
         }
       }
+      // Handlers may inspect but must not rewrite durable result identities.
+      resolvedResultIdentities = deepFreeze(cloneJson(resolvedResultIdentities));
       const ordered = orderOperations(changePackage.operations);
       for (const operation of ordered) {
         const handler = operationHandlers[operation.type];
