@@ -41,16 +41,35 @@ function cloneJson(value, label = "value", seen = new WeakSet()) {
   seen.add(value);
   let result;
   if (Array.isArray(value)) {
-    result = value.map((entry, index) => cloneJson(entry, `${label}[${index}]`, seen));
+    result = [];
+    for (let index = 0; index < value.length; index += 1) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+      if (!descriptor || !("value" in descriptor)) {
+        fail("NON_CANONICAL_VALUE",
+          label + " contains a sparse array entry or accessor at index " + index + ".");
+      }
+      result.push(cloneJson(descriptor.value, label + "[" + index + "]", seen));
+    }
   } else {
     const prototype = Object.getPrototypeOf(value);
     if (prototype !== Object.prototype && prototype !== null) {
-      fail("NON_CANONICAL_VALUE", `${label} must contain only plain objects and arrays.`);
+      fail("NON_CANONICAL_VALUE", label + " must contain only plain objects and arrays.");
     }
     result = {};
     for (const key of Object.keys(value).sort()) {
-      if (value[key] === undefined) fail("NON_CANONICAL_VALUE", `${label} contains undefined at "${key}".`);
-      result[key] = cloneJson(value[key], `${label}.${key}`, seen);
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (!descriptor || !("value" in descriptor)) {
+        fail("NON_CANONICAL_VALUE", label + " contains an accessor at \"" + key + "\".");
+      }
+      if (descriptor.value === undefined) {
+        fail("NON_CANONICAL_VALUE", label + " contains undefined at \"" + key + "\".");
+      }
+      Object.defineProperty(result, key, {
+        value: cloneJson(descriptor.value, label + "." + key, seen),
+        enumerable: true,
+        configurable: true,
+        writable: true
+      });
     }
   }
   seen.delete(value);

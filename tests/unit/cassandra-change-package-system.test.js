@@ -550,3 +550,65 @@ test("coordinator rejects a read-back snapshot that differs from the committed c
   assert.equal(storage.snapshot.pendingPackages.length, 1,
     "the underlying atomic write remains intact even when read-back verification refuses to confirm it");
 });
+
+
+test("change package canonical cloning rejects sparse arrays without normalizing them", async () => {
+  const sparsePayload = new Array(1);
+  await assert.rejects(
+    () => makePackage({
+      operations: [{
+        operationId: "operation:add",
+        type: "inventory.add",
+        aggregateId: "inventory:crew",
+        expectedRevision: 0,
+        payload: sparsePayload
+      }]
+    }),
+    { code: "NON_CANONICAL_VALUE" }
+  );
+});
+
+test("change package canonical cloning rejects accessors without invoking getters", async () => {
+  let getterInvoked = false;
+  const payload = {};
+  Object.defineProperty(payload, "amount", {
+    enumerable: true,
+    get() {
+      getterInvoked = true;
+      return 4;
+    }
+  });
+
+  await assert.rejects(
+    () => makePackage({
+      operations: [{
+        operationId: "operation:add",
+        type: "inventory.add",
+        aggregateId: "inventory:crew",
+        expectedRevision: 0,
+        payload
+      }]
+    }),
+    { code: "NON_CANONICAL_VALUE" }
+  );
+  assert.equal(getterInvoked, false);
+});
+
+test("change package canonical cloning preserves an own __proto__ data property", async () => {
+  const payload = JSON.parse('{"__proto__":null,"amount":4}');
+  const changePackage = await makePackage({
+    operations: [{
+      operationId: "operation:add",
+      type: "inventory.add",
+      aggregateId: "inventory:crew",
+      expectedRevision: 0,
+      payload
+    }]
+  });
+  const clonedPayload = changePackage.operations[0].payload;
+
+  assert.equal(Object.getPrototypeOf(clonedPayload), Object.prototype);
+  assert.equal(Object.hasOwn(clonedPayload, "__proto__"), true);
+  assert.equal(clonedPayload.__proto__, null);
+  assert.equal(await verifyCassandraChangePackage(changePackage), true);
+});
