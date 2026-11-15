@@ -294,3 +294,8 @@ Before retiring any Unit or scoped Entity, Temporary World disposal now validate
 The Applied-ledger disposal gate also has a negative-path regression: the verifier receives the exact package ID and digest, and a negative result leaves the Temporary World and its contents intact. Verified in run `43763156762` (Core 205/205, host 245/245).
 
 Successful-path disposal is now covered end to end at the current infrastructure level: after exact Applied-ledger verification, the Temporary Unit is retired, its Engine placement/occupancy is cleared, the Temporary World is unregistered, and the projection map is cleared only after World cleanup. The persistent campaign Unit remains intact. Verified in run `43763156762` (Core 205/205, host 245/245).
+
+
+## 2026-11-15 — IndexedDB concurrent-writer and corruption safeguards
+
+The deterministic IndexedDB test double now serializes transactions against the same database/store, matching the relevant readwrite transaction ordering instead of allowing two fake writers to read the same old revision concurrently. A new concurrent-writer test launches two writes with the same expected revision and verifies exactly one succeeds while the durable record contains only the winning complete snapshot. The adapter also now applies one shared campaign-snapshot shape validator during both load and write preflight; a corrupt existing snapshot is rejected and preserved rather than silently overwritten by a writer with the matching revision. GitHub Actions run `43764154151` passed Core 205/205 and host 247/247. These are deterministic contract tests, not a substitute for browser-specific strict-durability and crash/reopen verification.
