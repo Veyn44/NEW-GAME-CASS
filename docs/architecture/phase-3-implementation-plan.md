@@ -50,9 +50,20 @@ The repository currently has no `engine/spatial/` directory or dedicated grid/co
 - No backward compatibility guarantee is required for saves from older Cassandra versions. Unsupported old saves may be rejected safely; selected migrations are optional and explicitly version-scoped.
 - Existing tested environment/simulation behavior must not be changed without a demonstrated dependency and separate approval.
 
-### 1.3 Source-audit limitation
+### 1.3 Cassandra source audit (2026-11-15)
 
-GitHub code search did not return indexed Cassandra movement implementation files. The plan therefore does not assume the current Pawn movement implementation or propose replacing it. Before Cassandra integration, locate and inspect the exact movement, world-generation, save/load and environment-system files and their tests on the working branch.
+The current Cassandra prototype source has now been inspected:
+
+- `src/gameplay/unit/unit-system.js` — Unit identity/definition records are persisted separately from placement. Creation uses integer tile coordinates; movement accepts fractional coordinates and writes them directly through World Context. Unit removal clears World Context placement, retires the Core identity and removes the Unit domain record.
+- `src/gameplay/colony/colony-control-system.js` — Cassandra owns the current movement speed (4 tiles/second), diagonal normalization, Draft/input eligibility and the rule that only a leader in `WorldRegistry.activeWorldId` is moved.
+- `cassandra/application/cassandra-runtime-host.js` — current runtime composes Input, Unit and Colony Control and runs one Colony Control simulation task.
+- `cassandra/application/cassandra-application-shell.js` — registers 64×64, 128×128 and 256×256 worlds, activates one selected world, supplies integer tile placement coordinates and uses the workspace-only `.cass` save identity.
+- `shared/presentation/world-viewport.js` — marker drawing and camera following currently add 0.5 to stored Unit coordinates. Once grid-backed World Context positions represent cell centers, these offsets must not be applied a second time.
+- Tests: `tests/unit/unit-system.test.js`, `tests/unit/colony-control-system.test.js`, `tests/unit/cassandra-runtime-host.test.js` and `tests/core-integration.test.js`.
+
+Important integration consequence: the existing Unit movement path is continuous/fractional while grid occupancy is discrete/integer. Grid adoption must explicitly define how Cassandra-owned movement progress and visual interpolation relate to committed cell anchors. Do not silently round fractional positions or move Pawn speed/input rules into Engine.
+
+The current branch contains no Cassandra environment simulation, world-generation, expedition or Temporary World implementation modules, and no corresponding tests. These future systems cannot be source-audited from the current tree. Do not infer their persistence or behavior from the workspace prototype; audit them when those systems are introduced or located.
 
 ## 2. Proposed target architecture
 
@@ -262,7 +273,8 @@ Tasks:
 - Add explicit grid capability to Cassandra Main World and Temporary Worlds.
 - Preserve the expected 128×128 and 256×256 world sizes without imposing those sizes in Engine.
 - Map existing Cassandra structures, environment, pawns, items, projectiles and other spatial data into the generic composition model according to Cassandra-owned semantics.
-- Integrate the existing movement implementation through a Cassandra policy/adapter rather than replacing it wholesale.
+- Integrate the current Unit/Colony Control movement path through a Cassandra adapter. Define how fractional movement progress maps to discrete committed grid anchors and presentation interpolation; preserve Cassandra-owned speed, diagonal normalization and input rules.
+- Update viewport marker/camera coordinate consumers so the approved cell-center convention is applied exactly once.
 - Preserve current environment simulation rules and test outcomes.
 - Keep Main World pause/resume during expeditions as Cassandra policy.
 - Keep expedition creation, identity mapping, result/change package, validation and commit semantics in Cassandra unless a separately approved generic Engine contract is defined.
@@ -270,7 +282,8 @@ Tasks:
 
 **Exit criteria:**
 - Main and Temporary Worlds can coexist with their own independent spatial state.
-- Existing Cassandra environment and gameplay regression tests pass.
+- Existing Unit/Colony Control gameplay tests pass or are deliberately updated for the approved grid movement contract.
+- Environment/world-generation/expedition regression gates are added only when those systems and their authoritative source/tests exist; their absence in the current branch is recorded, not guessed.
 - A temporary encounter does not mutate unrelated Main World state while the Main World is paused.
 - Expedition results apply only the intended changes, once the separate transfer protocol is specified and implemented.
 - 128×128 and 256×256 worlds behave correctly.
