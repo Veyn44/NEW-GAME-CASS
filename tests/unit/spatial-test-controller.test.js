@@ -51,6 +51,20 @@ test("Dev Lab test entity footprints are registered as Engine occupancy", () => 
   assert.deepEqual(s.spatial.getCellEntities("lab-grid", { x: 5, y: 5 }), [created.entity.id]);
 });
 
+test("Dev Lab rejects a spawned footprint that overlaps existing occupancy", () => {
+  const s = setup();
+  const first = s.controller.create({ anchor: { x: 4, y: 4 } });
+  assert.throws(
+    () => s.controller.create({
+      anchor: { x: 3, y: 3 },
+      footprint: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }]
+    }),
+    (error) => error.code === "DEV_LAB_OVERLAP"
+  );
+  assert.deepEqual(s.spatial.getCellEntities("lab-grid", { x: 4, y: 4 }), [first.entity.id]);
+  assert.equal(s.controller.list().length, 1);
+});
+
 test("Dev Lab movement commits a free target and rejects an occupied target", () => {
   const s = setup();
   const first = s.controller.create({ anchor: { x: 1, y: 1 } });
