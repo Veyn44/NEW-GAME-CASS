@@ -1,6 +1,6 @@
 # Phase 3 Physical World — Implementation Plan
 
-**Status:** Slices 1–6 are implemented on `work`; initial Dev Lab spatial test workflows and Cassandra grid, Unit movement and Main/Temporary World session foundations are implemented. Expedition change-package integration and all final acceptance remain in progress. Per project decision, the full test campaign is deferred until Phase 3 implementation is complete.  
+**Status:** Slices 1–6 are implemented on `work`; initial Dev Lab spatial test workflows, Cassandra grid/Unit movement, Main/Temporary World session and the first Change Package protocol foundation are implemented. Production campaign persistence, domain integration and final acceptance remain in progress. Automated tests may run during implementation; user-led acceptance testing remains deferred until Phase 3 is complete.  
 **Branch:** `work`  
 **Source audit:** 2026-11-15  
 **Scope:** Implementation sequencing for reusable Engine grid/spatial capabilities and their Cassandra/Dev Lab integration
@@ -333,7 +333,7 @@ Tasks:
 
 ### Slice 7 — Cassandra integration
 
-**Status:** Main World grid/Unit integration and Cassandra Main + Temporary World session foundations are implemented on `work`; campaign projection/change-package integration and final acceptance remain outstanding.
+**Status:** Main World grid/Unit integration, Cassandra Main + Temporary World session foundations and the first Cassandra Change Package coordinator are implemented on `work`; production campaign storage, campaign projection/domain operations, expedition workflow and final acceptance remain outstanding.
 
 **Implemented initial sub-slice:**
 - Cassandra's 64×64, 128×128 and 256×256 selectable Main Worlds explicitly declare matching Engine grid capabilities.
@@ -345,16 +345,16 @@ Tasks:
 - `src/gameplay/world/cassandra-world-session-system.js` owns Cassandra's one-Main/one-Temporary session policy without imposing a world-count limit in Engine. It registers a Temporary World on demand, switches active participation, supports returning/re-entering, and retains the Temporary World for safe result handling rather than disposing it prematurely.
 - The world-session system owns independent local simulated-time counters. The runtime schedules time against the active Main or Temporary World and commits that local delta only after the corresponding Core simulation tick succeeds; a later task/clock failure cannot advance world-local time. While Temporary is active, Main local time does not advance. Returning to Main does not add Temporary elapsed time to Main.
 - Units created in a World marked `metadata.role: "temporary"` receive a scoped runtime identity (`world:<worldId>`), while Main World Units retain persistent identity. Unit restore validates the Temporary World scope.
-- The `game.world-session` persistence participant restores Main/Temporary identity, active World selection and local clocks after World Registry restoration.
+- The `game.world-session` persistence participant restores Main/Temporary identity, active World selection and local clocks after World Registry restoration.\n- `src/gameplay/expedition/cassandra-change-package-system.js` now defines canonical SHA-256 package envelopes, per-aggregate baseline checks, typed operation dependencies, explicit return dispositions, durable pending Change Buffer staging, detached Candidate State construction, identity-map checkpointing, an Applied ledger and idempotent retry behavior.\n- The coordinator requires a whole-campaign-snapshot atomic storage adapter and a Cassandra manifest reconciliation callback. It intentionally rejects the current `dev-lab-workspace` `.cass` adapter; no false atomicity is claimed.
 - Shared viewport marker and camera-follow APIs now consume world-space positions directly. The extra `+0.5` presentation offset is removed; Dev Lab test markers supply cell centers explicitly.
 - Unit inspection distinguishes integer grid cell coordinates from continuous movement progress.
 
-**Verification coverage added/updated (full run deferred to Phase 3 completion):**
+**Verification coverage added/updated (automated execution may run during implementation; user-led acceptance remains deferred):**
 - Unit creation, discrete occupancy, within-cell progress, cell-boundary crossing, fractional-progress save/restore, edge clamping, policy rejection, non-grid compatibility, multi-world occupancy isolation and Temporary World scoped-identity restore.
 - Colony movement speed, cardinal movement, diagonal normalization, Draft gating, active-world gating and persistence.
 - Main/Temporary World session lifecycle, single-temporary constraint, independent local clocks, Main-time pause, return behavior, world-session persistence restore and no local-time commit after a failed scheduler step.
 
-**Remaining:** Full participation gating for every future Cassandra simulation system, explicit mapping/projection of persistent campaign identities into Temporary World runtime identities, typed Change Package creation/validation/idempotent application, safe Temporary World disposal after package commit, and environment/world-generation integration when authoritative modules exist. The current branch still has no authoritative environment, world-generation or expedition modules to integrate.
+**Remaining:** Full participation gating for every future Cassandra simulation system; campaign projection mapping and authoritative aggregate models; production campaign-save storage with proven atomic promotion; domain operation handlers and full conservation/reconciliation rules; expedition creation/End/Abandon workflow; safe Temporary World disposal after package commit; and environment/world-generation integration when authoritative modules exist. The current branch still has no authoritative environment, world-generation or expedition gameplay modules to integrate.
 
 **Target area:** Existing Cassandra application/gameplay modules, exact paths to be confirmed by the required source audit in Slice 0.
 
@@ -567,14 +567,14 @@ The descriptor shape, validation and snapshot details remain technical proposals
 - Main World state is updated as previous state plus validated changes, not replaced wholesale.
 - Cassandra owns expedition semantics and the meaning of returned changes.
 
-**Working contract drafted:** `cassandra-temporary-world-change-package-contract-proposal.md`
+**Approved implementation contract:** `cassandra-temporary-world-change-package-contract-proposal.md`
 
 The proposal specifies:
 - Separate persistent campaign state, persistent location records and Temporary World runtime state.
 - A player-entitlement invariant: every result owed to the player has an explicit, auditable disposition and must survive identity mapping, persistence, retry and recovery failures.
 - A reconciled return manifest for items, resources, participants and rewards; unknown or unmapped entries block the whole commit rather than being silently dropped.
 - A two-state staging model: preserve the last-known-good Major State, retain expedition changes in a durable Change Buffer, build and validate an isolated Candidate State, and atomically promote it only after all invariants pass.
-- Proposed implementation defaults for a canonical package envelope, per-aggregate revisions, typed operations, package-local result identities, explicit conservation manifest, SHA-256 canonical digest, Applied ledger and single atomic campaign-save promotion.
+- Approved implementation defaults for a canonical package envelope, per-aggregate revisions, typed operations, package-local result identities, explicit conservation manifest, SHA-256 canonical digest, Applied ledger and single atomic campaign-save promotion. The first protocol/coordinator foundation and focused unit tests now exist on `work`.
 - On entitlement/identity/conservation integrity failure, do not commit a partial result; roll back to the expedition-start checkpoint and reset/restore the complete expedition. Transient commit failures retain the Change Buffer and retry from the unchanged Major State.
 - Campaign identity to encounter-runtime identity projection mapping; no simultaneous duplicate Engine placement for one entity.
 - Typed Cassandra domain operations, baseline revisions/preconditions and all-or-nothing package application.
