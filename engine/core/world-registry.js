@@ -252,6 +252,22 @@ export class WorldRegistry {
     return true;
   }
 
+  /**
+   * Removes a closed, inactive World descriptor after the host has removed all
+   * placements, occupancy and world-scoped content that reference it.
+   */
+  unregisterWorld(worldId) {
+    const current = this.#require(worldId);
+    if (current.status === "active" || this.#activeWorldId === worldId) {
+      throw new WorldRegistryError("WORLD_ACTIVE", "An active World cannot be unregistered.", { worldId });
+    }
+    if (current.status !== "closed") {
+      throw new WorldRegistryError("WORLD_NOT_CLOSED", "A World must be closed before it can be unregistered.", { worldId });
+    }
+    this.#worlds.delete(worldId);
+    return current;
+  }
+
   createPersistenceParticipant({ id = "core.world-registry", order = -90 } = {}) {
     if (typeof id !== "string" || !/^[a-z][a-z0-9.-]*$/.test(id)) {
       throw new WorldRegistryError("INVALID_PARTICIPANT_ID", "Persistence participant ID must be a stable lowercase ID.", { id });
