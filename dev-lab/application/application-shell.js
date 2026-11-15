@@ -614,8 +614,10 @@ resetLabButton.addEventListener("click", () => {
   }
   state.selectedTestEntityId = null;
   state.selectedSpatialEntityId = null;
+  state.selectedSpatialCell = null;
   state.moveTestEntityMode = false;
   workspaceSession.reset();
+  inspectSpatialCell({ x: 0, y: 0 });
   refreshWorldMarkers();
   updateSpatialTestControls();
 });
@@ -714,7 +716,10 @@ function createDevLabRuntimeHost({
         workspaceSession.synchronizeRestoredWorkspace();
         state.selectedTestEntityId = null;
         state.selectedSpatialEntityId = null;
+        state.selectedSpatialCell = null;
         state.moveTestEntityMode = false;
+        spatialCellLabel.textContent = "Select a cell";
+        spatialCellData.textContent = "Click a grid cell while paused to inspect its contents and entity occupancy.";
         refreshWorldMarkers();
         updateSpatialTestControls();
       },
