@@ -300,7 +300,7 @@ export class SpatialComposition {
     return Object.freeze({
       previous, current: nextRecord,
       commit: () => { this.#assertWritable(); if (committed) throw new SpatialCompositionError("TRANSACTION_ALREADY_COMMITTED", "Occupancy transaction already committed."); this.#entityOccupancies = nextOccupancies; this.#entitiesByCell = nextByCell; committed = true; },
-      rollback: () => { if (!committed) return false; this.#entityOccupancies = previousMaps.occupancies; this.#entitiesByCell = previousMaps.byCell; committed = false; return true; }
+      rollback: () => { this.#assertWritable(); if (!committed) return false; this.#entityOccupancies = previousMaps.occupancies; this.#entitiesByCell = previousMaps.byCell; committed = false; return true; }
     });
   }
   getContent(contentId) { return this.#contents.get(id(contentId, "Content ID")) ?? null; }
