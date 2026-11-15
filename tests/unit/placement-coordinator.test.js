@@ -120,3 +120,9 @@ test("non-grid placement remains available directly through WorldContext", () =>
   const placement = s.worldContext.placeEntity("pawn:one", "plain", { x: 2.25, y: 5.5 });
   assert.deepEqual(placement.position, { x: 2.25, y: 5.5 });
 });
+
+test("WorldContext restore cannot bypass the composite grid placement participant", () => {
+  const s = setup(); pawn(s.entities);
+  s.coordinator.placeEntity("pawn:one", gridTarget("grid-a", { x: 1, y: 1 }, [{ x: 0, y: 0 }]));
+  throwsCode(() => s.worldContext.prepareRestore(s.worldContext.captureSnapshot()), "GRID_COORDINATOR_REQUIRED");
+});
