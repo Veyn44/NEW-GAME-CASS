@@ -175,7 +175,7 @@ test("Manhattan and Chebyshev distances use their named metrics", () => {
 
 test("distance helpers reject fractional coordinates and unsafe results", () => {
   expectCode(() => manhattanDistance({ x: 0.5, y: 0 }, { x: 1, y: 1 }), "INVALID_CELL_COORDINATE");
-  expectCode(() => chebyshevDistance({ x: 0, y: 0 }, { x: Number.MAX_SAFE_INTEGER, y: 0 }), "DISTANCE_OUT_OF_RANGE");
+  expectCode(() => chebyshevDistance({ x: -Number.MAX_SAFE_INTEGER, y: 0 }, { x: Number.MAX_SAFE_INTEGER, y: 0 }), "DISTANCE_OUT_OF_RANGE");
   expectCode(() => manhattanDistance(
     { x: -Number.MAX_SAFE_INTEGER, y: 0 },
     { x: Number.MAX_SAFE_INTEGER, y: 0 }
