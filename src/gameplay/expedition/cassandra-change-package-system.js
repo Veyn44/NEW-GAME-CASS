@@ -570,6 +570,7 @@ export function createCassandraChangePackageCoordinator({
           resolvedResultIdentities
         });
         if (valid !== true) fail("OPERATION_REJECTED", "A typed operation failed validation.", { operationId: operation.operationId });
+        const beforeApply = cloneJson(candidate);
         await handler.apply({
           candidate,
           aggregate,
@@ -577,6 +578,20 @@ export function createCassandraChangePackageCoordinator({
           changePackage,
           resolvedResultIdentities
         });
+        const updatedAggregate = candidate.aggregates?.[operation.aggregateId];
+        if (!updatedAggregate || typeof updatedAggregate !== "object"
+          || updatedAggregate.revision !== operation.expectedRevision) {
+          fail("OPERATION_MUTATED_AGGREGATE_REVISION",
+            "Typed operation handlers may not remove their target aggregate or mutate its revision.",
+            { aggregateId: operation.aggregateId });
+        }
+        const allowedCandidate = cloneJson(beforeApply);
+        allowedCandidate.aggregates[operation.aggregateId] = cloneJson(updatedAggregate);
+        if (canonicalStringify(candidate) !== canonicalStringify(allowedCandidate)) {
+          fail("OPERATION_MUTATED_UNDECLARED_STATE",
+            "A typed operation handler may mutate only the aggregate declared by its operation.",
+            { operationId: operation.operationId, aggregateId: operation.aggregateId });
+        }
       }
       const touched = new Set(changePackage.baseline.map((entry) => entry.aggregateId));
       for (const baseline of changePackage.baseline) {
