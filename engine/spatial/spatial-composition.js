@@ -190,7 +190,12 @@ export class SpatialComposition {
       entityOccupancies: Object.freeze(this.listEntityOccupancies().map((r) => ({ entityId: r.entityId, worldId: r.worldId,
         anchor: { x: r.anchor.x, y: r.anchor.y }, footprint: r.footprint.map((p) => ({ x: p.x, y: p.y })), orientation: r.orientation }))) });
   }
-  prepareRestore(snapshot, { deferWorldValidation = false } = {}) {
+  prepareRestore(snapshot, { deferWorldValidation = false, authority = null } = {}) {
+    const hasCurrentOccupancy = this.#entityOccupancies.size > 0;
+    const hasSnapshotOccupancy = Array.isArray(snapshot?.entityOccupancies) && snapshot.entityOccupancies.length > 0;
+    if ((hasCurrentOccupancy || hasSnapshotOccupancy) && authority !== PLACEMENT_AUTHORITY) {
+      throw new SpatialCompositionError("PLACEMENT_AUTHORITY_REQUIRED", "Restoring entity occupancy requires the composite Placement Coordinator participant.");
+    }
     const stableSnapshot = clone(snapshot, "snapshot");
     const next = deferWorldValidation ? null : this.#parse(stableSnapshot);
     const previous = { contents: this.#contents, byCell: this.#byCell, reserved: this.#reserved, entityOccupancies: this.#entityOccupancies, entitiesByCell: this.#entitiesByCell };
