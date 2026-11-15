@@ -416,7 +416,11 @@ Questions to resolve:
 - How do we avoid Engine importing Cassandra concepts?
 
 ### Step 8 — Persistence and compatibility
-**Status:** Open; Cassandra location-persistence requirements recorded
+**Status:** Open — source audit completed and working .cass migration proposal drafted; review and source/fixture decisions pending
+
+**Working proposal:** `cass-save-compatibility-migration-proposal.md`
+
+The proposal distinguishes the current Dev Lab/workspace .cass save from a future Cassandra campaign save and records the audited envelope, participant schemas, migration limitations and spatial/environment compatibility requirements. It does not close Step 8 or authorize implementation.
 
 Cassandra-specific requirements to account for during this design:
 - Distinguish a Temporary World runtime instance from the persistent record of the location it represents.
