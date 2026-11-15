@@ -137,9 +137,9 @@ test("Diagonal Draft movement is normalized and an inactive Draft does not move"
 
     state.control.setDrafted(true);
     const result = state.control.update(0.5);
-    const distance = Math.hypot(result.position.x - 20, result.position.y - 20);
+    const distance = Math.hypot(result.position.x - 20.5, result.position.y - 20.5);
     assert.ok(Math.abs(distance - 2) < 1e-9);
-    assert.ok(Math.abs(Math.abs(result.position.x - 20) - Math.abs(result.position.y - 20)) < 1e-9);
+    assert.ok(Math.abs(Math.abs(result.position.x - 20.5) - Math.abs(result.position.y - 20.5)) < 1e-9);
   } finally {
     await state.runtime.destroy();
     clearDefinitionsForTests();
