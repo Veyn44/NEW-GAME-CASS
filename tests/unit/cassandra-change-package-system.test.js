@@ -212,6 +212,30 @@ test("coordinator can apply a no-op expedition outcome without inventing aggrega
   assert.equal(storage.snapshot.appliedLedger.length, 1);
 });
 
+test("staging snapshots mutable package input before asynchronous verification", async () => {
+  const storage = makeStorage();
+  const coordinator = createCassandraChangePackageCoordinator({
+    storage,
+    operationHandlers: handlers,
+    validateReturnManifest: () => true,
+    resolveResultIdentities
+  });
+  const canonicalPackage = await makePackage();
+  const mutablePackage = structuredClone(canonicalPackage);
+  const stagePromise = coordinator.stage(mutablePackage, {
+    checkpoint: { majorState: storage.snapshot.majorState }
+  });
+  mutablePackage.operations[0].payload.amount = 999;
+  mutablePackage.source.locationRevision = 999;
+  await stagePromise;
+
+  const pending = storage.snapshot.pendingPackages[0];
+  assert.equal(pending.changePackage.operations[0].payload.amount, 4);
+  assert.equal(pending.changePackage.source.locationRevision, 3);
+  await coordinator.apply(canonicalPackage.packageId);
+  assert.equal(storage.snapshot.majorState.aggregates["inventory:crew"].state.ore, 6);
+});
+
 test("coordinator stages a durable buffer then promotes Major State and Applied ledger together", async () => {
   const storage = makeStorage();
   const coordinator = createCassandraChangePackageCoordinator({ storage, operationHandlers: handlers, validateReturnManifest: () => true, resolveResultIdentities });
