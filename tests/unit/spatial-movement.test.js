@@ -195,3 +195,18 @@ test("movement cannot silently change an entity footprint", () => {
   assert.equal(result.code, "FOOTPRINT_CHANGE_NOT_SUPPORTED");
   assert.equal(occupancy(s, "pawn:mover"), before);
 });
+
+test("policy decision accessors are evaluated while spatial writes are locked", () => {
+  const s = setup();
+  place(s, "pawn:mover", { x: 1, y: 1 });
+  const before = occupancy(s, "pawn:mover");
+  const result = s.movement.moveEntity("pawn:mover", { worldId: "grid-a", anchor: { x: 2, y: 2 } }, () => ({
+    get accepted() {
+      s.spatial.addCellContent({ contentId: "wall:from-getter", worldId: "grid-a", cell: { x: 2, y: 2 }, categoryId: "structure" });
+      return true;
+    }
+  }));
+  assert.equal(result.status, "policy-error");
+  assert.equal(occupancy(s, "pawn:mover"), before);
+  assert.equal(s.spatial.getContent("wall:from-getter"), null);
+});
