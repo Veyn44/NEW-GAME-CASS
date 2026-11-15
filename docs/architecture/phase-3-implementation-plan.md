@@ -467,6 +467,7 @@ The proposal specifies:
 - A player-entitlement invariant: every result owed to the player has an explicit, auditable disposition and must survive identity mapping, persistence, retry and recovery failures.
 - A reconciled return manifest for items, resources, participants and rewards; unknown or unmapped entries block the whole commit rather than being silently dropped.
 - A two-state staging model: preserve the last-known-good Major State, retain expedition changes in a durable Change Buffer, build and validate an isolated Candidate State, and atomically promote it only after all invariants pass.
+- Proposed implementation defaults for a canonical package envelope, per-aggregate revisions, typed operations, package-local result identities, explicit conservation manifest, SHA-256 canonical digest, Applied ledger and single atomic campaign-save promotion.
 - On entitlement/identity/conservation integrity failure, do not commit a partial result; roll back to the expedition-start checkpoint and reset/restore the complete expedition. Transient commit failures retain the Change Buffer and retry from the unchanged Major State.
 - Campaign identity to encounter-runtime identity projection mapping; no simultaneous duplicate Engine placement for one entity.
 - Typed Cassandra domain operations, baseline revisions/preconditions and all-or-nothing package application.
@@ -475,9 +476,9 @@ The proposal specifies:
 - Separate End Expedition and Abandon outcomes, final encounter consequences, Clear/Not Clear, resource extraction and location persistence.
 
 **Still requires review/decision:**
-- Exact package schema/operation types and aggregate revision model.
 - Detailed entity projection/return eligibility and disposition rules.
-- Recovery checkpoint strategy and transaction coordinator integration.
+- Exact frozen Temporary World recovery checkpoint size/content.
+- Actual campaign storage backend and proof of atomic Major State + Applied ledger promotion.
 - Per-location persistence policy and user-facing conflict resolution.
 
 **Gate:** Cassandra expedition integration (Slice 7) remains blocked until the contract is reviewed and the remaining consequential details are resolved. Isolated Engine geometry/composition work is not blocked by this Cassandra-specific protocol.
