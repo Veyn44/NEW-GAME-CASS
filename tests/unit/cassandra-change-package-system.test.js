@@ -134,7 +134,7 @@ test("coordinator stages a durable buffer then promotes Major State and Applied 
 });
 
 test("failed promotion retains the old Major State and durable pending package for retry", async () => {
-  const storage = makeStorage({ failWrites: 2 });
+  const storage = makeStorage({ failWrites: 3 });
   let identityResolutions = 0;
   const coordinator = createCassandraChangePackageCoordinator({
     storage,
@@ -145,7 +145,7 @@ test("failed promotion retains the old Major State and durable pending package f
     }
   });
   const changePackage = await makePackage();
-  // First write persists the package. The second persists resolved result identities.
+  // The third write fails during promotion, after the package and identity map are durable.
   await coordinator.stage(changePackage, { checkpoint: { majorRevision: 7 } });
   await assert.rejects(() => coordinator.apply(changePackage.packageId), /simulated durable write failure/);
   assert.equal(storage.snapshot.majorState.aggregates["inventory:crew"].state.ore, 2);
