@@ -369,6 +369,7 @@ export async function startCassandraApplication() {
           worldId: `cassandra-world-${size}`,
           type: "cassandra-world",
           dimensions: { width: size, height: size },
+          grid: { width: size, height: size },
           coordinateSystem: "tiles"
         });
       }
