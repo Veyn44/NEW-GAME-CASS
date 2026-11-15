@@ -116,9 +116,9 @@ test("change package rejects missing dispositions and inconsistent operation bas
 
 test("coordinator stages a durable buffer then promotes Major State and Applied ledger together", async () => {
   const storage = makeStorage();
-  const coordinator = createCassandraChangePackageCoordinator({ storage, operationHandlers: handlers });
+  const coordinator = createCassandraChangePackageCoordinator({ storage, operationHandlers: handlers, validateReturnManifest: () => true });
   const changePackage = await makePackage();
-  assert.equal((await coordinator.stage(changePackage, { checkpoint: { majorRevision: 7 } })).status, "pending");
+  assert.equal((await coordinator.stage(changePackage, { checkpoint: { majorState: storage.snapshot.majorState } })).status, "pending");
   assert.equal(storage.snapshot.majorState.aggregates["inventory:crew"].state.ore, 2);
   assert.equal(storage.snapshot.pendingPackages.length, 1);
 
@@ -139,6 +139,7 @@ test("failed promotion retains the old Major State and durable pending package f
   const coordinator = createCassandraChangePackageCoordinator({
     storage,
     operationHandlers: handlers,
+    validateReturnManifest: () => true,
     resolveResultIdentities: async () => {
       identityResolutions += 1;
       return { "result:ore": "campaign-ore:one" };
@@ -146,7 +147,7 @@ test("failed promotion retains the old Major State and durable pending package f
   });
   const changePackage = await makePackage();
   // The third write fails during promotion, after the package and identity map are durable.
-  await coordinator.stage(changePackage, { checkpoint: { majorRevision: 7 } });
+  await coordinator.stage(changePackage, { checkpoint: { majorState: storage.snapshot.majorState } });
   await assert.rejects(() => coordinator.apply(changePackage.packageId), /simulated durable write failure/);
   assert.equal(storage.snapshot.majorState.aggregates["inventory:crew"].state.ore, 2);
   assert.equal(storage.snapshot.pendingPackages.length, 1);
@@ -162,9 +163,9 @@ test("failed promotion retains the old Major State and durable pending package f
 
 test("stale touched aggregate marks package conflicted without applying any operation", async () => {
   const storage = makeStorage({ revision: 1, value: 9 });
-  const coordinator = createCassandraChangePackageCoordinator({ storage, operationHandlers: handlers });
+  const coordinator = createCassandraChangePackageCoordinator({ storage, operationHandlers: handlers, validateReturnManifest: () => true });
   const changePackage = await makePackage();
-  await coordinator.stage(changePackage, { checkpoint: { majorRevision: 7 } });
+  await coordinator.stage(changePackage, { checkpoint: { majorState: storage.snapshot.majorState } });
   const result = await coordinator.apply(changePackage.packageId);
   assert.equal(result.status, "conflict");
   assert.equal(storage.snapshot.majorState.aggregates["inventory:crew"].state.ore, 9);
