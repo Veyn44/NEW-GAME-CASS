@@ -41,7 +41,7 @@ export function createCassandraRuntime({
         } else {
           updateFreeCamera?.(deltaSeconds);
         }
-        worldSession.advance(deltaSeconds);
+        worldSession.advance(deltaSeconds, tick);
       }
     }]
   });
