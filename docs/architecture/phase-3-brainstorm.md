@@ -237,6 +237,10 @@ Do not change the existing World Registry contract until this is resolved.
 - A map/location has an overall resource-information budget or inventory (illustrative example: 500 titanium, 300 uranium, 6,000 aluminium, 430 copper). These totals describe the resources belonging to the parent location, not necessarily resources already instantiated as visible surface deposits.
 - Resource quantities may be distributed between the main asteroid map and generated Mine Shaft interiors. A Mine Shaft is randomly generated but must contain resources belonging to its parent asteroid; it is not an unrelated random resource map.
 - Exact rules for allocating the parent location's resource totals among surface deposits, mine shafts, and any undiscovered deposits remain open. It is also not yet specified whether the resource summary shows exact totals or estimates to the player.
+- A Deep Scan is an information-only operation. It may reveal a deposit and its estimated/known contents (illustrative example: 20 titanium and 3 uranium), but scanning, viewing, ignoring, or discarding the scan information does not consume or remove any resources.
+- When a player enters/opens a Mine Shaft encounter and extracts only part of a deposit, only the amount actually extracted is deducted from the parent asteroid's shared resource inventory when the encounter is closed/committed. For example, extracting 50 out of 100 titanium reduces the parent asteroid's remaining total by exactly 50; the other 50 remain available for a later visit.
+- Leaving or closing an encounter must not cause unmined resources to disappear merely because the player did not finish the location. The design prioritizes preserving player resources and avoiding unexplained depletion over physically simulating every geological detail of deposit distribution.
+- Detailed deposits need not all be instantiated as physical entities before the player visits them. A scan may reveal information first; the physical encounter/deposit representation can be generated when the encounter is opened, while remaining consistent with the parent resource inventory and prior extraction records.
 
 #### Cassandra world-boundary direction
 - The home/colony map is expected to be finite, with a maximum distance/extent from the map edge, similar in broad player-facing behavior to RimWorld. It is not intended to be an unbounded or infinitely expanding world.
@@ -463,6 +467,10 @@ No implementation starts from this section until the complete specification is a
 ---
 
 ## Current decisions
+
+- **Agreed Cassandra resource rule:** Deep Scan only reveals information about deposits; it does not consume, reserve, or remove resources. Discarding scan information also does not affect the deposits.
+- **Agreed Cassandra resource rule:** On encounter close/commit, deduct only the resources actually extracted. Unmined resources remain available for later visits; leaving an encounter must not silently remove them.
+- **Agreed Cassandra generation concept:** Physical deposit details may be instantiated when an encounter is opened, while remaining consistent with the parent asteroid's shared resource inventory and previously extracted amounts.
 
 - **Agreed Cassandra asteroid concept:** Asteroid interiors combine solid rock and natural cavities; players can discover cavities and excavate rock to expand them.
 - **Proposed Cassandra progression:** A Mine Shaft may be an early, smaller encounter (potentially Level 0) before ship construction, unless the player is given a ship at game start. Starting progression remains open.
