@@ -167,22 +167,28 @@ export class IndexedDbCampaignSaveAdapter {
       fail("INDEXEDDB_READ_FAILED", "Could not read the campaign snapshot.", error);
     }
     if (!record) {
-      if (this.#initialSnapshot !== null) return cloneJson(this.#initialSnapshot);
+      if (this.#initialSnapshot !== null) {
+        return Object.freeze({ snapshot: cloneJson(this.#initialSnapshot), revision: 0 });
+      }
       fail("CAMPAIGN_SAVE_NOT_FOUND", `No saved campaign exists for "${this.#campaignId}".`);
     }
-    if (record.campaignId !== this.#campaignId || !record.snapshot || typeof record.snapshot !== "object") {
-      fail("INVALID_CAMPAIGN_RECORD", "The stored campaign record has an invalid shape.");
+    if (record.campaignId !== this.#campaignId || !record.snapshot || typeof record.snapshot !== "object"
+      || !Number.isSafeInteger(record.revision) || record.revision < 1) {
+      fail("INVALID_CAMPAIGN_RECORD", "The stored campaign record has an invalid shape or revision.");
     }
-    return cloneJson(record.snapshot);
+    return Object.freeze({ snapshot: cloneJson(record.snapshot), revision: record.revision });
   }
 
-  async writeCampaignSnapshotAtomic(snapshot) {
+  async writeCampaignSnapshotAtomic(snapshot, expectedRevision) {
     const normalized = cloneJson(snapshot);
     if (!normalized.majorState || typeof normalized.majorState !== "object"
       || !Array.isArray(normalized.pendingPackages)
       || !Array.isArray(normalized.appliedLedger)) {
       fail("INVALID_CAMPAIGN_SNAPSHOT",
         "A campaign snapshot must contain Major State, pending Change Buffer packages and Applied ledger.");
+    }
+    if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) {
+      fail("INVALID_EXPECTED_STORAGE_REVISION", "Campaign writes require a non-negative expected storage revision.");
     }
     const database = await this.#open();
     let transaction;
@@ -198,17 +204,40 @@ export class IndexedDbCampaignSaveAdapter {
         "IndexedDB did not confirm strict transaction durability; campaign commit is refused.");
     }
     const completed = transactionResult(transaction);
+    let conflict = false;
+    let nextRevision = null;
+    const store = transaction.objectStore(this.#storeName);
+    const currentRequest = store.get(this.#campaignId);
+    currentRequest.onsuccess = () => {
+      const currentRevision = currentRequest.result?.revision ?? 0;
+      if (!Number.isSafeInteger(currentRevision) || currentRevision !== expectedRevision) {
+        conflict = true;
+        try { transaction.abort(); } catch { /* The transaction may already be aborting. */ }
+        return;
+      }
+      nextRevision = currentRevision + 1;
+      try {
+        store.put({
+          campaignId: this.#campaignId,
+          revision: nextRevision,
+          snapshot: normalized
+        });
+      } catch (error) {
+        try { transaction.abort(); } catch { /* Preserve the request error. */ }
+      }
+    };
     try {
-      transaction.objectStore(this.#storeName).put({
-        campaignId: this.#campaignId,
-        snapshot: normalized
-      });
       await completed;
     } catch (error) {
+      if (conflict) {
+        fail("CAMPAIGN_STORAGE_CONFLICT",
+          "Another writer committed a newer campaign snapshot; reload and reconcile before retrying.",
+          error);
+      }
       fail("INDEXEDDB_WRITE_FAILED",
         "The atomic campaign snapshot transaction did not complete.", error);
     }
-    return Object.freeze({ durable: true, campaignId: this.#campaignId });
+    return Object.freeze({ durable: true, campaignId: this.#campaignId, revision: nextRevision });
   }
 
   close() {
