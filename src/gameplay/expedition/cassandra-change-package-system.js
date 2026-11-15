@@ -185,11 +185,21 @@ function validateOperations(operations, baseline) {
 function validateManifest(manifest) {
   if (!Array.isArray(manifest)) fail("INVALID_MANIFEST", "returnManifest must be an array.");
   const ids = new Set();
+  const resultKeys = new Set();
   return manifest.map((entry) => {
     if (!entry || typeof entry !== "object") fail("INVALID_MANIFEST", "Manifest entries must be objects.");
     const entryId = assertId(entry.entryId, "Manifest entry ID");
     if (ids.has(entryId)) fail("DUPLICATE_MANIFEST_ENTRY", "Manifest entry IDs must be unique.", { entryId });
     ids.add(entryId);
+    if (entry.resultKey !== undefined) {
+      assertId(entry.resultKey, "Manifest result key");
+      if (resultKeys.has(entry.resultKey)) fail("DUPLICATE_RESULT_KEY", "Manifest result keys must be unique.", { resultKey: entry.resultKey });
+      resultKeys.add(entry.resultKey);
+      if (entry.campaignEntityId !== undefined) {
+        fail("AMBIGUOUS_MANIFEST_IDENTITY", "A manifest entry cannot declare both a resultKey and a campaignEntityId.", { entryId });
+      }
+    }
+    if (entry.campaignEntityId !== undefined) assertId(entry.campaignEntityId, "Manifest campaign entity ID");
     if (!DISPOSITIONS.has(entry.disposition)) {
       fail("INVALID_DISPOSITION", "Every manifest entry needs one explicit final disposition.", { entryId, disposition: entry.disposition });
     }
@@ -201,6 +211,32 @@ function validateManifest(manifest) {
     }
     return cloneJson(entry, `manifest entry ${entryId}`);
   }).sort((a, b) => a.entryId.localeCompare(b.entryId));
+}
+
+function validateResultIdentityMap(identityMap, manifest) {
+  if (!identityMap || typeof identityMap !== "object" || Array.isArray(identityMap)) {
+    fail("RESULT_IDENTITY_MAP_INVALID", "Result identity resolver must return a plain resultKey-to-campaignEntityId object.");
+  }
+  const expectedKeys = manifest.filter((entry) => entry.resultKey).map((entry) => entry.resultKey).sort();
+  const actualKeys = Object.keys(identityMap).sort();
+  if (canonicalStringify(expectedKeys) !== canonicalStringify(actualKeys)) {
+    fail("RESULT_IDENTITY_MAP_INCOMPLETE",
+      "Every manifest resultKey must resolve exactly once, with no extra identity mappings.",
+      { expectedKeys, actualKeys });
+  }
+  const campaignIds = new Set();
+  const normalized = {};
+  for (const resultKey of expectedKeys) {
+    const campaignEntityId = assertId(identityMap[resultKey], "Resolved campaign entity ID");
+    if (campaignIds.has(campaignEntityId)) {
+      fail("RESULT_IDENTITY_COLLISION", "Different result keys cannot resolve to the same campaign entity ID.", {
+        resultKey, campaignEntityId
+      });
+    }
+    campaignIds.add(campaignEntityId);
+    normalized[resultKey] = campaignEntityId;
+  }
+  return normalized;
 }
 
 function orderOperations(operations) {
@@ -311,7 +347,7 @@ export function createCassandraChangePackageCoordinator({
   storage,
   operationHandlers,
   validateReturnManifest,
-  resolveResultIdentities = async () => ({})
+  resolveResultIdentities
 } = {}) {
   if (!storage || typeof storage.loadCampaignSnapshot !== "function"
     || typeof storage.writeCampaignSnapshotAtomic !== "function"
@@ -325,6 +361,10 @@ export function createCassandraChangePackageCoordinator({
   if (typeof validateReturnManifest !== "function") {
     fail("RETURN_MANIFEST_VALIDATOR_REQUIRED",
       "The host must provide Cassandra domain reconciliation for every return-manifest entry.");
+  }
+  if (typeof resolveResultIdentities !== "function") {
+    fail("RESULT_IDENTITY_RESOLVER_REQUIRED",
+      "The host must resolve every new manifest resultKey to a durable campaign entity identity.");
   }
 
   async function loadSnapshot() {
@@ -384,7 +424,8 @@ export function createCassandraChangePackageCoordinator({
         checkpoint: cloneState(checkpoint),
         checkpointDigest,
         status: "pending",
-        resolvedResultIdentities: {}
+        resolvedResultIdentities: null,
+        resolvedResultIdentitiesDigest: null
       });
       const reopened = await writeSnapshot(snapshot);
       const retained = reopened.pendingPackages.find((entry) => entry.packageId === changePackage.packageId);
@@ -446,19 +487,32 @@ export function createCassandraChangePackageCoordinator({
       }
 
       const candidate = cloneState(majorState);
-      let resolvedResultIdentities = pending.resolvedResultIdentities
-        && Object.keys(pending.resolvedResultIdentities).length
-        ? cloneState(pending.resolvedResultIdentities)
-        : null;
-      if (resolvedResultIdentities === null) {
-        resolvedResultIdentities = cloneState(await resolveResultIdentities(changePackage, candidate));
+      let resolvedResultIdentities;
+      if (pending.resolvedResultIdentities === null || pending.resolvedResultIdentities === undefined) {
+        resolvedResultIdentities = validateResultIdentityMap(
+          await resolveResultIdentities(changePackage, candidate),
+          changePackage.returnManifest
+        );
         // Persist result-key identities before candidate construction/commit so retries
         // cannot allocate a different durable identity after an interrupted promotion.
         pending.resolvedResultIdentities = resolvedResultIdentities;
+        pending.resolvedResultIdentitiesDigest = await sha256(canonicalStringify(resolvedResultIdentities));
         const identityCheckpoint = await writeSnapshot(snapshot);
         const refreshedPending = identityCheckpoint.pendingPackages.find((entry) => entry.packageId === packageId);
-        if (!refreshedPending || refreshedPending.digest !== changePackage.digest) {
+        if (!refreshedPending || refreshedPending.digest !== changePackage.digest
+          || refreshedPending.resolvedResultIdentitiesDigest !== pending.resolvedResultIdentitiesDigest) {
           fail("IDENTITY_CHECKPOINT_LOST", "Resolved result identities were not retained in the pending Change Buffer.");
+        }
+      } else {
+        resolvedResultIdentities = validateResultIdentityMap(
+          pending.resolvedResultIdentities,
+          changePackage.returnManifest
+        );
+        if (typeof pending.resolvedResultIdentitiesDigest !== "string"
+          || await sha256(canonicalStringify(resolvedResultIdentities)) !== pending.resolvedResultIdentitiesDigest) {
+          fail("RESULT_IDENTITY_CHECKPOINT_CORRUPT",
+            "The durable result identity map does not match its SHA-256 digest.",
+            { packageId });
         }
       }
       const ordered = orderOperations(changePackage.operations);
