@@ -441,6 +441,7 @@ Questions to resolve:
 - Is a transfer/change package durable until successfully applied?
 - How are snapshots and change packages versioned?
 - How are restore dependencies ordered and validated?
+- How are World Context and Spatial Composition restored as one composite placement transaction?
 - How are invalid or conflicting placements handled during restore?
 - What migrations are required?
 - Which save versions does the current build explicitly support, and how are unsupported versions rejected safely?
@@ -450,6 +451,8 @@ Questions to resolve:
 **Status:** Integrated acceptance matrix drafted; implementation tests remain pending
 
 **Working audit:** `phase-3-integration-audit.md`
+
+**Placement persistence detail:** `spatial-placement-persistence-integration-proposal.md`
 
 The audit consolidates the acceptance scenarios across geometry, composition, queries, placement/movement, lifecycle/time, persistence, expedition change packages and application boundaries. Each scenario must become an automated test or an explicitly identified manual acceptance test during implementation.
 
