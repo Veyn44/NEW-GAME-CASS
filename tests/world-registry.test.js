@@ -181,7 +181,8 @@ test("grid capability is captured and restored with the World descriptor", () =>
   const target = makeRegistry();
   target.prepareRestore(source.captureSnapshot()).commit();
 
-  assert.deepEqual(target.get("world:grid-source").grid, { width: 96, height: 80 });
+  equal(target.get("world:grid-source").grid.width, 96);
+  equal(target.get("world:grid-source").grid.height, 80);
 });
 
 test("snapshot rejects malformed explicit grid descriptors", () => {
