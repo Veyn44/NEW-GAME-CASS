@@ -368,4 +368,25 @@ Do not implement this by merely allowing multiple World Registry descriptors to 
 
 The initial execution ordering, task scopes, per-world cadence, time-commit boundary, active-world compatibility rule and restore default are now specified above.
 
+### 12.1 Implementation wiring identified by source audit
+
+The existing Core composition can host this extension without replacing the current bootstrap or persistence coordinator:
+
+- Add the runtime lifecycle/simulation-state service as a Core system that requires `core.world-registry`. It is a separate service; it does not modify World Registry descriptors.
+- Make `core.scheduler` require that service and use it to snapshot participants and commit per-world time.
+- Make `core.persistence` require the service and register its persistence participant.
+- Current persistence participant ordering is Entity Registry `-100`, World Registry `-90`, and composite spatial placement `-80`. The proposed runtime-state participant order is `-85`: after World Registry has staged/committed the identities, before composite placement validates and commits references. Its restore transaction must validate world references at commit time, because Persistence prepares every participant before it commits any participant.
+- Preserve existing Core task order from `SystemBootstrap.initializationOrder`. The scope field extends each task's invocation semantics; it does not change dependency registration or host-system initialization.
+- Existing Core Assembly integration tests already assert that global tasks execute in validated dependency order and that a failed task leaves the global tick and clock uncommitted. Those tests are regression gates for the extension.
+
+### 12.2 Minimum implementation test groups
+
+1. Runtime lifecycle: valid and invalid transitions, Ready-only participation, reasoned pause, queued lifecycle changes at round boundaries, and no participation while unloading/disposed.
+2. Scheduler: global task backward compatibility; mixed Global/World tasks in dependency order; canonical world-ID ordering independent of registration order; per-world `everyTicks`; immutable participant snapshot; no round with zero participants.
+3. Time commit: each participant advances once per successful round; nonparticipants do not advance; global time advances once; task failure commits no time counters and preserves global scheduler fault behavior.
+4. Persistence: per-world time and local step counters round-trip; unknown/closed world references are rejected; restore defaults to Unloaded/Disabled; a later participant failure rolls back the runtime-state participant.
+5. Integration: two worlds remain loaded and simulated without switching `activeWorldId`; focus/active selection does not affect participation; Cassandra's host session no longer owns a duplicate local-time map after migration.
+6. Regression: all existing single-world scheduler, clock, World Registry, spatial placement, Cassandra session and save/restore tests continue to pass.
+
+
 No source-code implementation is authorized by this document.
