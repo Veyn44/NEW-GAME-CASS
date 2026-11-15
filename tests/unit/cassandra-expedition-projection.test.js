@@ -36,6 +36,13 @@ function makeRegistry() {
       scopeId: "world:temp:one",
       status: "active"
     }],
+    ["scope:world:temp:one:3", {
+      id: "scope:world:temp:one:3",
+      kind: "unit",
+      scope: "scoped",
+      scopeId: "world:temp:one",
+      status: "active"
+    }],
     ["scope:world:other:1", {
       id: "scope:world:other:1",
       kind: "unit",
@@ -86,7 +93,7 @@ test("expedition projection rejects reused identities and entities from another 
   const projection = createProjection();
   projection.add(pawnMapping);
   assert.throws(
-    () => projection.add({ ...pawnMapping, temporaryEntityId: "scope:world:temp:one:2" }),
+    () => projection.add({ ...pawnMapping, temporaryEntityId: "scope:world:temp:one:3" }),
     { code: "DUPLICATE_PROJECTION_MAPPING" }
   );
   assert.throws(
