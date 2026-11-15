@@ -162,6 +162,8 @@ test("coordinator stages a durable buffer then promotes Major State and Applied 
   assert.equal(result.status, "applied");
   assert.equal(storage.snapshot.majorState.aggregates["inventory:crew"].state.ore, 6);
   assert.equal(storage.snapshot.majorState.aggregates["inventory:crew"].revision, 1);
+  assert.equal(storage.snapshot.majorState.revision, 8);
+  assert.equal(result.ledger.resultingMajorRevision, 8);
   assert.equal(storage.snapshot.pendingPackages.length, 0);
   assert.equal(storage.snapshot.appliedLedger.length, 1);
 
@@ -215,6 +217,30 @@ test("coordinator rejects a corrupted durable result identity map on retry", asy
   );
   assert.equal(storage.snapshot.majorState.aggregates["inventory:crew"].state.ore, 2);
   assert.equal(storage.snapshot.appliedLedger.length, 0);
+});
+
+test("coordinator rejects operation handlers that mutate revision counters directly", async () => {
+  const storage = makeStorage();
+  const badHandlers = {
+    "inventory.add": {
+      validate: () => true,
+      apply({ aggregate }) { aggregate.revision += 1; }
+    }
+  };
+  const coordinator = createCassandraChangePackageCoordinator({
+    storage,
+    operationHandlers: badHandlers,
+    validateReturnManifest: () => true,
+    resolveResultIdentities
+  });
+  const changePackage = await makePackage();
+  await coordinator.stage(changePackage, { checkpoint: { majorState: storage.snapshot.majorState } });
+  await assert.rejects(
+    () => coordinator.apply(changePackage.packageId),
+    { code: "OPERATION_MUTATED_AGGREGATE_REVISION" }
+  );
+  assert.equal(storage.snapshot.majorState.revision, 7);
+  assert.equal(storage.snapshot.majorState.aggregates["inventory:crew"].revision, 0);
 });
 
 test("coordinator rejects incomplete result identity mappings before changing Major State", async () => {
