@@ -247,6 +247,12 @@ Do not change the existing World Registry contract until this is resolved.
 - An asteroid encounter is itself a Temporary World. The idea of opening a Mine Shaft within an asteroid therefore raises an unresolved nested/sub-encounter question: whether the shaft should be another temporary world, a local area/transition within the asteroid encounter, or be represented through a simplified mining mechanic.
 - One proposed simplification is to represent some asteroid mining through an installed mining device that produces a fixed amount over time (illustrative example: +2 titanium per defined time interval), avoiding the need to create a nested detailed mine-shaft world for every mining operation.
 - A further gameplay possibility is a persistent mining outpost/station on selected asteroids. Such a site could produce resources over time for later collection/transport. This is only a concept at this stage; persistence, time advancement, extraction limits, and whether unattended production is allowed remain open.
+- The player may be able to establish a remote automated base/outpost on a suitable asteroid or other location. Establishment requires sending personnel (potentially pawns and/or robots) and spending resources to build an initial habitable/basic module.
+- After establishment, the outpost may be managed through an abstract strategic interface rather than a rendered grid map: status, resource stocks, production, consumption, personnel/robot assignments, modules, development options, and problems. The intended feel is closer to city-development/strategy management (Civ-style choices and Stellaris-like statistics) than direct tile-by-tile construction.
+- Remote outposts may have statuses/types such as Mining Base. The status can be shown in the universe map/location record and summarize what the site does.
+- Personnel assigned to an abstract outpost may be represented as informational/strategic records rather than continuously simulated physical pawn entities. Their assignment and condition still matter to gameplay.
+- An established outpost may continue producing and consuming resources while the player is elsewhere. This is an explicit candidate exception to the earlier rule that inactive physical locations do not run full background simulation: the outpost could advance through abstract/economy calculations without simulating its detailed physical world.
+- This concept may support a progression from a basic habitable module with life-support/resource automation to a more developed remote colony or industrial site. Exact modules, requirements, risks, personnel needs, and development rules are not yet defined.
 
 #### Cassandra world-boundary direction
 - The home/colony map is expected to be finite, with a maximum distance/extent from the map edge, similar in broad player-facing behavior to RimWorld. It is not intended to be an unbounded or infinitely expanding world.
@@ -473,6 +479,11 @@ No implementation starts from this section until the complete specification is a
 ---
 
 ## Current decisions
+
+- **Proposed Cassandra remote-base model:** The player may establish an automated remote base by sending personnel/robots and spending resources to construct an initial habitable/basic module.
+- **Proposed abstract management mode:** Once established, a remote base may be managed without a rendered grid world, using strategic information such as stocks, production, consumption, modules, personnel, robots, and status (for example, Mining Base).
+- **Proposed personnel representation:** Pawns assigned to an abstract remote base may be represented as informational/strategic records rather than continuously simulated physical entities.
+- **Proposed simulation exception:** Remote bases may advance abstract production/consumption while the player is elsewhere, without running full physical-world simulation. This is a candidate exception to the no-background-simulation rule for inactive locations and needs explicit design.
 
 - **Proposed Cassandra Mine Shaft lifecycle:** Mine Shaft detailed geometry/layout may be discarded when the player leaves and regenerated on the next visit. Parent asteroid resource totals and actual extracted amounts remain persistent.
 - **Acknowledged gameplay trade-off:** Regenerating a Mine Shaft can let players reroll unfavorable layouts; whether and how expedition costs balance this remains open.
