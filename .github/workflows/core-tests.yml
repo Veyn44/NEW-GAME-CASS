@@ -27,6 +27,8 @@ jobs:
           node --check src/gameplay/colony/colony-control-system.js
           node --check src/gameplay/world/cassandra-world-session-system.js
           node --check src/gameplay/expedition/cassandra-change-package-system.js
+          node --check src/adapters/storage/indexeddb-campaign-save-adapter.js
+          node --check tests/unit/indexeddb-campaign-save-adapter.test.js
           node --check tests/unit/cassandra-change-package-system.test.js
           node --check dev-lab/application/application-shell.js
           node --check dev-lab/application/standalone-entry.js
