@@ -447,7 +447,11 @@ Questions to resolve:
 - What happens to existing worlds and placements when the new capability is introduced?
 
 ### Step 9 — Testing and acceptance criteria
-**Status:** Open
+**Status:** Integrated acceptance matrix drafted; implementation tests remain pending
+
+**Working audit:** `phase-3-integration-audit.md`
+
+The audit consolidates the acceptance scenarios across geometry, composition, queries, placement/movement, lifecycle/time, persistence, expedition change packages and application boundaries. Each scenario must become an automated test or an explicitly identified manual acceptance test during implementation.
 
 Define observable conditions that prove the design and implementation are correct.
 
@@ -467,7 +471,13 @@ Include:
 - Explicitly stated performance expectations only where justified.
 
 ### Step 10 — Implementation plan
-**Status:** Open
+**Status:** Dependency-ordered working plan drafted; execution approval remains separate
+
+**Working plan:** `phase-3-implementation-plan.md`
+
+**Integrated audit and sequence:** `phase-3-integration-audit.md`
+
+The recommended order is design/baseline → geometry → composition → queries → movement → persistence → Core integration → Cassandra integration → Dev Lab integration → end-to-end acceptance. This sequence does not authorize source/runtime changes.
 
 Only after the preceding design is settled, specify:
 - Exact modules/files to add or change.
