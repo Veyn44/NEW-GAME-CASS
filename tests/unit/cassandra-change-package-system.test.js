@@ -222,16 +222,19 @@ test("staging snapshots mutable package input before asynchronous verification",
   });
   const canonicalPackage = await makePackage();
   const mutablePackage = structuredClone(canonicalPackage);
+  const mutableCheckpoint = { majorState: storage.snapshot.majorState };
   const stagePromise = coordinator.stage(mutablePackage, {
-    checkpoint: { majorState: storage.snapshot.majorState }
+    checkpoint: mutableCheckpoint
   });
   mutablePackage.operations[0].payload.amount = 999;
   mutablePackage.source.locationRevision = 999;
+  mutableCheckpoint.majorState.revision = 999;
   await stagePromise;
 
   const pending = storage.snapshot.pendingPackages[0];
   assert.equal(pending.changePackage.operations[0].payload.amount, 4);
   assert.equal(pending.changePackage.source.locationRevision, 3);
+  assert.equal(pending.checkpoint.majorState.revision, 7);
   await coordinator.apply(canonicalPackage.packageId);
   assert.equal(storage.snapshot.majorState.aggregates["inventory:crew"].state.ore, 6);
 });
