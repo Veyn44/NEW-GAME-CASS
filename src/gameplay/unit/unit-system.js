@@ -106,7 +106,9 @@ export function createUnitSystem({ definitionLookup, movementPolicy = () => true
         throw new UnitSystemError("POSITION_OUT_OF_BOUNDS", "Unit tile position is outside the target world.", { worldId: stableWorldId, position: tile });
       }
 
-      const identity = entities.registerPersistent({ kind: "unit" });
+      const identity = world.metadata?.role === "temporary"
+        ? entities.registerScoped({ scopeId: `world:${stableWorldId}`, kind: "unit" })
+        : entities.registerPersistent({ kind: "unit" });
       const initialPosition = world.grid
         ? Object.freeze({ x: tile.x + 0.5, y: tile.y + 0.5 })
         : tile;
