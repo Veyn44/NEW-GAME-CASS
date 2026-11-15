@@ -97,6 +97,48 @@ Not every Temporary World entity maps to a persistent campaign entity.
 
 Exact rules for each Cassandra entity category remain Cassandra domain policy.
 
+## 3.4 Return entitlement and loss-prevention invariant
+
+**Agreed direction (2026-11-15):** The player must receive every item, pawn, resource, reward and other result that the finalized expedition outcome says is due to return. A technical failure, identity remapping issue, save interruption, retry or Temporary World disposal must never silently erase that entitlement.
+
+This is stronger than merely making package application atomic. Atomicity prevents partial application; the entitlement invariant ensures that the complete result remains recoverable until it has been durably committed.
+
+### Required guarantees
+
+- **Explicit disposition for every relevant object/stack:** Every persistent participant, item stack, resource quantity and reward in the expedition result must have a resolved disposition: returned to campaign/shuttle, retained at the persistent location, destroyed/lost by an explicit gameplay consequence, or transient/discarded by an explicit rule. No object or quantity may fall through an unspecified default.
+- **Provenance and ownership:** The result must preserve who owns an item/resource and where it came from. Encounter runtime IDs are mapped to campaign identities or package-local result keys; they are never the only surviving reference to something the player is owed.
+- **Conservation/reconciliation:** For transferable items and quantities, the package must account for the baseline amount, explicit consumption/use/loss, explicit additions/acquisitions, and final disposition. The reconciliation must balance. Any reduction must be explained by a valid gameplay operation, not by missing data or failed mapping.
+- **No silent fallback to deletion:** Unknown, unmapped or unresolvable persistent results cause validation to fail and the package to remain pending. They must not be dropped, ignored or converted to a generic cleanup action.
+- **Durable entitlement record:** Before the Temporary World can be disposed, the finalized package must durably contain the complete return manifest and all location-retention/loss outcomes. The pending package is the recoverable record of what the player is owed.
+- **Atomic delivery:** The campaign inventory/entity/resource updates, location record updates, identity resolutions and Applied ledger entry commit together. There must be no state where the package is marked applied but the returned items are absent, or where items are granted but the ledger allows them to be granted again.
+- **Retry without duplication or loss:** Replaying the same package either completes the same transaction or reports it already applied. It cannot drop items on retry or duplicate them.
+- **Safe disposal:** Temporary World runtime data and session mappings may be released only after the return manifest and its outcomes are durable and the package has been successfully applied, or after an explicitly designed recovery mechanism proves the same information is safely retained elsewhere.
+
+### Return manifest and reconciliation
+
+The package should carry an explicit manifest for all persistent/transferable results. For each entry, record enough information to resolve:
+- Stable campaign identity or package-local result identity.
+- Item/resource/entity type and exact quantity/stack identity as applicable.
+- Ownership and source (participant inventory, shuttle cargo, location loot, extracted deposit, reward, etc.).
+- Final disposition (return, remain at location, consumed, destroyed/lost by an explicit consequence, or transient).
+- The operation(s) responsible for any quantity/state reduction.
+- Destination aggregate/owner for returned results.
+
+The manifest is not a second source of truth. It is the auditable statement of the package's intended outcome and is validated against its typed operations before commit.
+
+For fungible resources, reconciliation should use explicit integer/fixed-precision quantities and domain-defined units; avoid floating-point arithmetic for conserved inventory quantities. For non-fungible objects, reconcile stable object/stack identities and their single final disposition.
+
+### Failure policy
+
+If a manifest entry cannot be mapped, validated, reconciled or committed:
+1. Reject the whole package transaction.
+2. Preserve the immutable package, manifest and diagnostics.
+3. Keep the package pending/conflicted and the Main World paused.
+4. Do not dispose the only recoverable copy of the encounter result.
+5. Require an explicit recovery/reconciliation path; never silently forgive the missing item.
+
+A legitimate gameplay loss (for example, an item destroyed by an enemy during the encounter) is allowed only when the corresponding consequence is explicitly represented in the finalized result and its domain rules. A technical transfer failure is never a gameplay loss.
+
 ## 4. Expedition session and package envelope
 
 The following is a conceptual envelope, not a final serialized schema or public API. Field names are illustrative.
