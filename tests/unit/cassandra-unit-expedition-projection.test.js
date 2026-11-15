@@ -1,0 +1,129 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import { createGameRuntime } from "../../engine/runtime/create-game-runtime.js";
+import { MemorySaveAdapter } from "../../engine/core/persistence.js";
+import { registerDefinition, getDefinition, clearDefinitionsForTests } from "../../engine/database/definition-registry.js";
+import { createUnitSystem } from "../../src/gameplay/unit/unit-system.js";
+import { createCassandraWorldSessionSystem } from "../../src/gameplay/world/cassandra-world-session-system.js";
+import {
+  createCassandraUnitExpeditionProjection
+} from "../../src/gameplay/expedition/cassandra-unit-expedition-projection.js";
+
+async function setup() {
+  clearDefinitionsForTests();
+  registerDefinition({
+    id: "unit.expedition-worker",
+    name: "Expedition Worker",
+    category: "Units",
+    description: "Test expedition participant.",
+    attributes: {}
+  });
+  const runtime = createGameRuntime({
+    saveAdapter: new MemorySaveAdapter(),
+    hostSystems: [
+      createUnitSystem({ definitionLookup: getDefinition }),
+      createCassandraWorldSessionSystem()
+    ]
+  });
+  const context = await runtime.start();
+  const worlds = context.getService("core.world-registry");
+  worlds.registerWorld({
+    worldId: "expedition-main",
+    type: "cassandra-main",
+    dimensions: { width: 32, height: 32 },
+    grid: { width: 32, height: 32 },
+    coordinateSystem: "tiles"
+  });
+  const worldSession = context.getService("game.world-session-api");
+  worldSession.registerMainWorld("expedition-main");
+  const unitApi = context.getService("game.unit-api");
+  const first = unitApi.createUnit({
+    definitionId: "unit.expedition-worker",
+    worldId: "expedition-main",
+    position: { x: 5, y: 7 }
+  });
+  const second = unitApi.createUnit({
+    definitionId: "unit.expedition-worker",
+    worldId: "expedition-main",
+    position: { x: 12, y: 14 }
+  });
+  worldSession.beginTemporaryWorld({ worldId: "expedition-temp", width: 32, height: 32 });
+  return {
+    runtime,
+    context,
+    unitApi,
+    campaignUnits: [first, second],
+    entityRegistry: context.getService("core.entity-registry")
+  };
+}
+
+test("Cassandra Unit projection creates scoped Temporary World identities and records campaign mappings", async () => {
+  const state = await setup();
+  try {
+    const result = createCassandraUnitExpeditionProjection({
+      sessionId: "expedition:units",
+      mainWorldId: "expedition-main",
+      temporaryWorldId: "expedition-temp",
+      campaignUnitIds: state.campaignUnits.map((unit) => unit.id),
+      unitApi: state.unitApi,
+      entityRegistry: state.entityRegistry,
+      getProjectionMetadata: (unit) => ({
+        aggregateId: `unit-aggregate:${unit.id}`,
+        baselineRevision: 0,
+        projectionRole: "participant",
+        transferEligible: true
+      })
+    });
+
+    assert.equal(result.projectedUnits.length, 2);
+    for (const [index, source] of state.campaignUnits.entries()) {
+      const projected = result.projectedUnits[index];
+      assert.notEqual(projected.id, source.id);
+      assert.equal(state.entityRegistry.get(projected.id).scopeId, "world:expedition-temp");
+      assert.equal(projected.placement.worldId, "expedition-temp");
+      assert.deepEqual(
+        result.projection.getByCampaignId(source.id).temporaryEntityId,
+        projected.id
+      );
+    }
+    assert.equal(result.validateReturnManifest(state.campaignUnits.map((unit) => ({
+      campaignEntityId: unit.id,
+      disposition: "returned"
+    }))), true);
+  } finally {
+    await state.runtime.destroy();
+    clearDefinitionsForTests();
+  }
+});
+
+test("Cassandra Unit projection retires already-created Temporary Units if a later projection fails", async () => {
+  const state = await setup();
+  try {
+    assert.throws(
+      () => createCassandraUnitExpeditionProjection({
+        sessionId: "expedition:rollback",
+        mainWorldId: "expedition-main",
+        temporaryWorldId: "expedition-temp",
+        campaignUnitIds: state.campaignUnits.map((unit) => unit.id),
+        unitApi: state.unitApi,
+        entityRegistry: state.entityRegistry,
+        getProjectionMetadata: (unit) => {
+          if (unit.id === state.campaignUnits[1].id) throw new Error("metadata unavailable");
+          return {
+            aggregateId: `unit-aggregate:${unit.id}`,
+            baselineRevision: 0,
+            projectionRole: "participant",
+            transferEligible: true
+          };
+        }
+      }),
+      /metadata unavailable/
+    );
+    assert.equal(state.unitApi.listUnits().length, 2);
+    assert.equal(state.entityRegistry.list({ scope: "scoped", scopeId: "world:expedition-temp", status: "active" }).length, 0);
+  } finally {
+    await state.runtime.destroy();
+    clearDefinitionsForTests();
+  }
+});
