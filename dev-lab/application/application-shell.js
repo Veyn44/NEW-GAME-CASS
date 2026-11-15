@@ -9,6 +9,7 @@ import { createDevLabWorkspaceSessionController } from "./workspace-session-cont
 import { getDefinition, listDefinitionIndex, getCategories, loadDefinitionDetail } from "../../engine/database/definition-registry.js";
 import { createViewportInputController } from "../../shared/input/viewport-input-controller.js";
 import { createApplicationRuntimeHost } from "../../shared/application/runtime-host.js";
+import { querySpatialCell } from "./spatial-inspector.js";
 
 const views = [...document.querySelectorAll("[data-view]")];
 const databaseView = document.querySelector('[data-view="database"]');
@@ -19,6 +20,8 @@ const databaseBackButton = databaseView.querySelector("[data-back-menu]");
 const databaseSelectButton = databaseView.querySelector("#database-select-definition");
 const databaseModeLabel = document.querySelector("#database-mode-label");
 const simulationStatus = document.querySelector("#simulation-status");
+const spatialCellLabel = document.querySelector("#spatial-cell-label");
+const spatialCellData = document.querySelector("#spatial-cell-data");
 const pointerStatus = document.querySelector("#pointer-status");
 const viewportPanel = document.querySelector(".viewport-panel");
 const canvas = document.querySelector("#world-canvas");
@@ -60,6 +63,11 @@ const heldMovementKeys = new Set();
 
 const state = {
   gameplayApi: null,
+  spatialApi: null,
+  spatialMovementApi: null,
+  placementCoordinatorApi: null,
+  entityRegistry: null,
+  selectedSpatialCell: null,
   clock: null,
   worldRegistry: null,
   persistenceApi: null,
@@ -206,6 +214,25 @@ function inspectGameplayEntity(entityId) {
   return unit;
 }
 
+function inspectSpatialCell(cell) {
+  const worldId = state.worldRegistry?.activeWorldId;
+  if (!state.spatialApi || !worldId || !cell) return null;
+  try {
+    const inspection = querySpatialCell(state.spatialApi, worldId, cell);
+    state.selectedSpatialCell = inspection.cell;
+    spatialCellLabel.textContent = `${worldId} · (${inspection.cell.x}, ${inspection.cell.y})`;
+    spatialCellData.textContent = JSON.stringify({
+      contents: inspection.contents,
+      entities: inspection.entities
+    }, null, 2);
+    return inspection;
+  } catch (error) {
+    spatialCellLabel.textContent = `${worldId} · (${cell.x}, ${cell.y})`;
+    spatialCellData.textContent = `QUERY ERROR · ${error.code ?? error.message}`;
+    return null;
+  }
+}
+
 function updateSimulationUi() {
   const controlState = state.gameplayApi?.getControlState();
   state.gameplayUi?.setPaused(state.paused);
@@ -224,7 +251,8 @@ function updateSimulationUi() {
   viewport.setWorldInteraction({
     paused: state.paused,
     inspectionEnabled: true,
-    onSelect: inspectGameplayEntity
+    onSelect: inspectGameplayEntity,
+    onInspectCell: inspectSpatialCell
   });
   if (controlState?.drafted && controlState.leaderId) {
     inspectGameplayEntity(controlState.leaderId);
@@ -397,6 +425,10 @@ workspaceFileInput.addEventListener("change", async () => {
 function resolveDevLabRuntimeServices(context) {
   return {
     worldRegistry: context.getService("core.world-registry"),
+    spatialApi: context.getService("core.spatial-composition"),
+    spatialMovementApi: context.getService("core.spatial-movement"),
+    placementCoordinatorApi: context.getService("core.placement-coordinator"),
+    entityRegistry: context.getService("core.entity-registry"),
     persistenceApi: context.getService("core.persistence"),
     clock: context.getService("core.game-clock"),
     unitApi: null,
@@ -430,10 +462,20 @@ function createDevLabRuntimeHost({
     }
     const worlds = services.worldRegistry;
     for (const size of [64, 128, 256]) {
-      worlds.registerWorld({ worldId: `dev-lab-world-${size}`, type: "dev-lab-test", dimensions: { width: size, height: size }, coordinateSystem: "tiles" });
+      worlds.registerWorld({
+        worldId: `dev-lab-world-${size}`,
+        type: "dev-lab-test",
+        dimensions: { width: size, height: size },
+        grid: { width: size, height: size },
+        coordinateSystem: "tiles"
+      });
     }
     worlds.activateWorld(`dev-lab-world-${Number(worldSizeSelect.value)}`);
     state.worldRegistry = worlds;
+    state.spatialApi = services.spatialApi ?? null;
+    state.spatialMovementApi = services.spatialMovementApi ?? null;
+    state.placementCoordinatorApi = services.placementCoordinatorApi ?? null;
+    state.entityRegistry = services.entityRegistry ?? null;
     state.persistenceApi = services.persistenceApi;
     state.workspacePersistence = createFilePersistenceController({
       persistenceApi: services.persistenceApi,
@@ -459,6 +501,11 @@ function createDevLabRuntimeHost({
     state.clock = services.clock;
     state.clock.pause("player");
     state.paused = true;
+    if (state.spatialApi) inspectSpatialCell({ x: 0, y: 0 });
+    else {
+      spatialCellLabel.textContent = "SPATIAL API UNAVAILABLE";
+      spatialCellData.textContent = "This runtime does not expose Engine Spatial Composition.";
+    }
     updateSimulationUi();
     workspaceSaveStatus.textContent = state.workspacePersistence.initialStatus;
   },
