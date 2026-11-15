@@ -141,6 +141,10 @@ The following gameplay behavior has been established in the brainstorm. These ar
 - These cells are informational/navigation states. Their existence does not mean the represented physical locations have been generated as detailed worlds or loaded into runtime.
 - The contents of a specific star system are generated/revealed only when the player chooses to go on a mission and scans that system. The scan then determines/reveals what is present there.
 - Some systems may be modified by their surroundings or neighboring systems. This is acknowledged as a possible future influence, but its rules are explicitly deferred and should not be designed in this discussion yet.
+- When a system is scanned, its generated/revealed contents are recorded persistently. Revisiting or scanning the same system later should use that saved record rather than silently generating a different system.
+- The saved system record should be a compact information package: detailed enough to retain the number and arrangement of planets, asteroid counts/locations associated with them, and other useful system information, but much smaller than a fully generated/loaded physical world. The example notation "4.2;12.11;1.1;" was illustrative shorthand for a compact record, not yet a defined serialization format.
+- The compact scan record remains available until the player explicitly discards/retires it or marks the location/system Done. After discarding, the detailed record may be removed and replaced with a minimal Done/visited marker, so the map can still indicate that the player has been there without retaining the detailed contents.
+- The exact distinction and player-facing meaning of "discard" versus "Done" remain open; the current concept allows the detailed information to be thrown away and the map state to retain only a Done/visited indication.
 - The galaxy is conceived as a fixed hierarchy of nested map divisions:
   - Galaxy: 16×16 sectors (256 sectors).
   - Each sector: 16×16 regions (256 regions per sector).
@@ -209,10 +213,13 @@ Do not change the existing World Registry contract until this is resolved.
 - **Recorded universe hierarchy:** 16×16 sectors, each with 16×16 regions, each with 16×16 star systems, for 16,777,216 systems. Each system has an illustrative 1–8 planets and at least one asteroid; each planet may have 0–4 asteroids. Location totals beyond the system count remain to be calculated/clarified.
 - **Agreed Cassandra map concept:** The galaxy map is a hierarchy of clickable navigation cells over level-specific backgrounds; these are informational UI states, not pre-generated physical worlds.
 - **Agreed Cassandra generation trigger:** A star system's detailed contents are generated/revealed when the player chooses a mission and scans that system, not when the galaxy map is first created or opened.
+- **Agreed Cassandra scan persistence:** Once scanned, a system's generated contents are saved in a compact information record and remain stable/available on later visits until the player discards the detailed record or marks the system Done.
+- **Agreed Cassandra map memory:** After the detailed record is discarded/retired, a lightweight Done/visited marker may remain so the player can still tell that the system was visited.
 - **Deferred:** Possible influence of neighboring/nearby systems on a system's generated contents; no rules are specified yet.
 - **Open:** Which minimal location identity/metadata remains on the universe map after a location is marked Done.
 - **Open:** Exact visual and interaction behavior of each navigation-map level, including how the player drills down/up and what information each cell displays.
-- **Open:** How a scanned system's generated contents are stored and revisited, while preserving the agreed distinction between lightweight navigation cells and detailed location records.
+- **Open:** Exact compact data format and minimum fields for a scanned system record.
+- **Open:** Whether player actions 'discard' and 'Done' are the same operation or distinct choices, and exactly what map information remains after each.
 - **Open:** Whether the system-level minimum of one asteroid is a separate system encounter/location or must be associated with one of the planets.
 - **Open:** Exact landing/placement flow and whether it is automatic or player-selected.
 
