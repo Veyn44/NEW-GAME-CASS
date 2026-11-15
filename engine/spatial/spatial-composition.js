@@ -126,13 +126,13 @@ export class SpatialComposition {
   }
 
   /** Read-only combined view of explicit cell contents and entity occupancy. */
-  queryCell(worldId, cell, { categories = null, layers = null } = {}) {
+  queryCell(worldId, cell, { categories = null, layers = null, kinds = null } = {}) {
     const world = this.#requireGridWorld(worldId), point = this.#cell(cell, world);
-    const filters = this.#normalizeFilters(categories, layers);
+    const filters = this.#normalizeFilters(categories, layers, kinds);
     const contents = this.getCellContents(worldId, point).filter((r) =>
       (!filters.categories || filters.categories.has(r.categoryId))
       && (!filters.layers || (r.layerId !== null && filters.layers.has(r.layerId))));
-    const entityIds = this.getCellEntities(worldId, point);
+    const entityIds = this.getCellEntities(worldId, point).filter((entityId) => this.#matchesKind(entityId, filters.kinds));
     const entities = entityIds.map((entityId) => {
       const occupancy = this.#entityOccupancies.get(entityId);
       return Object.freeze({ entityId, worldId: occupancy.worldId, anchor: occupancy.anchor,
@@ -147,8 +147,8 @@ export class SpatialComposition {
    * are returned, so large sparse rectangles do not require materializing every
    * untouched cell.
    */
-  queryRegion(worldId, region, { categories = null, layers = null } = {}) {
-    const world = this.#requireGridWorld(worldId), filters = this.#normalizeFilters(categories, layers);
+  queryRegion(worldId, region, { categories = null, layers = null, kinds = null } = {}) {
+    const world = this.#requireGridWorld(worldId), filters = this.#normalizeFilters(categories, layers, kinds);
     const normalized = this.#normalizeRegion(region, world.grid);
     const byCell = new Map();
     const include = (cell) => normalized.contains(cell);
@@ -161,6 +161,7 @@ export class SpatialComposition {
     }
     for (const occupancy of this.#entityOccupancies.values()) {
       if (occupancy.worldId !== worldId) continue;
+      if (!this.#matchesKind(occupancy.entityId, filters.kinds)) continue;
       const matched = occupancy.cells.filter(include);
       for (const cell of matched) {
         const key = `${cell.y},${cell.x}`, entry = byCell.get(key) ?? { cell, contents: [], entityIds: new Set() };
@@ -189,8 +190,8 @@ export class SpatialComposition {
       contents: Object.freeze(contents), entities: Object.freeze(entities) });
   }
 
-  queryEntitiesInRegion(worldId, region) {
-    return this.queryRegion(worldId, region).entities;
+  queryEntitiesInRegion(worldId, region, { kinds = null } = {}) {
+    return this.queryRegion(worldId, region, { kinds }).entities;
   }
 
   getEntityFootprint(entityId) {
@@ -223,14 +224,21 @@ export class SpatialComposition {
     return this.queryRegion(worldId, { type: "cells", cells });
   }
 
-  #normalizeFilters(categories, layers) {
+  #normalizeFilters(categories, layers, kinds) {
     const normalize = (values, label) => {
       if (values === null || values === undefined) return null;
       if (!Array.isArray(values)) throw new SpatialCompositionError("INVALID_QUERY_FILTER", `${label} must be an array.`, { filter: label });
       const result = new Set(values.map((value) => category(value, label)));
       return result.size ? result : null;
     };
-    return { categories: normalize(categories, "Category ID"), layers: normalize(layers, "Layer ID") };
+    return { categories: normalize(categories, "Category ID"), layers: normalize(layers, "Layer ID"), kinds: normalize(kinds, "Entity kind") };
+  }
+
+  #matchesKind(entityId, kinds) {
+    if (!kinds) return true;
+    if (!this.#entities) throw new SpatialCompositionError("ENTITY_REGISTRY_UNAVAILABLE", "Entity kind filters require an Entity Registry.");
+    const entity = this.#entities.get(entityId);
+    return Boolean(entity && kinds.has(entity.kind));
   }
 
   #normalizeRegion(region, grid) {
