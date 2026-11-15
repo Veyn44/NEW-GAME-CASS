@@ -332,7 +332,12 @@ export class WorldContext {
     });
   }
 
-  prepareRestore(snapshot, { deferReferenceValidation = false } = {}) {
+  prepareRestore(snapshot, { deferReferenceValidation = false, authority = null } = {}) {
+    const liveGridPlacement = [...this.#placements.values()].some((item) => item.type === "world" && this.#worlds.get(item.worldId)?.grid != null);
+    const snapshotGridPlacement = Array.isArray(snapshot?.placements) && snapshot.placements.some((item) => item?.type === "world" && this.#worlds.get(item.worldId)?.grid != null);
+    if ((liveGridPlacement || snapshotGridPlacement) && authority !== PLACEMENT_AUTHORITY) {
+      throw new WorldContextError("GRID_COORDINATOR_REQUIRED", "Restoring grid-backed placements requires the composite Placement Coordinator participant.");
+    }
     // Detach untrusted input once. The same immutable-by-ownership copy is
     // validated and later committed, preventing getters and prepare/commit
     // time mutation from changing the staged restore.
