@@ -108,6 +108,9 @@ export function createCassandraWorldSessionSystem() {
       if (temporaryWorldId !== null) {
         throw new CassandraWorldSessionError("TEMPORARY_WORLD_ALREADY_EXISTS", "Only one Temporary World may belong to a Cassandra session.", { temporaryWorldId });
       }
+      if (worlds.activeWorldId !== mainWorldId) {
+        throw new CassandraWorldSessionError("MAIN_WORLD_NOT_ACTIVE", "A Temporary World can only begin from the active Main World.");
+      }
       const id = assertWorldId(worldId, "Temporary World ID");
       if (!Number.isSafeInteger(width) || width <= 0 || !Number.isSafeInteger(height) || height <= 0) {
         throw new CassandraWorldSessionError("INVALID_WORLD_SIZE", "Temporary World grid dimensions must be positive safe integers.", { width, height });
