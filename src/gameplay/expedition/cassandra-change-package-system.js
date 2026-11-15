@@ -349,9 +349,10 @@ function cloneState(value) {
  * contract. This is deliberately not wired to the Dev Lab .cass workspace adapter.
  *
  * storage contract:
- *   loadCampaignSnapshot() -> { majorState, pendingPackages, appliedLedger }
- *   writeCampaignSnapshotAtomic(snapshot) -> durable confirmation
- * The adapter must replace one complete campaign snapshot atomically.
+ *   loadCampaignSnapshot() -> { snapshot, revision }
+ *   writeCampaignSnapshotAtomic(snapshot, expectedRevision) -> { durable: true, revision }
+ * The adapter must atomically compare-and-swap one complete campaign snapshot;
+ * a stale writer must fail rather than overwrite a newer campaign generation.
  */
 export function createCassandraChangePackageCoordinator({
   storage,
