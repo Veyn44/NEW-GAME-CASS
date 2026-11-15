@@ -223,7 +223,7 @@ This contract does not:
 
 ## 13. Source-audited persistence integration
 
-**Status:** Working implementation proposal based on source audit (2026-11-15); no runtime implementation approved.
+**Status:** Implemented on `work` as the `core.spatial-placement` composite persistence participant; Cassandra integration remains separate.
 
 ### 13.1 Current Persistence behavior
 
