@@ -379,24 +379,25 @@ Tasks:
 
 ### Slice 8 — Dev Lab inspection and test integration
 
-**Status:** Initial spatial-inspection sub-slice implemented on `work`; full inspection and movement-test integration remain in progress.
+**Status:** Engine-backed cell/neighbor/radius/footprint inspection and controlled test-entity spawn/move/retire workflows are implemented on `work`; richer diagnostics and hosted acceptance remain in progress.
 
 **Implemented initial sub-slice:**
 - `dev-lab/application/create-dev-lab-runtime.js` continues to compose the shared Engine Core runtime; no parallel spatial model was added.
 - `dev-lab/application/application-shell.js` resolves the Engine Spatial Composition, Spatial Movement, Placement Coordinator and Entity Registry services from the runtime context.
 - Dev Lab's 64×64, 128×128 and 256×256 worlds now declare explicit Engine grid capabilities matching their dimensions.
-- `dev-lab/application/spatial-inspector.js` provides a read-only adapter over `SpatialComposition.queryCell`.
+- `dev-lab/application/spatial-inspector.js` provides read-only adapters over `SpatialComposition.queryCell`, `queryNeighbors`, `queryRadius` and `getEntityFootprint`.
 - `shared/presentation/world-viewport.js` reports the clicked grid cell while paused; the Dev Lab panel displays that cell's contents and entity occupancy.
-- `tests/unit/dev-lab-spatial-inspector.test.js` covers empty-cell inspection, invalid coordinates and the shared Engine API boundary.
+- The inspector exposes four-way/eight-way neighbor queries, Manhattan/Chebyshev radius queries and selected-entity footprint inspection through the same Engine service.
+- `tests/unit/dev-lab-spatial-inspector.test.js` covers empty-cell inspection, invalid coordinates, neighbor/radius queries, authoritative footprint reads and the shared Engine API boundary.
 - `dev-lab/application/spatial-test-controller.js` creates and retires test entities through Entity Registry and Placement Coordinator, and moves them through Engine Spatial Movement with a Dev Lab-owned overlap policy.
 - Dev Lab can spawn 1×1 and 2×2 test footprints, select a test entity, enter move mode, click a target cell, and see moved/rejected outcomes. Occupied footprints are visualized in the viewport; reset retires disposable test entities; restored saves rebuild markers and clear stale UI selection.
 - Spawn and move reject occupied cells; test entities remain distinguishable from host-owned game entities and cannot be mutated through the test controller.
 - `tests/unit/spatial-test-controller.test.js` covers spawn, multi-cell occupancy, spawn/movement overlap rejection, movement, retirement, reset cleanup and authority boundaries.
 - `.github/workflows/core-tests.yml` syntax-checks the updated viewport and Dev Lab spatial modules; both new test files are included by the existing `tests/unit/*.test.js` command.
 
-**Not yet implemented:** richer region/radius/neighborhood query controls, visual footprint overlays, movement traces and full standalone-vs-Cassandra-hosted Dev Lab acceptance. The current test tools intentionally use a small explicit Dev Lab collision policy and do not define Cassandra passability or gameplay movement rules.
+**Not yet implemented:** arbitrary rectangular region filters (including category/layer selection), explicit visualization of rejected-overlap sets, movement traces/history and full standalone-vs-Cassandra-hosted Dev Lab acceptance. The current test tools intentionally use a small explicit Dev Lab collision policy and do not define Cassandra passability or gameplay movement rules.
 
-**Target area:** Existing Dev Lab application/presentation modules; exact paths to be confirmed from current source before edits.
+**Target area:** `dev-lab/application/application-shell.js`, `dev-lab/application/spatial-inspector.js`, `dev-lab/application/spatial-test-controller.js`, `shared/presentation/world-viewport.js` and the existing Dev Lab presentation styles.
 
 Tasks:
 - Expose grid dimensions and coordinate inspection.
