@@ -364,3 +364,40 @@ canvas:active { cursor: grabbing; }
   text-align: center;
   line-height: 1.5;
 }
+
+
+/* Engine-owned spatial cell inspector for the standalone Dev Lab. */
+.spatial-inspector {
+  position: absolute;
+  z-index: 5;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  width: min(310px, 38%);
+  max-height: 48%;
+  padding: 10px 12px;
+  overflow: hidden;
+  border: 1px solid rgba(56, 214, 197, .55);
+  border-radius: 7px;
+  background: rgba(5, 12, 21, .88);
+  color: #dce8f2;
+  pointer-events: none;
+  backdrop-filter: blur(5px);
+}
+.spatial-inspector strong { color: #38d6c5; font-size: 10px; letter-spacing: .12em; }
+.spatial-inspector span { color: #f3c969; font-size: 11px; overflow-wrap: anywhere; }
+.spatial-inspector pre {
+  max-height: 34vh;
+  margin: 0;
+  overflow: auto;
+  color: #b8c9d8;
+  font: 10px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+@media(max-width:640px) {
+  .spatial-inspector { top: 7px; right: 7px; width: min(230px, 56%); max-height: 42%; padding: 7px 8px; }
+  .spatial-inspector pre { font-size: 9px; }
+}
