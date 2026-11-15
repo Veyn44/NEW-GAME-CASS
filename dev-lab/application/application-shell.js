@@ -480,7 +480,7 @@ window.addEventListener("keydown", (event) => {
       inspectGameplayEntity(controlState.leaderId);
       if (leader?.placement?.type === "world"
         && leader.placement.worldId === state.worldRegistry?.activeWorldId) {
-        viewport.setCameraFollowTarget(leader.id, leader.placement.position);
+        viewport.setCameraFollowTarget(leader.id, leader.position);
       }
     } else {
       clearSelection();
