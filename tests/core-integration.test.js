@@ -222,7 +222,7 @@ test("persistence participant set includes identity, world and placement owners"
   const runtime = createCoreAssembly();
   const context = await runtime.start();
   const persistence = context.getService("core.persistence");
-  for (const id of ["core.entity-registry", "core.world-registry", "core.world-context"]) {
+  for (const id of ["core.entity-registry", "core.world-registry", "core.spatial-placement"]) {
     assert(persistence.participantIds.includes(id), `Missing participant ${id}`);
   }
   await runtime.destroy();
@@ -623,14 +623,17 @@ test("cross-registry reference failure rolls back entity counters, worlds and pl
     ...saved,
     snapshots: {
       ...saved.snapshots,
-      "core.world-context": {
-        ...saved.snapshots["core.world-context"],
+      "core.spatial-placement": {
+        ...saved.snapshots["core.spatial-placement"],
+        worldContext: {
+          ...saved.snapshots["core.spatial-placement"].worldContext,
         placements: [{
           entityId: "entity:missing-cross-reference",
           type: "world",
           worldId: "world:rollback-original",
           position: { x: 1, y: 1 }
         }]
+        }
       }
     }
   };
