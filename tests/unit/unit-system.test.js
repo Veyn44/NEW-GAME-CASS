@@ -85,6 +85,35 @@ test("Unit creation rejects unknown definitions and non-integer/out-of-bounds ti
   }
 });
 
+test("Unit system preserves continuous World Context placement for non-grid worlds", async () => {
+  const state = await startWithWorld();
+  try {
+    const worlds = state.context.getService("core.world-registry");
+    worlds.registerWorld({
+      worldId: "unit-test-non-grid",
+      type: "test.non-grid",
+      dimensions: { width: 40, height: 30 }
+    });
+    const unit = state.units.createUnit({
+      definitionId: "unit.test-worker",
+      worldId: "unit-test-non-grid",
+      position: { x: 5, y: 6 }
+    });
+    assert.deepEqual(unit.position, { x: 5, y: 6 });
+    assert.deepEqual(unit.placement.position, { x: 5, y: 6 });
+    assert.equal(state.context.getService("core.spatial-composition").getEntityOccupancy(unit.id), null);
+
+    const moved = state.units.moveUnit(unit.id, { x: 5.25, y: 6.75 });
+    assert.deepEqual(moved.position, { x: 5.25, y: 6.75 });
+    assert.deepEqual(moved.placement.position, { x: 5.25, y: 6.75 });
+    assert.equal(state.units.removeUnit(unit.id), true);
+    assert.equal(state.context.getService("core.entity-registry").get(unit.id).status, "removed");
+  } finally {
+    await state.runtime.destroy();
+    clearDefinitionsForTests();
+  }
+});
+
 test("Unit removal clears placement and retires its Core identity", async () => {
   const state = await startWithWorld();
   try {
