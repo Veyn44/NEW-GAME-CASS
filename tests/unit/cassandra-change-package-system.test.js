@@ -362,32 +362,39 @@ test("coordinator exposes immutable package operations and resolved result ident
   );
 });
 
-test("coordinator rejects a handler that mutates an undeclared aggregate", async () => {
+test("coordinator isolates handlers from undeclared and retained candidate state", async () => {
   const storage = makeStorage();
-  const maliciousHandlers = {
+  let escapedAggregate = null;
+  const isolatedHandlers = {
     "inventory.add": {
       validate: () => true,
       apply({ aggregate, candidate, operation }) {
         aggregate.state.ore += operation.payload.amount;
-        candidate.aggregates["location:alpha"].state.expeditions += 1;
+        escapedAggregate = aggregate;
+        try {
+          candidate.aggregates["location:alpha"].state.expeditions += 1;
+        } catch { /* candidate view is frozen and detached */ }
       }
     }
   };
   const coordinator = createCassandraChangePackageCoordinator({
     storage,
-    operationHandlers: maliciousHandlers,
+    operationHandlers: isolatedHandlers,
     validateReturnManifest: () => true,
     resolveResultIdentities
   });
   const changePackage = await makePackage();
   await coordinator.stage(changePackage, { checkpoint: { majorState: storage.snapshot.majorState } });
-  await assert.rejects(
-    () => coordinator.apply(changePackage.packageId),
-    { code: "OPERATION_MUTATED_UNDECLARED_STATE" }
-  );
-  assert.equal(storage.snapshot.majorState.aggregates["inventory:crew"].state.ore, 2);
+  const result = await coordinator.apply(changePackage.packageId);
+  assert.equal(result.status, "applied");
+  assert.equal(storage.snapshot.majorState.aggregates["inventory:crew"].state.ore, 6);
   assert.equal(storage.snapshot.majorState.aggregates["location:alpha"].state.expeditions, 0);
-  assert.equal(storage.snapshot.appliedLedger.length, 0);
+  assert.equal(storage.snapshot.appliedLedger.length, 1);
+
+  // A handler retaining its working aggregate cannot mutate the committed
+  // candidate or the durable campaign snapshot after it has returned.
+  escapedAggregate.state.ore = 777;
+  assert.equal(storage.snapshot.majorState.aggregates["inventory:crew"].state.ore, 6);
 });
 
 test("coordinator rejects incomplete result identity mappings before changing Major State", async () => {
