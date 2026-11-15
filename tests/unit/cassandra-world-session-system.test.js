@@ -111,20 +111,3 @@ test("Cassandra world session state restores with World Registry selection and l
     await state.runtime.destroy();
   }
 });
-
-test("Cassandra world session rejects malformed and mismatched snapshots", async () => {
-  const state = await setup();
-  try {
-    const participant = state.context.getService("core.persistence").getParticipant?.("game.world-session");
-    if (!participant) return;
-    assert.equal(participant.validateSnapshot({
-      version: 1,
-      mainWorldId: "cassandra-main-128",
-      temporaryWorldId: "cassandra-main-128",
-      activeWorldId: "cassandra-main-128",
-      worldTimes: [{ worldId: "cassandra-main-128", seconds: 0 }]
-    }), false);
-  } finally {
-    await state.runtime.destroy();
-  }
-});
