@@ -71,11 +71,14 @@ test("Dev Lab movement commits a free target and rejects an occupied target", ()
   const second = s.controller.create({ anchor: { x: 5, y: 5 } });
   const moved = s.controller.move(first.entity.id, { anchor: { x: 2, y: 2 } });
   assert.equal(moved.status, "moved");
+  assert.equal(moved.diagnostic.status, "moved");
   assert.deepEqual(s.spatial.getCellEntities("lab-grid", { x: 1, y: 1 }), []);
   assert.deepEqual(s.spatial.getCellEntities("lab-grid", { x: 2, y: 2 }), [first.entity.id]);
   const rejected = s.controller.move(first.entity.id, { anchor: { x: 5, y: 5 } });
   assert.equal(rejected.status, "rejected");
   assert.equal(rejected.code, "DEV_LAB_OVERLAP");
+  assert.deepEqual(rejected.diagnostic.overlaps, [second.entity.id]);
+  assert.equal(s.controller.getLastMovement().status, "rejected");
   assert.deepEqual(s.spatial.getCellEntities("lab-grid", { x: 5, y: 5 }), [second.entity.id]);
 });
 
