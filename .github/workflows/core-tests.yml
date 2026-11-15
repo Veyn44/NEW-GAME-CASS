@@ -28,6 +28,7 @@ jobs:
           node --check src/gameplay/world/cassandra-world-session-system.js
           node --check src/gameplay/expedition/cassandra-change-package-system.js
           node --check src/gameplay/expedition/cassandra-expedition-projection.js
+          node --check src/gameplay/expedition/cassandra-expedition-projection-system.js
           node --check src/gameplay/expedition/cassandra-unit-expedition-projection.js
           node --check tests/unit/cassandra-unit-expedition-projection.test.js
           node --check tests/unit/cassandra-expedition-projection.test.js
