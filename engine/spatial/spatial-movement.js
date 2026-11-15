@@ -94,10 +94,7 @@ export class SpatialMovement {
       decision = this.#placements.withPolicyEvaluation(
         () => this.#spatial.withReadOnlyEvaluation(() => {
           const raw = policy(proposal);
-          if (raw && typeof raw.then === "function") {
-            Promise.resolve(raw).catch(() => {});
-            return Object.freeze({ type: "async" });
-          }
+          if (raw && typeof raw.then === "function") return raw;
           if (typeof raw === "boolean") return Object.freeze({ type: "decision", accepted: raw, code: null, reason: null });
           if (!raw || typeof raw !== "object" || typeof raw.accepted !== "boolean") return Object.freeze({ type: "invalid" });
           return Object.freeze({
