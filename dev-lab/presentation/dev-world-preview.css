@@ -418,3 +418,35 @@ canvas:active { cursor: grabbing; }
 .spatial-inspector-actions button { min-height: 25px; padding: 3px 6px; font-size: 8px; letter-spacing: .04em; pointer-events: auto; }
 .spatial-inspector-actions button:disabled { opacity: .35; cursor: not-allowed; }
 .spatial-inspector pre { max-height: 28vh; }
+
+
+.spatial-region-controls {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+  pointer-events: auto;
+}
+.spatial-region-controls label {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  color: #aebdcc;
+  font-size: 8px;
+  letter-spacing: .04em;
+}
+.spatial-region-controls input {
+  width: 100%;
+  min-width: 0;
+  height: 25px;
+  min-height: 25px;
+  padding: 2px 4px;
+  font-size: 9px;
+  pointer-events: auto;
+}
+.spatial-region-wide { grid-column: 1 / -1; }
+.spatial-region-controls button {
+  min-height: 25px;
+  font-size: 8px;
+  letter-spacing: .05em;
+  pointer-events: auto;
+}
