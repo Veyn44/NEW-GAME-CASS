@@ -172,3 +172,47 @@ test("EntityRegistry restore cannot invalidate an occupied grid entity outside c
   s.coordinator.placeEntity("pawn:one", gridTarget("grid-a", { x: 1, y: 1 }, [{ x: 0, y: 0 }]));
   throwsCode(() => s.entities.prepareRestore(s.entities.captureSnapshot()), "PLACEMENT_AUTHORITY_REQUIRED");
 });
+
+
+test("Persistence rolls back the composite placement aggregate when a later participant commit fails", async () => {
+  const { Persistence, MemorySaveAdapter } = await import("../../engine/core/persistence.js");
+  const s = setup();
+  pawn(s.entities);
+  s.coordinator.placeEntity("pawn:one", gridTarget("grid-a", { x: 1, y: 1 }, [{ x: 0, y: 0 }]));
+
+  const adapter = new MemorySaveAdapter();
+  const persistence = new Persistence({
+    adapter,
+    runAtSafeBoundary: (operation) => operation()
+  });
+  persistence.registerParticipant(s.entities.createPersistenceParticipant());
+  persistence.registerParticipant(s.worlds.createPersistenceParticipant());
+  persistence.registerParticipant(s.coordinator.createPersistenceParticipant());
+  persistence.registerParticipant({
+    id: "test.fail-after-placement",
+    schemaVersion: 1,
+    order: 0,
+    captureSnapshot: () => ({ marker: "saved" }),
+    prepareRestore: () => ({
+      commit() { throw new Error("injected later participant failure"); },
+      rollback() { return true; }
+    })
+  });
+
+  await persistence.save("placement-rollback", { stateId: "test:placement-rollback" });
+  s.coordinator.moveEntity("pawn:one", {
+    type: "grid",
+    ...gridTarget("grid-b", { x: 5, y: 4 }, [{ x: 0, y: 0 }])
+  });
+
+  await assert.rejects(
+    persistence.load("placement-rollback", { stateId: "test:placement-rollback" }),
+    (error) => error.code === "RESTORE_COMMIT_FAILED"
+  );
+
+  assert.equal(s.worldContext.getPlacement("pawn:one").worldId, "grid-b");
+  assert.deepEqual(s.worldContext.getPlacement("pawn:one").position, { x: 5.5, y: 4.5 });
+  assert.equal(s.spatial.getEntityOccupancy("pawn:one").worldId, "grid-b");
+  assert.deepEqual(s.spatial.getCellEntities("grid-b", { x: 5, y: 4 }), ["pawn:one"]);
+  assert.deepEqual(s.spatial.getCellEntities("grid-a", { x: 1, y: 1 }), []);
+});
