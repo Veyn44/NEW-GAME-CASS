@@ -41,6 +41,7 @@ test("registers Cassandra as a stable map world", () => {
   equal(world.type, "cassandra");
   equal(world.status, "inactive");
   equal(world.dimensions.width, 128);
+  equal(world.grid, null);
 });
 
 test("generates unique world IDs when none are supplied", () => {
@@ -121,6 +122,84 @@ test("world host metadata is deeply cloned, immutable and persisted", () => {
   const restored = makeRegistry();
   restored.prepareRestore(registry.captureSnapshot()).commit();
   equal(restored.get(world.worldId).metadata.host.key, "value");
+});
+
+test("world dimensions alone do not imply grid capability", () => {
+  const registry = makeRegistry();
+  const world = registry.registerWorld({
+    worldId: "world:without-grid",
+    type: "test.world",
+    dimensions: { width: 128, height: 96 }
+  });
+
+  equal(world.grid, null);
+  equal(registry.captureSnapshot().worlds[0].grid, null);
+});
+
+test("explicit grid capability is immutable and independent of world bounds", () => {
+  const registry = makeRegistry();
+  const world = registry.registerWorld({
+    worldId: "world:with-grid",
+    type: "test.world",
+    dimensions: { width: 128, height: 96 },
+    grid: { width: 64, height: 32 }
+  });
+
+  assert(Object.isFrozen(world.grid));
+  equal(world.grid.width, 64);
+  equal(world.grid.height, 32);
+  equal(world.dimensions.width, 128);
+  equal(world.dimensions.height, 96);
+});
+
+test("invalid grid descriptors reject registration without registering a world", () => {
+  const registry = makeRegistry();
+  for (const grid of [
+    {},
+    { width: 0, height: 1 },
+    { width: 1.5, height: 2 },
+    { width: 2, height: Number.MAX_SAFE_INTEGER + 1 }
+  ]) {
+    throwsCode(() => registry.registerWorld({
+      worldId: "world:invalid-grid",
+      type: "test.world",
+      dimensions: { width: 10, height: 10 },
+      grid
+    }), "INVALID_GRID_DESCRIPTOR");
+    equal(registry.has("world:invalid-grid"), false);
+  }
+});
+
+test("grid capability is captured and restored with the World descriptor", () => {
+  const source = makeRegistry();
+  source.registerWorld({
+    worldId: "world:grid-source",
+    type: "test.world",
+    dimensions: { width: 128, height: 128 },
+    grid: { width: 96, height: 80 }
+  });
+  const target = makeRegistry();
+  target.prepareRestore(source.captureSnapshot()).commit();
+
+  assert.deepEqual(target.get("world:grid-source").grid, { width: 96, height: 80 });
+});
+
+test("snapshot rejects malformed explicit grid descriptors", () => {
+  const registry = makeRegistry();
+  const snapshot = {
+    version: 3,
+    activeWorldId: null,
+    worlds: [{
+      worldId: "world:bad-grid",
+      type: "test.world",
+      status: "inactive",
+      dimensions: { width: 10, height: 10 },
+      grid: { width: 2.5, height: 3 },
+      coordinateSystem: "world-units",
+      metadata: {}
+    }]
+  };
+  throwsCode(() => registry.prepareRestore(snapshot), "INVALID_GRID_DESCRIPTOR");
 });
 
 test("world records and dimensions are immutable", () => {
@@ -241,10 +320,29 @@ test("restore rollback reinstates the previous worlds and active world", () => {
 test("snapshot rejects accessors without invoking them", () => {
   const registry = makeRegistry();
   let invoked = false;
-  const snapshot = { version: 2, activeWorldId: null, worlds: [] };
+  const snapshot = { version: 3, activeWorldId: null, worlds: [] };
   Object.defineProperty(snapshot, "worlds", { enumerable: true, get() { invoked = true; return []; } });
   throwsCode(() => registry.prepareRestore(snapshot), "INVALID_SNAPSHOT");
   equal(invoked, false);
+});
+
+test("version-two snapshots migrate with an explicit non-grid capability", () => {
+  const registry = makeRegistry();
+  const participant = registry.createPersistenceParticipant();
+  const migrated = participant.migrateSnapshot({
+    version: 2,
+    activeWorldId: null,
+    worlds: [{
+      worldId: "world:version-two",
+      type: "test.world",
+      status: "inactive",
+      dimensions: { width: 20, height: 20 },
+      coordinateSystem: "world-units",
+      metadata: {}
+    }]
+  }, 2);
+  equal(migrated.version, 3);
+  equal(migrated.worlds[0].grid, null);
 });
 
 test("version-one world references migrate into generic metadata", () => {
@@ -259,7 +357,7 @@ test("version-one world references migrate into generic metadata", () => {
       locationId: "asteroid:legacy", encounterId: "encounter:legacy"
     }]
   }, 1);
-  equal(migrated.version, 2);
+  equal(migrated.version, 3);
   const transaction = registry.prepareRestore(migrated);
   transaction.commit();
   equal(registry.get("world:legacy").metadata.locationId, "asteroid:legacy");
@@ -270,8 +368,8 @@ test("snapshot rejects multiple active worlds and inconsistent activeWorldId", (
   const registry = makeRegistry();
   const a = { worldId: "world:a", type: "cassandra", status: "active", dimensions: { width: 10, height: 10 }, coordinateSystem: "world-units", metadata: {} };
   const b = { ...a, worldId: "world:b" };
-  throwsCode(() => registry.prepareRestore({ version: 2, activeWorldId: "world:a", worlds: [a, b] }), "MULTIPLE_ACTIVE_WORLDS");
-  throwsCode(() => registry.prepareRestore({ version: 2, activeWorldId: "world:missing", worlds: [{ ...a, status: "inactive" }] }), "INVALID_ACTIVE_WORLD");
+  throwsCode(() => registry.prepareRestore({ version: 3, activeWorldId: "world:a", worlds: [a, b] }), "MULTIPLE_ACTIVE_WORLDS");
+  throwsCode(() => registry.prepareRestore({ version: 3, activeWorldId: "world:missing", worlds: [{ ...a, status: "inactive" }] }), "INVALID_ACTIVE_WORLD");
 });
 
 test("Persistence participant follows the coordinator contract", () => {
@@ -279,7 +377,7 @@ test("Persistence participant follows the coordinator contract", () => {
   addCassandra(registry);
   const participant = registry.createPersistenceParticipant();
   equal(participant.id, "core.world-registry");
-  equal(participant.schemaVersion, 2);
+  equal(participant.schemaVersion, 3);
   equal(participant.required, true);
   assert(participant.validateSnapshot(registry.captureSnapshot()));
   const tx = participant.prepareRestore(registry.captureSnapshot());
