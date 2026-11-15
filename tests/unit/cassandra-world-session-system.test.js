@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { createGameRuntime } from "../../engine/runtime/create-game-runtime.js";
 import { MemorySaveAdapter } from "../../engine/core/persistence.js";
 import { createCassandraRuntime } from "../../cassandra/application/cassandra-runtime-host.js";
+import { createViewportInputController } from "../../shared/input/viewport-input-controller.js";
 import {
   createCassandraWorldSessionSystem
 } from "../../src/gameplay/world/cassandra-world-session-system.js";
@@ -35,7 +36,10 @@ async function setup() {
 }
 
 test("Cassandra runtime advances only the active World's local clock per simulation step", async () => {
-  const runtime = createCassandraRuntime({ saveAdapter: new MemorySaveAdapter() });
+  const runtime = createCassandraRuntime({
+    saveAdapter: new MemorySaveAdapter(),
+    inputController: createViewportInputController()
+  });
   try {
     const context = await runtime.start();
     const worlds = context.getService("core.world-registry");
