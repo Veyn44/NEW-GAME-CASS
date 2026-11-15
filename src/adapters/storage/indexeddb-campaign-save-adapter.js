@@ -114,7 +114,12 @@ export class IndexedDbCampaignSaveAdapter {
       fail("INVALID_DATABASE_VERSION", "IndexedDB database version must be a positive safe integer.");
     }
     this.#databaseVersion = databaseVersion;
-    this.#initialSnapshot = initialSnapshot === null ? null : cloneJson(initialSnapshot);
+    const normalizedInitialSnapshot = initialSnapshot === null ? null : cloneJson(initialSnapshot);
+    if (normalizedInitialSnapshot !== null && !isCampaignSnapshot(normalizedInitialSnapshot)) {
+      fail("INVALID_CAMPAIGN_SNAPSHOT",
+        "An initial campaign snapshot must contain Major State, pending Change Buffer packages and Applied ledger.");
+    }
+    this.#initialSnapshot = normalizedInitialSnapshot;
     Object.defineProperty(this, "atomicReplace", { value: true, enumerable: true });
     Object.defineProperty(this, "compareAndSwap", { value: true, enumerable: true });
     Object.freeze(this);
