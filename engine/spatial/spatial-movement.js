@@ -115,7 +115,7 @@ export class SpatialMovement {
       return outcome("policy-error", "POLICY_EVALUATION_FAILED", { entityId, cause: error?.message ?? String(error) });
     } finally { this.#evaluating.delete(entityId); }
 
-    if (decision && typeof decision.then === "function") { Promise.resolve(decision).catch(() => {}); return outcome("invalid", "ASYNC_POLICY_UNSUPPORTED", { entityId }); }
+    if (decision && typeof decision.then === "function") {\n      this.#evaluating.add(entityId);\n      Promise.resolve(decision).finally(() => this.#evaluating.delete(entityId)).catch(() => {});\n      return outcome("invalid", "ASYNC_POLICY_UNSUPPORTED", { entityId });\n    }
     if (decision.type === "async") return outcome("invalid", "ASYNC_POLICY_UNSUPPORTED", { entityId });
     if (decision.type !== "decision") return outcome("invalid", "INVALID_POLICY_RESULT", { entityId });
     if (!decision.accepted) {
