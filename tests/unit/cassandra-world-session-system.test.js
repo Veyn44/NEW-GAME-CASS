@@ -11,11 +11,11 @@ import {
   createCassandraWorldSessionSystem
 } from "../../src/gameplay/world/cassandra-world-session-system.js";
 
-async function setup({ isPackageApplied = async () => true } = {}) {
+async function setup({ isPackageApplied = async () => true, definitionLookup = getDefinition } = {}) {
   const runtime = createGameRuntime({
     saveAdapter: new MemorySaveAdapter(),
     hostSystems: [
-      createUnitSystem({ definitionLookup: getDefinition }),
+      createUnitSystem({ definitionLookup }),
       createCassandraWorldSessionSystem({ isPackageApplied })
     ]
   });
@@ -194,12 +194,14 @@ test("Temporary World cleanup preflight failure leaves the World and its content
 });
 
 test("Temporary World disposal validates every placement before retiring any Unit", async () => {
-  const state = await setup();
+  const state = await setup({
+    definitionLookup: (id) => id === "test.temporary-worker" ? { id } : getDefinition(id)
+  });
   try {
     state.session.beginTemporaryWorld({ worldId: "encounter:preflight-integrity", width: 32, height: 32 });
     const units = state.context.getService("game.unit-api");
     const unit = units.createUnit({
-      definitionId: "pawn.johny",
+      definitionId: "test.temporary-worker",
       worldId: "encounter:preflight-integrity",
       position: { x: 3, y: 4 }
     });
