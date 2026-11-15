@@ -502,11 +502,11 @@ The proposal specifies:
 | C2 — Composition | Ownership, footprints, overlap facts, atomic occupancy and sparse storage |
 | C3 — Queries | Read-only behavior, deterministic results, lifecycle and bounds outcomes |
 | C4 — Movement | Host policy boundary and atomic move results |
-| C5 — Persistence | Snapshot/migration strategy, legacy save fixtures and rollback |
+| C5 — Persistence | Current supported-save fixtures, explicit unsupported-version rejection, snapshot/restore ordering and rollback |
 | C6 — Core integration | Service registration, dependency order and non-grid compatibility |
 | C7 — Cassandra | Existing gameplay/environment regressions and expedition workflow |
 | C8 — Dev Lab | Shared API usage and application boundary |
-| C9 — Final acceptance | Full test suite, compatibility, review and explicit merge decision |
+| C9 — Final acceptance | Full regression suite, integrated acceptance matrix, supported-save behavior, review and explicit merge decision |
 
 A failed checkpoint stops only the dependent sequence. It does not authorize a broad rewrite or unrelated refactor.
 
@@ -527,9 +527,13 @@ Any proposed exception must identify the concrete dependency and the smallest re
 
 ## 11. Current readiness assessment
 
-**Ready for detailed implementation review:** Grid Geometry, Spatial Composition, Spatial Queries and Movement & Collision each have a working proposal with acceptance scenarios.
+**Integration audit:** Completed in [`phase-3-integration-audit.md`](phase-3-integration-audit.md). No fundamental cross-contract ownership or lifecycle contradiction was found. The audit consolidates the Step 9 acceptance matrix and Step 10 dependency order.
 
-**Not yet implementation-ready:** Formal temporary-world change-package protocol and the exact supported save-version policy/fixtures still need final implementation-level closure. Backward compatibility with arbitrary old `.cass` versions is explicitly not required. The placement authority model is agreed, while its integration mechanics remain a working contract proposal. Phase 3 Step 7 and Step 8 design work remains necessary; Step 9 must consolidate integrated acceptance.
+**Ready for detailed implementation review:** Grid Geometry, Spatial Composition, Spatial Queries, Movement & Collision and the cross-contract responsibility boundaries.
+
+**Still requires implementation-level closure:** Placement Coordinator mechanics and coordinate mapping; exact persistence participant/restore ordering and supported-save fixture matrix; Cassandra campaign save identity and authoritative state participants; durable Change Buffer/Applied ledger and atomic promotion against the target storage backend; final typed package operation schemas; and the source audit of actual Cassandra movement, environment, world-generation and expedition paths.
+
+**Compatibility policy:** Backward compatibility with arbitrary old `.cass` versions is not required. Unsupported versions may be rejected safely; selected migrations are optional and explicitly version-scoped.
 
 **Current action:** Document and review only. No source/runtime code changes are authorized by this plan. No PR merge or `main` update is implied.
 
