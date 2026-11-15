@@ -366,9 +366,9 @@ Tasks:
 - `shared/presentation/world-viewport.js` reports the clicked grid cell while paused; the Dev Lab panel displays that cell's contents and entity occupancy.
 - `tests/unit/dev-lab-spatial-inspector.test.js` covers empty-cell inspection, invalid coordinates and the shared Engine API boundary.
 - `dev-lab/application/spatial-test-controller.js` creates and retires test entities through Entity Registry and Placement Coordinator, and moves them through Engine Spatial Movement with a Dev Lab-owned overlap policy.
-- Dev Lab can spawn 1×1 and 2×2 test footprints, select a test entity, enter move mode, click a target cell, and see moved/rejected outcomes. Reset retires disposable test entities; restored saves rebuild markers and clear stale UI selection.
+- Dev Lab can spawn 1×1 and 2×2 test footprints, select a test entity, enter move mode, click a target cell, and see moved/rejected outcomes. Occupied footprints are visualized in the viewport; reset retires disposable test entities; restored saves rebuild markers and clear stale UI selection.
 - Spawn and move reject occupied cells; test entities remain distinguishable from host-owned game entities and cannot be mutated through the test controller.
-- `tests/unit/spatial-test-controller.test.js` covers spawn, multi-cell occupancy, overlap rejection, movement, retirement and authority boundaries.
+- `tests/unit/spatial-test-controller.test.js` covers spawn, multi-cell occupancy, spawn/movement overlap rejection, movement, retirement, reset cleanup and authority boundaries.
 - `.github/workflows/core-tests.yml` syntax-checks the updated viewport and Dev Lab spatial modules; both new test files are included by the existing `tests/unit/*.test.js` command.
 
 **Not yet implemented:** richer region/radius/neighborhood query controls, visual footprint overlays, movement traces and full standalone-vs-Cassandra-hosted Dev Lab acceptance. The current test tools intentionally use a small explicit Dev Lab collision policy and do not define Cassandra passability or gameplay movement rules.
