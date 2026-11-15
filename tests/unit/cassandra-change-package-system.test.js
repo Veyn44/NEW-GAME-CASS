@@ -140,6 +140,18 @@ test("change package rejects missing dispositions and inconsistent operation bas
   );
 });
 
+test("change package rejects aggregate baselines without a corresponding operation", async () => {
+  await assert.rejects(
+    () => makePackage({
+      baseline: [
+        { aggregateId: "inventory:crew", revision: 0 },
+        { aggregateId: "location:alpha", revision: 0 }
+      ]
+    }),
+    { code: "UNUSED_AGGREGATE_BASELINE" }
+  );
+});
+
 test("change package requires versioned location provenance", async () => {
   await assert.rejects(
     () => makePackage({
