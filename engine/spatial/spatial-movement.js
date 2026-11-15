@@ -51,11 +51,11 @@ export class SpatialMovement {
       || !Number.isSafeInteger(target.anchor.x) || !Number.isSafeInteger(target.anchor.y)) {
       return outcome("invalid", "INVALID_TARGET", { entityId });
     }
-    if (typeof policy !== "function") return outcome("invalid", "MOVEMENT_POLICY_REQUIRED", { entityId });
+    if (typeof policy !== "function") return outcome("invalid", "INVALID_POLICY", { entityId });
     const entity = this.#entities.get(entityId);
     if (!entity || entity.status !== "active") return outcome("invalid", "ENTITY_NOT_ACTIVE", { entityId });
     const source = this.#spatial.getEntityOccupancy(entityId);
-    if (!source) return outcome("invalid", "ENTITY_NOT_GRID_PLACED", { entityId });
+    if (!source) return outcome("invalid", "ENTITY_NOT_SPATIALLY_PLACED", { entityId });
     const world = this.#worlds.get(target.worldId);
     if (!world || world.status === "closed" || world.grid == null) {
       return outcome("unavailable", !world ? "UNKNOWN_WORLD" : world.status === "closed" ? "WORLD_CLOSED" : "WORLD_HAS_NO_GRID", { entityId, worldId: target.worldId });
@@ -97,7 +97,7 @@ export class SpatialMovement {
       );
       if (decision && typeof decision.then === "function") {
         Promise.resolve(decision).catch(() => {});
-        return outcome("invalid", "ASYNC_POLICY_NOT_SUPPORTED", { entityId });
+        return outcome("invalid", "ASYNC_POLICY_UNSUPPORTED", { entityId });
       }
     } catch (error) {
       return outcome("policy-error", "POLICY_EVALUATION_FAILED", { entityId, cause: error?.message ?? String(error) });
