@@ -169,7 +169,7 @@ test("Temporary World disposal requires the exact applied package identity and d
   const state = await setup({
     isPackageApplied: async (packageId, digest) => {
       calls.push({ packageId, digest });
-      return packageId === expected.packageId && digest === expected.digest && false;
+      return false;
     }
   });
   try {
