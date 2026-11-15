@@ -181,27 +181,35 @@ Tasks:
 
 ### Slice 2 — Spatial Composition storage and occupancy
 
-**Proposed files:**
-- Add `engine/spatial/spatial-composition.js`.
-- Add `tests/unit/spatial-composition.test.js`.
+**Status:** Slice 2a implemented; coordinated entity occupancy remains pending.
 
-Tasks:
-- Implement sparse storage for explicit cell-associated contents.
-- Support stable content IDs, opaque host payloads, category IDs and optional layer IDs.
-- Support entity-backed occupancy referencing Entity Registry IDs.
-- Represent footprints as non-empty sets of integer offsets from an anchor, including the agreed orientation rules.
-- Maintain entity-to-footprint and cell-to-content/occupancy lookup paths.
-- Validate world/grid availability, entity references and complete footprint bounds before commit.
-- Support atomic insert, update, move and removal of occupancy records.
-- Remove sparse entries when their last explicit content is removed.
-- Keep entity identity and domain state outside the spatial service.
-- Keep overlap legality host-defined; geometric overlap facts alone do not reject placement unless a supplied policy says so.
+**Implemented sub-slice (2a):**
+- Added `engine/spatial/spatial-composition.js` and `tests/unit/spatial-composition.test.js`.
+- Sparse cell-associated content with stable IDs, host-defined categories, optional layers and detached JSON-like payloads.
+- Multiple contents may coexist in one cell, including repeated categories/layers; Engine imposes no overlap rule.
+- Empty cells remain implicit; deleting the final content removes the sparse cell index.
+- Content IDs remain reserved after removal and are preserved in snapshots.
+- Deterministic ordering, grid/world validation and staged snapshot restore with rollback.
+- Pure footprint normalization, quarter-turn transforms and complete bounds-checked cell derivation.
 
-**Exit criteria:**
+**Deliberately not implemented yet:**
+- No public entity-backed occupancy mutation API or entity-to-cell reverse index.
+- No World Context placement changes and no Core Assembly/persistence participant registration.
+
+The placement integration audit showed that independently mutating World Context and Spatial Composition would expose divergent authoritative state. Entity occupancy is therefore gated on the coordinated prepared-state boundary; this preserves the agreed model rather than weakening its atomicity requirement.
+
+**Next sub-slice (2b):**
+- Introduce an Engine-owned placement coordinator/prepared transaction boundary.
+- Coordinate World Context placement and Spatial Composition occupancy in one synchronous commit.
+- Keep lower-level occupancy mutation inaccessible to ordinary application callers.
+- Cross-check entity lifecycle and world/grid references before commit.
+- Add occupancy, footprint replacement, move/removal and failure-atomicity tests.
+
+**Full Slice 2 exit criteria remain:**
 - Multiple contents and multiple entities can coexist at one coordinate where host policy permits.
 - Multi-cell entity identity is not duplicated.
-- Invalid footprint operations leave prior authoritative state unchanged.
-- Indexes agree in both directions after every committed mutation.
+- Invalid footprint operations preserve prior authoritative state.
+- Forward and reverse indexes agree after every committed mutation.
 - Sparse empty cells are not materialized.
 - Deterministic snapshot capture is possible.
 

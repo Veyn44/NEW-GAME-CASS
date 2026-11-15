@@ -26,3 +26,10 @@ Grid geometry does not register a grid on a World, store cell contents, own enti
 - Non-grid Worlds remain valid and do not acquire grid behavior from generic dimensions alone.
 
 See `docs/architecture/grid-geometry-contract-proposal.md` and `docs/architecture/phase-3-implementation-plan.md` for the full contract and implementation sequence.
+
+
+## Spatial Composition
+
+`spatial-composition.js` implements sparse cell-associated content for grid-enabled worlds and pure footprint geometry helpers. Content uses host-defined category/layer IDs and detached JSON-like payloads. Empty cells remain implicit; content IDs stay reserved after removal and are retained in snapshots.
+
+Entity-backed occupancy mutations are intentionally withheld until World Context and Spatial Composition share a coordinated transaction. Footprint helpers derive geometry only and do not register occupancy.

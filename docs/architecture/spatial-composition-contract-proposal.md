@@ -379,4 +379,4 @@ The source audit on `work` confirms:
 - Persistence already supports ordered participants, schema versions, migrations, side-effect-free prepare, commit and rollback. The new spatial participant should use those existing generic mechanisms rather than invent a separate save system.
 - The existing Core README describes Entity Registry and World Context as separate identity and placement responsibilities. This proposal preserves that separation.
 
-This proposal defines the next reusable spatial contract only. It does not authorize source/runtime code changes or alter existing save behavior.
+This proposal defines the reusable spatial contract. The user has separately authorized slice-by-slice implementation on work; the first implementation stage covers cell-associated content and pure footprint geometry. Entity-backed occupancy remains gated on the coordinated placement transaction in the integration contract.
