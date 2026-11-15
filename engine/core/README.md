@@ -16,7 +16,8 @@ The Core is the domain-neutral runtime foundation for host applications. Cassand
 - `world-registry.js` — registration and activation of host-defined worlds, with opaque host metadata and an explicit optional grid capability.
 - `world-context.js` — exclusive world/storage association; direct grid-backed mutations require Placement Coordinator.
 - `../spatial/placement-coordinator.js` — atomic transaction boundary for grid placement, occupancy, lifecycle and composite restore.
-- `../spatial/spatial-composition.js` — sparse cell contents, canonical entity footprints and derived occupancy indexes.
+- `../spatial/spatial-composition.js` — sparse cell contents, canonical entity footprints, derived occupancy indexes and read-only spatial queries.
+- `../spatial/spatial-movement.js` — generic footprint movement transaction that requires a synchronous host policy; it does not decide passability or gameplay consequences.
 - `persistence.js` — adapter-neutral atomic save contract, schema migration and transactional participant restore.
 
 
@@ -52,12 +53,12 @@ A simulation task declares `systemId` matching a host system and a synchronous `
 - Scheduler updates are synchronous fixed steps. Promise-returning updates fault the scheduler; simulation time is committed only after all tasks complete.
 - Scaled simulation time uses the configurable Game Clock. Pause reasons are independent and composable.
 - Entity Registry provides its explicit version-one to version-two snapshot migration. World Registry provides scoped version-one and version-two migrations to schema version three for the optional grid capability.
-- Persistence calls are rejected immediately when invoked inside a simulation step, during pending Event Bus delivery, or while Scheduler is faulted. There is no deferred safe-boundary queue.
+- Persistence calls are rejected when invoked inside a simulation step, during Event Bus delivery/pending events, while Scheduler is faulted, or during runtime shutdown. Accepted save/load operations are serialized through the Core safe-boundary queue and hold an independent Game Clock pause until the queue drains.
 - Persistence uses `read` and `writeAtomic` adapters and participant prepare/commit/rollback. `MemorySaveAdapter` is a test/development adapter, not durable production storage; the test fixture supplies it explicitly.
 
 ## Ownership boundaries
 
-Entity Registry owns identity. Domain systems own domain state. World Registry owns world definitions/activation. World Context owns world/storage association; Placement Coordinator atomically pairs grid placement with Spatial Composition occupancy and Entity Registry lifecycle changes. Direct one-sided grid mutation is rejected. Core does not generate galaxies, maps, expeditions, scans, host-specific entities or game rules.
+Entity Registry owns identity. Domain systems own domain state. World Registry owns world definitions/activation. World Context owns world/storage association; Placement Coordinator atomically pairs grid placement with Spatial Composition occupancy and Entity Registry lifecycle changes. Spatial Movement supplies geometry and overlap facts to a host-owned policy. Core Assembly exposes `core.spatial-composition`, `core.placement-coordinator` and `core.spatial-movement`; direct one-sided grid mutation is rejected. Core does not generate galaxies, maps, expeditions, scans, host-specific entities or game rules.
 
 ## Minimal host integration
 
