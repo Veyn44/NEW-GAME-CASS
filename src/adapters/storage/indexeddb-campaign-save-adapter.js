@@ -51,6 +51,13 @@ function cloneJson(value, label = "campaign snapshot", seen = new WeakSet()) {
   return result;
 }
 
+function isCampaignSnapshot(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    && value.majorState !== null && typeof value.majorState === "object" && !Array.isArray(value.majorState)
+    && Array.isArray(value.pendingPackages)
+    && Array.isArray(value.appliedLedger);
+}
+
 function requestResult(request) {
   return new Promise((resolve, reject) => {
     request.onsuccess = () => resolve(request.result);
@@ -173,7 +180,7 @@ export class IndexedDbCampaignSaveAdapter {
       }
       fail("CAMPAIGN_SAVE_NOT_FOUND", `No saved campaign exists for "${this.#campaignId}".`);
     }
-    if (record.campaignId !== this.#campaignId || !record.snapshot || typeof record.snapshot !== "object"
+    if (record.campaignId !== this.#campaignId || !isCampaignSnapshot(record.snapshot)
       || !Number.isSafeInteger(record.revision) || record.revision < 1) {
       fail("INVALID_CAMPAIGN_RECORD", "The stored campaign record has an invalid shape or revision.");
     }
@@ -182,9 +189,7 @@ export class IndexedDbCampaignSaveAdapter {
 
   async writeCampaignSnapshotAtomic(snapshot, expectedRevision) {
     const normalized = cloneJson(snapshot);
-    if (!normalized.majorState || typeof normalized.majorState !== "object"
-      || !Array.isArray(normalized.pendingPackages)
-      || !Array.isArray(normalized.appliedLedger)) {
+    if (!isCampaignSnapshot(normalized)) {
       fail("INVALID_CAMPAIGN_SNAPSHOT",
         "A campaign snapshot must contain Major State, pending Change Buffer packages and Applied ledger.");
     }
@@ -213,6 +218,7 @@ export class IndexedDbCampaignSaveAdapter {
     currentRequest.onsuccess = () => {
       const currentRecord = currentRequest.result;
       if (currentRecord && (currentRecord.campaignId !== this.#campaignId
+        || !isCampaignSnapshot(currentRecord.snapshot)
         || !Number.isSafeInteger(currentRecord.revision) || currentRecord.revision < 1)) {
         corruptRecord = true;
         try { transaction.abort(); } catch { /* The transaction may already be aborting. */ }
