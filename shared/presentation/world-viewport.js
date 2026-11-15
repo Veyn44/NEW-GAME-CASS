@@ -90,8 +90,8 @@ function cancelWorldPlacement() {
 
 function setCameraFollowTarget(entityId, position) {
   if (entityId && position && Number.isFinite(position.x) && Number.isFinite(position.y)) {
-    state.cameraX = position.x + 0.5;
-    state.cameraY = position.y + 0.5;
+    state.cameraX = position.x;
+    state.cameraY = position.y;
     clampCamera();
     render();
   }
@@ -246,8 +246,8 @@ function render() {
       }
       context.restore();
     }
-    const markerX = (marker.x + 0.5 - left) * cellWidth;
-    const markerY = (marker.y + 0.5 - top) * cellHeight;
+    const markerX = (marker.x - left) * cellWidth;
+    const markerY = (marker.y - top) * cellHeight;
     if (markerX < 0 || markerX > width || markerY < 0 || markerY > height) continue;
     context.beginPath();
     context.fillStyle = marker.id === selectedMarkerId ? "#f3c969" : "#38d6c5";
@@ -370,8 +370,8 @@ canvas.addEventListener("pointerdown", (event) => {
     const pointerX = event.clientX - bounds.left;
     const pointerY = event.clientY - bounds.top;
     const hit = [...worldMarkers].reverse().find((marker) => {
-      const x = (marker.x + 0.5 - left) * cellWidth;
-      const y = (marker.y + 0.5 - top) * cellHeight;
+      const x = (marker.x - left) * cellWidth;
+      const y = (marker.y - top) * cellHeight;
       return Math.hypot(pointerX - x, pointerY - y) <= Math.max(9, Math.min(16, cellWidth * 0.55));
     });
     onMarkerSelect?.(hit?.id ?? null);
