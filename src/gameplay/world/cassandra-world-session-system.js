@@ -223,6 +223,11 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
         }
 
         const id = temporaryWorldId;
+        if (!worlds.has(id)) {
+          throw new CassandraWorldSessionError("TEMPORARY_WORLD_REGISTRY_MISSING",
+            "Temporary World cannot be completed after its World Registry descriptor was removed.",
+            { worldId: id });
+        }
         // Cleanup handlers are two-phase: prepare must validate and return a
         // commit callback without mutating live state. This keeps a failed
         // preflight from partially disposing the Temporary World.
@@ -242,7 +247,7 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
           cleanupCommits.push(commit);
         }
 
-        if (worlds.has(id)) {
+        {
           const scopeId = `world:${id}`;
           const world = worlds.get(id);
           const scopedEntities = entities.list({ scope: "scoped", scopeId });
