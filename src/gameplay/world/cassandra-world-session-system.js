@@ -108,6 +108,7 @@ export function createCassandraWorldSessionSystem() {
       if (temporaryWorldId !== null) {
         throw new CassandraWorldSessionError("TEMPORARY_WORLD_ALREADY_EXISTS", "Only one Temporary World may belong to a Cassandra session.", { temporaryWorldId });
       }
+      requireGridWorld(mainWorldId, "Main World");
       if (worlds.activeWorldId !== mainWorldId) {
         throw new CassandraWorldSessionError("MAIN_WORLD_NOT_ACTIVE", "A Temporary World can only begin from the active Main World.");
       }
