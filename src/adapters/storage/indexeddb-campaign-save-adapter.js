@@ -109,6 +109,7 @@ export class IndexedDbCampaignSaveAdapter {
     this.#databaseVersion = databaseVersion;
     this.#initialSnapshot = initialSnapshot === null ? null : cloneJson(initialSnapshot);
     Object.defineProperty(this, "atomicReplace", { value: true, enumerable: true });
+    Object.defineProperty(this, "compareAndSwap", { value: true, enumerable: true });
     Object.freeze(this);
   }
 
