@@ -1,6 +1,6 @@
 # Phase 3 Physical World — Implementation Plan
 
-**Status:** Slices 1–6 are implemented on `work`; Dev Lab now has initial Engine-backed cell inspection and spatial test-entity spawn/move/retire workflows. CI/manual integrated acceptance for the latest changes is not yet confirmed.  
+**Status:** Slices 1–6 are implemented on `work`; initial Dev Lab spatial test workflows and the first Cassandra grid/Unit movement integration are implemented. Full Cassandra Main/Temporary World integration and all final acceptance remain in progress. Per project decision, the full test campaign is deferred until Phase 3 implementation is complete.  
 **Branch:** `work`  
 **Source audit:** 2026-11-15  
 **Scope:** Implementation sequencing for reusable Engine grid/spatial capabilities and their Cassandra/Dev Lab integration
@@ -332,6 +332,24 @@ Tasks:
 - No circular dependencies or application imports enter Engine.
 
 ### Slice 7 — Cassandra integration
+
+**Status:** Initial Main World grid and Unit movement integration implemented on `work`; Main + Temporary World lifecycle and expedition/change-package integration remain outstanding.
+
+**Implemented initial sub-slice:**
+- Cassandra's 64×64, 128×128 and 256×256 worlds explicitly declare matching Engine grid capabilities.
+- `src/gameplay/unit/unit-system.js` routes grid placement, cell transitions and retirement through Placement Coordinator and Spatial Movement.
+- Unit domain state now owns continuous movement progress separately from Engine's discrete grid anchor. The initial tile `(x,y)` starts at world-space cell center `(x+0.5,y+0.5)`; occupancy advances only when the progress crosses a cell boundary.
+- Unit snapshot schema is version 2 and persists continuous progress. Old Unit snapshot schema versions are rejected; this is consistent with Cassandra's no-general-backward-compatibility policy.
+- `src/gameplay/colony/colony-control-system.js` continues to own the 4 tiles/second movement speed and diagonal normalization, but now advances Unit progress rather than mutating Engine placement coordinates directly.
+- The current Cassandra movement policy explicitly accepts valid grid transitions, preserving the prototype's existing lack of blocking/collision rules. This is a Cassandra-owned policy seam, not a claim that passability/collision gameplay is implemented.
+- Shared viewport marker and camera-follow APIs now consume world-space positions directly. The extra `+0.5` presentation offset is removed; Dev Lab test markers supply cell centers explicitly.
+- Unit inspection distinguishes integer grid cell coordinates from continuous movement progress.
+
+**Verification coverage added/updated (full run deferred to Phase 3 completion):**
+- Unit creation, discrete occupancy, within-cell progress, cell-boundary crossing, fractional-progress save/restore, edge clamping and policy rejection.
+- Colony movement speed, cardinal movement, diagonal normalization, Draft gating, active-world gating and persistence.
+
+**Remaining:** Main + Temporary World simulation/lifecycle, explicit pause/participation state, independent world state and time, environment/world-generation integration where authoritative modules exist, and Cassandra expedition result/change-package workflow. The current branch still has no authoritative environment, world-generation or expedition modules to integrate.
 
 **Target area:** Existing Cassandra application/gameplay modules, exact paths to be confirmed by the required source audit in Slice 0.
 
