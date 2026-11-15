@@ -12,7 +12,7 @@ Grid geometry does not register a grid on a World, store cell contents, own enti
 
 - World Registry declares whether a World has the optional grid capability and owns its immutable dimensions.
 - Grid Geometry validates and interprets that descriptor.
-- Spatial Composition will own grid-backed contents, footprints and occupancy.
+- Spatial Composition owns grid-backed contents, footprints, occupancy and read-only spatial queries.
 - Cassandra owns terrain, environment, passability, collision policy and movement behavior.
 - Presentation consumes spatial state and never becomes its authority.
 
@@ -32,4 +32,4 @@ See `docs/architecture/grid-geometry-contract-proposal.md` and `docs/architectur
 
 `spatial-composition.js` implements sparse cell-associated content for grid-enabled worlds and pure footprint geometry helpers. Content uses host-defined category/layer IDs and detached JSON-like payloads. Empty cells remain implicit; content IDs stay reserved after removal and are retained in snapshots.
 
-Entity-backed occupancy is changed only through Placement Coordinator. World Context stores the anchor-cell center `(x + 0.5, y + 0.5)`; Spatial Composition stores one canonical anchor/footprint/orientation record and derives the cell index. Multiple entities may overlap at Engine level; legality is host policy. Grid-to-grid, grid-to-world, grid-to-storage, storage-to-grid and retirement use a synchronous prepared commit. Core Persistence restores World Context and Spatial Composition through one composite participant.
+Entity-backed occupancy is changed only through Placement Coordinator. World Context stores the anchor-cell center `(x + 0.5, y + 0.5)`; Spatial Composition stores one canonical anchor/footprint/orientation record and derives the cell index. Multiple entities may overlap at Engine level; legality is host policy. Grid-to-grid, grid-to-world, grid-to-storage, storage-to-grid and retirement use a synchronous prepared commit. Core Persistence restores World Context and Spatial Composition through one composite participant. Read-only query methods include `queryCell`, `queryRegion`, `queryEntitiesInRegion`, `getEntityFootprint`, `queryNeighbors` and `queryRadius`. Rectangle regions use half-open bounds; explicit cell sets are deduplicated and row-major normalized. Region results contain only occupied cells, avoiding materialization of untouched cells. Entity-kind filters read Entity Registry metadata; categories and layers filter only cell-associated content.
