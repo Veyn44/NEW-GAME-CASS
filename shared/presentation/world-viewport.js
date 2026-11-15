@@ -28,6 +28,7 @@ export function createWorldViewport({
 const context = canvas.getContext("2d");
 
 let worldMarkers = [];
+let spatialHighlightCells = [];
 let selectionEnabled = false;
 let onMarkerSelect = null;
 let onCellInspect = null;
@@ -134,6 +135,20 @@ function setWorldMarkers(markers) {
   render();
 }
 
+function setSpatialHighlights(cells = []) {
+  if (!Array.isArray(cells)) throw new TypeError("Spatial highlights must be an array of grid cells.");
+  const unique = new Map();
+  for (const cell of cells) {
+    if (!cell || !Number.isSafeInteger(cell.x) || !Number.isSafeInteger(cell.y)
+      || cell.x < 0 || cell.y < 0 || cell.x >= state.worldSize || cell.y >= state.worldSize) {
+      throw new TypeError("Spatial highlight cells must be valid coordinates inside the current world.");
+    }
+    unique.set(`${cell.y},${cell.x}`, Object.freeze({ x: cell.x, y: cell.y }));
+  }
+  spatialHighlightCells = [...unique.values()];
+  render();
+}
+
 const state = {
   worldSize: Number(sizeSelect.value),
   gridVisible: gridToggle.checked,
@@ -233,6 +248,21 @@ function render() {
   context.lineWidth = 1.5;
   context.strokeRect(worldLeft, worldTop, state.worldSize * cellWidth, state.worldSize * cellHeight);
   context.globalAlpha = 1;
+
+  if (spatialHighlightCells.length) {
+    context.save();
+    context.fillStyle = "rgba(129, 32, 68, 0.30)";
+    context.strokeStyle = "rgba(230, 92, 135, 0.95)";
+    context.lineWidth = 2;
+    for (const cell of spatialHighlightCells) {
+      const cellX = (cell.x - left) * cellWidth;
+      const cellY = (cell.y - top) * cellHeight;
+      if (cellX + cellWidth < 0 || cellX > width || cellY + cellHeight < 0 || cellY > height) continue;
+      context.fillRect(cellX + 1, cellY + 1, Math.max(0, cellWidth - 2), Math.max(0, cellHeight - 2));
+      context.strokeRect(cellX + 1, cellY + 1, Math.max(0, cellWidth - 2), Math.max(0, cellHeight - 2));
+    }
+    context.restore();
+  }
 
   for (const marker of worldMarkers) {
     if (Array.isArray(marker.cells) && marker.cells.length) {
@@ -458,6 +488,7 @@ resizeCanvas();
     moveCameraBy,
     setSelectedWorldMarker,
     setWorldMarkers,
+    setSpatialHighlights,
     getState() {
       return Object.freeze({
         worldSize: state.worldSize,
