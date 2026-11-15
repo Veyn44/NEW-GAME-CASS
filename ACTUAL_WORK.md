@@ -871,3 +871,40 @@ Confirmed facts:
 - Existing tests explicitly encode the single-active-world behavior. Changing it requires a designed contract and regression/migration coverage.
 
 The next design task is therefore to define the meaning and independent dimensions of world lifecycle before editing these modules. In particular, decide how host-level focus/selection relates to multiple loaded/simulated worlds, and whether multiple worlds share one timeline or require independent clocks. No implementation choice has been made and no source code was changed.
+
+## 20. Campaign snapshot adapter hardening — 2026-11-15
+
+Continued the Cassandra campaign-persistence infrastructure work on the existing
+`work` branch. No gameplay/domain inventory, health, equipment or other
+unmodeled systems were introduced.
+
+### Findings and changes
+
+- The IndexedDB adapter previously accepted an `initialSnapshot` with an
+  invalid campaign envelope and returned it as revision 0 when no durable
+  record existed. The constructor now validates the initial snapshot against
+  the same required top-level shape as an atomic write.
+- The initial snapshot is detached at construction, so later caller mutation
+  cannot alter the adapter's fallback state.
+- Snapshot cloning now preserves an own `__proto__` data property without
+  changing the clone's prototype.
+- Snapshot cloning rejects sparse array entries and accessor properties
+  instead of silently normalizing holes or executing getters during cloning.
+- Added focused regression tests for all of the above cases.
+- Existing guarantees remain unchanged: one complete campaign snapshot per
+  IndexedDB record, strict-durability readwrite transactions, storage-revision
+  compare-and-swap, fail-closed handling of corrupt records, and isolation of
+  loaded/write-input snapshots.
+
+### Verification
+
+- Latest relevant workflow: [GitHub Actions run
+  #43764823569](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43764823569),
+  for commit `6ece574358e4060478e876c0fcd9147955713965`.
+- Core: **205/205 passed**.
+- Host/unit: **253/253 passed**.
+- Browser entry-point syntax check: passed.
+- No manual real-browser IndexedDB durability/crash-reopen acceptance has been
+  performed; deterministic adapter tests do not replace that check.
+- `main` was not modified. No PR or merge was created.
+
