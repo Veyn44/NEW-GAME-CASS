@@ -1,6 +1,6 @@
 # Movement and Collision Contract — Working Proposal
 
-**Status:** Working proposal; ownership direction recommended, implementation details proposed  
+**Status:** Slice 4 generic Engine movement transaction implemented on `work`; Cassandra gameplay integration remains deferred  
 **Scope:** Generic movement transaction and spatial collision/overlap primitives above Spatial Composition  
 **Branch:** `work`  
 **Source audit:** 2026-11-15
@@ -292,4 +292,4 @@ The current Engine Core source and documentation confirm:
 
 The repository code-search audit available for this review did not return indexed Cassandra movement implementation files. Accordingly, this document does not claim to have verified the current Pawn movement implementation or its exact runtime behavior. Before any code implementation, the relevant current Cassandra movement files and tests must be located and inspected; this proposal does not assume that current implementation should be replaced.
 
-This is a contract proposal only. No source/runtime code or existing game behavior is changed by this document.
+## 15. Slice 4 implementation checkpoint\n\nImplemented on `work`:\n- `engine/spatial/spatial-movement.js` provides synchronous host-policy movement over an entity's existing grid footprint.\n- `core.spatial-movement` is registered in Core Assembly; the host supplies a policy per move, so Engine has no permissive default.\n- The policy receives immutable mover/current/target facts, per-target-cell content and occupancy facts, plus deduplicated geometric overlaps.\n- A policy may return a boolean or `{ accepted, code?, reason? }`; asynchronous, malformed and throwing policies do not commit movement. Re-entrant movement of the same entity is rejected.\n- Accepted movement commits through Placement Coordinator. Rejected, invalid, unavailable and out-of-bounds outcomes preserve the prior placement. Same-position requests return `unchanged`.\n- Focused tests cover multi-cell translation/rotation, cross-world relocation, overlaps, cell content, rejection, same-position, bounds, policy failure and re-entrancy.\n\nThe policy's side-effect-free/deterministic behavior remains a host contract. Cassandra's actual movement system, speed, input, interpolation and collision consequences are not integrated or modified by this slice.\nument.
