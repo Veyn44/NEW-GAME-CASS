@@ -390,9 +390,9 @@ Tasks:
 - The inspector exposes four-way/eight-way neighbor queries, Manhattan/Chebyshev radius queries and selected-entity footprint inspection through the same Engine service.
 - `tests/unit/dev-lab-spatial-inspector.test.js` covers empty-cell inspection, invalid coordinates, neighbor/radius queries, authoritative footprint reads and the shared Engine API boundary.
 - `dev-lab/application/spatial-test-controller.js` creates and retires test entities through Entity Registry and Placement Coordinator, and moves them through Engine Spatial Movement with a Dev Lab-owned overlap policy.
-- Dev Lab can spawn 1×1 and 2×2 test footprints, select a test entity, enter move mode, click a target cell, and see moved/rejected outcomes. Occupied footprints are visualized in the viewport; reset retires disposable test entities; restored saves rebuild markers and clear stale UI selection.
+- Dev Lab can spawn 1×1 and 2×2 test footprints, select a test entity, enter move mode, click a target cell, and see moved/rejected outcomes. Occupied footprints are visualized in the viewport; rejected moves expose the overlapping entity IDs and source/target diagnostic; reset retires disposable test entities; restored saves rebuild markers and clear stale UI selection.
 - Spawn and move reject occupied cells; test entities remain distinguishable from host-owned game entities and cannot be mutated through the test controller.
-- `tests/unit/spatial-test-controller.test.js` covers spawn, multi-cell occupancy, spawn/movement overlap rejection, movement, retirement, reset cleanup and authority boundaries.
+- `tests/unit/spatial-test-controller.test.js` covers spawn, multi-cell occupancy, spawn/movement overlap rejection, movement diagnostics, retirement, reset cleanup and authority boundaries.
 - `.github/workflows/core-tests.yml` syntax-checks the updated viewport and Dev Lab spatial modules; both new test files are included by the existing `tests/unit/*.test.js` command.
 
 **Not yet implemented:** arbitrary rectangular region filters (including category/layer selection), explicit visualization of rejected-overlap sets, movement traces/history and full standalone-vs-Cassandra-hosted Dev Lab acceptance. The current test tools intentionally use a small explicit Dev Lab collision policy and do not define Cassandra passability or gameplay movement rules.
