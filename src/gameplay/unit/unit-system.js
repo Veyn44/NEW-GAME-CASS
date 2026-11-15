@@ -249,6 +249,10 @@ export function createUnitSystem({ definitionLookup, movementPolicy = () => true
               || record.position.x >= world.dimensions.width || record.position.y >= world.dimensions.height) {
               throw new UnitSystemError("INVALID_UNIT_PLACEMENT", `Restored Unit "${record.id}" lies outside an available world.`, { entityId: record.id });
             }
+            if (world.metadata?.role === "temporary"
+              && (identity.scope !== "scoped" || identity.scopeId !== `world:${placement.worldId}`)) {
+              throw new UnitSystemError("UNIT_SCOPE_MISMATCH", `Temporary World Unit "${record.id}" must use its World-scoped runtime identity.`, { entityId: record.id });
+            }
             if (world.grid) {
               const occupancy = spatialComposition.getEntityOccupancy(record.id);
               if (!occupancy || occupancy.worldId !== placement.worldId
