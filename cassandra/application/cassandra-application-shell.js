@@ -48,6 +48,7 @@ const state = {
   gameplayUi: null,
   clock: null,
   worldRegistry: null,
+  worldSessionApi: null,
   persistenceApi: null,
   saveAdapter: null,
   workspacePersistence: null,
@@ -318,7 +319,14 @@ document.addEventListener("visibilitychange", () => {
 worldSizeSelect.addEventListener("change", () => {
   if (!state.paused || !state.worldRegistry) return;
   const size = Number(worldSizeSelect.value);
-  state.worldRegistry.activateWorld(`cassandra-world-${size}`);
+  try {
+    state.worldSessionApi.setMainWorldWorld(`cassandra-world-${size}`);
+  } catch (error) {
+    const activeWorld = state.worldRegistry.get(state.worldRegistry.activeWorldId);
+    if (activeWorld) worldSizeSelect.value = String(activeWorld.dimensions.width);
+    simulationStatus.textContent = `WORLD SWITCH REJECTED · ${error.code ?? error.message}`;
+    return;
+  }
   viewport.resetCameraToWorld(size);
   clearSelection();
   refreshWorldMarkers();
@@ -360,7 +368,7 @@ export async function startCassandraApplication() {
     updateFreeCamera: applyFreeCameraInput,
     shouldAdvance: () => !pauseMenuController.isOpen(),
     onReady({ services }) {
-      if (!services?.worldRegistry || !services?.persistenceApi || !services?.clock || !services?.gameplayApi) {
+      if (!services?.worldRegistry || !services?.worldSessionApi || !services?.persistenceApi || !services?.clock || !services?.gameplayApi) {
         throw new TypeError("Cassandra runtime services are incomplete.");
       }
       const worlds = services.worldRegistry;
@@ -374,7 +382,9 @@ export async function startCassandraApplication() {
         });
       }
       worlds.activateWorld(`cassandra-world-${Number(worldSizeSelect.value)}`);
+      services.worldSessionApi.registerMainWorld(worlds.activeWorldId);
       state.worldRegistry = worlds;
+      state.worldSessionApi = services.worldSessionApi;
       state.persistenceApi = services.persistenceApi;
       state.gameplayApi = services.gameplayApi;
       state.gameplayUi = services.gameplayUi;
