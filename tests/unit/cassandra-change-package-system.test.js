@@ -150,6 +150,27 @@ test("change package validates one-to-one projection mappings against aggregate 
   );
 });
 
+test("coordinator can apply a no-op expedition outcome without inventing aggregate mutations", async () => {
+  const storage = makeStorage();
+  const coordinator = createCassandraChangePackageCoordinator({
+    storage,
+    operationHandlers: handlers,
+    validateReturnManifest: () => true,
+    resolveResultIdentities: async () => ({})
+  });
+  const changePackage = await makePackage({
+    baseline: [],
+    operations: [],
+    returnManifest: [{ entryId: "manifest:encounter", disposition: "transient" }]
+  });
+  await coordinator.stage(changePackage, { checkpoint: { majorState: storage.snapshot.majorState } });
+  const result = await coordinator.apply(changePackage.packageId);
+  assert.equal(result.status, "applied");
+  assert.equal(storage.snapshot.majorState.revision, 8);
+  assert.equal(storage.snapshot.majorState.aggregates["inventory:crew"].state.ore, 2);
+  assert.equal(storage.snapshot.appliedLedger.length, 1);
+});
+
 test("coordinator stages a durable buffer then promotes Major State and Applied ledger together", async () => {
   const storage = makeStorage();
   const coordinator = createCassandraChangePackageCoordinator({ storage, operationHandlers: handlers, validateReturnManifest: () => true, resolveResultIdentities });
