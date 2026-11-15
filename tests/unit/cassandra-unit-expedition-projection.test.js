@@ -159,6 +159,50 @@ test("Cassandra refuses Temporary World disposal until the exact package is in t
   }
 });
 
+test("Projection mapping and Temporary Units survive a later cleanup preflight failure", async () => {
+  const state = await setup();
+  try {
+    const result = createCassandraUnitExpeditionProjection({
+      sessionId: "expedition:cleanup-preflight",
+      mainWorldId: "expedition-main",
+      temporaryWorldId: "expedition-temp",
+      campaignUnitIds: [state.campaignUnits[0].id],
+      unitApi: state.unitApi,
+      entityRegistry: state.entityRegistry,
+      getProjectionMetadata: (unit) => ({
+        aggregateId: `unit-aggregate:${unit.id}`,
+        baselineRevision: 0,
+        projectionRole: "participant",
+        transferEligible: true
+      })
+    });
+    state.projectionApi.registerProjection(result.projection);
+    const temporaryUnit = result.projectedUnits[0];
+    state.worldSession.registerTemporaryWorldCleanup(() => {
+      throw new Error("later cleanup preflight rejected");
+    });
+    state.worldSession.returnToMainWorld();
+
+    await assert.rejects(
+      () => state.worldSession.completeTemporaryWorld({
+        packageId: "package:cleanup-preflight",
+        digest: "d".repeat(64)
+      }),
+      /later cleanup preflight rejected/
+    );
+    assert.equal(state.worlds.has("expedition-temp"), true);
+    assert.equal(state.projectionApi.hasProjection(), true);
+    assert.ok(state.unitApi.getUnit(temporaryUnit.id));
+    assert.equal(
+      state.worldContext.listPlacements({ worldId: "expedition-temp" }).length,
+      1
+    );
+  } finally {
+    await state.runtime.destroy();
+    clearDefinitionsForTests();
+  }
+});
+
 test("Cassandra Unit projection retires already-created Temporary Units if a later projection fails", async () => {
   const state = await setup();
   try {
