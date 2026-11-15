@@ -15,10 +15,12 @@ export class PlacementCoordinator {
   }
   get isFaulted() { return this.#faulted; }
   placeEntity(entityId, target) {
+    this.#assertHealthy();
     if (this.#worldContext.getPlacement(entityId)) throw new PlacementCoordinatorError("ENTITY_ALREADY_PLACED", "Entity already has a placement.", { entityId });
     return this.#apply(entityId, { type: "grid", ...target });
   }
   moveEntity(entityId, target) {
+    this.#assertHealthy();
     if (!this.#worldContext.getPlacement(entityId)) throw new PlacementCoordinatorError("ENTITY_NOT_PLACED", "Entity has no placement.", { entityId });
     return this.#apply(entityId, target);
   }
