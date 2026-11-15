@@ -1,5 +1,6 @@
 import { assertCellInBounds, validateCellCoordinate, getOrthogonalNeighbors, getAdjacentNeighbors, manhattanDistance, chebyshevDistance } from "./grid-geometry.js";
 import { PLACEMENT_AUTHORITY } from "./placement-authority.js";
+import { MOVEMENT_AUTHORITY } from "./movement-authority.js";
 
 const VERSION = 1;
 const ID = /^[a-zA-Z0-9][a-zA-Z0-9:._-]{0,159}$/;
@@ -105,7 +106,7 @@ export function deriveFootprintCells({ anchor, footprint, orientation = 0, grid 
  */
 export class SpatialComposition {
   #worlds; #entities; #idFactory; #contents = new Map(); #byCell = new Map(); #reserved = new Set();
-  #entityOccupancies = new Map(); #entitiesByCell = new Map();
+  #entityOccupancies = new Map(); #entitiesByCell = new Map(); #readOnlyEvaluation = 0;
   constructor({ worldRegistry, entityRegistry = null, idFactory = defaultIdFactory } = {}) {
     if (!worldRegistry || typeof worldRegistry.get !== "function") throw new SpatialCompositionError("INVALID_WORLD_REGISTRY", "A WorldRegistry-compatible service is required.");
     if (typeof idFactory !== "function") throw new SpatialCompositionError("INVALID_ID_FACTORY", "idFactory must be a function.");
@@ -113,6 +114,14 @@ export class SpatialComposition {
     this.#worlds = worldRegistry; this.#entities = entityRegistry; this.#idFactory = idFactory;
   }
   get size() { return this.#contents.size; }
+  withReadOnlyEvaluation(callback, authority) {
+    if (authority !== MOVEMENT_AUTHORITY || typeof callback !== "function") throw new SpatialCompositionError("MOVEMENT_AUTHORITY_REQUIRED", "Read-only evaluation requires the internal movement capability.");
+    this.#readOnlyEvaluation += 1;
+    try { return callback(); } finally { this.#readOnlyEvaluation -= 1; }
+  }
+  #assertWritable() {
+    if (this.#readOnlyEvaluation > 0) throw new SpatialCompositionError("SPATIAL_MUTATION_DURING_POLICY", "Spatial Composition cannot be mutated during movement policy evaluation.");
+  }
   get entityOccupancyCount() { return this.#entityOccupancies.size; }
   hasEntityOccupancy(entityId) { return this.#entityOccupancies.has(id(entityId, "Entity ID")); }
   getEntityOccupancy(entityId) { return this.#entityOccupancies.get(id(entityId, "Entity ID")) ?? null; }
@@ -290,7 +299,7 @@ export class SpatialComposition {
     let committed = false;
     return Object.freeze({
       previous, current: nextRecord,
-      commit: () => { if (committed) throw new SpatialCompositionError("TRANSACTION_ALREADY_COMMITTED", "Occupancy transaction already committed."); this.#entityOccupancies = nextOccupancies; this.#entitiesByCell = nextByCell; committed = true; },
+      commit: () => { this.#assertWritable(); if (committed) throw new SpatialCompositionError("TRANSACTION_ALREADY_COMMITTED", "Occupancy transaction already committed."); this.#entityOccupancies = nextOccupancies; this.#entitiesByCell = nextByCell; committed = true; },
       rollback: () => { if (!committed) return false; this.#entityOccupancies = previousMaps.occupancies; this.#entitiesByCell = previousMaps.byCell; committed = false; return true; }
     });
   }
@@ -310,7 +319,7 @@ export class SpatialComposition {
     return Object.freeze([...ids].map((key) => this.#contents.get(key)).filter(Boolean)
       .sort((a, b) => a.categoryId.localeCompare(b.categoryId) || a.contentId.localeCompare(b.contentId)));
   }
-  addCellContent({ contentId = null, worldId, cell, categoryId, layerId = null, payload = {} } = {}) {
+  addCellContent({ contentId = null, worldId, cell, categoryId, layerId = null, payload = {} } = {}) {\n    this.#assertWritable();
     const world = this.#requireGridWorld(worldId), point = this.#cell(cell, world);
     const cat = category(categoryId), layer = layerId === null ? null : category(layerId, "Layer ID");
     const contentKey = contentId === null ? this.#newId() : id(contentId, "Content ID");
