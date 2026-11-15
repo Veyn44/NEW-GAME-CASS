@@ -193,6 +193,48 @@ test("Temporary World cleanup preflight failure leaves the World and its content
   }
 });
 
+test("Temporary World disposal rejects concurrent completion attempts", async () => {
+  const state = await setup();
+  try {
+    state.session.beginTemporaryWorld({ worldId: "encounter:concurrent-disposal", width: 32, height: 32 });
+    state.session.returnToMainWorld();
+    const args = {
+      packageId: "package:concurrent-disposal",
+      digest: "e".repeat(64)
+    };
+    const first = state.session.completeTemporaryWorld(args);
+    await assert.rejects(
+      () => state.session.completeTemporaryWorld(args),
+      { code: "TEMPORARY_DISPOSAL_IN_PROGRESS" }
+    );
+    const result = await first;
+    assert.equal(result.temporaryWorldId, null);
+    assert.equal(state.worlds.has("encounter:concurrent-disposal"), false);
+  } finally {
+    await state.runtime.destroy();
+  }
+});
+
+test("Temporary World disposal rejects asynchronous cleanup preparation without mutation", async () => {
+  const state = await setup();
+  try {
+    state.session.beginTemporaryWorld({ worldId: "encounter:async-preflight", width: 32, height: 32 });
+    state.session.registerTemporaryWorldCleanup(async () => () => true);
+    state.session.returnToMainWorld();
+    await assert.rejects(
+      () => state.session.completeTemporaryWorld({
+        packageId: "package:async-preflight",
+        digest: "f".repeat(64)
+      }),
+      { code: "ASYNC_TEMPORARY_CLEANUP_PREPARATION" }
+    );
+    assert.equal(state.worlds.has("encounter:async-preflight"), true);
+    assert.equal(state.session.getState().temporaryWorldId, "encounter:async-preflight");
+  } finally {
+    await state.runtime.destroy();
+  }
+});
+
 test("Cassandra can change selected Main World when no Temporary World is pending", async () => {
   const state = await setup();
   try {
