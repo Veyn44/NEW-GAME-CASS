@@ -728,8 +728,10 @@ Not yet implemented or proven:
 - A candidate browser campaign adapter now exists at `src/adapters/storage/indexeddb-campaign-save-adapter.js`. It stores the complete campaign snapshot as one IndexedDB object-store record, requires a strict-durability readwrite transaction and enforces cross-writer compare-and-swap using a monotonically increasing storage revision. Focused adapter tests use a deterministic IndexedDB test double; actual browser/runtime support and crash-recovery behavior still require verification before production use.
 - The existing `dev-lab-workspace` .cass adapter remains explicitly rejected by this coordinator.
 - No authoritative Cassandra aggregate model or complete domain operation registry is wired into the runtime.
-- No campaign projection builder, location-record store, expedition End/Abandon workflow, Temporary World disposal gate or recovery UI is integrated.
-- Unit tests have been added but the repository test suite and browser runtime still require execution/verification.
+- The current Unit projection adapter is a narrow projection of the fields that exist in the Unit domain model; a complete campaign projection builder and authoritative aggregate/operation registry are not wired into the runtime.
+- No location-record store, user-facing End/Abandon workflow or recovery/conflict UI is integrated.
+- A Temporary World disposal gate is integrated in `src/gameplay/world/cassandra-world-session-system.js`. It requires an exact Applied-ledger package ID/digest verification, Main World activation, scoped-entity ownership and spatial-integrity preflight, then removes the Temporary World and commits prepared projection cleanup. This is a lifecycle safety primitive, not yet an end-to-end expedition workflow.
+- Automated verification is current: GitHub Actions run `43762918556` passed Core 205/205 and host 244/244. Browser IndexedDB strict-durability, crash/reopen and full UI acceptance remain unverified manual checks.
 
 The coordinator must remain unwired to the current workspace adapter until a real campaign persistence backend proves the single-snapshot atomic promotion guarantee. A storage implementation that cannot make that guarantee must fail closed.
 
