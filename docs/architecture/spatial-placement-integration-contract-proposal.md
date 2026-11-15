@@ -193,19 +193,18 @@ Presentation remains a read-only consumer and must not write either representati
 19. Non-grid worlds remain valid and do not gain grid occupancy implicitly.
 20. A detected integrity mismatch is surfaced; the coordinator does not silently repair by choosing one side.
 
-## 11. Open implementation details
+## 11. Remaining integration details
 
-These details remain proposals or require a focused source check; they are not additional user decisions at this stage:
+The Engine-side coordinator, prepared-state mechanism, Core Assembly service registration, composite participant schema, internal mutation capability and fatal-fault clock pause are implemented on `work`.
 
-- Exact coordinator module location and public API.
-- Exact transaction/prepared-state mechanism compatible with existing service internals.
-- Whether the coordinator is registered in Core assembly or composed by an application adapter.
-- Exact Cassandra handling of fractional movement progress when grid occupancy becomes authoritative.
-- Exact composite participant schema and rollback/fatal-fault integration.
-- Which lifecycle statuses are eligible for grid occupancy.
-- Whether every grid-backed entity in Cassandra is represented spatially or only selected entity classes.
+The remaining work is application-facing and deliberately separate:
+- Cassandra must decide which entity/domain classes participate in grid occupancy.
+- Cassandra must adapt its current fractional Unit movement model to committed integer grid anchors without silently rounding or moving speed/input rules into Engine.
+- Cassandra's viewport must remove the existing additional `+0.5` presentation offset once it consumes grid-backed WorldContext cell-center positions.
+- Cassandra supplies host policy for overlap legality, passability and collision behavior.
+- Dev Lab should consume the same Engine coordinator and inspectors rather than create another occupancy model.
 
-The recommended implementation default is a small Engine-owned coordinator using prepared replacement state and one composite persistence participant, with Cassandra supplying only game-specific validation policy. The grid-anchor-to-cell-center mapping is approved. The detailed source-audited restore design is recorded in Section 14 below.
+These are technical integration tasks, not unresolved choices that block the completed Engine slice. The grid-anchor-to-cell-center mapping remains approved. The detailed source-audited restore design is recorded in Section 13 below.
 
 ## 12. Explicit non-goals
 
@@ -297,7 +296,7 @@ The composite participant captures both canonical snapshots from one stable stat
 
 Source audit confirms that current World Context exposes public mutation methods: `placeEntity`, `storeEntity`, `placeInStore`, `moveEntity` and `removePlacement`. The current Cassandra `UnitSystem` calls `placeEntity` when creating a unit, `moveEntity` when moving it, and `removePlacement` when removing it. Those call sites must be moved behind the Placement Coordinator for grid-backed entities; the Unit domain system remains the Cassandra-facing API.
 
-Grid-backed mutation must be routed through the Placement Coordinator. Direct World Context or Spatial Composition mutation must not be able to change one side alone. Preserve existing World Context-only behavior for non-grid placements and storage. The implementation may use private methods, an internal capability token or an equivalent enforced boundary; caller convention alone is insufficient.
+Grid-backed mutation is routed through the Placement Coordinator. Direct WorldContext placement/move/storage/removal, direct EntityRegistry store/removal while occupied, and direct WorldContext/EntityRegistry/SpatialComposition restore paths that could invalidate active grid state require the internal Engine placement capability. Core installs this boundary at composition time. Non-grid WorldContext-only behavior remains available for ordinary placement operations; Core persistence uses the composite participant for all placement state.
 
 ### 13.7 Required tests
 
@@ -317,16 +316,18 @@ Grid-backed mutation must be routed through the Placement Coordinator. Direct Wo
 14. Unsupported schemas reject before participant commits.
 15. Successful round-trip rebuilds derived occupancy indexes deterministically.
 
-### 13.8 Open implementation details
+### 13.8 Implemented Engine mechanics and remaining open details
 
-- Exact composite participant ID and snapshot schema.
-- Exact coordinator module location and service registration.
-- Prepared-state representation for both services.
-- Enforced internal mutation capability/encapsulation.
-- Fatal integrity-fault signaling and runtime stop/recovery integration.
-- Full lifecycle coverage for entity removal, storage and non-grid transitions.
+Implemented on `work`:
+- Composite participant `core.spatial-placement`, schema version 1.
+- Coordinator module `engine/spatial/placement-coordinator.js`, registered by Core Assembly.
+- Prepared WorldContext, EntityRegistry lifecycle and SpatialComposition occupancy replacements with synchronous commit/rollback.
+- Internal placement capability and direct-mutation/restore guards.
+- Grid placement, rotation/footprint replacement, grid transfers, grid-to-storage, storage-to-grid and coordinated retirement.
+- Fatal integrity state that rejects further placement/persistence operations and pauses the Core Game Clock.
+- Composite restore that cross-validates WorldContext anchors, world descriptors and occupancy before swapping both services; derived indexes are rebuilt.
 
-These are technical implementation details for the relevant implementation slice; they do not require another user decision at this stage.
+Remaining open details are outside this Engine slice: Cassandra's fractional movement/interpolation adaptation, domain entity eligibility, and host-specific overlap/passability/collision policy.
 
 ### 13.9 Cassandra integration notes from the current source tree
 
