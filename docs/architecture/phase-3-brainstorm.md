@@ -241,6 +241,12 @@ Do not change the existing World Registry contract until this is resolved.
 - When a player enters/opens a Mine Shaft encounter and extracts only part of a deposit, only the amount actually extracted is deducted from the parent asteroid's shared resource inventory when the encounter is closed/committed. For example, extracting 50 out of 100 titanium reduces the parent asteroid's remaining total by exactly 50; the other 50 remain available for a later visit.
 - Leaving or closing an encounter must not cause unmined resources to disappear merely because the player did not finish the location. The design prioritizes preserving player resources and avoiding unexplained depletion over physically simulating every geological detail of deposit distribution.
 - Detailed deposits need not all be instantiated as physical entities before the player visits them. A scan may reveal information first; the physical encounter/deposit representation can be generated when the encounter is opened, while remaining consistent with the parent resource inventory and prior extraction records.
+- A Mine Shaft encounter is currently intended to be disposable: when the player leaves it, its detailed generated layout (corridors, rooms, and physical deposit placements) can be discarded. On a later visit, a fresh Mine Shaft layout may be generated rather than restoring the exact previous geometry.
+- The parent asteroid's durable resource accounting must survive Mine Shaft disposal. Only resources actually extracted are deducted; unmined resources remain in the parent inventory. A regenerated shaft must draw from that remaining inventory rather than create unlimited new resources.
+- This disposable-shaft approach allows a player to abandon an unfavorable layout and generate another on a later visit. This is an acknowledged gameplay reroll/cheat-like effect, not a finalized balance decision; expedition costs or other gameplay consequences may make repeated rerolls costly.
+- An asteroid encounter is itself a Temporary World. The idea of opening a Mine Shaft within an asteroid therefore raises an unresolved nested/sub-encounter question: whether the shaft should be another temporary world, a local area/transition within the asteroid encounter, or be represented through a simplified mining mechanic.
+- One proposed simplification is to represent some asteroid mining through an installed mining device that produces a fixed amount over time (illustrative example: +2 titanium per defined time interval), avoiding the need to create a nested detailed mine-shaft world for every mining operation.
+- A further gameplay possibility is a persistent mining outpost/station on selected asteroids. Such a site could produce resources over time for later collection/transport. This is only a concept at this stage; persistence, time advancement, extraction limits, and whether unattended production is allowed remain open.
 
 #### Cassandra world-boundary direction
 - The home/colony map is expected to be finite, with a maximum distance/extent from the map edge, similar in broad player-facing behavior to RimWorld. It is not intended to be an unbounded or infinitely expanding world.
@@ -467,6 +473,11 @@ No implementation starts from this section until the complete specification is a
 ---
 
 ## Current decisions
+
+- **Proposed Cassandra Mine Shaft lifecycle:** Mine Shaft detailed geometry/layout may be discarded when the player leaves and regenerated on the next visit. Parent asteroid resource totals and actual extracted amounts remain persistent.
+- **Acknowledged gameplay trade-off:** Regenerating a Mine Shaft can let players reroll unfavorable layouts; whether and how expedition costs balance this remains open.
+- **Open Cassandra architecture question:** Since an asteroid is already a Temporary World encounter, it is undecided how a Mine Shaft inside it should be represented (nested Temporary World, local sub-area/transition, or simplified mining mechanic).
+- **Proposed gameplay alternatives:** Some asteroids may use time-based mining devices (illustrative +2 titanium per interval), and selected asteroids may become persistent mining outposts from which resources are collected later. Neither is finalized.
 
 - **Agreed Cassandra resource rule:** Deep Scan only reveals information about deposits; it does not consume, reserve, or remove resources. Discarding scan information also does not affect the deposits.
 - **Agreed Cassandra resource rule:** On encounter close/commit, deduct only the resources actually extracted. Unmined resources remain available for later visits; leaving an encounter must not silently remove them.
