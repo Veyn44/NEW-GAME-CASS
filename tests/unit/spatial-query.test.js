@@ -33,9 +33,10 @@ test("queryCell returns separate immutable content and occupancy facts", () => {
   addContent(s.spatial, "floor", { x: 2, y: 2 }, "terrain", "base");
   addContent(s.spatial, "lamp", { x: 2, y: 2 }, "fixture", "overlay");
   place(s, "pawn:a", { x: 2, y: 2 });
-  const result = s.spatial.queryCell("grid", { x: 2, y: 2 }, { categories: ["terrain"] });
+  const result = s.spatial.queryCell("grid", { x: 2, y: 2 }, { categories: ["terrain"], kinds: ["pawn"] });
   assert.deepEqual(result.contents.map((r) => r.contentId), ["floor"]);
   assert.deepEqual(result.entities.map((r) => r.entityId), ["pawn:a"]);
+  assert.deepEqual(s.spatial.queryCell("grid", { x: 2, y: 2 }, { kinds: ["machine"] }).entities, []);
   assert.deepEqual(result.entities[0].matchedCells, [{ x: 2, y: 2 }]);
   assert.equal(Object.isFrozen(result), true);
   assert.equal(Object.isFrozen(result.entities), true);
