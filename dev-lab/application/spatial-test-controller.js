@@ -14,6 +14,7 @@ export class SpatialTestController {
   #placements;
   #movement;
   #sequence = 0;
+  #lastMovement = null;
 
   constructor({ entityRegistry, worldRegistry, spatialComposition, placementCoordinator, spatialMovement } = {}) {
     if (!entityRegistry?.registerPersistent || !entityRegistry?.get || !entityRegistry?.list
@@ -76,14 +77,29 @@ export class SpatialTestController {
 
   move(entityId, { worldId = this.#worlds.activeWorldId, anchor, orientation } = {}) {
     this.#assertOwned(entityId);
-    return this.#movement.moveEntity(entityId, { worldId, anchor, orientation }, (proposal) => {
-      const accepted = proposal.overlaps.length === 0;
+    let overlapEntityIds = [];
+    const result = this.#movement.moveEntity(entityId, { worldId, anchor, orientation }, (proposal) => {
+      overlapEntityIds = proposal.overlaps.map((item) => item.entityId);
+      const accepted = overlapEntityIds.length === 0;
       return {
         accepted,
         code: accepted ? null : "DEV_LAB_OVERLAP",
         reason: accepted ? null : "Target footprint overlaps another occupied entity."
       };
     });
+    this.#lastMovement = Object.freeze({
+      entityId,
+      source: result.source?.anchor ?? null,
+      target: result.target?.anchor ?? anchor ?? null,
+      status: result.status,
+      code: result.code ?? null,
+      overlaps: Object.freeze([...overlapEntityIds])
+    });
+    return Object.freeze({ ...result, diagnostic: this.#lastMovement });
+  }
+
+  getLastMovement() {
+    return this.#lastMovement;
   }
 
   remove(entityId) {
