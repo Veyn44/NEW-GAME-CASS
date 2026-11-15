@@ -259,6 +259,9 @@ Do not change the existing World Registry contract until this is resolved.
 - This is intentionally not a full city simulation. The abstraction should focus on manager/worker assignments, job capacity from buildings, assigned work, output, and operating costs rather than simulating every colonist's individual life.
 - Bases have operating costs. One possible convenience rule is to deduct fixed upkeep directly from the main colony's resources/accounting so the player does not have to micromanage routine supply deliveries. This payment model is only a candidate and remains undecided.
 - Resource transport/routes and the exact delivery mechanism between remote bases and the main colony are acknowledged as necessary gameplay topics but are deferred for now.
+- Remote bases should expose workforce capacity and current staffing in a compact status view (illustrative example: 2/3 positions filled).
+- If an event reduces staffing or otherwise affects a remote base, the game should notify the player. The player can inspect a station list/status overview, identify the base with a staffing shortfall, prepare a replacement worker/robot at the main colony, and send it there.
+- The exact transfer/logistics mechanism for sending replacement personnel is explicitly deferred; the requirement for now is event notification plus visible base status and staffing needs.
 
 #### Cassandra world-boundary direction
 - The home/colony map is expected to be finite, with a maximum distance/extent from the map edge, similar in broad player-facing behavior to RimWorld. It is not intended to be an unbounded or infinitely expanding world.
@@ -485,6 +488,10 @@ No implementation starts from this section until the complete specification is a
 ---
 
 ## Current decisions
+
+- **Agreed remote-base information requirement:** The player can inspect station/base status, including workforce capacity and staffing (for example, 2/3 positions filled).
+- **Agreed remote-base event requirement:** Events affecting a base, such as loss of workers, notify the player; the player can identify the affected base and arrange replacement personnel from the main colony.
+- **Deferred:** How personnel/robots are physically or logistically transferred to remote bases.
 
 - **Proposed remote-base control model:** The player assigns the base's purpose/work focus; the base does not independently choose development goals.
 - **Proposed workforce model:** Buildings provide job slots/capacity, and the player assigns pawns (for example, a manager) and robots/workers to those roles. The simulation focuses on staffing, assigned work, output, and costs rather than full city/population life simulation.
