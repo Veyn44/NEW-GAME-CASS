@@ -210,3 +210,27 @@ test("policy decision accessors are evaluated while spatial writes are locked", 
   assert.equal(occupancy(s, "pawn:mover"), before);
   assert.equal(s.spatial.getContent("wall:from-getter"), null);
 });
+
+test("async policy cannot mutate spatial services after its first await", async () => {
+  const s = setup();
+  place(s, "pawn:mover", { x: 1, y: 1 });
+  let completion;
+  let mutationRejected = false;
+  const result = s.movement.moveEntity("pawn:mover", { worldId: "grid-a", anchor: { x: 2, y: 2 } }, () => {
+    completion = (async () => {
+      await Promise.resolve();
+      try {
+        s.spatial.addCellContent({ contentId: "wall:async", worldId: "grid-a", cell: { x: 2, y: 2 }, categoryId: "structure" });
+      } catch (error) {
+        mutationRejected = error.code === "SPATIAL_MUTATION_DURING_POLICY";
+      }
+      return true;
+    })();
+    return completion;
+  });
+  assert.equal(result.code, "ASYNC_POLICY_UNSUPPORTED");
+  await completion;
+  assert.equal(mutationRejected, true);
+  assert.equal(s.spatial.getContent("wall:async"), null);
+  assert.deepEqual(occupancy(s, "pawn:mover").anchor, { x: 1, y: 1 });
+});
