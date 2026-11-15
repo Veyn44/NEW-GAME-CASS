@@ -411,17 +411,17 @@ These are genuine architecture dependencies, not routine implementation details.
 
 ### 8.1 Authority for entity placement in grid Worlds
 
-**Current facts:**
-- World Context currently stores one world-space position or store placement per entity.
-- Spatial Composition needs an integer anchor, footprint and cell occupancy for grid entities.
-- The two representations cannot be allowed to drift or independently claim authoritative position.
+**Agreed direction (2026-11-15):**
+- World Context remains the authority for an entity's world placement or storage placement, including the world/store relationship already represented by its placement record.
+- Spatial Composition is authoritative for grid-specific anchor, canonical footprint, orientation and occupied-cell indexes.
+- These are complementary responsibilities, not two competing complete placement models.
+- A grid-backed entity placement or relocation is one coordinated transaction. Both representations must commit together, or neither may change.
+- Callers must not mutate either representation independently in a way that can desynchronize them.
+- Non-grid world placement and storage placement continue to use World Context without requiring grid occupancy.
 
-**Recommended direction to review:**
-- Keep World Context's existing contract intact for current/non-grid placement and storage semantics.
-- For grid-backed entities, define one coordinated placement transaction that keeps World Context's world identity/placement and Spatial Composition's anchor/footprint synchronized, or explicitly designate one service as the sole placement authority and make the other a derived projection.
-- Never allow callers to mutate one representation independently.
+The integration mechanics, conversion between grid anchors and World Context world-space positions, transaction coordinator boundary, and restore ordering are specified as a focused working contract in `spatial-placement-integration-contract-proposal.md`. The agreed ownership model is settled; exact API names and implementation details remain proposals.
 
-**Decision required:** Which authority model should be used for grid-backed entities, and should existing World Context placement remain the public cross-world/store placement contract?
+**Decision status:** Resolved. No further authority-model decision is required.
 
 ### 8.2 Grid descriptor ownership
 
@@ -498,7 +498,7 @@ Any proposed exception must identify the concrete dependency and the smallest re
 
 **Ready for detailed implementation review:** Grid Geometry, Spatial Composition, Spatial Queries and Movement & Collision each have a working proposal with acceptance scenarios.
 
-**Not yet implementation-ready:** End-to-end placement authority, formal temporary-world change-package protocol, and legacy `.cass` spatial migration/compatibility. Phase 3 Step 7 and Step 8 design work remains necessary; Step 9 must consolidate integrated acceptance.
+**Not yet implementation-ready:** Formal temporary-world change-package protocol and legacy `.cass` spatial migration/compatibility. The placement authority model is now agreed, while its integration mechanics remain a working contract proposal. Phase 3 Step 7 and Step 8 design work remains necessary; Step 9 must consolidate integrated acceptance.
 
 **Current action:** Document and review only. No source/runtime code changes are authorized by this plan. No PR merge or `main` update is implied.
 
