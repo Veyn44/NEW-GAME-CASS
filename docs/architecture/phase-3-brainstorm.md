@@ -99,6 +99,55 @@ Examples of changes include:
 
 This is a design direction, not yet a defined serialization format or API.
 
+#### Cassandra expedition, encounter, and location persistence model
+
+The following gameplay behavior has been established in the brainstorm. These are Cassandra rules and requirements for Engine capabilities; they must not become hard-coded Engine gameplay rules.
+
+**World and encounter concurrency**
+- Cassandra normally has one persistent Main World and at most one active Temporary World encounter at a time.
+- Starting an encounter pauses Main World for player-attention/gameplay reasons. This is Cassandra policy, not an Engine restriction.
+- The Engine should remain capable of hosting/simulating multiple worlds independently; it must not enforce this one-encounter rule globally.
+- Worlds/locations that are not active do not continue simulating and do not advance their local simulation state in the background.
+
+**Location identity and persistence**
+- A visited location can outlive its Temporary World simulation instance.
+- A persistent location record can retain its identity, generation seed, terrain/world-generation changes, and the persistent state of surviving objects.
+- A Temporary World can be reconstructed from its seed and recorded changes instead of serializing every transient runtime entity.
+- Locations may have different persistence outcomes: a reusable physical location (for example, an asteroid), a disposable one-off encounter, or a permanently closed/retired location (for example, a mine shaft).
+- A location's persistence policy is a Cassandra/game concept. Engine should provide generic persistence and world lifecycle mechanisms.
+- A physical location does not change while it is not active. No background simulation or elapsed-time catch-up is currently intended.
+
+**Encounter clear and regenerated entities**
+- For the current Cassandra design, Clear is a result for the entire encounter/location, not separate rooms or sectors.
+- If the encounter is Clear, enemies do not respawn on a later visit.
+- If it is Not Clear, enemies may be regenerated on a later visit according to the location's generation rules. Individual enemy instances are not persisted as long-lived entities.
+- An encounter that is not Clear is not necessarily a failed expedition: the player may still earn XP, resources, or other partial rewards.
+- Future gameplay design must decide spawn points, whether mining/actions are restricted until Clear, enemy archetypes, and exact Clear conditions. These are deliberately not specified here.
+- Enemy archetypes/difficulty may determine whether surviving enemies destroy abandoned objects or leave them intact. Such consequences are evaluated when the player ends/abandons the encounter; no off-screen simulation runs afterward.
+
+**End Expedition versus Abandon Expedition**
+- Normal End Expedition is only available when every living pawn assigned to the expedition is inside the shuttle. The game must continuously/clearly determine whether this condition is met.
+- End Mission/End Expedition is initiated from the shuttle's Control Panel. It represents an orderly return with the shuttle's current onboard contents.
+- Abandon Expedition is a separate emergency/forced exit. It can leave pawns and equipment behind while the shuttle returns home. It is not the same as normal evacuation.
+- If the entire crew dies, the game should automatically offer the abandon outcome; the abandon action can be the only available action in that situation, and the shuttle begins its return.
+- At abandon/end processing, apply the encounter's final consequences (including any enemy destruction rules), update the persistent location record, transfer the appropriate surviving/onboard state, then dispose of the Temporary World.
+- The shuttle is expected to be highly resilient and effectively a critical campaign asset; losing it should be exceptionally consequential, though it is not yet decided to be absolutely indestructible.
+- The shuttle has a persistent identity across Main World and encounter contexts. During travel it can be represented as an information package on the Main World map; during an encounter it is represented as a physical/rendered object with interaction points.
+- If a crew member is stabilized inside a future medical/stasis chamber aboard the shuttle, that pawn should count as safely onboard and survive an abandon. This is a future gameplay feature, not a current implementation requirement.
+
+**Shuttle mission flow**
+- The player selects a destination and crew at a base map/terminal, in a mission-briefing flow, then prepares supplies and launches.
+- During travel, the shuttle is represented as an information package on the Main World map. An illustrative travel duration discussed was about four in-game hours; this is not a fixed Engine constant.
+- On arrival, the game offers the player the option to start the encounter.
+- In the encounter, the shuttle is physically represented and can provide cargo/supply storage, ammunition, oxygen replenishment for suits, and a Control Panel for ending the mission. Additional functions such as medical stabilization chambers are future possibilities.
+- The exact landing flow is unresolved. Options include generator-driven automatic landing, or starting the encounter without a placed/rendered shuttle and letting the player select a landing location (similar to RimWorld). The correct choice may depend on the generated asteroid/location geometry.
+- It is not yet decided whether landing/placement is always possible, how safe landing sites are found, or whether the shuttle can ever move independently once the encounter starts.
+
+**Illustrative persistence behavior**
+- If a crew returns normally, the location retains persistent terrain/resource changes and any objects that remain there; the shuttle and crew return to the Main World.
+- If the crew abandons, the shuttle and any pawns/equipment left behind remain at their physical positions unless enemy end-of-encounter consequences destroy them. Surviving objects should be represented in the location's persistent record so they can be reconstructed on a later visit.
+- Enemies themselves are transient and are not saved as individual persistent entities. Their later presence is regenerated from encounter rules unless the whole encounter has been marked Clear.
+
 #### Important architecture observation to investigate
 
 The current World Registry implementation exposes a single `activeWorldId`. The desired arrangement requires more precise semantics than one global active-world selection. We must decide whether the Engine should distinguish:
@@ -125,6 +174,14 @@ Do not change the existing World Registry contract until this is resolved.
 - **Open:** Exact definitions of persistent versus temporary world, ownership, lifecycle, and persistence.
 - **Open:** Whether the transfer package contains full entity snapshots, selected components, references, or a combination.
 - **Open:** Delta validation, conflict handling, atomic application, rollback, and identity/reference rules.
+- **Agreed Cassandra policy:** Main World pauses during an active encounter; inactive locations do not simulate or advance in the background.
+- **Agreed Cassandra concept:** A location can persist independently of its Temporary World runtime instance, using a seed and recorded changes rather than keeping the whole world alive.
+- **Agreed Cassandra concept:** Encounter Clear is whole-location/whole-encounter state; enemy instances are transient and regenerate on revisits only if the encounter was not Clear.
+- **Agreed Cassandra concept:** End Expedition requires all living expedition pawns to be inside the shuttle; Abandon is a separate forced-return path that may leave pawns/equipment behind.
+- **Agreed Cassandra concept:** Encounter consequences (including enemy destruction of abandoned objects) are evaluated during End/Abandon processing, not by background simulation.
+- **Open:** Exact persistent object categories and serialization strategy for shuttle, pawns, corpses, equipment, and other surviving objects.
+- **Open:** Exact shuttle durability and failure consequences.
+- **Open:** Exact landing/placement flow and whether it is automatic or player-selected.
 
 ### Step 2 — World Geometry and lifecycle semantics
 **Status:** In progress
@@ -264,7 +321,17 @@ Questions to resolve:
 - How do we avoid Engine importing Cassandra concepts?
 
 ### Step 8 — Persistence and compatibility
-**Status:** Open
+**Status:** Open; Cassandra location-persistence requirements recorded
+
+Cassandra-specific requirements to account for during this design:
+- Distinguish a Temporary World runtime instance from the persistent record of the location it represents.
+- Support reconstructing a location from a generation seed plus durable terrain/resource changes and surviving persistent object state.
+- Do not persist transient enemy instances. Persist the encounter-level Clear result and regenerate enemies on revisits only when the encounter is not Clear.
+- No off-screen/background simulation is currently intended; inactive locations remain unchanged.
+- End/Abandon processing must apply final encounter consequences before the Temporary World is disposed.
+- Preserve surviving shuttle, pawn, body, equipment, and other object state as appropriate to the chosen outcome and encounter rules.
+- A one-off encounter may be discarded entirely, while a reusable location or permanently retired location may retain a different kind of record.
+
 
 Define persistence of geometry, grid configuration, occupancy, world lifecycle metadata, and spatial state.
 
