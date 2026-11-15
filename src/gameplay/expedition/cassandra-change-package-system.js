@@ -621,6 +621,16 @@ export function createCassandraChangePackageCoordinator({
       return Object.freeze({ status: "applied", ledger: deepFreeze(committed) });
     },
 
+    async isApplied(packageId, digest) {
+      assertId(packageId, "Package ID");
+      if (typeof digest !== "string" || !/^[a-f0-9]{64}$/.test(digest)) {
+        fail("INVALID_PACKAGE_DIGEST", "Applied ledger lookup requires the exact SHA-256 package digest.");
+      }
+      const snapshot = await loadSnapshot();
+      const entry = snapshot.appliedLedger.find((item) => item.packageId === packageId);
+      return Boolean(entry && entry.digest === digest && entry.status === "applied");
+    },
+
     async getState() {
       const snapshot = await loadSnapshot();
       return deepFreeze({
