@@ -17,6 +17,16 @@ class FakeTransaction {
     this.aborted = false;
     this.pending = 0;
     this.completionQueued = false;
+    const lease = database.enqueueTransaction();
+    this.ready = lease.ready;
+    this.release = lease.release;
+    this.released = false;
+  }
+
+  #release() {
+    if (this.released) return;
+    this.released = true;
+    this.release();
   }
 
   objectStore(name) {
@@ -24,11 +34,11 @@ class FakeTransaction {
     const records = this.database.stores.get(name);
     const schedule = (action) => {
       this.pending += 1;
-      queueMicrotask(() => {
+      this.ready.then(() => queueMicrotask(() => {
         if (!this.aborted) action();
         this.pending -= 1;
         this.#queueComplete();
-      });
+      }));
     };
     return {
       get: (key) => {
@@ -58,19 +68,24 @@ class FakeTransaction {
           this.aborted = true;
           this.error = new Error("simulated IndexedDB transaction abort");
           this.onabort?.();
+          this.#release();
           return;
         }
         const records = this.database.stores.get(this.storeName);
         for (const record of this.pendingWrites) records.set(record.campaignId, record);
         this.pendingWrites = [];
         this.oncomplete?.();
+        this.#release();
       }
     });
   }
 
   abort() {
     this.aborted = true;
-    queueMicrotask(() => this.onabort?.());
+    queueMicrotask(() => {
+      this.onabort?.();
+      this.#release();
+    });
   }
 }
 
@@ -80,6 +95,13 @@ class FakeDatabase {
     this.supportsStrict = supportsStrict;
     this.failNextCommit = failNextCommit;
     this.objectStoreNames = { contains: (name) => this.stores.has(name) };
+    this.transactionTail = Promise.resolve();
+  }
+  enqueueTransaction() {
+    const ready = this.transactionTail;
+    let release;
+    this.transactionTail = new Promise((resolve) => { release = resolve; });
+    return { ready, release };
   }
   createObjectStore(name) { this.stores.set(name, new Map()); }
   transaction(storeName, mode, options) {
@@ -193,6 +215,51 @@ test("IndexedDB campaign adapter rejects stale cross-writer revisions", async ()
     { code: "CAMPAIGN_STORAGE_CONFLICT" }
   );
   assert.deepEqual(await secondWriter.loadCampaignSnapshot(), { snapshot: next, revision: 1 });
+  firstWriter.close();
+  secondWriter.close();
+});
+
+test("IndexedDB campaign adapter serializes simultaneous compare-and-swap writers", async () => {
+  const indexedDBRef = new FakeIndexedDB();
+  const initial = initialSnapshot();
+  const firstWriter = new IndexedDbCampaignSaveAdapter({
+    indexedDBRef,
+    campaignId: "campaign:simultaneous-cas",
+    initialSnapshot: initial
+  });
+  const secondWriter = new IndexedDbCampaignSaveAdapter({
+    indexedDBRef,
+    campaignId: "campaign:simultaneous-cas",
+    initialSnapshot: initial
+  });
+  const first = {
+    majorState: { revision: 2, aggregates: { first: { revision: 1, state: { value: 1 } } } },
+    pendingPackages: [],
+    appliedLedger: []
+  };
+  const second = {
+    majorState: { revision: 2, aggregates: { second: { revision: 1, state: { value: 2 } } } },
+    pendingPackages: [],
+    appliedLedger: []
+  };
+  const outcomes = await Promise.allSettled([
+    firstWriter.writeCampaignSnapshotAtomic(first, 0),
+    secondWriter.writeCampaignSnapshotAtomic(second, 0)
+  ]);
+  assert.equal(outcomes.filter((entry) => entry.status === "fulfilled").length, 1);
+  assert.equal(outcomes.filter((entry) => entry.status === "rejected" && entry.reason.code === "CAMPAIGN_STORAGE_CONFLICT").length, 1);
+  const durable = await firstWriter.loadCampaignSnapshot();
+  assert.equal(durable.revision, 1);
+  assert.ok(
+    durable.snapshot.majorState.aggregates.first || durable.snapshot.majorState.aggregates.second,
+    "the winning complete snapshot must be durable"
+  );
+  assert.equal(
+    Boolean(durable.snapshot.majorState.aggregates.first)
+      && Boolean(durable.snapshot.majorState.aggregates.second),
+    false,
+    "a stale concurrent writer must not overwrite or combine snapshots"
+  );
   firstWriter.close();
   secondWriter.close();
 });
