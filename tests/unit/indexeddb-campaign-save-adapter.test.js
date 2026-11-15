@@ -290,6 +290,31 @@ test("IndexedDB campaign adapter leaves the previous snapshot intact when a tran
   adapter.close();
 });
 
+test("IndexedDB campaign adapter refuses to overwrite a corrupt existing snapshot", async () => {
+  const indexedDBRef = new FakeIndexedDB();
+  const adapter = new IndexedDbCampaignSaveAdapter({
+    indexedDBRef,
+    campaignId: "campaign:corrupt-record",
+    initialSnapshot: initialSnapshot()
+  });
+  await adapter.writeCampaignSnapshotAtomic(initialSnapshot(), 0);
+  const store = indexedDBRef.databases.get("cassandra-campaign-storage").stores.get("campaign-snapshots");
+  const corrupt = store.get("campaign:corrupt-record");
+  corrupt.snapshot = null;
+  store.set("campaign:corrupt-record", corrupt);
+
+  await assert.rejects(
+    () => adapter.writeCampaignSnapshotAtomic(initialSnapshot(), 1),
+    { code: "INVALID_CAMPAIGN_RECORD" }
+  );
+  assert.equal(store.get("campaign:corrupt-record").snapshot, null);
+  await assert.rejects(
+    () => adapter.loadCampaignSnapshot(),
+    { code: "INVALID_CAMPAIGN_RECORD" }
+  );
+  adapter.close();
+});
+
 test("IndexedDB campaign adapter requires IndexedDB and a stable campaign identity", () => {
   assert.throws(
     () => new IndexedDbCampaignSaveAdapter({ indexedDBRef: null, campaignId: "campaign:one" }),
