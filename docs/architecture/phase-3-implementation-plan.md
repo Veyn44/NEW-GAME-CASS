@@ -343,7 +343,7 @@ Tasks:
 - `src/gameplay/colony/colony-control-system.js` continues to own the 4 tiles/second movement speed and diagonal normalization, but now advances Unit progress rather than mutating Engine placement coordinates directly.
 - The current Cassandra movement policy explicitly accepts valid grid transitions, preserving the prototype's existing lack of blocking/collision rules. This is a Cassandra-owned policy seam, not a claim that passability/collision gameplay is implemented.
 - `src/gameplay/world/cassandra-world-session-system.js` owns Cassandra's one-Main/one-Temporary session policy without imposing a world-count limit in Engine. It registers a Temporary World on demand, switches active participation, supports returning/re-entering, and retains the Temporary World for safe result handling rather than disposing it prematurely.
-- The world-session system owns independent local simulated-time counters. The runtime advances only the active Main or Temporary World; while Temporary is active, Main local time does not advance. Returning to Main does not add Temporary elapsed time to Main.
+- The world-session system owns independent local simulated-time counters. The runtime schedules time against the active Main or Temporary World and commits that local delta only after the corresponding Core simulation tick succeeds; a later task/clock failure cannot advance world-local time. While Temporary is active, Main local time does not advance. Returning to Main does not add Temporary elapsed time to Main.
 - Units created in a World marked `metadata.role: "temporary"` receive a scoped runtime identity (`world:<worldId>`), while Main World Units retain persistent identity. Unit restore validates the Temporary World scope.
 - The `game.world-session` persistence participant restores Main/Temporary identity, active World selection and local clocks after World Registry restoration.
 - Shared viewport marker and camera-follow APIs now consume world-space positions directly. The extra `+0.5` presentation offset is removed; Dev Lab test markers supply cell centers explicitly.
@@ -352,7 +352,7 @@ Tasks:
 **Verification coverage added/updated (full run deferred to Phase 3 completion):**
 - Unit creation, discrete occupancy, within-cell progress, cell-boundary crossing, fractional-progress save/restore, edge clamping, policy rejection, non-grid compatibility, multi-world occupancy isolation and Temporary World scoped-identity restore.
 - Colony movement speed, cardinal movement, diagonal normalization, Draft gating, active-world gating and persistence.
-- Main/Temporary World session lifecycle, single-temporary constraint, independent local clocks, Main-time pause, return behavior and world-session persistence restore.
+- Main/Temporary World session lifecycle, single-temporary constraint, independent local clocks, Main-time pause, return behavior, world-session persistence restore and no local-time commit after a failed scheduler step.
 
 **Remaining:** Full participation gating for every future Cassandra simulation system, explicit mapping/projection of persistent campaign identities into Temporary World runtime identities, typed Change Package creation/validation/idempotent application, safe Temporary World disposal after package commit, and environment/world-generation integration when authoritative modules exist. The current branch still has no authoritative environment, world-generation or expedition modules to integrate.
 
