@@ -25,7 +25,7 @@ export function createCassandraRuntime({
       createInputSystem({ inputController }),
       createUnitSystem({ definitionLookup: getDefinition }),
       createColonyControlSystem(),
-      createCassandraWorldSessionSystem(),
+      createCassandraWorldSessionSystem({ isPackageApplied }),
       createCassandraExpeditionProjectionSystem()
     ],
     simulationTasks: [{
