@@ -326,7 +326,8 @@ export class SpatialComposition {
     return Object.freeze([...ids].map((key) => this.#contents.get(key)).filter(Boolean)
       .sort((a, b) => a.categoryId.localeCompare(b.categoryId) || a.contentId.localeCompare(b.contentId)));
   }
-  addCellContent({ contentId = null, worldId, cell, categoryId, layerId = null, payload = {} } = {}) {\n    this.#assertWritable();
+  addCellContent({ contentId = null, worldId, cell, categoryId, layerId = null, payload = {} } = {}) {
+    this.#assertWritable();
     const world = this.#requireGridWorld(worldId), point = this.#cell(cell, world);
     const cat = category(categoryId), layer = layerId === null ? null : category(layerId, "Layer ID");
     const contentKey = contentId === null ? this.#newId() : id(contentId, "Content ID");
