@@ -126,7 +126,7 @@ Tasks:
 
 ### Slice 1 — Grid Geometry primitives
 
-<badge>Implemented · CI passed 2026-11-15</badge>
+**Status:** Implemented and verified 2026-11-15.
 
 **Files added:**
 - `engine/spatial/grid-geometry.js`.
@@ -527,7 +527,7 @@ The proposal specifies:
 
 | Checkpoint | Required review |
 |---|---|
-| C0 — Design closure | Phase 3 Steps 1–10 reviewed; blocking questions resolved; explicit implementation approval |
+| C0 — Scoped design closure | Per-slice contracts closed before execution; downstream design gates remain separate; explicit user authorization required for each implementation scope |
 | C1 — Geometry | **Passed 2026-11-15** — geometry tests and full Core/host CI green; existing placement semantics untouched |
 | C2 — Composition | Ownership, footprints, overlap facts, atomic occupancy and sparse storage |
 | C3 — Queries | Read-only behavior, deterministic results, lifecycle and bounds outcomes |
