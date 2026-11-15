@@ -221,7 +221,7 @@ This contract does not:
 - Authorize source/runtime code changes, PR creation, merge or updates to `main`.
 
 
-## 14. Source-audited persistence integration
+## 13. Source-audited persistence integration
 
 **Status:** Working implementation proposal based on source audit (2026-11-15); no runtime implementation approved.
 
@@ -328,7 +328,7 @@ Grid-backed mutation must be routed through the Placement Coordinator. Direct Wo
 
 These are technical implementation details for the relevant implementation slice; they do not require another user decision at this stage.
 
-## 13. Related contracts
+## 14. Related contracts
 
 - `world-lifecycle-contract-proposal.md`
 - `grid-geometry-contract-proposal.md`
