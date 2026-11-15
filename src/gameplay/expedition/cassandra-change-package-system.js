@@ -444,6 +444,8 @@ export function createCassandraChangePackageCoordinator({
   return Object.freeze({
     async stage(changePackage, { checkpoint } = {}) {
       const immutablePackage = deepFreeze(cloneJson(changePackage));
+      const immutableCheckpoint = checkpoint && typeof checkpoint === "object"
+        ? deepFreeze(cloneJson(checkpoint)) : checkpoint;
       await verifyCassandraChangePackage(immutablePackage);
       const snapshot = await loadSnapshot();
       const pendingExisting = snapshot.pendingPackages.find((entry) => entry.packageId === immutablePackage.packageId);
@@ -458,8 +460,8 @@ export function createCassandraChangePackageCoordinator({
         }
         return Object.freeze({ status: appliedExisting ? "alreadyApplied" : "alreadyPending" });
       }
-      if (!checkpoint || typeof checkpoint !== "object"
-        || !checkpoint.majorState || typeof checkpoint.majorState !== "object"
+      if (!immutableCheckpoint || typeof immutableCheckpoint !== "object"
+        || !immutableCheckpoint.majorState || typeof immutableCheckpoint.majorState !== "object"
         || !checkpoint.majorState.aggregates || typeof checkpoint.majorState.aggregates !== "object") {
         fail("EXPEDITION_CHECKPOINT_REQUIRED",
           "The full expedition-start Major State checkpoint, including aggregates, must be retained with the pending package.");
@@ -471,12 +473,12 @@ export function createCassandraChangePackageCoordinator({
             { aggregateId: baseline.aggregateId });
         }
       }
-      const checkpointDigest = await sha256(canonicalStringify(checkpoint));
+      const checkpointDigest = await sha256(canonicalStringify(immutableCheckpoint));
       snapshot.pendingPackages.push({
         packageId: immutablePackage.packageId,
         digest: immutablePackage.digest,
         changePackage: cloneState(immutablePackage),
-        checkpoint: cloneState(checkpoint),
+        checkpoint: cloneState(immutableCheckpoint),
         checkpointDigest,
         status: "pending",
         resolvedResultIdentities: null,
