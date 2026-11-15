@@ -1,11 +1,11 @@
 # Cassandra Temporary World Result & Change Package Contract — Working Proposal
 
-**Status:** Working proposal; the delta/change-package concept and expedition outcomes are agreed, protocol details are proposed and require review  
+**Status:** Protocol direction and technical defaults approved for implementation on `work`; authoritative campaign storage adapter and full gameplay operation registry remain implementation gates  
 **Branch:** `work`  
 **Scope:** Cassandra-owned protocol for resolving a Temporary World encounter and applying its results to persistent campaign/Main World state  
 **Related Engine contracts:** World Lifecycle, Grid Geometry, Spatial Composition, Spatial Placement Integration
 
-This document specifies the Cassandra-side boundary between a temporary encounter runtime and persistent campaign/location state. It does not define a generic Engine transfer API. It is a design proposal only: no source/runtime changes, save-format changes, PR merge or update to `main` are authorized.
+This document specifies the Cassandra-side boundary between a temporary encounter runtime and persistent campaign/location state. It does not define a generic Engine transfer API. The Change Package / Change Buffer / Major State direction and defaults in Section 14 are approved for implementation on `work`. No PR merge or update to `main` is authorized.
 
 ## 1. Purpose and non-negotiable direction
 
@@ -553,7 +553,7 @@ Legacy `.cass` migration and the mapping of existing map/environment data into S
 
 ## 14. Recommended technical defaults for implementation review
 
-**Status:** Proposed implementation defaults derived from the agreed package invariants; not yet an approved serialized schema or runtime API.
+**Status:** Approved implementation defaults for the first Cassandra protocol version; serialized schema and runtime API remain versioned and may evolve only through explicit schema changes.
 
 ### 14.1 Canonical package envelope
 
@@ -703,3 +703,28 @@ The recommended default is a Cassandra-owned, all-or-nothing, version-checked, i
 - `spatial-placement-integration-contract-proposal.md`
 - `spatial-composition-contract-proposal.md`
 - `movement-collision-contract-proposal.md`
+
+
+## 17. Implementation status (2026-11-15)
+
+The first Cassandra-owned protocol foundation is now implemented on `work` in
+`src/gameplay/expedition/cassandra-change-package-system.js`, with unit coverage in
+`tests/unit/cassandra-change-package-system.test.js`.
+
+Implemented foundations:
+- Canonical JSON normalization and SHA-256 package integrity verification.
+- Versioned immutable package envelopes, explicit dispositions, per-aggregate baselines and typed operation dependencies.
+- Durable pending Change Buffer staging with an expedition-start checkpoint.
+- Candidate State construction from a detached Major State copy.
+- Per-aggregate conflict checks, handler-based typed operation validation/application and one revision increment per touched aggregate.
+- Stable result-key identity mapping checkpointed into the pending buffer before promotion.
+- Idempotent Applied ledger checks and retry behavior.
+- A deliberately strict storage boundary requiring a whole-campaign-snapshot atomic replacement capability.
+
+Not yet implemented or proven:
+- No production campaign-save adapter currently satisfies the atomic replacement contract. The existing `dev-lab-workspace` .cass adapter is explicitly not accepted by this coordinator.
+- No authoritative Cassandra aggregate model or complete domain operation registry is wired into the runtime.
+- No campaign projection builder, location-record store, expedition End/Abandon workflow, Temporary World disposal gate or recovery UI is integrated.
+- Unit tests have been added but the repository test suite and browser runtime still require execution/verification.
+
+The coordinator must remain unwired to the current workspace adapter until a real campaign persistence backend proves the single-snapshot atomic promotion guarantee. A storage implementation that cannot make that guarantee must fail closed.
