@@ -9,7 +9,7 @@ import { createDevLabWorkspaceSessionController } from "./workspace-session-cont
 import { getDefinition, listDefinitionIndex, getCategories, loadDefinitionDetail } from "../../engine/database/definition-registry.js";
 import { createViewportInputController } from "../../shared/input/viewport-input-controller.js";
 import { createApplicationRuntimeHost } from "../../shared/application/runtime-host.js";
-import { querySpatialCell, querySpatialNeighbors, querySpatialRadius, querySpatialFootprint } from "./spatial-inspector.js";
+import { querySpatialCell, querySpatialNeighbors, querySpatialRadius, querySpatialFootprint, querySpatialRegion } from "./spatial-inspector.js";
 import { SpatialTestController } from "./spatial-test-controller.js";
 
 const views = [...document.querySelectorAll("[data-view]")];
@@ -33,6 +33,14 @@ const spatialNeighborsEightButton = document.querySelector("#spatial-neighbors-e
 const spatialRadiusManhattanButton = document.querySelector("#spatial-radius-manhattan");
 const spatialRadiusChebyshevButton = document.querySelector("#spatial-radius-chebyshev");
 const spatialFootprintButton = document.querySelector("#spatial-footprint");
+const spatialRegionMinX = document.querySelector("#spatial-region-min-x");
+const spatialRegionMinY = document.querySelector("#spatial-region-min-y");
+const spatialRegionMaxX = document.querySelector("#spatial-region-max-x");
+const spatialRegionMaxY = document.querySelector("#spatial-region-max-y");
+const spatialRegionCategories = document.querySelector("#spatial-region-categories");
+const spatialRegionLayers = document.querySelector("#spatial-region-layers");
+const spatialRegionKinds = document.querySelector("#spatial-region-kinds");
+const spatialRegionQueryButton = document.querySelector("#spatial-region-query");
 const pointerStatus = document.querySelector("#pointer-status");
 const viewportPanel = document.querySelector(".viewport-panel");
 const canvas = document.querySelector("#world-canvas");
@@ -287,6 +295,7 @@ function updateSpatialTestControls() {
   spatialRadiusManhattanButton.disabled = !state.paused || !state.selectedSpatialCell;
   spatialRadiusChebyshevButton.disabled = !state.paused || !state.selectedSpatialCell;
   spatialFootprintButton.disabled = !state.paused || !state.selectedSpatialEntityId;
+  spatialRegionQueryButton.disabled = !state.paused || !state.spatialApi || !state.worldRegistry;
 }
 
 function showSpatialQuery(label, result) {
@@ -315,6 +324,40 @@ function querySelectedSpatialRadius(metric) {
     showSpatialQuery(`RADIUS 2 · ${metric.toUpperCase()} · ${worldId}`, result);
   } catch (error) {
     showSpatialQuery("RADIUS QUERY ERROR", { code: error.code ?? null, message: error.message });
+  }
+}
+
+function querySelectedSpatialRegion() {
+  const worldId = state.worldRegistry?.activeWorldId;
+  if (!state.paused || !state.spatialApi || !worldId) return;
+  const bounds = {
+    min: { x: Number(spatialRegionMinX.value), y: Number(spatialRegionMinY.value) },
+    maxExclusive: { x: Number(spatialRegionMaxX.value), y: Number(spatialRegionMaxY.value) }
+  };
+  if (Object.values(bounds.min).some((value) => !Number.isSafeInteger(value))
+    || Object.values(bounds.maxExclusive).some((value) => !Number.isSafeInteger(value))) {
+    showSpatialQuery("REGION QUERY ERROR", { code: "INVALID_REGION_BOUNDS", message: "All region bounds must be integer grid coordinates." });
+    return;
+  }
+  const parseFilter = (input) => {
+    const values = input.value.split(",").map((value) => value.trim()).filter(Boolean);
+    return values.length ? [...new Set(values)] : null;
+  };
+  try {
+    const result = querySpatialRegion(state.spatialApi, worldId, {
+      type: "rectangle",
+      ...bounds
+    }, {
+      categories: parseFilter(spatialRegionCategories),
+      layers: parseFilter(spatialRegionLayers),
+      kinds: parseFilter(spatialRegionKinds)
+    });
+    showSpatialQuery(
+      `REGION · ${worldId} · [${bounds.min.x},${bounds.min.y}] → [${bounds.maxExclusive.x},${bounds.maxExclusive.y})`,
+      result
+    );
+  } catch (error) {
+    showSpatialQuery("REGION QUERY ERROR", { code: error.code ?? null, message: error.message });
   }
 }
 
@@ -403,6 +446,10 @@ function inspectSpatialCell(cell) {
   try {
     const inspection = querySpatialCell(state.spatialApi, worldId, cell);
     state.selectedSpatialCell = inspection.cell;
+    spatialRegionMinX.value = String(inspection.cell.x);
+    spatialRegionMinY.value = String(inspection.cell.y);
+    spatialRegionMaxX.value = String(inspection.cell.x + 1);
+    spatialRegionMaxY.value = String(inspection.cell.y + 1);
     spatialCellLabel.textContent = `${worldId} · (${inspection.cell.x}, ${inspection.cell.y})`;
     spatialCellData.textContent = JSON.stringify({
       contents: inspection.contents,
@@ -628,6 +675,7 @@ spatialNeighborsEightButton.addEventListener("click", () => querySelectedSpatial
 spatialRadiusManhattanButton.addEventListener("click", () => querySelectedSpatialRadius("manhattan"));
 spatialRadiusChebyshevButton.addEventListener("click", () => querySelectedSpatialRadius("chebyshev"));
 spatialFootprintButton.addEventListener("click", querySelectedSpatialFootprint);
+spatialRegionQueryButton.addEventListener("click", querySelectedSpatialRegion);
 moveTestEntityButton.addEventListener("click", toggleSpatialTestMoveMode);
 removeTestEntityButton.addEventListener("click", removeSelectedSpatialTestEntity);
 
