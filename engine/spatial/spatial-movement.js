@@ -79,7 +79,7 @@ export class SpatialMovement {
 
     const proposedTarget = freezeTarget(target.worldId, target.anchor, footprint, orientation, cells);
     if (sameOccupancy(source, proposedTarget)) {
-      return Object.freeze({ status: "unchanged", entityId, source, target: proposedTarget });
+      return Object.freeze({ status: "unchanged", entityId, worldId: source.worldId, anchor: source.anchor, cells: source.cells, source, current: source, target: proposedTarget });
     }
 
     let observations;
@@ -90,7 +90,7 @@ export class SpatialMovement {
     }
     const overlaps = Object.freeze(observations.entities.filter((item) => item.entityId !== entityId));
     const proposal = Object.freeze({
-      entityId, entityKind: entity.kind, source, target: proposedTarget,
+      entityId, entity, entityKind: entity.kind, source, current: source, target: proposedTarget,
       overlaps, cells: observations.cells, contents: observations.contents
     });
 
@@ -125,7 +125,7 @@ export class SpatialMovement {
     if (!decision.accepted) {
       return Object.freeze({
         status: "rejected", code: decision.code ?? "POLICY_REJECTED",
-        reason: decision.reason, entityId, source, target: proposedTarget
+        reason: decision.reason, entityId, worldId: target.worldId, anchor: proposedTarget.anchor, source, target: proposedTarget
       });
     }
 
@@ -135,7 +135,7 @@ export class SpatialMovement {
         footprint: proposedTarget.footprint, orientation: proposedTarget.orientation
       });
       return Object.freeze({
-        status: "moved", entityId, source, target: proposedTarget,
+        status: "moved", entityId, worldId: proposedTarget.worldId, anchor: proposedTarget.anchor, cells: proposedTarget.cells, source, current: committed.occupancy, target: proposedTarget,
         previous: committed.previous, current: committed.current, occupancy: committed.occupancy
       });
     } catch (error) {
