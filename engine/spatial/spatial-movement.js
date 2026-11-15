@@ -1,4 +1,4 @@
-import { deriveFootprintCells, SpatialCompositionError } from "./spatial-composition.js";
+import { deriveFootprintCells } from "./spatial-composition.js";
 import { PlacementCoordinatorError } from "./placement-coordinator.js";
 
 export class SpatialMovementError extends Error {
