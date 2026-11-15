@@ -39,6 +39,7 @@ jobs:
           node --check dev-lab/application/standalone-entry.js
           node --check dev-lab/application/create-dev-lab-runtime.js
           node --check dev-lab/application/spatial-inspector.js
+          node --check tests/unit/dev-lab-hosted-spatial-acceptance.test.js
           node --check dev-lab/application/spatial-test-controller.js
           node --check engine/runtime/create-game-runtime.js
           node --check engine/input/input-system.js
