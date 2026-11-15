@@ -518,3 +518,35 @@ test("coordinator refuses workspace or non-atomic storage adapters", () => {
     { code: "ATOMIC_CAMPAIGN_STORAGE_REQUIRED" }
   );
 });
+test("coordinator rejects a read-back snapshot that differs from the committed candidate", async () => {
+  const storage = makeStorage();
+  const originalLoad = storage.loadCampaignSnapshot.bind(storage);
+  const originalWrite = storage.writeCampaignSnapshotAtomic.bind(storage);
+  let corruptReadback = false;
+  storage.writeCampaignSnapshotAtomic = async (...args) => {
+    const result = await originalWrite(...args);
+    corruptReadback = true;
+    return result;
+  };
+  storage.loadCampaignSnapshot = async () => {
+    const loaded = await originalLoad();
+    if (corruptReadback) {
+      corruptReadback = false;
+      loaded.snapshot.majorState.revision += 1;
+    }
+    return loaded;
+  };
+  const coordinator = createCassandraChangePackageCoordinator({
+    storage,
+    operationHandlers: handlers,
+    validateReturnManifest: () => true,
+    resolveResultIdentities
+  });
+  const changePackage = await makePackage();
+  await assert.rejects(
+    () => coordinator.stage(changePackage, { checkpoint: { majorState: storage.snapshot.majorState } }),
+    { code: "CAMPAIGN_COMMIT_VERIFICATION_FAILED" }
+  );
+  assert.equal(storage.snapshot.pendingPackages.length, 1,
+    "the underlying atomic write remains intact even when read-back verification refuses to confirm it");
+});
