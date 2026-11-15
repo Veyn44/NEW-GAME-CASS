@@ -890,7 +890,12 @@ unmodeled systems were introduced.
   changing the clone's prototype.
 - Snapshot cloning rejects sparse array entries and accessor properties
   instead of silently normalizing holes or executing getters during cloning.
-- Added focused regression tests for all of the above cases.
+- The Change Package coordinator now reopens the campaign save after each
+  atomic write and compares the complete canonical snapshot with the intended
+  candidate, rather than accepting a matching storage revision alone.
+- Added focused regression tests for all of the above cases, including a
+  storage adapter that reports a durable write but returns a mismatched
+  read-back snapshot.
 - Existing guarantees remain unchanged: one complete campaign snapshot per
   IndexedDB record, strict-durability readwrite transactions, storage-revision
   compare-and-swap, fail-closed handling of corrupt records, and isolation of
@@ -899,10 +904,10 @@ unmodeled systems were introduced.
 ### Verification
 
 - Latest relevant workflow: [GitHub Actions run
-  #43764823569](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43764823569),
-  for commit `6ece574358e4060478e876c0fcd9147955713965`.
+  #43764917932](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43764917932),
+  for commit `1af68932a9ea185bfce96a62d2518d8e6ed1e652`.
 - Core: **205/205 passed**.
-- Host/unit: **253/253 passed**.
+- Host/unit: **254/254 passed**.
 - Browser entry-point syntax check: passed.
 - No manual real-browser IndexedDB durability/crash-reopen acceptance has been
   performed; deterministic adapter tests do not replace that check.
