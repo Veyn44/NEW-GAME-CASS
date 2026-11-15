@@ -92,10 +92,10 @@ export class PlacementCoordinator {
     return Object.freeze({
       id, schemaVersion: 1, required: true, order,
       captureSnapshot: () => { this.#assertHealthy(); const snapshot = Object.freeze({ version: 1, worldContext: this.#worldContext.captureSnapshot(), spatialComposition: this.#spatial.captureSnapshot() }); this.#validateSnapshot(snapshot); return snapshot; },
-      validateSnapshot: (snapshot) => { try { this.#validateSnapshot(snapshot,{validateWorlds:false}); this.#worldContext.prepareRestore(snapshot.worldContext,{deferReferenceValidation:true,authority:PLACEMENT_AUTHORITY}); this.#spatial.prepareRestore(snapshot.spatialComposition,{deferWorldValidation:true}); return true; } catch { return false; } },
+      validateSnapshot: (snapshot) => { try { this.#validateSnapshot(snapshot,{validateWorlds:false}); this.#worldContext.prepareRestore(snapshot.worldContext,{deferReferenceValidation:true,authority:PLACEMENT_AUTHORITY}); this.#spatial.prepareRestore(snapshot.spatialComposition,{deferWorldValidation:true,authority:PLACEMENT_AUTHORITY}); return true; } catch { return false; } },
       prepareRestore: (snapshot) => {
         this.#assertHealthy(); this.#validateSnapshot(snapshot,{validateWorlds:false});
-        const worldTx = this.#worldContext.prepareRestore(snapshot.worldContext,{deferReferenceValidation:true,authority:PLACEMENT_AUTHORITY}), spatialTx = this.#spatial.prepareRestore(snapshot.spatialComposition,{deferWorldValidation:true});
+        const worldTx = this.#worldContext.prepareRestore(snapshot.worldContext,{deferReferenceValidation:true,authority:PLACEMENT_AUTHORITY}), spatialTx = this.#spatial.prepareRestore(snapshot.spatialComposition,{deferWorldValidation:true,authority:PLACEMENT_AUTHORITY});
         let committed = false;
         return Object.freeze({
           commit: () => {
