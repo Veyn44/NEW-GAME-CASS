@@ -125,10 +125,16 @@ export class IndexedDbCampaignSaveAdapter {
     if (this.#opening) return this.#opening;
     this.#opening = new Promise((resolve, reject) => {
       let request;
+      let settled = false;
+      const rejectOnce = (error) => {
+        if (settled) return;
+        settled = true;
+        reject(error);
+      };
       try {
         request = this.#indexedDB.open(this.#databaseName, this.#databaseVersion);
       } catch (error) {
-        reject(new IndexedDbCampaignSaveError("INDEXEDDB_OPEN_FAILED", "Could not open the campaign database.", error));
+        rejectOnce(new IndexedDbCampaignSaveError("INDEXEDDB_OPEN_FAILED", "Could not open the campaign database.", error));
         return;
       }
       request.onupgradeneeded = () => {
@@ -138,7 +144,15 @@ export class IndexedDbCampaignSaveAdapter {
         }
       };
       request.onsuccess = () => {
-        this.#database = request.result;
+        const database = request.result;
+        // A blocked request may still succeed later, after the caller has
+        // already received a rejection. Never cache that late connection.
+        if (settled) {
+          database.close();
+          return;
+        }
+        settled = true;
+        this.#database = database;
         this.#database.onversionchange = () => {
           this.#database?.close();
           this.#database = null;
@@ -146,10 +160,10 @@ export class IndexedDbCampaignSaveAdapter {
         };
         resolve(this.#database);
       };
-      request.onerror = () => reject(new IndexedDbCampaignSaveError(
+      request.onerror = () => rejectOnce(new IndexedDbCampaignSaveError(
         "INDEXEDDB_OPEN_FAILED", "Could not open the campaign database.", request.error
       ));
-      request.onblocked = () => reject(new IndexedDbCampaignSaveError(
+      request.onblocked = () => rejectOnce(new IndexedDbCampaignSaveError(
         "INDEXEDDB_OPEN_BLOCKED", "Another tab is blocking the campaign database upgrade."
       ));
     }).finally(() => {
