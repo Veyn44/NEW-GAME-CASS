@@ -118,6 +118,8 @@ The following gameplay behavior has been established in the brainstorm. These ar
 - A physical location does not change while it is not active. No background simulation or elapsed-time catch-up is currently intended.
 
 **Encounter clear and regenerated entities**
+- Clear means the encounter/location is safe: it has been cleared of its hostile encounter threat and is ready for further scavenging, mining, or exploration. Clear does not mean the location is exhausted, completed, retired, or unavailable.
+- Not Clear means the location may still be dangerous; enemies may be regenerated on a later visit according to its rules.
 - For the current Cassandra design, Clear is a result for the entire encounter/location, not separate rooms or sectors.
 - If the encounter is Clear, enemies do not respawn on a later visit.
 - If it is Not Clear, enemies may be regenerated on a later visit according to the location's generation rules. Individual enemy instances are not persisted as long-lived entities.
@@ -156,6 +158,8 @@ The following gameplay behavior has been established in the brainstorm. These ar
 - A discovered location remains eligible for another visit unless the player explicitly marks it as Done.
 - A discovered location remains eligible for another visit unless the player explicitly marks it as Done.
 - Marking a location Done is an optional player decision, not an automatic consequence of visiting or clearing it.
+- Done means the player has voluntarily and permanently retired the location from further visits. Once Done, the player cannot return there. It is distinct from Clear: Clear means safe and available for continued work; Done means closed to future expeditions.
+- A possible Cassandra gameplay rule is a cap on the number of detailed/open scanned locations the player may retain. If the cap is reached, the player would have to mark one or more existing locations Done before scanning another. This is currently a proposal to explore, not a finalized limit or rule.
 - A Done location can no longer be selected for another expedition.
 - When marked Done, its detailed encounter/location record may be discarded because the player has explicitly retired that location.
 - The universe map may still retain the location's lightweight identity/marker so the universe continues to know that the location exists; this is distinct from retaining its detailed generated world state.
@@ -219,7 +223,8 @@ Do not change the existing World Registry contract until this is resolved.
 - **Open:** Which minimal location identity/metadata remains on the universe map after a location is marked Done.
 - **Open:** Exact visual and interaction behavior of each navigation-map level, including how the player drills down/up and what information each cell displays.
 - **Open:** Exact compact data format and minimum fields for a scanned system record.
-- **Open:** Whether player actions 'discard' and 'Done' are the same operation or distinct choices, and exactly what map information remains after each.
+- **Open:** Whether discarding a scan record is a separate action from Done, and exactly what map information remains after each.
+- **Open:** Whether to impose a cap on detailed/open scanned locations, what counts toward the cap, and how the player chooses locations to retire.
 - **Open:** Whether the system-level minimum of one asteroid is a separate system encounter/location or must be associated with one of the planets.
 - **Open:** Exact landing/placement flow and whether it is automatic or player-selected.
 
@@ -444,6 +449,10 @@ No implementation starts from this section until the complete specification is a
 ---
 
 ## Current decisions
+
+- **Agreed Cassandra meaning:** Clear means safe/cleared and ready for further scavenging, mining, or exploration; it does not retire or exhaust the location.
+- **Agreed Cassandra meaning:** Done is a voluntary player decision that permanently prevents returning to that location. Clear and Done are separate states with different meanings.
+- **Proposed gameplay rule:** Limit the number of detailed/open scanned locations; when at the cap, the player may need to mark an existing location Done before scanning another. Exact cap and behavior remain undecided.
 
 - **Cassandra world roles — Agreed:** Cassandra has a persistent main colony world and a temporary expedition/encounter world.
 - **Concurrent worlds — Agreed:** Engine must support at least one persistent and one temporary world at the same time. This is not a hard maximum of two worlds.
