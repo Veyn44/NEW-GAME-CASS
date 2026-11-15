@@ -26,6 +26,7 @@ jobs:
           node --check dev-lab/application/application-shell.js
           node --check dev-lab/application/standalone-entry.js
           node --check dev-lab/application/create-dev-lab-runtime.js
+          node --check dev-lab/application/spatial-inspector.js
           node --check engine/runtime/create-game-runtime.js
           node --check engine/input/input-system.js
           node --check dev-lab/presentation/dev-world-preview.js
@@ -37,4 +38,5 @@ jobs:
           node --check shared/application/definition-catalog-controller.js
           node --check shared/presentation/world-viewport.js
           node --check shared/presentation/world-viewport-model.js
+          node --check shared/presentation/world-viewport.js
           node --check shared/input/viewport-input-controller.js
