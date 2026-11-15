@@ -199,118 +199,118 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
       }
       temporaryDisposalInProgress = true;
       try {
-      commitPendingStepIfSuccessful();
-      if (temporaryWorldId === null) {
-        throw new CassandraWorldSessionError("NO_TEMPORARY_WORLD", "There is no Temporary World to complete.");
-      }
-      if (mainWorldId === null || worlds.activeWorldId !== mainWorldId) {
-        throw new CassandraWorldSessionError("MAIN_WORLD_MUST_BE_ACTIVE",
-          "Return to the Main World before completing and disposing the Temporary World.");
-      }
-      if (typeof isPackageApplied !== "function") {
-        throw new CassandraWorldSessionError("PACKAGE_APPLICATION_VERIFIER_REQUIRED",
-          "Temporary World disposal requires an authoritative Applied ledger verifier.");
-      }
-      assertWorldId(packageId, "Applied Change Package ID");
-      if (typeof digest !== "string" || !/^[a-f0-9]{64}$/.test(digest)) {
-        throw new CassandraWorldSessionError("INVALID_PACKAGE_DIGEST",
-          "Temporary World disposal requires the exact applied Change Package digest.");
-      }
-      if (await isPackageApplied(packageId, digest) !== true) {
-        throw new CassandraWorldSessionError("CHANGE_PACKAGE_NOT_APPLIED",
-          "Temporary World cannot be disposed until its exact Change Package is durably applied.",
-          { packageId });
-      }
-
-      const id = temporaryWorldId;
-      // Cleanup handlers are two-phase: prepare must validate and return a
-      // commit callback without mutating live state. This keeps a failed
-      // preflight from partially disposing the Temporary World.
-      const cleanupCommits = [];
-      for (const handler of temporaryWorldCleanupHandlers) {
-        const commit = handler(Object.freeze({
-          phase: "prepare", packageId, digest, temporaryWorldId: id
-        }));
-        if (commit && typeof commit.then === "function") {
-          throw new CassandraWorldSessionError("ASYNC_TEMPORARY_CLEANUP_PREPARATION",
-            "Temporary World cleanup preparation must be synchronous.");
+        commitPendingStepIfSuccessful();
+        if (temporaryWorldId === null) {
+          throw new CassandraWorldSessionError("NO_TEMPORARY_WORLD", "There is no Temporary World to complete.");
         }
-        if (typeof commit !== "function") {
-          throw new CassandraWorldSessionError("INVALID_TEMPORARY_CLEANUP_PLAN",
-            "Temporary World cleanup handlers must return a commit function during prepare.");
+        if (mainWorldId === null || worlds.activeWorldId !== mainWorldId) {
+          throw new CassandraWorldSessionError("MAIN_WORLD_MUST_BE_ACTIVE",
+            "Return to the Main World before completing and disposing the Temporary World.");
         }
-        cleanupCommits.push(commit);
-      }
+        if (typeof isPackageApplied !== "function") {
+          throw new CassandraWorldSessionError("PACKAGE_APPLICATION_VERIFIER_REQUIRED",
+            "Temporary World disposal requires an authoritative Applied ledger verifier.");
+        }
+        assertWorldId(packageId, "Applied Change Package ID");
+        if (typeof digest !== "string" || !/^[a-f0-9]{64}$/.test(digest)) {
+          throw new CassandraWorldSessionError("INVALID_PACKAGE_DIGEST",
+            "Temporary World disposal requires the exact applied Change Package digest.");
+        }
+        if (await isPackageApplied(packageId, digest) !== true) {
+          throw new CassandraWorldSessionError("CHANGE_PACKAGE_NOT_APPLIED",
+            "Temporary World cannot be disposed until its exact Change Package is durably applied.",
+            { packageId });
+        }
 
-      if (worlds.has(id)) {
-        const scopeId = `world:${id}`;
-        const world = worlds.get(id);
-        const scopedEntities = entities.list({ scope: "scoped", scopeId });
-        // Validate every scoped placement before removing even one Unit.
-        for (const entity of scopedEntities) {
-          if (entity.status !== "active" && entity.status !== "stored") continue;
-          const placement = worldContext.getPlacement(entity.id);
-          if (placement?.type === "world" && placement.worldId !== id) {
-            throw new CassandraWorldSessionError("TEMPORARY_ENTITY_ESCAPED_WORLD",
-              "A Temporary World-scoped entity was placed in another World and must be reconciled before disposal.",
-              { entityId: entity.id, worldId: placement.worldId });
+        const id = temporaryWorldId;
+        // Cleanup handlers are two-phase: prepare must validate and return a
+        // commit callback without mutating live state. This keeps a failed
+        // preflight from partially disposing the Temporary World.
+        const cleanupCommits = [];
+        for (const handler of temporaryWorldCleanupHandlers) {
+          const commit = handler(Object.freeze({
+            phase: "prepare", packageId, digest, temporaryWorldId: id
+          }));
+          if (commit && typeof commit.then === "function") {
+            throw new CassandraWorldSessionError("ASYNC_TEMPORARY_CLEANUP_PREPARATION",
+              "Temporary World cleanup preparation must be synchronous.");
           }
-        }
-        const placementsInWorld = worldContext.listPlacements({ worldId: id });
-        for (const placement of placementsInWorld) {
-          const entity = entities.get(placement.entityId);
-          if (!entity || entity.scope !== "scoped" || entity.scopeId !== scopeId) {
-            throw new CassandraWorldSessionError("PERSISTENT_ENTITY_IN_TEMPORARY_WORLD",
-              "Temporary World disposal refuses to remove a placement not owned by this Temporary World scope.",
-              { worldId: id, entityId: placement.entityId });
+          if (typeof commit !== "function") {
+            throw new CassandraWorldSessionError("INVALID_TEMPORARY_CLEANUP_PLAN",
+              "Temporary World cleanup handlers must return a commit function during prepare.");
           }
-        }
-        for (const occupancy of spatial.listEntityOccupancies({ worldId: id })) {
-          const entity = entities.get(occupancy.entityId);
-          if (!entity || entity.scope !== "scoped" || entity.scopeId !== scopeId) {
-            throw new CassandraWorldSessionError("PERSISTENT_OCCUPANCY_IN_TEMPORARY_WORLD",
-              "Temporary World disposal refuses to remove occupancy not owned by this Temporary World scope.",
-              { worldId: id, entityId: occupancy.entityId });
-          }
+          cleanupCommits.push(commit);
         }
 
-        for (const unit of unitApi.listUnits()) {
-          if (unit.placement?.type === "world" && unit.placement.worldId === id) {
-            unitApi.removeUnit(unit.id);
+        if (worlds.has(id)) {
+          const scopeId = `world:${id}`;
+          const world = worlds.get(id);
+          const scopedEntities = entities.list({ scope: "scoped", scopeId });
+          // Validate every scoped placement before removing even one Unit.
+          for (const entity of scopedEntities) {
+            if (entity.status !== "active" && entity.status !== "stored") continue;
+            const placement = worldContext.getPlacement(entity.id);
+            if (placement?.type === "world" && placement.worldId !== id) {
+              throw new CassandraWorldSessionError("TEMPORARY_ENTITY_ESCAPED_WORLD",
+                "A Temporary World-scoped entity was placed in another World and must be reconciled before disposal.",
+                { entityId: entity.id, worldId: placement.worldId });
+            }
           }
-        }
-
-        for (const entity of scopedEntities) {
-          if (entity.status !== "active" && entity.status !== "stored") continue;
-          const placement = worldContext.getPlacement(entity.id);
-          if (placement?.type === "world" && placement.worldId === id && world.grid != null) {
-            placements.removeEntity(entity.id);
-          } else {
-            if (placement) worldContext.removePlacement(entity.id);
-            entities.remove(entity.id);
+          const placementsInWorld = worldContext.listPlacements({ worldId: id });
+          for (const placement of placementsInWorld) {
+            const entity = entities.get(placement.entityId);
+            if (!entity || entity.scope !== "scoped" || entity.scopeId !== scopeId) {
+              throw new CassandraWorldSessionError("PERSISTENT_ENTITY_IN_TEMPORARY_WORLD",
+                "Temporary World disposal refuses to remove a placement not owned by this Temporary World scope.",
+                { worldId: id, entityId: placement.entityId });
+            }
           }
+          for (const occupancy of spatial.listEntityOccupancies({ worldId: id })) {
+            const entity = entities.get(occupancy.entityId);
+            if (!entity || entity.scope !== "scoped" || entity.scopeId !== scopeId) {
+              throw new CassandraWorldSessionError("PERSISTENT_OCCUPANCY_IN_TEMPORARY_WORLD",
+                "Temporary World disposal refuses to remove occupancy not owned by this Temporary World scope.",
+                { worldId: id, entityId: occupancy.entityId });
+            }
+          }
+
+          for (const unit of unitApi.listUnits()) {
+            if (unit.placement?.type === "world" && unit.placement.worldId === id) {
+              unitApi.removeUnit(unit.id);
+            }
+          }
+
+          for (const entity of scopedEntities) {
+            if (entity.status !== "active" && entity.status !== "stored") continue;
+            const placement = worldContext.getPlacement(entity.id);
+            if (placement?.type === "world" && placement.worldId === id && world.grid != null) {
+              placements.removeEntity(entity.id);
+            } else {
+              if (placement) worldContext.removePlacement(entity.id);
+              entities.remove(entity.id);
+            }
+          }
+
+          for (const content of spatial.listContents({ worldId: id })) {
+            spatial.removeCellContent(content.contentId);
+          }
+          if (worldContext.listPlacements({ worldId: id }).length > 0
+            || spatial.listEntityOccupancies({ worldId: id }).length > 0
+            || spatial.listContents({ worldId: id }).length > 0) {
+            throw new CassandraWorldSessionError("TEMPORARY_WORLD_NOT_EMPTY",
+              "Temporary World still has placements, occupancy or content after scoped cleanup.",
+              { worldId: id });
+          }
+          if (worlds.get(id)?.status !== "closed") worlds.closeWorld(id);
+          worlds.unregisterWorld(id);
         }
 
-        for (const content of spatial.listContents({ worldId: id })) {
-          spatial.removeCellContent(content.contentId);
-        }
-        if (worldContext.listPlacements({ worldId: id }).length > 0
-          || spatial.listEntityOccupancies({ worldId: id }).length > 0
-          || spatial.listContents({ worldId: id }).length > 0) {
-          throw new CassandraWorldSessionError("TEMPORARY_WORLD_NOT_EMPTY",
-            "Temporary World still has placements, occupancy or content after scoped cleanup.",
-            { worldId: id });
-        }
-        if (worlds.get(id)?.status !== "closed") worlds.closeWorld(id);
-        worlds.unregisterWorld(id);
-      }
-
-      // Prepared commits are deliberately tiny, synchronous state swaps.
-      for (const commit of cleanupCommits) commit();
-      temporaryWorldId = null;
-      worldTimes.delete(id);
-      pendingStep = null;
-      return api.getState();
+        // Prepared commits are deliberately tiny, synchronous state swaps.
+        for (const commit of cleanupCommits) commit();
+        temporaryWorldId = null;
+        worldTimes.delete(id);
+        pendingStep = null;
+        return api.getState();
       } finally {
         temporaryDisposalInProgress = false;
       }
