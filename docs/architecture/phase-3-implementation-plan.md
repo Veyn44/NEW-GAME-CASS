@@ -598,9 +598,9 @@ The proposal specifies:
 - Current outer `.cass` envelope is `cassandra.save`, fileFormatVersion 1; inner Engine Persistence formatVersion is independently versioned and currently 1.
 - The current shell uses slot `dev-lab-workspace` and state ID `cassandra-dev-lab-workspace`. This is a Dev Lab/workspace save path, not a complete future Cassandra campaign save.
 - Core participants: Entity Registry schema 2 (v1 migration), World Registry schema 2 (v1 migration), World Context schema 1 (no migration).
-- Current runtime participants: Unit schema 1 and Colony Control schema 1.
+- Current runtime participants: Unit schema 2 (continuous movement progress) and Colony Control schema 1.
 - Engine Persistence rejects missing required snapshots. Participant migration cannot synthesize a snapshot when the participant is absent from the save.
-- The current audited runtime does not register a persistent environment/map/world-generation participant. No current workspace save proves compatibility for a full colony environment or campaign.
+- The current audited runtime does not register a persistent environment/map/world-generation participant. No current workspace save proves compatibility for a full colony environment or campaign. Cassandra World Session (schema 1) and Expedition Projection (schema 1) now persist the Main/Temporary session clocks and campaign↔Temporary Unit identity mappings; these do not substitute for a future full campaign save.
 
 **Working contract drafted:** `cass-save-compatibility-migration-proposal.md`
 
@@ -618,7 +618,7 @@ The proposal specifies:
 - Coordinate conversion rules for each legacy spatial source.
 - Platform-specific atomic replacement/backup guarantees and migration UI flow.
 
-**Gate:** Persistence integration (Slice 5) remains blocked until the supported-format policy, actual current save sources and representative fixtures are reviewed and accepted. A universal legacy migration strategy is not a prerequisite.
+**Gate:** The generic spatial persistence participant and Cassandra session/projection participants are implemented and automated-tested. Production campaign persistence remains gated on the supported-format policy, authoritative campaign save identity/participants, representative fixtures and target-browser durability verification. A universal legacy migration strategy is not a prerequisite.
 
 ## 9. Review checkpoints
 
@@ -658,11 +658,16 @@ Any proposed exception must identify the concrete dependency and the smallest re
 
 **Ready for detailed implementation review:** Grid Geometry, Spatial Composition, Spatial Queries, Movement & Collision and the cross-contract responsibility boundaries.
 
-**Still requires implementation-level closure:** Placement Coordinator mechanics; exact composite placement participant schema, fatal rollback behavior and supported-save fixture matrix; Cassandra campaign save identity and authoritative state participants; durable Change Buffer/Applied ledger and atomic promotion against the target storage backend; final typed package operation schemas; and the source audit of future environment, world-generation and expedition paths when those systems are present. Unit/Colony Control movement and viewport integration paths have already been inspected.
+**Still requires implementation-level closure / acceptance:**
+- Browser-target verification of IndexedDB strict transaction durability, cross-tab compare-and-swap, interruption and crash/reopen behavior. The candidate adapter and deterministic test double are implemented; this does not yet prove production-browser durability.
+- The complete supported-save fixture matrix and browser restore/teardown checks for the integrated Engine + Cassandra runtime. Unsupported legacy formats are intentionally rejected unless a narrowly scoped migration is proven from authoritative data.
+- The authoritative Cassandra campaign aggregate model, complete typed domain operation registry, location persistence policy, and user-facing conflict/recovery flow. These are intentionally not being invented in this infrastructure pass; the user and assistant will define them together when that gameplay work is ready.
+- Full End Expedition / Abandon workflow wiring and end-to-end result reconciliation. The Change Package protocol foundation and Temporary World disposal safety gate exist, but they are not a complete player-facing expedition workflow.
+- Browser-level Dev Lab interaction/layout, representative 128×128/256×256 performance measurements, and regression verification for the previously tested environment simulation. The environment simulation source is not present in this branch and has not been modified.
 
-**Compatibility policy:** Backward compatibility with arbitrary old `.cass` versions is not required. Unsupported versions may be rejected safely; selected migrations are optional and explicitly version-scoped.
+**Compatibility policy:** Backward compatibility with arbitrary old `.cass` versions is not required. Unsupported versions may be rejected safely; selected migrations are optional and explicitly version-scoped. Dev Lab workspace saves and future Cassandra campaign saves remain separate identities and formats.
 
-**Current action:** Slices 1, 1b, 2a/2b, 3 and 4 are implemented and CI-verified on `work`. Next proposed work is Slice 5 — persistence and restore integration — which remains a separate scope and requires explicit authorization. No PR merge or `main` update is implied.
+**Current action:** Engine geometry, composition, queries, movement, persistence foundations and Core integration (Slices 1–6) are implemented on `work`; Dev Lab spatial inspection/test integration (Slice 8) is implemented and automated host parity is covered. Cassandra Slice 7 has Main/Temporary World, Unit movement/projection, Change Package, candidate IndexedDB CAS and disposal-safety foundations, but its domain model and player-facing expedition workflow remain deliberately deferred for joint design. Continue with infrastructure hardening, test coverage and documentation consistency; do not invent inventory, health, equipment, resource or disposition rules. No PR merge or `main` update is implied.
 
 
 
