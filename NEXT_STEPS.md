@@ -134,14 +134,17 @@ The exact mode list, public APIs, ownership of camera adapters, and pause/inspec
 
 ### Phase 3 — Complete the Engine foundation from actual requirements
 
-Implement or extract only what the source audit and Phase 1 contracts show is needed:
+Implement or extract only what the source audit and agreed contracts show is needed. Use the [Engine / Cassandra / Dev Lab capability and ownership review](docs/architecture/engine-game-devlab-capability-map.md) as the current working gap map:
 
-1. Generic Entity/world/placement/persistence contracts, extending the existing Core only where a concrete requirement demonstrates a gap.
-2. Database mechanism in Engine, with data definitions supplied by content packages.
-3. General input/action registration and routing.
-4. Control Modes and possession, including camera-mode coordination and general pause behavior.
-5. General presentation/rendering contracts and adapters where required, without making the engine depend on Dev Lab or Cassandra UI.
-6. Focused unit, contract and integration tests for each capability.
+1. Complete the generic world lifecycle contract, including the distinction between existence, loading/readiness, simulation, pause, selection/focus, rendering and disposal.
+2. Design the square-grid geometry, bounds and coordinate contract required by Cassandra; do not assume every Engine world must use a grid until that is decided.
+3. Design authoritative spatial composition/occupancy, extensible contents/categories, multi-cell entity footprints and the first required spatial queries.
+4. Decide whether reusable movement/collision primitives belong in this milestone; Cassandra movement rules and passability policy remain game-owned.
+5. Complete the already-agreed generic input/action routing, Control Modes, possession, camera coordination and general pause/inspection mechanisms.
+6. Complete the Engine-owned database/package mechanism (registries, loading/import contracts, schemas, validation and definition/instance mechanics); content definitions remain supplied by applications/packages.
+7. Extend generic persistence only to support approved Engine state contracts. Cassandra and Dev Lab keep separate save adapters, formats/envelopes and identities; cross-application save compatibility is not required.
+8. Consider generic transactional change application only if a reusable Engine requirement is demonstrated; Cassandra owns expedition result/commit/abandon rules.
+9. Add focused unit, contract and integration tests for each approved capability.
 
 **Important:** the current Core already has generic identity, world and persistence foundations. Do not replace them wholesale. Audit current behavior and preserve its tested contracts.
 
