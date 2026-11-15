@@ -414,7 +414,7 @@ Tasks:
 
 ### Slice 9 — End-to-end acceptance and release gate
 
-**Status:** Automated Core and host suites pass on `work` (205/205 Core, 228/228 host at the latest confirmed run). Multi-world occupancy, Main/Temporary clock behavior, Unit/projection persistence, package retries/CAS, unsupported historical save rejection and Dev Lab/Cassandra host parity have automated coverage. Browser-specific IndexedDB durability, UI interaction/layout, 128×128/256×256 performance measurements and any environment simulation not present in this branch remain open verification items.
+**Status:** Automated Core and host suites pass on `work` (205/205 Core, 228/228 host at the latest confirmed run). Multi-world occupancy, Main/Temporary clock behavior, Unit/projection persistence, package retries/CAS, unsupported historical save rejection and Dev Lab/Cassandra host parity have automated coverage. Browser-specific IndexedDB durability, UI interaction/layout, 128×128/256×256 performance measurements and any environment simulation not present in this branch remain open verification items. The deferred manual checks are recorded in `phase-3-manual-acceptance-checklist.md`.
 
 Tasks:
 - Run all existing Core/application tests plus current-format save tests and safe-rejection tests for unsupported historical `.cass` versions.
