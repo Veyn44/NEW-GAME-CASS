@@ -13,7 +13,7 @@ function normalizeDefinition(definition) {
     attributes = {}, artwork = null, spawnableAs = []
   } = definition;
   for (const [field, value] of Object.entries({ id, name, category })) {
-    if (typeof value !== "string" || !value.trim()) throw new TypeError(`Definition ${field} must be a non-empty string.`);
+    if (typeof value !== "string" || !value.trim()) throw new TypeError("Definition " + field + " must be a non-empty string.");
   }
   if (!Number.isSafeInteger(schemaVersion) || schemaVersion < 1) throw new TypeError("Definition schemaVersion must be a positive safe integer.");
   if (entityType !== null && (typeof entityType !== "string" || !entityType.trim())) throw new TypeError("Definition entityType must be a non-empty string or null.");
@@ -36,12 +36,34 @@ function normalizeDefinition(definition) {
   });
 }
 
+/**
+ * Validates and normalizes the complete batch before mutating the registry.
+ * A malformed or conflicting definition therefore cannot leave a partially
+ * registered package behind.
+ */
+export function registerDefinitions(batch) {
+  if (!Array.isArray(batch)) throw new TypeError("Definitions must be provided as an array.");
+
+  const normalized = batch.map(normalizeDefinition);
+  const batchIds = new Set();
+
+  for (const definition of normalized) {
+    if (batchIds.has(definition.id)) {
+      throw new Error("Duplicate definition ID in registration batch: " + definition.id);
+    }
+    batchIds.add(definition.id);
+    if (definitions.has(definition.id)) {
+      throw new Error("Definition already registered: " + definition.id);
+    }
+  }
+
+  for (const definition of normalized) definitions.set(definition.id, definition);
+  return Object.freeze(normalized);
+}
+
 /** Registers the canonical inspectable definition used by gameplay systems. */
 export function registerDefinition(definition) {
-  const normalized = normalizeDefinition(definition);
-  if (definitions.has(normalized.id)) throw new Error(`Definition already registered: ${normalized.id}`);
-  definitions.set(normalized.id, normalized);
-  return normalized;
+  return registerDefinitions([definition])[0];
 }
 
 /** Full canonical definition for gameplay validation and detail inspection. */

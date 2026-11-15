@@ -44,3 +44,28 @@ test("Engine rejects duplicate IDs and collisions with already registered defini
     definitions: [{ id: "taken", name: "Taken Again", category: "Test" }]
   }), /already registered/);
 });
+
+test("invalid later definition does not leave a partially registered package", () => {
+  clearDefinitionsForTests();
+  clearDefinitionPackagesForTests();
+
+  assert.throws(() => loadDefinitionPackage({
+    id: "test.atomic",
+    definitions: [
+      { id: "valid.first", name: "First", category: "Test" },
+      { id: "invalid.second", name: "", category: "Test" }
+    ]
+  }), /Definition name must be a non-empty string/);
+
+  assert.equal(getDefinition("valid.first"), null);
+  assert.equal(getDefinition("invalid.second"), null);
+
+  const loaded = loadDefinitionPackage({
+    id: "test.atomic",
+    definitions: [
+      { id: "valid.first", name: "First", category: "Test" }
+    ]
+  });
+  assert.equal(loaded.length, 1);
+  assert.equal(getDefinition("valid.first").name, "First");
+});

@@ -1,4 +1,4 @@
-import { getDefinition, registerDefinition } from "./definition-registry.js";
+import { getDefinition, registerDefinitions } from "./definition-registry.js";
 
 const loadedPackages = new Map();
 
@@ -21,24 +21,26 @@ export function loadDefinitionPackage({ id, definitions } = {}) {
     throw new TypeError("Every package definition must have a non-empty id.");
   }
   if (new Set(definitionIds).size !== definitionIds.length) {
-    throw new Error(`Definition package "${packageId}" contains duplicate definition IDs.`);
+    throw new Error('Definition package "' + packageId + '" contains duplicate definition IDs.');
   }
 
   const existingPackage = loadedPackages.get(packageId);
   if (existingPackage) {
     const sameIds = existingPackage.definitionIds.length === definitionIds.length
       && existingPackage.definitionIds.every((definitionId, index) => definitionId === definitionIds[index]);
-    if (!sameIds) throw new Error(`Definition package "${packageId}" was already loaded with different contents.`);
+    if (!sameIds) throw new Error('Definition package "' + packageId + '" was already loaded with different contents.');
     return existingPackage.definitions;
   }
 
   for (const definitionId of definitionIds) {
     if (getDefinition(definitionId)) {
-      throw new Error(`Definition "${definitionId}" is already registered outside package "${packageId}".`);
+      throw new Error('Definition "' + definitionId + '" is already registered outside package "' + packageId + '".');
     }
   }
 
-  const registered = definitions.map((definition) => registerDefinition(definition));
+  // The registry validates and normalizes the full batch before committing
+  // any definition, so a malformed later entry cannot leave a partial package.
+  const registered = registerDefinitions(definitions);
   const result = Object.freeze(registered);
   loadedPackages.set(packageId, Object.freeze({
     definitionIds: Object.freeze([...definitionIds]),
