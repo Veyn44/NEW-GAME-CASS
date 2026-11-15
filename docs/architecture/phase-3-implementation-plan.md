@@ -112,7 +112,7 @@ Tasks:
 1. Review the World Lifecycle, Grid Geometry, Spatial Composition, Movement & Collision, Spatial Query and this Implementation Plan together.
 2. Complete the remaining Phase 3 design areas that are prerequisites: Step 7 ownership/transfer, Step 8 persistence and `.cass` compatibility, and Step 9 integrated acceptance.
 3. Resolve the placement-authority decision in Section 8.
-4. Locate the actual Cassandra movement, environment, world-generation, save/load and temporary-world/expedition code and tests.
+4. Confirm the inspected Unit/Colony Control and viewport paths; locate environment, world-generation and temporary-world/expedition code only if/when those systems exist in the branch.
 5. Record current supported `.cass` format/fixture coverage and expected rejection behavior for unsupported historical versions before adding spatial snapshots.
 6. Run and record the existing Core and application test suites on the untouched baseline.
 
@@ -548,7 +548,7 @@ Any proposed exception must identify the concrete dependency and the smallest re
 
 **Ready for detailed implementation review:** Grid Geometry, Spatial Composition, Spatial Queries, Movement & Collision and the cross-contract responsibility boundaries.
 
-**Still requires implementation-level closure:** Placement Coordinator mechanics; exact composite placement participant schema, fatal rollback behavior and supported-save fixture matrix; Cassandra campaign save identity and authoritative state participants; durable Change Buffer/Applied ledger and atomic promotion against the target storage backend; final typed package operation schemas; and the source audit of actual Cassandra movement, environment, world-generation and expedition paths.
+**Still requires implementation-level closure:** Placement Coordinator mechanics; exact composite placement participant schema, fatal rollback behavior and supported-save fixture matrix; Cassandra campaign save identity and authoritative state participants; durable Change Buffer/Applied ledger and atomic promotion against the target storage backend; final typed package operation schemas; and the source audit of future environment, world-generation and expedition paths when those systems are present. Unit/Colony Control movement and viewport integration paths have already been inspected.
 
 **Compatibility policy:** Backward compatibility with arbitrary old `.cass` versions is not required. Unsupported versions may be rejected safely; selected migrations are optional and explicitly version-scoped.
 
