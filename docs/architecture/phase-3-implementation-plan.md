@@ -1,6 +1,6 @@
 # Phase 3 Physical World — Implementation Plan
 
-**Status:** Working implementation plan; Slice 1 implemented and verified, later slices remain gated  
+**Status:** Slice 1 and Slice 2 (2a/2b) implemented and verified; later query/movement/application slices remain gated  
 **Branch:** `work`  
 **Source audit:** 2026-11-15  
 **Scope:** Implementation sequencing for reusable Engine grid/spatial capabilities and their Cassandra/Dev Lab integration
@@ -198,7 +198,7 @@ Tasks:
 
 **Ownership boundary:** Engine permits overlapping entity footprints; host/game policy decides whether overlap is legal. No pathfinding, passability, collision response or Cassandra movement rules are implemented here.
 
-**Verification:** Final CI checkpoint is recorded in the implementation session; do not infer Cassandra integration from this Engine slice.
+**Verification:** Final CI run `43740335779` passed: Core `205/205`, Host `148/148`, browser syntax check passed. Commit `82ffaea7af17cbc732c1a92adc86ab9a8dcd98fc`. Do not infer Cassandra integration from this Engine slice.
 
 ### Slice 3 — Spatial Query surface
 
@@ -590,5 +590,6 @@ Any proposed exception must identify the concrete dependency and the smallest re
 
 - Placement Coordinator and composite persistence participant implemented on `work`.
 - Grid placement authority is enforced through an internal Engine capability; direct one-sided mutation and restore are rejected.
+- If a coordinated rollback itself fails, Placement Coordinator enters a fatal integrity state and Core pauses the Game Clock through `core.placement-integrity-fault`.
 - Composite snapshots persist WorldContext and Spatial Composition together; derived cell indexes are rebuilt on restore.
 - Cassandra Unit/Colony Control movement, viewport interpolation, environment simulation and world generation were not changed.
