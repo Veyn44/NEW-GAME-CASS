@@ -402,8 +402,11 @@ export async function startCassandraApplication() {
         onRestore() {
           refreshWorldMarkers();
           clearSelection();
-          const world = worlds.get(worlds.activeWorldId);
-          if (world) viewport.resetCameraToWorld(world.dimensions.width);
+          const session = state.worldSessionApi.getState();
+          const mainWorld = worlds.get(session.mainWorldId);
+          const activeWorld = worlds.get(worlds.activeWorldId);
+          if (mainWorld) worldSizeSelect.value = String(mainWorld.dimensions.width);
+          if (activeWorld) viewport.resetCameraToWorld(activeWorld.dimensions.width);
           updateSimulationUi();
         },
         onStatus({ saveStatus: nextSaveStatus, simulationStatus: nextStatus }) {
