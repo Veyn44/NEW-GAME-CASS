@@ -231,7 +231,9 @@ export class SpatialComposition {
       const result = new Set(values.map((value) => category(value, label)));
       return result.size ? result : null;
     };
-    return { categories: normalize(categories, "Category ID"), layers: normalize(layers, "Layer ID"), kinds: normalize(kinds, "Entity kind") };
+    const normalizedKinds = normalize(kinds, "Entity kind");
+    if (normalizedKinds && !this.#entities) throw new SpatialCompositionError("ENTITY_REGISTRY_UNAVAILABLE", "Entity kind filters require an Entity Registry.");
+    return { categories: normalize(categories, "Category ID"), layers: normalize(layers, "Layer ID"), kinds: normalizedKinds };
   }
 
   #matchesKind(entityId, kinds) {
