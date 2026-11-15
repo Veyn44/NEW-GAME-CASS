@@ -73,6 +73,8 @@ function makeStorage({ revision = 0, value = 2, failWrites = 0 } = {}) {
   };
 }
 
+const resolveResultIdentities = async () => ({ "result:ore": "campaign-ore:one" });
+
 const handlers = {
   "inventory.add": {
     validate({ operation, aggregate }) {
@@ -146,7 +148,7 @@ test("change package validates one-to-one projection mappings against aggregate 
 
 test("coordinator stages a durable buffer then promotes Major State and Applied ledger together", async () => {
   const storage = makeStorage();
-  const coordinator = createCassandraChangePackageCoordinator({ storage, operationHandlers: handlers, validateReturnManifest: () => true });
+  const coordinator = createCassandraChangePackageCoordinator({ storage, operationHandlers: handlers, validateReturnManifest: () => true, resolveResultIdentities });
   const changePackage = await makePackage();
   assert.equal((await coordinator.stage(changePackage, { checkpoint: { majorState: storage.snapshot.majorState } })).status, "pending");
   assert.equal(storage.snapshot.majorState.aggregates["inventory:crew"].state.ore, 2);
@@ -191,12 +193,31 @@ test("failed promotion retains the old Major State and durable pending package f
   assert.equal(storage.snapshot.majorState.aggregates["inventory:crew"].state.ore, 6);
 });
 
+test("coordinator rejects incomplete result identity mappings before changing Major State", async () => {
+  const storage = makeStorage();
+  const coordinator = createCassandraChangePackageCoordinator({
+    storage,
+    operationHandlers: handlers,
+    validateReturnManifest: () => true,
+    resolveResultIdentities: async () => ({})
+  });
+  const changePackage = await makePackage();
+  await coordinator.stage(changePackage, { checkpoint: { majorState: storage.snapshot.majorState } });
+  await assert.rejects(
+    () => coordinator.apply(changePackage.packageId),
+    { code: "RESULT_IDENTITY_MAP_INCOMPLETE" }
+  );
+  assert.equal(storage.snapshot.majorState.aggregates["inventory:crew"].state.ore, 2);
+  assert.equal(storage.snapshot.appliedLedger.length, 0);
+});
+
 test("coordinator rejects a corrupted durable expedition-start checkpoint", async () => {
   const storage = makeStorage();
   const coordinator = createCassandraChangePackageCoordinator({
     storage,
     operationHandlers: handlers,
-    validateReturnManifest: () => true
+    validateReturnManifest: () => true,
+    resolveResultIdentities
   });
   const changePackage = await makePackage();
   await coordinator.stage(changePackage, { checkpoint: { majorState: storage.snapshot.majorState } });
@@ -211,7 +232,7 @@ test("coordinator rejects a corrupted durable expedition-start checkpoint", asyn
 
 test("stale touched aggregate marks package conflicted without applying any operation", async () => {
   const storage = makeStorage({ revision: 1, value: 9 });
-  const coordinator = createCassandraChangePackageCoordinator({ storage, operationHandlers: handlers, validateReturnManifest: () => true });
+  const coordinator = createCassandraChangePackageCoordinator({ storage, operationHandlers: handlers, validateReturnManifest: () => true, resolveResultIdentities });
   const changePackage = await makePackage();
   const expeditionStart = storage.snapshot.majorState;
   expeditionStart.aggregates["inventory:crew"].revision = 0;
