@@ -6,10 +6,12 @@ import {
 } from "../../src/adapters/storage/indexeddb-campaign-save-adapter.js";
 
 class FakeTransaction {
-  constructor(database, storeName, mode, options, supportsStrict) {
+  constructor(database, storeName, mode, options, supportsStrict, failNextCommit = false) {
     this.database = database;
     this.storeName = storeName;
     this.mode = mode;
+    this.failNextCommit = failNextCommit;
+    this.pendingWrites = [];
     this.durability = supportsStrict ? (options?.durability ?? "default") : "default";
     this.error = null;
     this.aborted = false;
@@ -40,7 +42,7 @@ class FakeTransaction {
       put: (record) => {
         assert.equal(this.mode, "readwrite");
         schedule(() => {
-          records.set(record.campaignId, structuredClone(record));
+          this.pendingWrites.push(structuredClone(record));
         });
       }
     };
@@ -51,7 +53,18 @@ class FakeTransaction {
     this.completionQueued = true;
     queueMicrotask(() => {
       this.completionQueued = false;
-      if (!this.aborted && this.pending === 0) this.oncomplete?.();
+      if (!this.aborted && this.pending === 0) {
+        if (this.failNextCommit) {
+          this.aborted = true;
+          this.error = new Error("simulated IndexedDB transaction abort");
+          this.onabort?.();
+          return;
+        }
+        const records = this.database.stores.get(this.storeName);
+        for (const record of this.pendingWrites) records.set(record.campaignId, record);
+        this.pendingWrites = [];
+        this.oncomplete?.();
+      }
     });
   }
 
@@ -62,22 +75,26 @@ class FakeTransaction {
 }
 
 class FakeDatabase {
-  constructor(supportsStrict) {
+  constructor(supportsStrict, failNextCommit = false) {
     this.stores = new Map();
     this.supportsStrict = supportsStrict;
+    this.failNextCommit = failNextCommit;
     this.objectStoreNames = { contains: (name) => this.stores.has(name) };
   }
   createObjectStore(name) { this.stores.set(name, new Map()); }
   transaction(storeName, mode, options) {
     if (!this.stores.has(storeName)) throw new Error("Missing object store.");
-    return new FakeTransaction(this, storeName, mode, options, this.supportsStrict);
+    const failNextCommit = this.failNextCommit;
+    this.failNextCommit = false;
+    return new FakeTransaction(this, storeName, mode, options, this.supportsStrict, failNextCommit);
   }
   close() {}
 }
 
 class FakeIndexedDB {
-  constructor({ supportsStrict = true } = {}) {
+  constructor({ supportsStrict = true, failNextCommit = false } = {}) {
     this.supportsStrict = supportsStrict;
+    this.failNextCommit = failNextCommit;
     this.databases = new Map();
   }
   open(name, version) {
@@ -86,7 +103,7 @@ class FakeIndexedDB {
       let database = this.databases.get(name);
       const isNew = !database;
       if (!database) {
-        database = new FakeDatabase(this.supportsStrict);
+        database = new FakeDatabase(this.supportsStrict, this.failNextCommit);
         this.databases.set(name, database);
       }
       request.result = database;
@@ -178,6 +195,30 @@ test("IndexedDB campaign adapter rejects stale cross-writer revisions", async ()
   assert.deepEqual(await secondWriter.loadCampaignSnapshot(), { snapshot: next, revision: 1 });
   firstWriter.close();
   secondWriter.close();
+});
+
+test("IndexedDB campaign adapter leaves the previous snapshot intact when a transaction aborts", async () => {
+  const indexedDBRef = new FakeIndexedDB({ failNextCommit: true });
+  const initial = initialSnapshot();
+  const adapter = new IndexedDbCampaignSaveAdapter({
+    indexedDBRef,
+    campaignId: "campaign:abort",
+    initialSnapshot: initial
+  });
+  const next = {
+    majorState: { revision: 2, aggregates: { "inventory:crew": { revision: 1, state: { ore: 9 } } } },
+    pendingPackages: [{ packageId: "package:abort" }],
+    appliedLedger: []
+  };
+  await assert.rejects(
+    () => adapter.writeCampaignSnapshotAtomic(next, 0),
+    { code: "INDEXEDDB_WRITE_FAILED" }
+  );
+  assert.deepEqual(await adapter.loadCampaignSnapshot(), {
+    snapshot: initial,
+    revision: 0
+  });
+  adapter.close();
 });
 
 test("IndexedDB campaign adapter requires IndexedDB and a stable campaign identity", () => {
