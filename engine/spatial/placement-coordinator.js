@@ -118,7 +118,7 @@ export class PlacementCoordinator {
             catch (error) { try { worldTx.rollback(); } catch (rollbackError) { this.#markFaulted(); throw new PlacementCoordinatorError("FATAL_INTEGRITY_FAULT","Restore rollback failed.",{cause:error?.message,rollback:rollbackError?.message}); } throw error; }
             committed=true;
           },
-          rollback: () => { if (!committed) return false; try { spatialTx.rollback(); worldTx.rollback(); committed=false; return true; } catch(error) { this.#faulted=true; throw new PlacementCoordinatorError("FATAL_INTEGRITY_FAULT","Composite restore rollback failed.",{cause:error?.message}); } }
+          rollback: () => { this.#assertMutationAllowed(); if (!committed) return false; try { spatialTx.rollback(); worldTx.rollback(); committed=false; return true; } catch(error) { this.#faulted=true; throw new PlacementCoordinatorError("FATAL_INTEGRITY_FAULT","Composite restore rollback failed.",{cause:error?.message}); } }
         });
       }
     });
