@@ -28,7 +28,7 @@ export function createCassandraRuntime({
     ],
     simulationTasks: [{
       systemId: "game.colony-control",
-      update({ deltaSeconds, context }) {
+      update({ deltaSeconds, tick, context }) {
         const worldSession = context.getService("game.world-session-api");
         gameplayController ??= createCassandraDevLabGameplayController({
           unitApi: context.getService("game.unit-api"),
