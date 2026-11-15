@@ -361,9 +361,9 @@ export function createCassandraChangePackageCoordinator({
 } = {}) {
   if (!storage || typeof storage.loadCampaignSnapshot !== "function"
     || typeof storage.writeCampaignSnapshotAtomic !== "function"
-    || storage.atomicReplace !== true) {
+    || storage.atomicReplace !== true || storage.compareAndSwap !== true) {
     fail("ATOMIC_CAMPAIGN_STORAGE_REQUIRED",
-      "Campaign storage must explicitly provide atomicReplace=true and whole-snapshot atomic writes.");
+      "Campaign storage must provide atomic whole-snapshot replacement and cross-writer compare-and-swap.");
   }
   if (!operationHandlers || typeof operationHandlers !== "object") {
     fail("OPERATION_REGISTRY_REQUIRED", "Cassandra operation handlers must be supplied by the host.");
@@ -378,22 +378,43 @@ export function createCassandraChangePackageCoordinator({
   }
 
   async function loadSnapshot() {
-    const snapshot = await storage.loadCampaignSnapshot();
-    if (!snapshot || typeof snapshot !== "object"
-      || !snapshot.majorState || typeof snapshot.majorState !== "object"
+    const loaded = await storage.loadCampaignSnapshot();
+    if (!loaded || typeof loaded !== "object"
+      || !loaded.snapshot || typeof loaded.snapshot !== "object"
+      || !Number.isSafeInteger(loaded.revision) || loaded.revision < 0) {
+      fail("INVALID_CAMPAIGN_SNAPSHOT_ENVELOPE",
+        "Campaign storage must return { snapshot, revision } with a non-negative storage revision.");
+    }
+    const snapshot = cloneState(loaded.snapshot);
+    if (!snapshot.majorState || typeof snapshot.majorState !== "object"
       || !Array.isArray(snapshot.pendingPackages)
       || !Array.isArray(snapshot.appliedLedger)) {
       fail("INVALID_CAMPAIGN_SNAPSHOT", "Campaign snapshot must contain majorState, pendingPackages and appliedLedger.");
     }
-    return cloneState(snapshot);
+    snapshot.__storageRevision = loaded.revision;
+    return snapshot;
   }
 
   async function writeSnapshot(snapshot) {
-    const result = await storage.writeCampaignSnapshotAtomic(cloneState(snapshot));
-    if (result !== true && result?.durable !== true) {
-      fail("CAMPAIGN_COMMIT_UNCONFIRMED", "Campaign storage did not confirm a durable atomic snapshot replacement.");
+    const expectedRevision = snapshot.__storageRevision;
+    if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) {
+      fail("CAMPAIGN_STORAGE_REVISION_MISSING", "Candidate snapshot has no storage compare-and-swap revision.");
     }
+    const payload = cloneState(snapshot);
+    delete payload.__storageRevision;
+    const result = await storage.writeCampaignSnapshotAtomic(payload, expectedRevision);
+    if (result?.durable !== true || result.revision !== expectedRevision + 1) {
+      fail("CAMPAIGN_COMMIT_UNCONFIRMED",
+        "Campaign storage did not confirm a durable compare-and-swap snapshot replacement.",
+        { expectedRevision, actualRevision: result?.revision ?? null });
+    }
+    snapshot.__storageRevision = result.revision;
     const reopened = await loadSnapshot();
+    if (reopened.__storageRevision !== result.revision) {
+      fail("CAMPAIGN_COMMIT_VERIFICATION_FAILED",
+        "Reopened campaign snapshot has a different storage revision.",
+        { expectedRevision: result.revision, actualRevision: reopened.__storageRevision });
+    }
     return reopened;
   }
 
