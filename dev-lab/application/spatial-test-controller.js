@@ -15,6 +15,8 @@ export class SpatialTestController {
   #movement;
   #sequence = 0;
   #lastMovement = null;
+  #movementSequence = 0;
+  #movementHistory = [];
 
   constructor({ entityRegistry, worldRegistry, spatialComposition, placementCoordinator, spatialMovement } = {}) {
     if (!entityRegistry?.registerPersistent || !entityRegistry?.get || !entityRegistry?.list
@@ -88,6 +90,7 @@ export class SpatialTestController {
       };
     });
     this.#lastMovement = Object.freeze({
+      sequence: ++this.#movementSequence,
       entityId,
       source: result.source?.anchor ?? null,
       target: result.target?.anchor ?? anchor ?? null,
@@ -95,11 +98,26 @@ export class SpatialTestController {
       code: result.code ?? null,
       overlaps: Object.freeze([...overlapEntityIds])
     });
+    this.#movementHistory.push(this.#lastMovement);
+    if (this.#movementHistory.length > 100) this.#movementHistory.shift();
     return Object.freeze({ ...result, diagnostic: this.#lastMovement });
   }
 
   getLastMovement() {
     return this.#lastMovement;
+  }
+
+  getMovementHistory({ limit = 25 } = {}) {
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
+      throw new TypeError("Movement history limit must be an integer from 1 to 100.");
+    }
+    return Object.freeze(this.#movementHistory.slice(-limit));
+  }
+
+  clearMovementHistory() {
+    this.#movementHistory = [];
+    this.#lastMovement = null;
+    return true;
   }
 
   remove(entityId) {
@@ -111,6 +129,7 @@ export class SpatialTestController {
   removeAll() {
     const removed = [];
     for (const { entity } of this.list()) removed.push(this.remove(entity.id));
+    this.clearMovementHistory();
     return Object.freeze(removed);
   }
 
