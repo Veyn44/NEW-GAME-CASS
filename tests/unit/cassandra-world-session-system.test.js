@@ -160,6 +160,39 @@ test("Cassandra session allows only one Temporary World and retains it for safe 
   }
 });
 
+test("Temporary World cleanup preflight failure leaves the World and its contents intact", async () => {
+  const state = await setup();
+  try {
+    state.session.beginTemporaryWorld({ worldId: "encounter:preflight", width: 32, height: 32 });
+    const spatial = state.context.getService("core.spatial-composition");
+    spatial.addCellContent({
+      contentId: "content:preflight-preserve",
+      worldId: "encounter:preflight",
+      cell: { x: 4, y: 5 },
+      categoryId: "terrain",
+      layerId: "ground",
+      payload: { material: "test-rock" }
+    });
+    state.session.registerTemporaryWorldCleanup(() => {
+      throw new Error("cleanup preflight rejected");
+    });
+    state.session.returnToMainWorld();
+
+    await assert.rejects(
+      () => state.session.completeTemporaryWorld({
+        packageId: "package:preflight",
+        digest: "c".repeat(64)
+      }),
+      /cleanup preflight rejected/
+    );
+    assert.equal(state.worlds.has("encounter:preflight"), true);
+    assert.equal(state.session.getState().temporaryWorldId, "encounter:preflight");
+    assert.equal(spatial.listContents({ worldId: "encounter:preflight" }).length, 1);
+  } finally {
+    await state.runtime.destroy();
+  }
+});
+
 test("Cassandra can change selected Main World when no Temporary World is pending", async () => {
   const state = await setup();
   try {
