@@ -425,15 +425,15 @@ The integration mechanics, conversion between grid anchors and World Context wor
 
 ### 8.2 Grid descriptor ownership
 
-**Current facts:**
-- World Registry stores world dimensions but dimensions do not imply grid capability.
-- Grid Geometry requires an explicit optional grid descriptor.
+**Agreed direction (2026-11-15):**
+- The optional grid descriptor is owned by the World Registry descriptor.
+- Grid capability is explicit; existing world dimensions alone must never imply grid support.
+- A World without a grid remains valid and behaves as a non-grid World.
+- The descriptor contains the grid's immutable positive-integer width and height, distinct from any existing general world-bounds dimensions unless source review demonstrates they already have exactly the same contract.
+- World Registry owns the capability declaration and its lifecycle/persistence. Grid Geometry validates and interprets its geometry; Spatial Composition consumes it for cell contents and occupancy.
+- Adding or changing grid capability after World creation is not part of the initial contract. Grid dimensions are fixed for the lifetime of that World.
 
-**Recommended direction to review:**
-- Add an explicit optional grid descriptor to World creation/descriptor data, with immutable width/height and a versioned snapshot representation.
-- Keep existing dimensions for their current world-bounds contract unless a separate migration is approved.
-
-**Decision required:** Should the explicit grid descriptor live in the World Registry descriptor, or should it be registered as a separate World capability owned by a spatial service?
+The descriptor shape, validation and snapshot details remain technical proposals in `grid-geometry-contract-proposal.md`; this ownership decision is resolved.
 
 ### 8.3 Temporary-world result/change package
 
