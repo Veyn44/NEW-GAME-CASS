@@ -13,6 +13,7 @@ import { createApplicationRuntimeHost } from "../../shared/application/runtime-h
 export function createCassandraRuntime({
   saveAdapter,
   inputController,
+  isPackageApplied = null,
   onUnitMoved,
   updateFreeCamera
 } = {}) {
