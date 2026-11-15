@@ -308,6 +308,35 @@ test("coordinator rejects operation handlers that mutate revision counters direc
   assert.equal(storage.snapshot.majorState.aggregates["inventory:crew"].revision, 0);
 });
 
+test("coordinator exposes immutable package operations and resolved result identities to handlers", async () => {
+  const storage = makeStorage();
+  const guardedHandlers = {
+    "inventory.add": {
+      validate: () => true,
+      apply({ aggregate, operation, resolvedResultIdentities }) {
+        try { operation.payload.amount = 999; } catch { /* frozen protocol input */ }
+        try { resolvedResultIdentities["result:ore"] = "campaign:forged"; } catch { /* frozen identity map */ }
+        aggregate.state.ore += operation.payload.amount;
+      }
+    }
+  };
+  const coordinator = createCassandraChangePackageCoordinator({
+    storage,
+    operationHandlers: guardedHandlers,
+    validateReturnManifest: () => true,
+    resolveResultIdentities
+  });
+  const changePackage = await makePackage();
+  await coordinator.stage(changePackage, { checkpoint: { majorState: storage.snapshot.majorState } });
+  const result = await coordinator.apply(changePackage.packageId);
+  assert.equal(result.status, "applied");
+  assert.equal(storage.snapshot.majorState.aggregates["inventory:crew"].state.ore, 6);
+  assert.equal(
+    storage.snapshot.appliedLedger[0].resolvedResultIdentities["result:ore"],
+    "campaign-ore:one"
+  );
+});
+
 test("coordinator rejects a handler that mutates an undeclared aggregate", async () => {
   const storage = makeStorage();
   const maliciousHandlers = {
