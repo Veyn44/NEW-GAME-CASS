@@ -90,6 +90,8 @@ Candidate failure leaves Major State unchanged. Transient storage failure retain
 
 The exact storage transaction/atomic-promotion mechanism must be proven against the target persistence backend; a sequence of unrelated file writes is not sufficient.
 
+For Engine placement restore, a focused source audit found that the current Persistence implementation awaits participant commits sequentially. Therefore two separate awaited World Context and Spatial Composition participants would not meet the no-observer-intermediate-state requirement. The new [placement persistence integration proposal](spatial-placement-persistence-integration-proposal.md) recommends one composite participant with a single synchronous commit/rollback for the pair.
+
 ### 3.6 Save compatibility is a product policy, not a migration project
 
 Agreed direction:
@@ -106,9 +108,9 @@ The current audited `.cass` workspace save is not a future campaign save and is 
 
 These items are not contradictions; they must be resolved before the dependent implementation slice:
 
-1. **Placement integration:** exact coordinator location/API, prepared-state transaction mechanism, observer/persistence safe boundary and rollback implementation.
+1. **Placement integration:** exact coordinator location/API, prepared-state transaction mechanism, mutation encapsulation, observer/persistence safe boundary and rollback implementation. The coordinate mapping is now approved.
 2. **Coordinate mapping:** confirm the grid-anchor ↔ World Context position rule and define migration behavior only for any specifically supported legacy source.
-3. **Persistence registration:** exact participant IDs/schema versions, dependency order, cross-participant validation and restore rollback tests.
+3. **Persistence registration:** finalize the composite placement participant ID/schema, dependency order, cross-service validation, fatal rollback behavior and restore tests.
 4. **Save support matrix:** declare which current outer/inner/participant/content versions are accepted; reject everything else clearly. Golden fixtures must be generated from actual supported outputs.
 5. **Campaign save model:** identify the future campaign save identity and authoritative campaign/location/environment participants; do not infer them from the current workspace save.
 6. **Change package:** finalize typed operation schemas, package identity/digest, durable Change Buffer/ledger and idempotent retry semantics.
@@ -243,6 +245,7 @@ The proposed sequence below is the recommended dependency order, not authorizati
 - `spatial-query-contract-proposal.md`
 - `movement-collision-contract-proposal.md`
 - `spatial-placement-integration-contract-proposal.md`
+- `spatial-placement-persistence-integration-proposal.md`
 - `cassandra-temporary-world-change-package-contract-proposal.md`
 - `cass-save-compatibility-migration-proposal.md`
 - `phase-3-implementation-plan.md`
