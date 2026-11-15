@@ -396,3 +396,38 @@ test("IndexedDB campaign adapter requires IndexedDB and a stable campaign identi
     { code: "INVALID_CAMPAIGN_STORAGE_ID" }
   );
 });
+
+test("IndexedDB campaign adapter validates and detaches the initial snapshot at construction", async () => {
+  const indexedDBRef = new FakeIndexedDB();
+  const initial = initialSnapshot();
+  const adapter = new IndexedDbCampaignSaveAdapter({
+    indexedDBRef,
+    campaignId: "campaign:initial-snapshot",
+    initialSnapshot: initial
+  });
+
+  initial.majorState.revision = 999;
+  initial.pendingPackages.push({ packageId: "package:mutated" });
+
+  assert.deepEqual(await adapter.loadCampaignSnapshot(), {
+    snapshot: initialSnapshot(),
+    revision: 0
+  });
+  adapter.close();
+});
+
+test("IndexedDB campaign adapter rejects malformed initial snapshots", () => {
+  assert.throws(
+    () => new IndexedDbCampaignSaveAdapter({
+      indexedDBRef: new FakeIndexedDB(),
+      campaignId: "campaign:invalid-initial",
+      initialSnapshot: {
+        majorState: [],
+        pendingPackages: [],
+        appliedLedger: []
+      }
+    }),
+    { code: "INVALID_CAMPAIGN_SNAPSHOT" }
+  );
+});
+
