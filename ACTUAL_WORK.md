@@ -913,3 +913,15 @@ unmodeled systems were introduced.
   performed; deterministic adapter tests do not replace that check.
 - `main` was not modified. No PR or merge was created.
 
+
+
+## 2026-11-15 — Change Package canonical input hardening
+
+The Change Package canonical clone now applies the same strict JSON-data safeguards as the IndexedDB campaign snapshot adapter:
+
+- Sparse array entries and array-index accessors are rejected instead of being normalized during canonical serialization.
+- Enumerable object accessors are rejected using property descriptors, without invoking getters.
+- Own `__proto__` data properties are copied with `Object.defineProperty`, preserving the data key without changing the clone's prototype.
+- Added regression tests for sparse arrays, non-invoked getters and own `__proto__` preservation, including digest verification.
+
+GitHub Actions run [#43765588791](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43765588791) passed: Core **205/205**, host/unit **257/257**, and browser entry-point syntax checks. This remains infrastructure hardening only; no gameplay operation handlers or inventory/health/equipment rules were introduced. `main` was not modified.
