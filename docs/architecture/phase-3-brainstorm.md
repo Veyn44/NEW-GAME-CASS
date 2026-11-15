@@ -231,6 +231,13 @@ Do not change the existing World Registry contract until this is resolved.
 ### Step 2 — World Geometry and lifecycle semantics
 **Status:** In progress
 
+#### Cassandra asteroid interior and resource distribution
+- The asteroid's physical interior is a combination of solid rock and naturally occurring cavities. The player can discover existing cavities and excavate solid rock to expand usable interior spaces.
+- A Mine Shaft is envisioned as a smaller, separately generated encounter/location inside the parent asteroid. It may serve as an early "Level 0" expedition before the player has built a ship, unless the game grants a ship at the start. This starting progression is a gameplay option, not yet finalized.
+- A map/location has an overall resource-information budget or inventory (illustrative example: 500 titanium, 300 uranium, 6,000 aluminium, 430 copper). These totals describe the resources belonging to the parent location, not necessarily resources already instantiated as visible surface deposits.
+- Resource quantities may be distributed between the main asteroid map and generated Mine Shaft interiors. A Mine Shaft is randomly generated but must contain resources belonging to its parent asteroid; it is not an unrelated random resource map.
+- Exact rules for allocating the parent location's resource totals among surface deposits, mine shafts, and any undiscovered deposits remain open. It is also not yet specified whether the resource summary shows exact totals or estimates to the player.
+
 #### Cassandra world-boundary direction
 - The home/colony map is expected to be finite, with a maximum distance/extent from the map edge, similar in broad player-facing behavior to RimWorld. It is not intended to be an unbounded or infinitely expanding world.
 - Cassandra's home gameplay includes building inside an asteroid, not only on an exposed surface. Therefore, the map boundary and the asteroid's physical shape/interior are separate concepts: a finite map does not imply that all cells inside its bounds are buildable or that the asteroid fills the whole map.
@@ -456,6 +463,11 @@ No implementation starts from this section until the complete specification is a
 ---
 
 ## Current decisions
+
+- **Agreed Cassandra asteroid concept:** Asteroid interiors combine solid rock and natural cavities; players can discover cavities and excavate rock to expand them.
+- **Proposed Cassandra progression:** A Mine Shaft may be an early, smaller encounter (potentially Level 0) before ship construction, unless the player is given a ship at game start. Starting progression remains open.
+- **Agreed Cassandra resource model concept:** A parent map/location has an overall resource budget/summary, while only some deposits need to be instantiated on the main map; some resources may be held in Mine Shaft encounters.
+- **Agreed Cassandra Mine Shaft relationship:** Mine Shafts are randomly generated sub-locations/encounters whose resources must come from the parent asteroid's resource inventory, not arbitrary unrelated resources.
 
 - **Proposed Cassandra world geometry:** The home/colony map is finite, with a maximum extent/edge similar in broad behavior to RimWorld; the colony can be built inside an asteroid, so asteroid geometry/interior is distinct from the overall map boundary. Exact dimensions and edge behavior remain open.
 
