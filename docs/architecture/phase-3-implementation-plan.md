@@ -1,6 +1,6 @@
 # Phase 3 Physical World — Implementation Plan
 
-**Status:** Slices 1–6 are implemented on `work`; initial Dev Lab spatial test workflows, Cassandra grid/Unit movement, Main/Temporary World session and the first Change Package protocol foundation are implemented. Production campaign persistence, domain integration and final acceptance remain in progress. Automated tests may run during implementation; user-led acceptance testing remains deferred until Phase 3 is complete. The latest confirmed GitHub Actions run passed 205/205 Core tests and 218/218 host tests.  
+**Status:** Slices 1–6 are implemented on `work`; initial Dev Lab spatial test workflows, Cassandra grid/Unit movement, Main/Temporary World session and the first Change Package protocol foundation are implemented. Production campaign persistence, domain integration and final acceptance remain in progress. Automated tests may run during implementation; user-led acceptance testing remains deferred until Phase 3 is complete. The latest confirmed GitHub Actions run passed 205/205 Core tests and 219/219 host tests.  
 **Branch:** `work`  
 **Source audit:** 2026-11-15  
 **Scope:** Implementation sequencing for reusable Engine grid/spatial capabilities and their Cassandra/Dev Lab integration
@@ -379,7 +379,7 @@ Tasks:
 
 ### Slice 8 — Dev Lab inspection and test integration
 
-**Status:** Engine-backed cell/neighbor/radius/footprint and rectangular region inspection, category/layer/entity-kind filters, controlled test-entity spawn/move/retire workflows, rejected-overlap cell highlighting and bounded movement history are implemented on `work`; full standalone-vs-Cassandra-hosted acceptance remains.
+**Status:** Implemented on `work`; automated standalone Dev Lab vs Cassandra-hosted Engine spatial acceptance now verifies identical authoritative Core contracts and placement/query behavior.
 
 **Implemented initial sub-slice:**
 - `dev-lab/application/create-dev-lab-runtime.js` continues to compose the shared Engine Core runtime; no parallel spatial model was added.
@@ -395,7 +395,7 @@ Tasks:
 - `tests/unit/spatial-test-controller.test.js` covers spawn, multi-cell occupancy, spawn/movement overlap rejection, movement diagnostics, retirement, reset cleanup and authority boundaries.
 - `.github/workflows/core-tests.yml` syntax-checks the updated viewport and Dev Lab spatial modules; both new test files are included by the existing `tests/unit/*.test.js` command.
 
-**Not yet implemented:** full standalone-vs-Cassandra-hosted Dev Lab acceptance, including browser-level interaction and shared Engine behavior under the actual Cassandra host. The current test tools intentionally use a small explicit Dev Lab collision policy and do not define Cassandra passability or gameplay movement rules.
+**Remaining non-automated check:** browser-level interaction/layout review. Shared Engine behavior under standalone Dev Lab and Cassandra host is covered by automated integration acceptance. The current test tools intentionally use a small explicit Dev Lab collision policy and do not define Cassandra passability or gameplay movement rules.
 
 **Target area:** `dev-lab/application/application-shell.js`, `dev-lab/application/spatial-inspector.js`, `dev-lab/application/spatial-test-controller.js`, `shared/presentation/world-viewport.js` and the existing Dev Lab presentation styles.
 
