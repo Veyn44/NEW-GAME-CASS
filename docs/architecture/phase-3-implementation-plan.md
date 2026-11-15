@@ -446,6 +446,8 @@ The descriptor shape, validation and snapshot details remain technical proposals
 
 The proposal specifies:
 - Separate persistent campaign state, persistent location records and Temporary World runtime state.
+- A player-entitlement invariant: every result owed to the player has an explicit, auditable disposition and must survive identity mapping, persistence, retry and recovery failures.
+- A reconciled return manifest for items, resources, participants and rewards; unknown or unmapped entries block the whole commit rather than being silently dropped.
 - Campaign identity to encounter-runtime identity projection mapping; no simultaneous duplicate Engine placement for one entity.
 - Typed Cassandra domain operations, baseline revisions/preconditions and all-or-nothing package application.
 - Immutable, versioned and durably retained pending packages.
