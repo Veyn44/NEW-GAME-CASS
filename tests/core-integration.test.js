@@ -168,6 +168,28 @@ test("restore transaction stages worlds before validating entity placements", as
   await runtime.destroy();
 });
 
+test("Core persistence round-trips grid placement and derived occupancy as one participant", async () => {
+  const runtime = createCoreAssembly();
+  const context = await runtime.start();
+  const entities = context.getService("core.entity-registry");
+  const worlds = context.getService("core.world-registry");
+  const coordinator = context.getService("core.placement-coordinator");
+  const worldContext = context.getService("core.world-context");
+  const spatial = context.getService("core.spatial-composition");
+  const persistence = context.getService("core.persistence");
+  worlds.registerWorld({ worldId: "world:grid-save", type: "test.grid", dimensions: { width: 12, height: 12 }, grid: { width: 12, height: 12 } });
+  entities.registerPersistent({ id: "entity:grid-save", kind: "probe" });
+  coordinator.placeEntity("entity:grid-save", { worldId: "world:grid-save", anchor: { x: 2, y: 3 }, footprint: [{ x: 0, y: 0 }, { x: 1, y: 0 }] });
+  await persistence.save("grid-placement", { stateId: "campaign:grid-placement" });
+  coordinator.moveEntity("entity:grid-save", { type: "grid", worldId: "world:grid-save", anchor: { x: 7, y: 7 }, footprint: [{ x: 0, y: 0 }] });
+  await persistence.load("grid-placement", { stateId: "campaign:grid-placement" });
+  equal(worldContext.getPlacement("entity:grid-save").position.x, 2.5);
+  equal(worldContext.getPlacement("entity:grid-save").position.y, 3.5);
+  equal(spatial.getEntityOccupancy("entity:grid-save").cells.length, 2);
+  equal(spatial.getCellEntities("world:grid-save", { x: 3, y: 3 })[0], "entity:grid-save");
+  await runtime.destroy();
+});
+
 test("Persistence migrates version-one entity and world snapshots during a real load", async () => {
   const adapter = {
     slot: null,
