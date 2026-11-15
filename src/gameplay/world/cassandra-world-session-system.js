@@ -172,6 +172,12 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
       return api.getState();
     },
 
+    /**
+     * Register a two-phase Temporary World cleanup participant.
+     * The handler is called with phase "prepare" and must validate without
+     * mutating live state, then return a synchronous, infallible commit
+     * callback. Commit callbacks run only after scoped World state is gone.
+     */
     registerTemporaryWorldCleanup(handler) {
       if (typeof handler !== "function") {
         throw new CassandraWorldSessionError("INVALID_TEMPORARY_CLEANUP_HANDLER",
