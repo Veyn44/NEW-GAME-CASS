@@ -203,7 +203,7 @@ test("Temporary World disposal rejects concurrent completion attempts", async ()
       digest: "e".repeat(64)
     };
     const first = state.session.completeTemporaryWorld(args);
-    await assert.rejects(
+    assert.throws(
       () => state.session.enterTemporaryWorld(),
       { code: "TEMPORARY_DISPOSAL_IN_PROGRESS" }
     );
