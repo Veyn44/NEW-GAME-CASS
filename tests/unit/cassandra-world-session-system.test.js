@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import { createGameRuntime } from "../../engine/runtime/create-game-runtime.js";
 import { MemorySaveAdapter } from "../../engine/core/persistence.js";
+import { createCassandraRuntime } from "../../cassandra/application/cassandra-runtime-host.js";
 import {
   createCassandraWorldSessionSystem
 } from "../../src/gameplay/world/cassandra-world-session-system.js";
@@ -32,6 +33,38 @@ async function setup() {
   session.registerMainWorld("cassandra-main-128");
   return { runtime, context, worlds, session };
 }
+
+test("Cassandra runtime advances only the active World's local clock per simulation step", async () => {
+  const runtime = createCassandraRuntime({ saveAdapter: new MemorySaveAdapter() });
+  try {
+    const context = await runtime.start();
+    const worlds = context.getService("core.world-registry");
+    worlds.registerWorld({
+      worldId: "runtime-main",
+      type: "cassandra-main",
+      dimensions: { width: 32, height: 32 },
+      grid: { width: 32, height: 32 }
+    });
+    const session = context.getService("game.world-session-api");
+    session.registerMainWorld("runtime-main");
+
+    runtime.advance(0.25);
+    const mainAfterFirstStep = session.getWorldTime("runtime-main");
+    assert.ok(Math.abs(mainAfterFirstStep - 0.25) < 1e-8);
+
+    session.beginTemporaryWorld({ worldId: "runtime-temp", width: 32, height: 32 });
+    runtime.advance(0.5);
+    assert.ok(Math.abs(session.getWorldTime("runtime-temp") - 0.5) < 1e-8);
+    assert.ok(Math.abs(session.getWorldTime("runtime-main") - mainAfterFirstStep) < 1e-8);
+
+    session.returnToMainWorld();
+    runtime.advance(0.25);
+    assert.ok(Math.abs(session.getWorldTime("runtime-main") - 0.5) < 1e-8);
+    assert.ok(Math.abs(session.getWorldTime("runtime-temp") - 0.5) < 1e-8);
+  } finally {
+    await runtime.destroy();
+  }
+});
 
 test("Cassandra Main World local time pauses while Temporary World is active", async () => {
   const state = await setup();
