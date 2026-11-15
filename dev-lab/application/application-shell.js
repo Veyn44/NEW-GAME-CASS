@@ -202,16 +202,16 @@ function refreshWorldMarkers() {
       && unit.placement.worldId === activeWorldId)
     .map((unit) => ({
       id: unit.id,
-      x: unit.placement.position.x,
-      y: unit.placement.position.y,
+      x: unit.position?.x ?? unit.placement.position.x,
+      y: unit.position?.y ?? unit.placement.position.y,
       label: getDefinition(unit.definitionId)?.name ?? unit.definitionId
     }));
   const testMarkers = (state.spatialTestController?.list() ?? [])
     .filter(({ occupancy }) => occupancy.worldId === activeWorldId)
     .map(({ entity, occupancy }) => ({
       id: entity.id,
-      x: occupancy.anchor.x,
-      y: occupancy.anchor.y,
+      x: occupancy.anchor.x + 0.5,
+      y: occupancy.anchor.y + 0.5,
       cells: occupancy.cells,
       label: "TEST ENTITY"
     }));
