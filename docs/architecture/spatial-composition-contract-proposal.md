@@ -298,7 +298,7 @@ Restore validation must reject:
 
 Preparation must be side-effect-free. Commit swaps in the fully validated prepared state; rollback restores the previous state if a later persistence participant fails.
 
-The spatial participant must restore after the identity and world/grid descriptors it depends on are available. The exact participant order and cross-participant validation hook should be confirmed during implementation against the existing Persistence coordinator. Existing .cass compatibility and current participant migrations must be preserved; do not silently change save envelopes or unrelated application state.
+The spatial participant must restore after the identity and world/grid descriptors it depends on are available. The exact participant order and cross-participant validation hook should be confirmed during implementation against the existing Persistence coordinator. The current supported save format and participant migrations must remain internally consistent. Backward compatibility with arbitrary older .cass versions is not required; unsupported versions may be rejected safely. Do not silently change save envelopes or unrelated application state.
 
 ## 12. Ownership boundaries
 
