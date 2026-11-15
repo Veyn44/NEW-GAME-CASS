@@ -392,13 +392,13 @@ Questions to resolve:
 - Is pathfinding explicitly deferred?
 
 ### Step 7 — Entity, world, transfer, and application boundaries
-**Status:** Open — working proposal drafted for the Cassandra Temporary World result/change-package protocol; review and remaining decisions pending
+**Status:** Working protocol and technical defaults drafted; review of remaining gameplay/storage details pending
 
 Define ownership and contracts between Engine Core, reusable spatial capabilities, Cassandra gameplay systems, and presentation.
 
 **Working proposal:** `cassandra-temporary-world-change-package-contract-proposal.md`
 
-The proposal does not close Step 7. The questions below remain open until the protocol and its remaining implementation choices are reviewed.
+The proposal now includes concrete defaults for package envelope, per-aggregate revisions, typed operations, result identity mapping, conservation manifest, canonical digest, durable pending state and atomic promotion. Step 7 remains open for review of remaining gameplay dispositions and the actual campaign storage backend.
 
 Questions to resolve:
 - What remains the responsibility of Entity Registry?
@@ -409,6 +409,7 @@ Questions to resolve:
 - What is the formal contract for exporting a temporary-world result as a change package?
 - How are entity identities and references preserved across world representations?
 - How are changes validated before applying them to the persistent world?
+- Which durable campaign storage backend can guarantee atomic Major State promotion with the Applied ledger?
 - Must applying a change package be atomic? What happens if one operation fails?
 - How are conflicting or stale changes detected?
 - Which rules must be supplied by the host application?
