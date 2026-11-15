@@ -20,3 +20,28 @@ export function querySpatialCell(spatialComposition, worldId, cell) {
     entities: result.entities
   });
 }
+
+
+export function querySpatialNeighbors(spatialComposition, worldId, cell, topology = "four-way") {
+  if (!spatialComposition || typeof spatialComposition.queryNeighbors !== "function") {
+    throw new TypeError("Dev Lab neighbor inspection requires Engine Spatial Composition.");
+  }
+  return spatialComposition.queryNeighbors(worldId, cell, { topology });
+}
+
+export function querySpatialRadius(spatialComposition, worldId, center, radius = 2, metric = "chebyshev") {
+  if (!spatialComposition || typeof spatialComposition.queryRadius !== "function") {
+    throw new TypeError("Dev Lab radius inspection requires Engine Spatial Composition.");
+  }
+  return spatialComposition.queryRadius(worldId, center, { radius, metric });
+}
+
+export function querySpatialFootprint(spatialComposition, entityId) {
+  if (!spatialComposition || typeof spatialComposition.getEntityFootprint !== "function") {
+    throw new TypeError("Dev Lab footprint inspection requires Engine Spatial Composition.");
+  }
+  if (typeof entityId !== "string" || !entityId.trim()) {
+    throw new TypeError("A spatial entity ID is required for footprint inspection.");
+  }
+  return spatialComposition.getEntityFootprint(entityId);
+}
