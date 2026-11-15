@@ -73,6 +73,7 @@ test("Cassandra runtime advances only the active World's local clock per simulat
 test("Cassandra World local time does not commit when a later task faults the simulation step", async () => {
   const runtime = createGameRuntime({
     saveAdapter: new MemorySaveAdapter(),
+    fixedStepSeconds: 1 / 60,
     hostSystems: [
       createCassandraWorldSessionSystem(),
       { id: "test.failure", requires: ["game.world-session-api"], initialize() { return {}; } }
