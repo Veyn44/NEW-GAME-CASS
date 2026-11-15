@@ -138,11 +138,15 @@ export function createCoreAssembly({
     {
       id: "core.placement-coordinator",
       provides: [SERVICE.placementCoordinator],
-      requires: [SERVICE.entities, SERVICE.worlds, SERVICE.worldContext, SERVICE.spatialComposition],
-      initialize(context) { return { [SERVICE.placementCoordinator]: new PlacementCoordinator({
-        entityRegistry: required(context, SERVICE.entities), worldRegistry: required(context, SERVICE.worlds),
-        worldContext: required(context, SERVICE.worldContext), spatialComposition: required(context, SERVICE.spatialComposition)
-      }) }; }
+      requires: [SERVICE.entities, SERVICE.worlds, SERVICE.worldContext, SERVICE.spatialComposition, SERVICE.clock],
+      initialize(context) {
+        const clock = required(context, SERVICE.clock);
+        return { [SERVICE.placementCoordinator]: new PlacementCoordinator({
+          entityRegistry: required(context, SERVICE.entities), worldRegistry: required(context, SERVICE.worlds),
+          worldContext: required(context, SERVICE.worldContext), spatialComposition: required(context, SERVICE.spatialComposition),
+          onFatalIntegrityFault: () => clock.pause("core.placement-integrity-fault")
+        }) };
+      }
     },
     {
       id: "core.scheduler",
