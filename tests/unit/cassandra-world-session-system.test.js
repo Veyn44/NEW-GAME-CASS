@@ -75,7 +75,7 @@ test("Cassandra World local time does not commit when a later task faults the si
     saveAdapter: new MemorySaveAdapter(),
     hostSystems: [
       createCassandraWorldSessionSystem(),
-      { id: "test.failure", initialize() { return {}; } }
+      { id: "test.failure", requires: ["game.world-session-api"], initialize() { return {}; } }
     ],
     simulationTasks: [
       {
