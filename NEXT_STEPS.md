@@ -120,6 +120,8 @@ The exact mode list, public APIs, ownership of camera adapters, and pause/inspec
 
 ### Phase 2 — Restructure the repository without changing behavior
 
+**Status: completed and merged.** PR #6, *Merge engine and application architecture restructuring*, was merged into `main` on 2026-11-14. The current source layout and dependency boundaries are the post-merge baseline. Remaining boundary cleanup is tracked as follow-up work; do not restart Phase 2 or repeat completed mechanical moves.
+
 1. Create the agreed top-level Engine, Dev Lab and Cassandra areas.
 2. Move files in small logical groups; update imports and build/test paths.
 3. Keep existing runtime behavior and data formats unchanged during the initial moves.
@@ -172,7 +174,7 @@ Implement or extract only what the source audit and Phase 1 contracts show is ne
 2. Expose distinct Dev Lab and Cassandra routes/entry points from that same deployment.
 3. Verify direct URL loading, refresh/deep links, asset paths and browser console.
 4. Run automated CI and manual acceptance for both applications.
-5. Verify the removal tests/dependency graph and save/load compatibility.
+5. Verify the removal tests/dependency graph and each application's own save/load workflow. Cassandra and Dev Lab use separate persistence identities and formats; cross-application save compatibility is not a requirement.
 
 **Exit condition:** one deployment serves both applications; neither app is accidentally bootstrapped by the other's entry point.
 
@@ -202,13 +204,14 @@ Implement or extract only what the source audit and Phase 1 contracts show is ne
 - [x] Database mechanism in Engine vs. game data in Cassandra agreed.
 - [x] General input/action registration in Engine vs. concrete game actions in Cassandra agreed.
 - [x] General Engine Control Modes and Cassandra-defined transition rules agreed.
+- [x] PR #6 architecture/application restructuring merged into `main` on 2026-11-14.
+- [x] Read-only repository and documentation audit completed; capability/ownership review added at [engine-game-devlab-capability-map.md](docs/architecture/engine-game-devlab-capability-map.md).
+- [x] Cassandra and Dev Lab cross-save compatibility explicitly excluded from the target design; separate persistence identities are required.
 - [x] No new branch without explaining the reason and obtaining user permission.
-- [x] Obsolete PR #5 closed without merging.
-- [ ] Delete the abandoned PR #5 branch (not yet completed).
-- [ ] Refresh test baseline and inspect the live repository/Pages state.
-- [ ] Agree exact folder layout and module ownership map.
-- [ ] Approve Phase 1 architecture and migration sequence.
-- [ ] Begin Phase 2 mechanical restructuring.
+- [ ] Reconcile remaining historical/current documentation against the post-PR #6 repository state.
+- [ ] Review and approve the Engine capability map; its proposed/open labels remain non-binding.
+- [ ] Define the first Engine capability contract and acceptance tests before implementation.
+- [ ] Investigate browser menu responsiveness and Pages deployment independently from Engine design.
 
 ## Technical commands and references
 
