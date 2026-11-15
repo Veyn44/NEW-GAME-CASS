@@ -63,7 +63,13 @@ export class SpatialMovement {
 
     let footprint, orientation, cells;
     try {
-      footprint = normalizeFootprintOffsets(target.footprint ?? source.footprint);
+      footprint = source.footprint;
+      if (target.footprint !== undefined) {
+        const requestedFootprint = normalizeFootprintOffsets(target.footprint);
+        if (requestedFootprint.length !== source.footprint.length || requestedFootprint.some((p, i) => p.x !== source.footprint[i].x || p.y !== source.footprint[i].y)) {
+          return outcome("invalid", "FOOTPRINT_CHANGE_NOT_SUPPORTED", { entityId });
+        }
+      }
       orientation = target.orientation ?? (source.worldId === target.worldId ? source.orientation : 0);
       cells = deriveFootprintCells({ anchor: target.anchor, footprint, orientation, grid: world.grid });
     } catch (error) {
@@ -109,6 +115,7 @@ export class SpatialMovement {
       return outcome("policy-error", "POLICY_EVALUATION_FAILED", { entityId, cause: error?.message ?? String(error) });
     } finally { this.#evaluating.delete(entityId); }
 
+    if (decision && typeof decision.then === "function") { Promise.resolve(decision).catch(() => {}); return outcome("invalid", "ASYNC_POLICY_UNSUPPORTED", { entityId }); }
     if (decision.type === "async") return outcome("invalid", "ASYNC_POLICY_UNSUPPORTED", { entityId });
     if (decision.type !== "decision") return outcome("invalid", "INVALID_POLICY_RESULT", { entityId });
     if (!decision.accepted) {
