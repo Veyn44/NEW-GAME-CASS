@@ -1,6 +1,6 @@
 # Phase 3 Physical World — Implementation Plan
 
-**Status:** Slices 1–6 are implemented on `work`; initial Dev Lab spatial test workflows and the first Cassandra grid/Unit movement integration are implemented. Full Cassandra Main/Temporary World integration and all final acceptance remain in progress. Per project decision, the full test campaign is deferred until Phase 3 implementation is complete.  
+**Status:** Slices 1–6 are implemented on `work`; initial Dev Lab spatial test workflows and Cassandra grid, Unit movement and Main/Temporary World session foundations are implemented. Expedition change-package integration and all final acceptance remain in progress. Per project decision, the full test campaign is deferred until Phase 3 implementation is complete.  
 **Branch:** `work`  
 **Source audit:** 2026-11-15  
 **Scope:** Implementation sequencing for reusable Engine grid/spatial capabilities and their Cassandra/Dev Lab integration
@@ -333,23 +333,28 @@ Tasks:
 
 ### Slice 7 — Cassandra integration
 
-**Status:** Initial Main World grid and Unit movement integration implemented on `work`; Main + Temporary World lifecycle and expedition/change-package integration remain outstanding.
+**Status:** Main World grid/Unit integration and Cassandra Main + Temporary World session foundations are implemented on `work`; campaign projection/change-package integration and final acceptance remain outstanding.
 
 **Implemented initial sub-slice:**
-- Cassandra's 64×64, 128×128 and 256×256 worlds explicitly declare matching Engine grid capabilities.
+- Cassandra's 64×64, 128×128 and 256×256 selectable Main Worlds explicitly declare matching Engine grid capabilities.
 - `src/gameplay/unit/unit-system.js` routes grid placement, cell transitions and retirement through Placement Coordinator and Spatial Movement.
 - Unit domain state now owns continuous movement progress separately from Engine's discrete grid anchor. The initial tile `(x,y)` starts at world-space cell center `(x+0.5,y+0.5)`; occupancy advances only when the progress crosses a cell boundary.
 - Unit snapshot schema is version 2 and persists continuous progress. Old Unit snapshot schema versions are rejected; this is consistent with Cassandra's no-general-backward-compatibility policy.
 - `src/gameplay/colony/colony-control-system.js` continues to own the 4 tiles/second movement speed and diagonal normalization, but now advances Unit progress rather than mutating Engine placement coordinates directly.
 - The current Cassandra movement policy explicitly accepts valid grid transitions, preserving the prototype's existing lack of blocking/collision rules. This is a Cassandra-owned policy seam, not a claim that passability/collision gameplay is implemented.
+- `src/gameplay/world/cassandra-world-session-system.js` owns Cassandra's one-Main/one-Temporary session policy without imposing a world-count limit in Engine. It registers a Temporary World on demand, switches active participation, supports returning/re-entering, and retains the Temporary World for safe result handling rather than disposing it prematurely.
+- The world-session system owns independent local simulated-time counters. The runtime advances only the active Main or Temporary World; while Temporary is active, Main local time does not advance. Returning to Main does not add Temporary elapsed time to Main.
+- Units created in a World marked `metadata.role: "temporary"` receive a scoped runtime identity (`world:<worldId>`), while Main World Units retain persistent identity. Unit restore validates the Temporary World scope.
+- The `game.world-session` persistence participant restores Main/Temporary identity, active World selection and local clocks after World Registry restoration.
 - Shared viewport marker and camera-follow APIs now consume world-space positions directly. The extra `+0.5` presentation offset is removed; Dev Lab test markers supply cell centers explicitly.
 - Unit inspection distinguishes integer grid cell coordinates from continuous movement progress.
 
 **Verification coverage added/updated (full run deferred to Phase 3 completion):**
-- Unit creation, discrete occupancy, within-cell progress, cell-boundary crossing, fractional-progress save/restore, edge clamping and policy rejection.
+- Unit creation, discrete occupancy, within-cell progress, cell-boundary crossing, fractional-progress save/restore, edge clamping, policy rejection, non-grid compatibility, multi-world occupancy isolation and Temporary World scoped-identity restore.
 - Colony movement speed, cardinal movement, diagonal normalization, Draft gating, active-world gating and persistence.
+- Main/Temporary World session lifecycle, single-temporary constraint, independent local clocks, Main-time pause, return behavior and world-session persistence restore.
 
-**Remaining:** Main + Temporary World simulation/lifecycle, explicit pause/participation state, independent world state and time, environment/world-generation integration where authoritative modules exist, and Cassandra expedition result/change-package workflow. The current branch still has no authoritative environment, world-generation or expedition modules to integrate.
+**Remaining:** Full participation gating for every future Cassandra simulation system, explicit mapping/projection of persistent campaign identities into Temporary World runtime identities, typed Change Package creation/validation/idempotent application, safe Temporary World disposal after package commit, and environment/world-generation integration when authoritative modules exist. The current branch still has no authoritative environment, world-generation or expedition modules to integrate.
 
 **Target area:** Existing Cassandra application/gameplay modules, exact paths to be confirmed by the required source audit in Slice 0.
 
