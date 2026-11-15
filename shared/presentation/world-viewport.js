@@ -233,6 +233,19 @@ function render() {
   context.globalAlpha = 1;
 
   for (const marker of worldMarkers) {
+    if (Array.isArray(marker.cells) && marker.cells.length) {
+      context.save();
+      context.fillStyle = marker.id === selectedMarkerId ? "rgba(243, 201, 105, 0.24)" : "rgba(56, 214, 197, 0.16)";
+      context.strokeStyle = marker.id === selectedMarkerId ? "rgba(255, 224, 155, 0.95)" : "rgba(56, 214, 197, 0.75)";
+      context.lineWidth = marker.id === selectedMarkerId ? 2 : 1;
+      for (const cell of marker.cells) {
+        const cellX = (cell.x - left) * cellWidth;
+        const cellY = (cell.y - top) * cellHeight;
+        context.fillRect(cellX + 1, cellY + 1, Math.max(0, cellWidth - 2), Math.max(0, cellHeight - 2));
+        context.strokeRect(cellX + 1, cellY + 1, Math.max(0, cellWidth - 2), Math.max(0, cellHeight - 2));
+      }
+      context.restore();
+    }
     const markerX = (marker.x + 0.5 - left) * cellWidth;
     const markerY = (marker.y + 0.5 - top) * cellHeight;
     if (markerX < 0 || markerX > width || markerY < 0 || markerY > height) continue;
