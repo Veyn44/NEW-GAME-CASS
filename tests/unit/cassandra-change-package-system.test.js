@@ -68,6 +68,10 @@ function makeStorage({ revision = 0, value = 2, failWrites = 0 } = {}) {
       const pending = snapshot.pendingPackages[0];
       if (pending) pending.checkpoint.majorState.revision += 1;
     },
+    tamperPendingResultIdentity() {
+      const pending = snapshot.pendingPackages[0];
+      if (pending?.resolvedResultIdentities) pending.resolvedResultIdentities["result:ore"] = "campaign:corrupt";
+    },
     get snapshot() { return structuredClone(snapshot); },
     get writes() { return writes; }
   };
@@ -191,6 +195,26 @@ test("failed promotion retains the old Major State and durable pending package f
   assert.equal(result.status, "applied");
   assert.equal(identityResolutions, 1);
   assert.equal(storage.snapshot.majorState.aggregates["inventory:crew"].state.ore, 6);
+});
+
+test("coordinator rejects a corrupted durable result identity map on retry", async () => {
+  const storage = makeStorage({ failWrites: 3 });
+  const coordinator = createCassandraChangePackageCoordinator({
+    storage,
+    operationHandlers: handlers,
+    validateReturnManifest: () => true,
+    resolveResultIdentities
+  });
+  const changePackage = await makePackage();
+  await coordinator.stage(changePackage, { checkpoint: { majorState: storage.snapshot.majorState } });
+  await assert.rejects(() => coordinator.apply(changePackage.packageId), /simulated durable write failure/);
+  storage.tamperPendingResultIdentity();
+  await assert.rejects(
+    () => coordinator.apply(changePackage.packageId),
+    { code: "RESULT_IDENTITY_CHECKPOINT_CORRUPT" }
+  );
+  assert.equal(storage.snapshot.majorState.aggregates["inventory:crew"].state.ore, 2);
+  assert.equal(storage.snapshot.appliedLedger.length, 0);
 });
 
 test("coordinator rejects incomplete result identity mappings before changing Major State", async () => {
