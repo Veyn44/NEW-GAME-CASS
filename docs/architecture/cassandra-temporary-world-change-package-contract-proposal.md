@@ -731,7 +731,7 @@ Not yet implemented or proven:
 - The current Unit projection adapter is a narrow projection of the fields that exist in the Unit domain model; a complete campaign projection builder and authoritative aggregate/operation registry are not wired into the runtime.
 - No location-record store, user-facing End/Abandon workflow or recovery/conflict UI is integrated.
 - A Temporary World disposal gate is integrated in `src/gameplay/world/cassandra-world-session-system.js`. It requires an exact Applied-ledger package ID/digest verification, Main World activation, scoped-entity ownership and spatial-integrity preflight, then removes the Temporary World and commits prepared projection cleanup. This is a lifecycle safety primitive, not yet an end-to-end expedition workflow.
-- Automated verification is current: GitHub Actions run `43762918556` passed Core 205/205 and host 244/244. Browser IndexedDB strict-durability, crash/reopen and full UI acceptance remain unverified manual checks.
+- Automated verification is current: GitHub Actions run `43764154151` passed Core 205/205 and host 247/247. Deterministic adapter tests now serialize simultaneous readwrite transactions and verify one-winner compare-and-swap; corrupt existing campaign snapshots are rejected on write and preserved rather than overwritten. Browser IndexedDB strict-durability, crash/reopen and full UI acceptance remain unverified manual checks.
 
 The coordinator must remain unwired to the current workspace adapter until a real campaign persistence backend proves the single-snapshot atomic promotion guarantee. A storage implementation that cannot make that guarantee must fail closed.
 
