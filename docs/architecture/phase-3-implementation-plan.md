@@ -206,7 +206,9 @@ Tasks:
 ### Slice 5 — Persistence and restore integration
 
 **Proposed files:**
-- Extend `engine/spatial/spatial-composition.js` with a persistence participant.
+- Add an Engine-owned composite placement-state persistence coordinator/participant that captures World Context and Spatial Composition canonical snapshots together.
+- Keep Entity Registry and World Registry as earlier restore dependencies; restore the composite placement state after both.
+- Do not register independent World Context and Spatial Composition participants for the same canonical placement state in one Core assembly.
 - Update `engine/core/core-assembly.js` to register it after dependency ordering is approved.
 - Add `tests/unit/spatial-persistence.test.js`.
 - Extend `tests/core-integration.test.js` for cross-participant restore behavior.
@@ -218,6 +220,8 @@ Tasks:
 - Validate world IDs, grid bounds, entity references, footprints, stable IDs and duplicate occupancy during restore preparation.
 - Build restored spatial state off to the side; commit as one participant transaction and support rollback.
 - Ensure participant ordering works with World Registry and Entity Registry references.
+- Make World Context + Spatial Composition restore one synchronous composite commit/rollback boundary; separate awaited participant commits are insufficient for cross-service atomicity.
+- Preserve the World Context-only persistence path for hosts that do not assemble the spatial capability.
 - Define explicit rejection or an intentionally supported, version-scoped migration for saves that predate the spatial participant.
 - Preserve existing `.cass` envelopes, metadata and application-specific state contracts.
 - Never interpret an absent spatial snapshot as empty by default. Reject the save unless a deliberately supported migration can derive the spatial state from authoritative legacy data.
@@ -531,7 +535,7 @@ Any proposed exception must identify the concrete dependency and the smallest re
 
 **Ready for detailed implementation review:** Grid Geometry, Spatial Composition, Spatial Queries, Movement & Collision and the cross-contract responsibility boundaries.
 
-**Still requires implementation-level closure:** Placement Coordinator mechanics; exact persistence participant/restore ordering and supported-save fixture matrix; Cassandra campaign save identity and authoritative state participants; durable Change Buffer/Applied ledger and atomic promotion against the target storage backend; final typed package operation schemas; and the source audit of actual Cassandra movement, environment, world-generation and expedition paths.
+**Still requires implementation-level closure:** Placement Coordinator mechanics; exact composite placement participant schema, fatal rollback behavior and supported-save fixture matrix; Cassandra campaign save identity and authoritative state participants; durable Change Buffer/Applied ledger and atomic promotion against the target storage backend; final typed package operation schemas; and the source audit of actual Cassandra movement, environment, world-generation and expedition paths.
 
 **Compatibility policy:** Backward compatibility with arbitrary old `.cass` versions is not required. Unsupported versions may be rejected safely; selected migrations are optional and explicitly version-scoped.
 
