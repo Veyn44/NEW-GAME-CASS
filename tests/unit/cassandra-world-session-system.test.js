@@ -193,6 +193,42 @@ test("Temporary World cleanup preflight failure leaves the World and its content
   }
 });
 
+test("Temporary World disposal validates every placement before retiring any Unit", async () => {
+  const state = await setup();
+  try {
+    state.session.beginTemporaryWorld({ worldId: "encounter:preflight-integrity", width: 32, height: 32 });
+    const units = state.context.getService("game.unit-api");
+    const unit = units.createUnit({
+      definitionId: "pawn.johny",
+      worldId: "encounter:preflight-integrity",
+      position: { x: 3, y: 4 }
+    });
+    const entities = state.context.getService("core.entity-registry");
+    const placements = state.context.getService("core.placement-coordinator");
+    const persistent = entities.registerPersistent({ kind: "test-persistent" });
+    placements.placeEntity(persistent.id, {
+      worldId: "encounter:preflight-integrity",
+      anchor: { x: 8, y: 9 },
+      footprint: [{ x: 0, y: 0 }]
+    });
+    state.session.returnToMainWorld();
+
+    await assert.rejects(
+      () => state.session.completeTemporaryWorld({
+        packageId: "package:preflight-integrity",
+        digest: "d".repeat(64)
+      }),
+      { code: "PERSISTENT_ENTITY_IN_TEMPORARY_WORLD" }
+    );
+    assert.ok(units.getUnit(unit.id), "the valid Unit must remain after preflight rejection");
+    assert.equal(entities.get(unit.id).status, "active");
+    assert.ok(state.context.getService("core.world-context").getPlacement(unit.id));
+    assert.equal(state.worlds.has("encounter:preflight-integrity"), true);
+  } finally {
+    await state.runtime.destroy();
+  }
+});
+
 test("Temporary World disposal rejects concurrent completion attempts", async () => {
   const state = await setup();
   try {
