@@ -1,11 +1,11 @@
 # Spatial Placement Integration Contract — Working Proposal
 
-**Status:** Placement ownership and grid-anchor coordinate mapping approved; integration mechanics remain a working proposal  
+**Status:** Engine grid placement coordination and composite restore implemented on `work`; Cassandra domain integration remains separate  
 **Branch:** `work`  
 **Decision recorded:** 2026-11-15  
 **Scope:** Coordinated placement between Engine Core World Context and Engine Spatial Composition
 
-This document defines how the agreed placement ownership model should be integrated without creating two independent sources of truth. It is a design artifact only. It does not authorize source/runtime changes, alter existing save behavior, or approve implementation or merge.
+This document records the agreed placement ownership model and its Engine implementation. The implemented scope is limited to reusable Engine spatial capabilities on `work`; it does not authorize Cassandra application integration or a merge to `main`.
 
 ## 1. Agreed ownership
 
@@ -223,7 +223,7 @@ This contract does not:
 
 ## 13. Source-audited persistence integration
 
-**Status:** Implemented on `work` as the `core.spatial-placement` composite persistence participant; Cassandra integration remains separate.
+**Status:** Implemented on `work` as the `core.spatial-placement` composite persistence participant; Cassandra integration remains separate. A rollback integrity failure faults the coordinator and pauses Core's Game Clock.
 
 ### 13.1 Current Persistence behavior
 
