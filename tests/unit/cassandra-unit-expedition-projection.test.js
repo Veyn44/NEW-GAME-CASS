@@ -6,6 +6,7 @@ import { MemorySaveAdapter } from "../../engine/core/persistence.js";
 import { registerDefinition, getDefinition, clearDefinitionsForTests } from "../../engine/database/definition-registry.js";
 import { createUnitSystem } from "../../src/gameplay/unit/unit-system.js";
 import { createCassandraWorldSessionSystem } from "../../src/gameplay/world/cassandra-world-session-system.js";
+import { createCassandraExpeditionProjectionSystem } from "../../src/gameplay/expedition/cassandra-expedition-projection-system.js";
 import {
   createCassandraUnitExpeditionProjection
 } from "../../src/gameplay/expedition/cassandra-unit-expedition-projection.js";
@@ -23,7 +24,8 @@ async function setup() {
     saveAdapter: new MemorySaveAdapter(),
     hostSystems: [
       createUnitSystem({ definitionLookup: getDefinition }),
-      createCassandraWorldSessionSystem()
+      createCassandraWorldSessionSystem(),
+      createCassandraExpeditionProjectionSystem()
     ]
   });
   const context = await runtime.start();
@@ -54,7 +56,10 @@ async function setup() {
     context,
     unitApi,
     campaignUnits: [first, second],
-    entityRegistry: context.getService("core.entity-registry")
+    entityRegistry: context.getService("core.entity-registry"),
+    worldSession: context.getService("game.world-session-api"),
+    projectionApi: context.getService("game.expedition-projection-api"),
+    persistence: context.getService("core.persistence")
   };
 }
 
@@ -91,6 +96,20 @@ test("Cassandra Unit projection creates scoped Temporary World identities and re
       campaignEntityId: unit.id,
       disposition: "returned"
     }))), true);
+
+    state.projectionApi.registerProjection(result.projection);
+    await state.persistence.save("expedition-projection", { stateId: "expedition-projection-state" });
+    for (const projected of result.projectedUnits) state.unitApi.removeUnit(projected.id);
+    state.worldSession.returnToMainWorld();
+    await state.persistence.load("expedition-projection", { stateId: "expedition-projection-state" });
+
+    assert.equal(state.worldSession.getState().activeWorldId, "expedition-temp");
+    assert.equal(state.projectionApi.hasProjection(), true);
+    for (const source of state.campaignUnits) {
+      const mapping = state.projectionApi.getProjection().getByCampaignId(source.id);
+      assert.ok(mapping);
+      assert.ok(state.unitApi.getUnit(mapping.temporaryEntityId));
+    }
   } finally {
     await state.runtime.destroy();
     clearDefinitionsForTests();
