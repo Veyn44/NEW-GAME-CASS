@@ -11,7 +11,7 @@ import {
   createCassandraUnitExpeditionProjection
 } from "../../src/gameplay/expedition/cassandra-unit-expedition-projection.js";
 
-async function setup() {
+async function setup({ isPackageApplied = async () => true } = {}) {
   clearDefinitionsForTests();
   registerDefinition({
     id: "unit.expedition-worker",
@@ -24,7 +24,7 @@ async function setup() {
     saveAdapter: new MemorySaveAdapter(),
     hostSystems: [
       createUnitSystem({ definitionLookup: getDefinition }),
-      createCassandraWorldSessionSystem(),
+      createCassandraWorldSessionSystem({ isPackageApplied }),
       createCassandraExpeditionProjectionSystem()
     ]
   });
@@ -59,7 +59,9 @@ async function setup() {
     entityRegistry: context.getService("core.entity-registry"),
     worldSession: context.getService("game.world-session-api"),
     projectionApi: context.getService("game.expedition-projection-api"),
-    persistence: context.getService("core.persistence")
+    persistence: context.getService("core.persistence"),
+    spatial: context.getService("core.spatial-composition"),
+    worldContext: context.getService("core.world-context")
   };
 }
 
@@ -110,6 +112,46 @@ test("Cassandra Unit projection creates scoped Temporary World identities and re
       assert.ok(mapping);
       assert.ok(state.unitApi.getUnit(mapping.temporaryEntityId));
     }
+
+    state.spatial.addCellContent({
+      contentId: "content:temporary-terrain",
+      worldId: "expedition-temp",
+      cell: { x: 1, y: 1 },
+      categoryId: "terrain",
+      layerId: "ground",
+      payload: { material: "rock" }
+    });
+    state.worldSession.returnToMainWorld();
+    const completed = await state.worldSession.completeTemporaryWorld({
+      packageId: "package:expedition:one",
+      digest: "a".repeat(64)
+    });
+    assert.equal(completed.temporaryWorldId, null);
+    assert.equal(state.worlds.has("expedition-temp"), false);
+    assert.equal(state.projectionApi.hasProjection(), false);
+    assert.equal(state.unitApi.listUnits().length, 2);
+    assert.equal(state.worldContext.listPlacements({ worldId: "expedition-temp" }).length, 0);
+    assert.equal(state.spatial.listEntityOccupancies({ worldId: "expedition-temp" }).length, 0);
+    assert.equal(state.spatial.listContents({ worldId: "expedition-temp" }).length, 0);
+  } finally {
+    await state.runtime.destroy();
+    clearDefinitionsForTests();
+  }
+});
+
+test("Cassandra refuses Temporary World disposal until the exact package is in the Applied ledger", async () => {
+  const state = await setup({ isPackageApplied: async () => false });
+  try {
+    state.worldSession.returnToMainWorld();
+    await assert.rejects(
+      () => state.worldSession.completeTemporaryWorld({
+        packageId: "package:not-applied",
+        digest: "b".repeat(64)
+      }),
+      { code: "CHANGE_PACKAGE_NOT_APPLIED" }
+    );
+    assert.equal(state.worlds.has("expedition-temp"), true);
+    assert.equal(state.worldSession.getState().temporaryWorldId, "expedition-temp");
   } finally {
     await state.runtime.destroy();
     clearDefinitionsForTests();
