@@ -79,6 +79,9 @@ test("Dev Lab movement commits a free target and rejects an occupied target", ()
   assert.equal(rejected.code, "DEV_LAB_OVERLAP");
   assert.deepEqual(rejected.diagnostic.overlaps, [second.entity.id]);
   assert.equal(s.controller.getLastMovement().status, "rejected");
+  assert.deepEqual(s.controller.getMovementHistory().map((entry) => entry.sequence), [1, 2]);
+  assert.deepEqual(s.controller.getMovementHistory()[1].overlaps, [second.entity.id]);
+  assert.throws(() => s.controller.getMovementHistory({ limit: 0 }), /limit must be an integer/);
   assert.deepEqual(s.spatial.getCellEntities("lab-grid", { x: 5, y: 5 }), [second.entity.id]);
 });
 
@@ -100,6 +103,8 @@ test("Dev Lab reset helper retires every spatial test entity", () => {
   assert.deepEqual(removed.map((entity) => entity.id).sort(), [first.entity.id, second.entity.id].sort());
   assert.equal(s.controller.list().length, 0);
   assert.equal(s.spatial.entityOccupancyCount, 0);
+  assert.deepEqual(s.controller.getMovementHistory(), []);
+  assert.equal(s.controller.getLastMovement(), null);
 });
 
 test("Dev Lab controller refuses to mutate non-test Engine entities", () => {
