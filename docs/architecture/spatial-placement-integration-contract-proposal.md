@@ -200,7 +200,7 @@ These details remain proposals or require a focused source check; they are not a
 - Exact coordinator module location and public API.
 - Exact transaction/prepared-state mechanism compatible with existing service internals.
 - Whether the coordinator is registered in Core assembly or composed by an application adapter.
-- Exact world-position conversion required to preserve current Cassandra semantics.
+- Exact Cassandra handling of fractional movement progress when grid occupancy becomes authoritative.
 - Exact composite participant schema and rollback/fatal-fault integration.
 - Which lifecycle statuses are eligible for grid occupancy.
 - Whether every grid-backed entity in Cassandra is represented spatially or only selected entity classes.
@@ -225,7 +225,7 @@ This contract does not:
 
 **Status:** Working implementation proposal based on source audit (2026-11-15); no runtime implementation approved.
 
-### 14.1 Current Persistence behavior
+### 13.1 Current Persistence behavior
 
 Audited sources: `engine/core/persistence.js`, `engine/core/core-assembly.js`, `engine/core/entity-registry.js`, `engine/core/world-registry.js`, `engine/core/world-context.js`.
 
@@ -248,13 +248,13 @@ World Context already detaches and validates its snapshot during preparation, de
 
 Core Assembly's safe boundary rejects persistence during a simulation step, pending/delivering events, runtime destruction or a faulted scheduler. It serializes persistence operations and pauses the GameClock while the queue drains.
 
-### 14.2 Why two placement participants are insufficient
+### 13.2 Why two placement participants are insufficient
 
 Simply registering World Context at -80 and Spatial Composition at -70 would provide deterministic order, but not an indivisible commit. Persistence awaits each participant commit separately. A reader could observe the new World Context placement before Spatial Composition has committed the matching anchor/footprint, or vice versa.
 
 Ordering is a dependency tool; it is not a substitute for a transaction spanning both services.
 
-### 14.3 Recommended composite participant
+### 13.3 Recommended composite participant
 
 **Recommended default:** one Engine-owned composite placement-state persistence participant captures and restores the canonical World Context and Spatial Composition snapshots together.
 
@@ -268,7 +268,7 @@ This does not merge service ownership or create duplicate records. Each service 
 
 A Core assembly with the spatial capability must register this composite participant instead of registering independent World Context and Spatial Composition participants for the same state. A host without the spatial capability may retain the standalone World Context participant.
 
-### 14.4 Restore sequence and ordering
+### 13.4 Restore sequence and ordering
 
 1. Persistence validates the outer save, state identity and participant schemas.
 2. Entity Registry and World Registry prepare and commit first, preserving their existing dependency order.
@@ -289,17 +289,17 @@ Proposed dependency order:
 
 The numeric values are proposed defaults. The dependency relation is the important contract.
 
-### 14.5 Capture consistency
+### 13.5 Capture consistency
 
 The composite participant captures both canonical snapshots from one stable state at the existing Core safe boundary. It must not combine World Context from before a move with Spatial Composition from after it. If it cannot obtain a consistent pair, the save fails rather than writing contradictory state.
 
-### 14.6 Mutation boundary
+### 13.6 Mutation boundary
 
-Source audit confirms that current World Context exposes public mutation methods: `placeEntity`, `storeEntity`, `placeInStore`, `moveEntity` and `removePlacement`.
+Source audit confirms that current World Context exposes public mutation methods: `placeEntity`, `storeEntity`, `placeInStore`, `moveEntity` and `removePlacement`. The current Cassandra `UnitSystem` calls `placeEntity` when creating a unit, `moveEntity` when moving it, and `removePlacement` when removing it. Those call sites must be moved behind the Placement Coordinator for grid-backed entities; the Unit domain system remains the Cassandra-facing API.
 
 Grid-backed mutation must be routed through the Placement Coordinator. Direct World Context or Spatial Composition mutation must not be able to change one side alone. Preserve existing World Context-only behavior for non-grid placements and storage. The implementation may use private methods, an internal capability token or an equivalent enforced boundary; caller convention alone is insufficient.
 
-### 14.7 Required tests
+### 13.7 Required tests
 
 1. Composite capture contains both canonical sub-snapshots from one consistent state.
 2. Capture cannot occur during an active coordinated placement mutation.
@@ -317,7 +317,7 @@ Grid-backed mutation must be routed through the Placement Coordinator. Direct Wo
 14. Unsupported schemas reject before participant commits.
 15. Successful round-trip rebuilds derived occupancy indexes deterministically.
 
-### 14.8 Open implementation details
+### 13.8 Open implementation details
 
 - Exact composite participant ID and snapshot schema.
 - Exact coordinator module location and service registration.
@@ -327,6 +327,15 @@ Grid-backed mutation must be routed through the Placement Coordinator. Direct Wo
 - Full lifecycle coverage for entity removal, storage and non-grid transitions.
 
 These are technical implementation details for the relevant implementation slice; they do not require another user decision at this stage.
+
+### 13.9 Cassandra integration notes from the current source tree
+
+- `src/gameplay/unit/unit-system.js` creates units at integer tile coordinates, but `moveUnit()` accepts fractional coordinates and writes them directly into World Context.
+- `src/gameplay/colony/colony-control-system.js` owns movement speed (4 tiles/second), diagonal normalization and input-driven movement. It only moves a drafted leader when that leader belongs to `WorldRegistry.activeWorldId`.
+- `cassandra/application/cassandra-application-shell.js` registers 64×64, 128×128 and 256×256 worlds, activates one selected world, and passes integer tile coordinates from viewport placement to Unit System.
+- `shared/presentation/world-viewport.js` currently adds `+0.5` when drawing markers and following the camera. Once World Context stores the approved cell-center position for grid-backed entities, those presentation offsets must not be applied a second time.
+- Existing Unit tests explicitly cover fractional movement and persistence of fractional positions. Grid integration must replace or adapt those expectations deliberately; it must not silently round positions.
+- The current source tree contains no Cassandra environment simulation, world-generation, expedition or temporary-world implementation modules or corresponding test files. Those systems cannot be source-audited from this branch yet; their future integration remains a separate dependency, not something to infer from the current workspace prototype.
 
 ## 14. Related contracts
 
