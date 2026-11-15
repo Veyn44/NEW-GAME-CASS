@@ -442,18 +442,19 @@ export function createCassandraChangePackageCoordinator({
   }
 
   return Object.freeze({
-    async stage(changePackage, { checkpoint } = {}) {
-      await verifyCassandraChangePackage(changePackage);
+    async stage(immutablePackage, { checkpoint } = {}) {
+      const immutablePackage = deepFreeze(cloneJson(changePackage));
+      await verifyCassandraChangePackage(immutablePackage);
       const snapshot = await loadSnapshot();
-      const pendingExisting = snapshot.pendingPackages.find((entry) => entry.packageId === changePackage.packageId);
-      const appliedExisting = snapshot.appliedLedger.find((entry) => entry.packageId === changePackage.packageId);
+      const pendingExisting = snapshot.pendingPackages.find((entry) => entry.packageId === immutablePackage.packageId);
+      const appliedExisting = snapshot.appliedLedger.find((entry) => entry.packageId === immutablePackage.packageId);
       if (pendingExisting && appliedExisting) {
-        fail("PACKAGE_LEDGER_INCONSISTENT", "A package cannot be both pending and applied.", { packageId: changePackage.packageId });
+        fail("PACKAGE_LEDGER_INCONSISTENT", "A package cannot be both pending and applied.", { packageId: immutablePackage.packageId });
       }
       const existing = pendingExisting ?? appliedExisting;
       if (existing) {
-        if (existing.digest !== changePackage.digest) {
-          fail("PACKAGE_ID_REUSE", "A package ID cannot be reused with different content.", { packageId: changePackage.packageId });
+        if (existing.digest !== immutablePackage.digest) {
+          fail("PACKAGE_ID_REUSE", "A package ID cannot be reused with different content.", { packageId: immutablePackage.packageId });
         }
         return Object.freeze({ status: appliedExisting ? "alreadyApplied" : "alreadyPending" });
       }
@@ -463,7 +464,7 @@ export function createCassandraChangePackageCoordinator({
         fail("EXPEDITION_CHECKPOINT_REQUIRED",
           "The full expedition-start Major State checkpoint, including aggregates, must be retained with the pending package.");
       }
-      for (const baseline of changePackage.baseline) {
+      for (const baseline of immutablePackage.baseline) {
         if (checkpoint.majorState.aggregates[baseline.aggregateId]?.revision !== baseline.revision) {
           fail("CHECKPOINT_BASELINE_MISMATCH",
             "The package baseline must match the retained expedition-start checkpoint.",
@@ -472,9 +473,9 @@ export function createCassandraChangePackageCoordinator({
       }
       const checkpointDigest = await sha256(canonicalStringify(checkpoint));
       snapshot.pendingPackages.push({
-        packageId: changePackage.packageId,
-        digest: changePackage.digest,
-        changePackage: cloneState(changePackage),
+        packageId: immutablePackage.packageId,
+        digest: immutablePackage.digest,
+        changePackage: cloneState(immutablePackage),
         checkpoint: cloneState(checkpoint),
         checkpointDigest,
         status: "pending",
@@ -482,14 +483,14 @@ export function createCassandraChangePackageCoordinator({
         resolvedResultIdentitiesDigest: null
       });
       const reopened = await writeSnapshot(snapshot);
-      const retained = reopened.pendingPackages.find((entry) => entry.packageId === changePackage.packageId);
-      if (!retained || retained.digest !== changePackage.digest
+      const retained = reopened.pendingPackages.find((entry) => entry.packageId === immutablePackage.packageId);
+      if (!retained || retained.digest !== immutablePackage.digest
         || retained.checkpointDigest !== checkpointDigest
         || canonicalStringify(retained.checkpoint) !== canonicalStringify(checkpoint)) {
         fail("CHANGE_BUFFER_DURABILITY_UNCONFIRMED",
           "The reopened campaign snapshot does not contain the complete pending package and expedition checkpoint.");
       }
-      return Object.freeze({ status: "pending", packageId: changePackage.packageId });
+      return Object.freeze({ status: "pending", packageId: immutablePackage.packageId });
     },
 
     async apply(packageId) {
