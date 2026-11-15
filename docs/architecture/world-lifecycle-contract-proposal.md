@@ -133,35 +133,42 @@ If no world participates, the host may allow the runtime's global clock to remai
 ### 4.4 Fixed-step and determinism
 
 - Preserve fixed-step execution and deterministic ordering.
-- A world's local simulated time is committed only after that world's complete step succeeds.
+- A **global simulation round** is one fixed-step interval on the shared scheduler timeline.
+- At the beginning of each round, the scheduler takes an immutable snapshot of the worlds that are Ready, enabled and not paused. That participant set cannot change partway through the round; lifecycle or participation changes requested during execution take effect at the next round boundary.
+- Every participating world receives at most one world-scoped step for that global round. A world that is not in the participant snapshot receives no step.
+- World iteration order must be independent of focus, rendering, registration order and incidental collection iteration. The proposed canonical order is ascending world ID using a locale-independent ordinal string comparison. Do not rely on the current WorldRegistry list locale-based sort as a cross-runtime determinism guarantee.
+- Within each world, simulation systems retain the dependency order validated by SystemRegistry/Bootstrap. Do not introduce a second dependency graph.
+- The exact interleaving of global (non-world-scoped) tasks and world-scoped tasks must be specified by the scheduler contract before the public task API is implemented; it must not be left to incidental array order.
+- A world's local simulated time is committed only at the defined successful round boundary. The global clock advances once per completed global round, not once per participating world.
+- The first multi-world implementation must not claim world-local fault isolation unless it can prove the required state-commit boundary. Until then, preserve the current fail-stop behavior described below.
 - The global scheduler's existing backlog, speed-snapshot, bounded catch-up and overload semantics must be preserved unless a separately reviewed design explicitly changes them.
 - Rendering frequency must not affect simulation time.
-
 ## 5. Failure isolation
 
 Proposed failure domains:
 
-### 5.1 World-local failure
+### 5.1 World-local failure — future capability, not assumed in the first multi-world slice
 
-A failure attributable to one world's simulation work should:
-- mark that world's simulation as faulted/disabled;
-- stop further steps for that world;
-- preserve diagnostics including world identity, step/tick and failing system/task;
-- allow unrelated worlds to continue if shared infrastructure remains healthy;
-- require an explicit host recovery decision.
+A future scheduler may isolate a failure to one world only when:
+- the failure is attributable to that world's simulation work rather than shared infrastructure;
+- the failed world's partial mutations cannot corrupt another world's state or shared state;
+- the failed world can be stopped at a safe boundary;
+- the scheduler can account for successful and failed world work without advancing time inconsistently;
+- diagnostics identify the world, global round/tick and failing system/task;
+- the host receives an explicit recovery decision.
 
-A failed world step does not commit that world's local simulated time.
+A failed world step must not advance that world's committed simulated time.
 
-**Important limitation:** the current synchronous task model does not provide automatic rollback of mutations made earlier in a partially executed step. Unless a future transactional step mechanism is designed, a world that fails mid-step must be treated as potentially inconsistent and must not simply resume. The host may need to restore a prior snapshot or rebuild that world runtime.
+**Current limitation:** the synchronous task model does not provide automatic rollback of mutations made earlier in a partially executed step. A world can mutate state before a later task throws. Therefore, do not simply continue with other worlds and claim isolation unless a reviewed commit/rollback boundary proves that doing so is safe. A failed world may require restoring a prior snapshot or rebuilding its runtime.
 
+**Initial multi-world safety rule:** until that boundary exists and is covered by tests, any simulation-task failure continues to fault and pause the global scheduler, exactly as it does today. This deliberately postpones per-world fault isolation rather than weakening existing failure safety.
 ### 5.2 Shared infrastructure failure
 
 Failures in shared infrastructure (for example, a corrupted shared event bus, global clock or scheduler invariant) may stop the complete runtime. The Engine must not misclassify a shared failure as an isolated world failure.
 
 ### 5.3 Existing behavior to preserve during transition
 
-Today, any task failure faults the single global SimulationScheduler and adds the global `scheduler-fault` pause reason. This behavior must remain intact until a separately tested world-aware scheduling design replaces it. Do not weaken current failure safety as an intermediate shortcut.
-
+Today, any task failure faults the single global SimulationScheduler, leaves the failed fixed-step round uncommitted, and adds the global scheduler-fault pause reason. This behavior must remain intact for the first multi-world scheduling implementation. Multi-world support must not silently change it into best-effort continuation. Per-world fault isolation is a later capability requiring an explicit safe commit/rollback design and dedicated tests.
 ## 6. Focus, rendering and host policy
 
 Engine Core does not decide:
@@ -240,18 +247,22 @@ These are proposed minimum acceptance tests before implementation is considered 
 2. Load two worlds; both can remain Ready simultaneously.
 3. Enable simulation for World B while World A remains Ready but disabled.
 4. Advance several fixed steps; only World B's local simulated time increases.
-5. Enable both worlds; both receive deterministic steps and each local time advances by its successful steps.
-6. Focus World A while World B continues simulating; focus does not change participation.
-7. Render neither world while one or both continue simulating; rendering does not change time.
-8. Disable World B; its local time remains unchanged while World A continues.
-9. Cause a world-local failure; that world stops and is diagnosed while another world continues if shared infrastructure is healthy.
-10. Cause a shared scheduler/infrastructure failure; the runtime stops according to global safety rules.
-11. Attempt simulation while a world is Unloaded, Loading, Disposing or Disposed; the operation is rejected.
-12. Unload and reload a registered world; its persistent data and committed simulated time are restored.
-13. Save while multiple worlds are loaded; restore does not automatically enable simulation or restore focus/rendering.
-14. Fail a persistence participant during restore; prior committed runtime state is rolled back where supported.
-15. Dispose a temporary world; its runtime resources are released without silently deleting host-owned persistent data.
-16. Confirm current single-world scheduler determinism, backlog, pause, overload and fault regression tests remain passing.
+5. Enable both worlds; both receive one world-scoped step per global round in canonical world-ID order, and each local time advances by one fixed-step duration.
+6. Register the same worlds in a different order; the execution order remains identical.
+7. Request a participation or lifecycle change during a round; the immutable participant set remains unchanged until the next round boundary.
+8. Focus World A while World B continues simulating; focus does not change participation.
+9. Render neither world while one or both continue simulating; rendering does not change time.
+10. Disable World B; its local time remains unchanged while World A continues.
+11. Pause World B for one reason, remove a different pause reason, and confirm World B remains paused until its own reason is removed.
+12. Cause a task failure in a multi-world round; the initial implementation faults and pauses the global scheduler, does not commit the global round, and does not claim that earlier world mutations were rolled back.
+13. Cause a shared scheduler/infrastructure failure; the runtime stops according to global safety rules.
+14. Attempt simulation while a world is Unloaded, Loading, Disposing or Disposed; the operation is rejected.
+15. Unload and reload a registered world; its persistent data and committed simulated time are restored.
+16. Keep two persistent colony worlds loaded and enabled across many rounds; both continue to receive deterministic steps without requiring focus to switch between them.
+17. Save while both colony worlds are loaded; restore both worlds and their local simulated times, with participation disabled until the host explicitly enables them.
+18. Fail a persistence participant during restore; prior committed runtime state is rolled back where supported.
+19. Dispose a temporary world; its runtime resources are released without silently deleting host-owned persistent data.
+20. Confirm current single-world scheduler determinism, backlog, pause, overload and fault regression tests remain passing.
 
 ## 10. Explicitly out of scope
 
@@ -266,15 +277,18 @@ This contract does not design or implement:
 
 ## 11. Current implementation facts and required migration caution
 
-Source audit on `work` confirms:
-- `WorldRegistry` currently supports multiple registered worlds but exactly one active world.
-- `GameClock` and `SimulationScheduler` are currently global singletons in Core Assembly.
-- Scheduler task failure currently faults and pauses the entire scheduler.
-- `WorldContext` stores entity placement, not world runtime lifecycle.
-- World Registry snapshots persist world descriptors and the single active-world reference.
-- Persistence already supports participant snapshots, migration, and transactional prepare/commit/rollback.
+Source audit on work confirms:
+- WorldRegistry supports multiple registered descriptors, but activeWorldId is singular; activating another world deactivates the previous one.
+- WorldRegistry.list() returns descriptors sorted with localeCompare. That is deterministic within a given runtime configuration, but it is not by itself a cross-locale canonical ordering contract.
+- GameClock is one global clock with one global set of pause reasons and one committed totalSeconds value.
+- SimulationScheduler is global, executes its task list synchronously in the dependency order supplied by Core Assembly, and commits one global clock step only after all tasks in that step complete.
+- Scheduler task failure faults and globally pauses the scheduler; it does not roll back mutations made by tasks that ran earlier in the failed step.
+- CoreAssembly currently supplies one global list of simulationTasks; task callbacks receive a global step context and the Core service context, not a world-scoped execution context.
+- WorldContext stores entity placement, not world runtime lifecycle or per-world simulation time.
+- World Registry snapshots persist world descriptors and the single active-world reference; they do not persist world runtime readiness, participation or local simulated time.
+- Persistence already supports participant snapshots, migration, and transactional prepare/commit/rollback for participating state.
 
-Therefore, this contract requires a staged architecture change. It must not be implemented by merely allowing multiple registry entries to have status `active`, nor by adding unrelated booleans without transition validation.
+Therefore, multi-world simulation requires a staged scheduler/task-context and persistence extension. It must not be implemented by merely allowing multiple registry entries to have status active, by iterating a mutable world list during a step, or by adding unrelated booleans without transition validation.
 
 ## 12. Review status
 
@@ -288,7 +302,8 @@ Therefore, this contract requires a staged architecture change. It must not be i
 
 **Proposal still requiring review:**
 - exact public API and runtime-state representation;
-- exact semantics of global time commit when some worlds fail;
+- exact division and ordering of global tasks versus world-scoped tasks within one global round;
+- how the scheduler atomically commits per-world local time alongside the single global time value;
 - whether a failed world step is recoverable only by restore/rebuild or may gain transactional rollback later;
 - exact restore readiness sequence and snapshot schema;
 - lifecycle transition error codes and event/diagnostic names.
