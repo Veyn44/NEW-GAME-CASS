@@ -54,7 +54,7 @@ Engine owns generic snapshot/restore contracts. Cassandra and Dev Lab own separa
 **Completed and merged to `main` through PR #6 on 2026-11-14.** Do not restart the mechanical restructuring. Remaining boundary cleanup is follow-up work only when a concrete dependency requires it.
 
 ### Phase 3 — Engine physical-world foundation and application integration
-**Partially complete; infrastructure slices are substantially implemented on `work`.**
+**Infrastructure slices are substantially implemented on `work`; current Pages workflow manually accepted, with separate later-scope checks explicitly deferred.**
 
 - **Slices 1–6 — implemented:** Grid Geometry, Spatial Composition, Spatial Queries, Movement, coordinated spatial persistence and Core Assembly integration.
 - **Slice 7 — partially implemented:** Cassandra grid-backed Unit movement, Main/Temporary World session policy, runtime identity projection and persistence, Change Package/Change Buffer protocol foundations, and a candidate IndexedDB compare-and-swap backend exist. Authoritative campaign aggregate/domain handlers, full expedition workflow, complete reconciliation/disposition rules and real-browser backend verification remain open.
@@ -77,7 +77,7 @@ Do not interpret “Slice 7 foundations implemented” as “Cassandra expeditio
 
 ## Immediate next step
 
-The current task is a pre-merge audit of `work` against `main`. Continue only with source-backed merge blockers and small, testable corrections; do not expand features or begin Phase 4 during this audit. The latest verified source/test checkpoint is `99fe57c824aa4e40d575ec0206e5b2adc2dd77eb` with 233/233 Core tests, 294/294 Host tests, browser syntax checks, development preview deployment and GitHub Pages deployment all successful. It also includes regression coverage for disposing a Temporary World Unit after its placement has already been removed.
+The current task is a pre-merge audit of `work` against `main`. Continue only with source-backed merge blockers and small, testable corrections; do not expand features or begin Phase 4 during this audit. The latest verified source/test checkpoint is `99fe57c824aa4e40d575ec0206e5b2adc2dd77eb` with 233/233 Core tests, 294/294 Host tests and browser syntax checks successful. A later docs-only checkpoint `240a5197507bd9a7de41d7bd91c0f825a7800f2c` also passed Core/Host CI, development preview and Pages deployment. The unplaced Temporary World Unit cleanup regression is included in the source/test checkpoint. The audit checklist clarification at `ec3600ce3f9ad7098f7daa5f4e0da0e100e2ce97` still needs exact-head CI confirmation.
 
 When the audit has only minor/accepted gaps remaining, present the merge-readiness report and wait for the user's explicit approval. After the merge, plan Phase 4 together around direct browser testing of the existing Cassandra/Dev Lab implementation.
 
