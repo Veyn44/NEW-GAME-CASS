@@ -1,4 +1,4 @@
-import { getDefinition, normalizeDefinitions, registerDefinitions } from "./definition-registry.js";
+import { normalizeDefinitions, registerDefinitions } from "./definition-registry.js";
 
 const loadedPackages = new Map();
 
@@ -31,14 +31,9 @@ export function loadDefinitionPackage({ id, definitions } = {}) {
   }
 
   const packageId = id.trim();
-  const normalizedDefinitions = normalizeDefinitions(definitions);
-  const definitionIds = normalizedDefinitions.map((definition) => definition.id);
-  if (new Set(definitionIds).size !== definitionIds.length) {
-    throw new Error('Definition package "' + packageId + '" contains duplicate definition IDs.');
-  }
-
   const existingPackage = loadedPackages.get(packageId);
   if (existingPackage) {
+    const normalizedDefinitions = normalizeDefinitions(definitions);
     const sameDefinitions = existingPackage.definitions.length === normalizedDefinitions.length
       && existingPackage.definitions.every((definition, index) =>
         areDefinitionsEquivalent(definition, normalizedDefinitions[index]));
@@ -48,15 +43,10 @@ export function loadDefinitionPackage({ id, definitions } = {}) {
     return existingPackage.definitions;
   }
 
-  for (const definitionId of definitionIds) {
-    if (getDefinition(definitionId)) {
-      throw new Error('Definition "' + definitionId + '" is already registered outside package "' + packageId + '".');
-    }
-  }
-
-  // The registry validates and normalizes the full batch before committing
-  // any definition, so a malformed later entry cannot leave a partial package.
-  const registered = registerDefinitions(normalizedDefinitions);
+  // registerDefinitions performs the one normalization pass, validates the
+  // complete batch and commits only after every definition has passed.
+  const registered = registerDefinitions(definitions);
+  const definitionIds = registered.map((definition) => definition.id);
   const result = Object.freeze(registered);
   loadedPackages.set(packageId, Object.freeze({
     definitionIds: Object.freeze([...definitionIds]),
