@@ -191,6 +191,33 @@ export function runWorldRuntimeManagerTests() {
     equal(runtime.getState("world:alpha").simulatedSeconds, 6);
   });
 
+  check("runtime rollback checkpoint preserves transient lifecycle state and disposal target", () => {
+    const { runtime } = setup();
+    ready(runtime, "world:alpha");
+    ready(runtime, "world:beta");
+    runtime.setSimulationEnabled("world:alpha", true);
+    runtime.setSimulationEnabled("world:beta", true);
+    runtime.pause("world:beta", "host-maintenance");
+    runtime.commitStep(runtime.getParticipants(), 5);
+    runtime.beginUnload("world:alpha");
+
+    const checkpoint = runtime.captureRuntimeCheckpoint();
+    runtime.finishUnload("world:alpha");
+    runtime.resume("world:beta", "host-maintenance");
+    runtime.pause("world:beta", "temporary-change");
+
+    const restore = runtime.prepareRuntimeCheckpointRestore(checkpoint);
+    restore.commit();
+
+    equal(runtime.getState("world:alpha").status, "Disposing");
+    equal(runtime.finishUnload("world:alpha").status, "Unloaded");
+    equal(runtime.getState("world:beta").status, "Ready");
+    equal(runtime.getState("world:beta").simulationEnabled, true);
+    equal(runtime.getState("world:beta").pauseReasons.join(","), "host-maintenance");
+    equal(runtime.getState("world:beta").simulatedSeconds, 5);
+    equal(runtime.getState("world:beta").completedSteps, 1);
+  });
+
   check("restore rejects world-time records that do not match registered worlds", () => {
     const { runtime } = setup();
     throwsCode(() => runtime.prepareRestore({ version: 1, worlds: [{ worldId: "world:missing", simulatedSeconds: 0, completedSteps: 0 }] }).commit(),
