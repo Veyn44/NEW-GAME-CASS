@@ -208,10 +208,12 @@ export class WorldContext {
     if (entity.scope !== "scoped" || entity.status !== "active") {
       throw new WorldContextError("ENTITY_NOT_STORABLE", "Only an active scoped entity can be transferred to persistent storage.", { entityId, scope: entity.scope, status: entity.status });
     }
-    // EntityRegistry.store is the only mutating operation and runs after all validation.
-    // The following placement replacement cannot fail, so both registries change in one synchronous operation.
-    this.#entities.store(entityId);
+    // Prepare the identity lifecycle change through the same internal placement
+    // capability used by PlacementCoordinator, so direct EntityRegistry calls
+    // cannot change lifecycle while this World Context placement still exists.
+    const lifecycle = this.#entities.prepareCoordinatedLifecycleChange(entityId, "store", PLACEMENT_AUTHORITY);
     const placement = freezePlacement({ entityId, type: "store", storeId: stableStoreId });
+    lifecycle.commit();
     this.#placements.set(entityId, placement);
     return Object.freeze({ previous: current, current: placement });
   }
