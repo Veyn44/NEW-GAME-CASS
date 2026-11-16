@@ -1099,3 +1099,10 @@ Latest code/test commit: `9a62f056a58d180d1cfcca56742252be9fa3fb8d`. CI verifica
 - Real-browser IndexedDB strict-durability, crash/reopen and Pages interaction acceptance remain outstanding.
 - No Engine behavior, environment simulation, or `.cass` save format was changed.
 - All changes are on `work`; `main` was not modified. No PR or merge was created.
+
+
+### Runtime-host integration regression
+
+- Extended `tests/unit/cassandra-runtime-host.test.js` with an integration test using the actual Cassandra runtime, the application Campaign session controller and the injected Applied-ledger verifier.
+- The test proves that Temporary World disposal is rejected while no Campaign is active, then succeeds only after an explicitly created Campaign contains the exact package ID/digest with `status: "applied"`.
+- Test commit: `8ec757cb8881c2ddcd3b40bde398ba3075fb7874`. CI for this exact commit is not confirmed; test execution remains unverified.
