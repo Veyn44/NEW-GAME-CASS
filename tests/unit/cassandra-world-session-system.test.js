@@ -5,6 +5,8 @@ import { createGameRuntime } from "../../engine/runtime/create-game-runtime.js";
 import { MemorySaveAdapter } from "../../engine/core/persistence.js";
 import { getDefinition } from "../../engine/database/definition-registry.js";
 import { createUnitSystem } from "../../src/gameplay/unit/unit-system.js";
+import { createInputSystem } from "../../engine/input/input-system.js";
+import { createColonyControlSystem } from "../../src/gameplay/colony/colony-control-system.js";
 import { createCassandraRuntime } from "../../cassandra/application/cassandra-runtime-host.js";
 import { createViewportInputController } from "../../shared/input/viewport-input-controller.js";
 import {
@@ -13,12 +15,15 @@ import {
 
 async function setup({ isPackageApplied = async () => true, definitionLookup = getDefinition } = {}) {
   const saveAdapter = new MemorySaveAdapter();
+  const inputController = createViewportInputController();
   const runtime = createGameRuntime({
     saveAdapter,
     fixedStepSeconds: 1,
     maxStepsPerFrame: 120,
     hostSystems: [
+      createInputSystem({ inputController }),
       createUnitSystem({ definitionLookup }),
+      createColonyControlSystem(),
       createCassandraWorldSessionSystem({ isPackageApplied })
     ]
   });
@@ -40,7 +45,15 @@ async function setup({ isPackageApplied = async () => true, definitionLookup = g
   });
   const session = context.getService("game.world-session-api");
   session.registerMainWorld("cassandra-main-128");
-  return { runtime, context, worlds, session, saveAdapter };
+  return {
+    runtime,
+    context,
+    worlds,
+    session,
+    saveAdapter,
+    units: context.getService("game.unit-api"),
+    colony: context.getService("game.colony-control-api")
+  };
 }
 
 test("Cassandra runtime advances only the active World's local clock per simulation step", async () => {
@@ -388,6 +401,40 @@ test("Cassandra world session state restores with World Registry selection and l
     assert.equal(state.session.getWorldTime("cassandra-main-128"), 7);
     assert.equal(state.session.getWorldTime("encounter:save-test"), 11);
     assert.equal(state.session.getState().inTemporaryWorld, true);
+  } finally {
+    await state.runtime.destroy();
+  }
+});
+
+
+test("Temporary World disposal clears Colony Leader when it removes Units in bulk", async () => {
+  const state = await setup({ definitionLookup: (id) => ({ id }) });
+  try {
+    state.session.beginTemporaryWorld({ worldId: "encounter:leader-disposal", width: 32, height: 32 });
+    const first = state.units.createUnit({
+      definitionId: "test.temporary-worker",
+      worldId: "encounter:leader-disposal",
+      position: { x: 3, y: 4 }
+    });
+    const second = state.units.createUnit({
+      definitionId: "test.temporary-worker",
+      worldId: "encounter:leader-disposal",
+      position: { x: 7, y: 8 }
+    });
+    state.colony.setLeader(first.id);
+    state.colony.setDrafted(true);
+    state.session.returnToMainWorld();
+
+    const result = await state.session.completeTemporaryWorld({
+      packageId: "package:leader-disposal",
+      digest: "2".repeat(64)
+    });
+
+    assert.equal(result.temporaryWorldId, null);
+    assert.equal(state.worlds.has("encounter:leader-disposal"), false);
+    assert.equal(state.units.getUnit(first.id), null);
+    assert.equal(state.units.getUnit(second.id), null);
+    assert.deepEqual(state.colony.getState(), { leaderId: null, drafted: false });
   } finally {
     await state.runtime.destroy();
   }
