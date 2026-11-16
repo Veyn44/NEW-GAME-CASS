@@ -108,7 +108,7 @@ The existing infrastructure is a foundation only. The outstanding gameplay/domai
 
 The checkpoint includes the Campaign session lifecycle, Applied-ledger host integration, persistence rollback fail-stop, spatial read-only mutation guards, World Registry lifecycle guard, non-grid Entity Registry placement guard, save-target rollback, serialized file operations, and a regression proving that Temporary World disposal retires a scoped Unit even after its placement was already removed.
 
-The documentation reconciliation commits after the earlier `35bab1…` checkpoint updated implementation notes, the manual checklist and the agreed Phase 4 objective. Later code/test commits refined the scoped-Unit disposal path and added its regression coverage; the current checkpoint above includes those changes.
+The documentation reconciliation commits after the earlier `35bab1…` checkpoint updated implementation notes and the manual checklist. Later code/test commits refined the scoped-Unit disposal path and added its regression coverage; the current checkpoint above includes those changes.
 
 CI and syntax checks do not prove all browser interactions, real IndexedDB strict durability, cross-tab behavior, crash/reopen recovery or performance.
 
@@ -135,11 +135,9 @@ These deferred checks are not being represented as passed. They are also not pre
 
 ## 9. Next engineering decision
 
-The pre-merge audit and integration merge are complete. The immediate objective is post-merge documentation reconciliation, followed by joint Phase 4 planning.
+Phase 3 has been integrated into `main` and its exact merge-commit Core/Host CI passed. The current documentation reconciliation is being handled separately in PR #8.
 
-Phase 4 should prepare the existing Cassandra and Dev Lab implementations for direct browser testing: entry points, host composition, repeatable test workflows, diagnostics and persistence interactions. It is not a gameplay feature phase. Do not invent campaign, inventory, health, equipment, resource, crew, disposition or expedition rules to satisfy acceptance checklists.
-
-The user's manual acceptance is limited to the currently exposed Pages-hosted Cassandra workflow and its `.cass` save/load path. Standalone Dev Lab, detailed spatial diagnostics, Main/Temporary World edge cases, browser teardown/restart, Campaign IndexedDB strict durability/cross-tab/interruption behavior, authoritative environment regression and representative performance measurements remain separate validation items.
+No post-Phase-3 implementation phase, sequence of slices or immediate gameplay scope has been agreed. The remaining manual/browser and platform-specific checks listed above are facts about current acceptance status; they do not, by themselves, prescribe the next development phase. The next direction will be selected jointly based on Cassandra's needs and the decisions made during the next planning discussion.
 
 ## 2026-11-16 follow-up — Applied Ledger verifier runtime path
 
