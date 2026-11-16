@@ -332,7 +332,11 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
             // Persistence captured and prepared an in-memory checkpoint for
             // every registered state owner before this first destructive call.
             for (const unit of unitApi.listUnits()) {
-              if (unit.placement?.type === "world" && unit.placement.worldId === plan.id) {
+              const identity = entities.get(unit.id);
+              if (identity?.scope === "scoped" && identity.scopeId === scopeId) {
+                // Remove every Unit owned by this Temporary World, including a
+                // temporarily unplaced Unit. The generic Entity cleanup below
+                // cannot clear UnitSystem's own authoritative record.
                 unitApi.removeUnit(unit.id);
               }
             }
