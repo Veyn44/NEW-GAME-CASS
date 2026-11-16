@@ -1028,3 +1028,15 @@ The proposal includes required invariants, pre-implementation acceptance scenari
 - The regression test is committed but must not be described as passing until CI reports its result.
 - No environment simulation rules were changed.
 - `main` remains untouched. No PR or merge was created.
+
+### Runtime-checkpoint precision follow-up
+
+A review of the first rollback implementation found that the ordinary persisted `core.world-runtime` snapshot intentionally stores local time/step counters but not transient residency, readiness or simulation-participation state. Reusing it for an in-memory rollback would therefore restore a disposed Temporary World as Unloaded rather than to its exact pre-failure Ready state.
+
+- Added optional runtime-checkpoint hooks to Persistence participants. Ordinary save/load schemas remain unchanged.
+- WorldRuntimeManager now captures and restores its complete in-memory lifecycle state for runtime rollback only: status, disposal target, simulation participation, pause reasons, local simulated time and completed steps.
+- Added explicit validation for checkpoint lifecycle combinations and duplicate/invalid pause reasons.
+- Extended the mid-commit failure regression test to assert that the Temporary World returns to Ready and remains simulation-disabled after rollback.
+- Fatal rollback failure remains fail-closed: Persistence blocks later save/load/runtime transactions and Core retains a dedicated pause reason.
+
+Latest code/test commit: `9a62f056a58d180d1cfcca56742252be9fa3fb8d`. CI verification is still pending confirmation for this commit.
