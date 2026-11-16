@@ -9,8 +9,17 @@ export function createColonyControlSystem() {
   let units;
   let input;
   let worlds;
+  let events;
   let state = freezeState(null, false);
   let unregisterPersistence = null;
+  let unsubscribeUnitRemoved = null;
+
+  function reconcileLeader() {
+    if (state.leaderId && !units.getUnit(state.leaderId)) {
+      state = freezeState(null, false);
+    }
+    return state;
+  }
 
   const api = Object.freeze({
     getState() { return state; },
@@ -22,15 +31,18 @@ export function createColonyControlSystem() {
       return state;
     },
     setDrafted(drafted) {
+      reconcileLeader();
       state = freezeState(state.leaderId, Boolean(drafted) && Boolean(state.leaderId));
       return state;
     },
     toggleDraft() {
+      reconcileLeader();
       if (!state.leaderId) return state;
       state = freezeState(state.leaderId, !state.drafted);
       return state;
     },
     update(deltaSeconds) {
+      reconcileLeader();
       if (!state.drafted || !state.leaderId || !Number.isFinite(deltaSeconds) || deltaSeconds <= 0) return null;
       const leader = units.getUnit(state.leaderId);
       if (!leader?.placement || leader.placement.type !== "world") {
@@ -63,6 +75,7 @@ export function createColonyControlSystem() {
     required: true,
     order: 10,
     captureSnapshot() {
+      reconcileLeader();
       return Object.freeze({ version: SNAPSHOT_VERSION, leaderId: state.leaderId, drafted: state.drafted });
     },
     validateSnapshot(snapshot) {
@@ -97,17 +110,24 @@ export function createColonyControlSystem() {
   return Object.freeze({
     id: "game.colony-control",
     provides: ["game.colony-control-api"],
-    requires: ["game.unit-api", "engine.input-api", "core.world-registry", "core.persistence"],
+    requires: ["game.unit-api", "engine.input-api", "core.world-registry", "core.event-bus", "core.persistence"],
     initialize(context) {
       units = context.getService("game.unit-api");
       input = context.getService("engine.input-api");
       worlds = context.getService("core.world-registry");
+      events = context.getService("core.event-bus");
+      unsubscribeUnitRemoved = events.subscribe("game.unit.removed", "game.colony-control", (event) => {
+        if (event.payload.entityId === state.leaderId) state = freezeState(null, false);
+      });
       unregisterPersistence = context.getService("core.persistence").registerParticipant(persistenceParticipant);
       return { "game.colony-control-api": api };
     },
     destroy() {
       unregisterPersistence?.();
       unregisterPersistence = null;
+      unsubscribeUnitRemoved?.();
+      unsubscribeUnitRemoved = null;
+      events = null;
       state = freezeState(null, false);
     }
   });
