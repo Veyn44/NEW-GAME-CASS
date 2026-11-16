@@ -1040,3 +1040,11 @@ A review of the first rollback implementation found that the ordinary persisted 
 - Fatal rollback failure remains fail-closed: Persistence blocks later save/load/runtime transactions and Core retains a dedicated pause reason.
 
 Latest code/test commit: `9a62f056a58d180d1cfcca56742252be9fa3fb8d`. CI verification is still pending confirmation for this commit.
+
+### Fatal rollback regression coverage
+
+- Extended the Cassandra World Session test setup to accept an additional host system.
+- Added a deliberately failing persistence participant to force the rollback-restoration path itself to fail after an injected Temporary World cleanup failure.
+- The regression asserts that Persistence becomes faulted, Core retains the dedicated simulation pause reason, and subsequent save attempts fail closed with `PERSISTENCE_FAULTED`.
+- Latest code/test commit: `771acbd01320e18c41b51522fd50ba77be117cac`.
+- CI for this exact commit remains unconfirmed; do not treat the new tests as passing until the workflow result is available.
