@@ -80,38 +80,10 @@
           <span class="control zoom-readout">Zoom <output id="zoom-value">100%</output></span>
           <button id="reset-lab" type="button">Reset Lab</button>
           <button id="open-viewport-database" type="button">DATABASE</button>
-          <label class="control spatial-test-footprint"><span>Test footprint</span><select id="test-entity-footprint"><option value="single">1 × 1</option><option value="square-2">2 × 2</option></select></label>
-          <button id="create-spatial-test-entity" type="button" disabled>SPAWN TEST ENTITY</button>
-          <button id="move-spatial-test-entity" type="button" disabled>MOVE SELECTED</button>
-          <button id="remove-spatial-test-entity" type="button" disabled>REMOVE TEST</button>
-          <span id="spatial-test-status" class="dev-note" aria-live="polite">Spatial test tools loading…</span>
           <input id="workspace-file-input" type="file" accept=".cass,application/vnd.cassandra.save+json" hidden>
           <span class="dev-note">WASD: move Pawn / camera · Wheel: zoom · Middle drag: pan</span>
         </section>
         <section class="viewport-panel" aria-label="World viewport" data-paused="true" data-input-mode="paused"><canvas id="world-canvas" tabindex="0" aria-label="World viewport. Press Space to pause or resume.">Your browser does not support canvas.</canvas><div class="viewport-crosshair" aria-hidden="true"></div>
-          <aside id="spatial-inspector" class="spatial-inspector" aria-label="Engine spatial inspector">
-            <strong>ENGINE / SPATIAL INSPECTOR</strong>
-            <span id="spatial-cell-label">Select a cell</span>
-            <div class="spatial-inspector-actions">
-              <button id="spatial-neighbors-four" type="button" disabled>4-WAY</button>
-              <button id="spatial-neighbors-eight" type="button" disabled>8-WAY</button>
-              <button id="spatial-radius-manhattan" type="button" disabled>MANHATTAN 2</button>
-              <button id="spatial-radius-chebyshev" type="button" disabled>CHEBYSHEV 2</button>
-              <button id="spatial-footprint" type="button" disabled>FOOTPRINT</button>
-              <button id="spatial-movement-history" type="button" disabled>MOVEMENT HISTORY</button>
-            </div>
-            <div class="spatial-region-controls">
-              <label>MIN X<input id="spatial-region-min-x" type="number" min="0" value="0"></label>
-              <label>MIN Y<input id="spatial-region-min-y" type="number" min="0" value="0"></label>
-              <label>MAX X EXCL.<input id="spatial-region-max-x" type="number" min="1" value="1"></label>
-              <label>MAX Y EXCL.<input id="spatial-region-max-y" type="number" min="1" value="1"></label>
-              <label class="spatial-region-wide">Categories<input id="spatial-region-categories" type="text" placeholder="terrain, structure"></label>
-              <label class="spatial-region-wide">Layers<input id="spatial-region-layers" type="text" placeholder="ground, built"></label>
-              <label class="spatial-region-wide">Entity kinds<input id="spatial-region-kinds" type="text" placeholder="unit, structure"></label>
-              <button id="spatial-region-query" class="spatial-region-wide" type="button">QUERY REGION</button>
-            </div>
-            <pre id="spatial-cell-data">Click a grid cell while paused to inspect its contents and entity occupancy.</pre>
-          </aside>
           <aside id="pause-menu" class="pause-menu" aria-label="Pause menu" hidden>
             <p class="eyebrow">CASSANDRA / PAUSED</p><h2>Pause Menu</h2>
             <button id="pause-resume" type="button" class="primary-action">RESUME</button>
