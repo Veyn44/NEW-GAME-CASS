@@ -129,15 +129,17 @@ Cassandra or Dev Lab application policy.
   verify that camera movement remains appropriately independent of simulation
   speed.
 - The earlier menu-button responsiveness problem is no longer the current
-  blocker. The user has manually confirmed that the established Cassandra
-  behavior remains as it did before Phase 3 and that redundant test buttons
-  were removed. This is a limited manual regression check, not full browser
-  acceptance; Dev Lab spatial workflows, Main/Temporary World interactions,
-  Campaign IndexedDB durability, crash/reopen and performance remain pending.
+  blocker. The user has manually confirmed that the deployed Pages-hosted
+  Cassandra workflow and its `.cass` save/load path behave as expected. This
+  accepts the currently exposed Pages workflow, not every detailed diagnostic
+  or edge-case test. The standalone Dev Lab `.dlcass` entry point, Campaign
+  IndexedDB browser durability/crash recovery, Main/Temporary World edge cases
+  and performance measurements remain separately deferred.
 - Latest verified source/test checkpoint before this documentation update:
   `99fe57c824aa4e40d575ec0206e5b2adc2dd77eb`. GitHub Actions passed 233/233
-  Core tests, 294/294 host tests and browser entry-point syntax checks. The
-  development preview and GitHub Pages deployments also succeeded. The checkpoint
+  Core tests, 294/294 host tests and browser entry-point syntax checks. A later
+  docs-only checkpoint `240a5197507bd9a7de41d7bd91c0f825a7800f2c` also passed
+  Core/Host, development preview and Pages workflows. The source checkpoint
   includes regression coverage for Temporary World disposal of a scoped Unit
   whose placement has already been removed. See the current status index for
   exact workflow runs and remaining manual acceptance gates.
