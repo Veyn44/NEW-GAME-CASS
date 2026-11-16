@@ -13,6 +13,19 @@ import {
   createCassandraWorldSessionSystem
 } from "../../src/gameplay/world/cassandra-world-session-system.js";
 
+function createCleanupFailureSystem(message) {
+  return {
+    id: "test.cleanup-failure",
+    requires: ["game.world-session-api"],
+    initialize(context) {
+      context.getService("game.world-session-api").registerTemporaryWorldCleanup(() =>
+        () => { throw new Error(message); }
+      );
+      return {};
+    }
+  };
+}
+
 async function setup({
   isPackageApplied = async () => true,
   definitionLookup = getDefinition,
@@ -472,7 +485,10 @@ test("authoritative Engine runtime clocks win over stale legacy session mirrors"
 });
 
 test("Temporary World disposal restores every persistence participant after a mid-commit failure", async () => {
-  const state = await setup({ definitionLookup: (id) => ({ id }) });
+  const state = await setup({
+    definitionLookup: (id) => ({ id }),
+    extraHostSystems: [createCleanupFailureSystem("injected failure after scoped cleanup")]
+  });
   const worldId = "encounter:atomic-disposal-rollback";
   try {
     state.session.beginTemporaryWorld({ worldId, width: 32, height: 32 });
@@ -504,22 +520,13 @@ test("Temporary World disposal restores every persistence participant after a mi
     state.session.returnToMainWorld();
 
     const expectedWorldTime = state.session.getWorldTime(worldId);
-    const originalUnregisterWorld = state.worlds.unregisterWorld;
-    state.worlds.unregisterWorld = function injectedUnregisterFailure() {
-      throw new Error("injected failure after scoped cleanup");
-    };
-
-    try {
-      await assert.rejects(
-        () => state.session.completeTemporaryWorld({
-          packageId: "package:atomic-disposal-rollback",
-          digest: "3".repeat(64)
-        }),
-        /injected failure after scoped cleanup/
-      );
-    } finally {
-      state.worlds.unregisterWorld = originalUnregisterWorld;
-    }
+    await assert.rejects(
+      () => state.session.completeTemporaryWorld({
+        packageId: "package:atomic-disposal-rollback",
+        digest: "3".repeat(64)
+      }),
+      /injected failure after scoped cleanup/
+    );
 
     assert.equal(state.worlds.has(worldId), true);
     assert.equal(state.worlds.get(worldId).status, "inactive");
@@ -569,29 +576,25 @@ test("failed Temporary World rollback faults Persistence and pauses simulation",
       return {};
     }
   };
-  const state = await setup({ extraHostSystems: [rollbackFailureSystem] });
+  const state = await setup({
+    extraHostSystems: [
+      rollbackFailureSystem,
+      createCleanupFailureSystem("injected cleanup failure")
+    ]
+  });
   try {
     state.session.beginTemporaryWorld({ worldId: "encounter:fatal-rollback", width: 16, height: 16 });
     state.session.returnToMainWorld();
 
     const persistence = state.context.getService("core.persistence");
     const clock = state.context.getService("core.game-clock");
-    const originalUnregisterWorld = state.worlds.unregisterWorld;
-    state.worlds.unregisterWorld = function injectedUnregisterFailure() {
-      throw new Error("injected cleanup failure");
-    };
-
-    try {
-      await assert.rejects(
-        () => state.session.completeTemporaryWorld({
-          packageId: "package:fatal-rollback",
-          digest: "4".repeat(64)
-        }),
-        { code: "ATOMIC_MUTATION_ROLLBACK_FAILED" }
-      );
-    } finally {
-      state.worlds.unregisterWorld = originalUnregisterWorld;
-    }
+    await assert.rejects(
+      () => state.session.completeTemporaryWorld({
+        packageId: "package:fatal-rollback",
+        digest: "4".repeat(64)
+      }),
+      { code: "ATOMIC_MUTATION_ROLLBACK_FAILED" }
+    );
 
     assert.equal(persistence.isFaulted, true);
     assert.ok(clock.pauseReasons.includes("core.persistence-integrity-fault"));
