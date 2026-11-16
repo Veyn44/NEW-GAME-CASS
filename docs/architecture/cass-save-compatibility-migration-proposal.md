@@ -153,7 +153,7 @@ Do not overload one version number for unrelated compatibility contracts.
 
 | Version | Owner | What it versions |
 |---|---|---|
-| Outer fileFormatVersion | File adapter/application boundary | .cass envelope, encoding and outer structural contract |
+| Outer fileFormatVersion | File adapter/application boundary | Application-specific .cass or .dlcass envelope, encoding and outer structural contract |
 | Inner metadata.formatVersion | Engine Persistence contract as configured by host | Generic save-data envelope/metadata/snapshot map contract |
 | schemas[participantId] | Each participant | The participant's own snapshot structure |
 | Cassandra campaign schema/version | Cassandra application | Domain model: colony, environment, locations, resources, expedition sessions, return packages and campaign state |
@@ -232,7 +232,7 @@ The proposed grid anchor → world-space position conversion in the placement in
 
 ### 6.2 Legacy environment and map state
 
-The current audited runtime does not register a persistent environment/map participant, so there is no current .cass environment snapshot to migrate from the audited workspace format.
+The current audited runtime does not register a persistent environment/map participant, so there is no current .dlcass environment snapshot to migrate from the audited Dev Lab workspace format.
 
 For future or separately discovered Cassandra legacy formats:
 - Audit the actual environment/map persistence source before defining a converter.
