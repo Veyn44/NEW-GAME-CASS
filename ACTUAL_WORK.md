@@ -1001,3 +1001,11 @@ The proposal includes required invariants, pre-implementation acceptance scenari
 - Development preview deployment workflow completed successfully from `work`; the GitHub Pages build/deployment status was still processing at the time of this record.
 - No environment simulation rules were changed.
 - `main` remains untouched; no merge or PR was created.
+
+
+## Remaining audit gates — do not treat this pass as merge approval
+
+- **Temporary World disposal is still sequential after preflight.** The current code validates the full cleanup scope before mutation, but unit/entity/content/runtime/registry cleanup is not yet one cross-system transaction. A truly unexpected failure during the commit sequence could still leave partial cleanup. Strengthen this before enabling expeditions; do not disguise it with a shallow catch-and-continue.
+- **Campaign / Change Package integration remains intentionally deferred.** The `isPackageApplied` path is not yet fully wired through the ordinary browser runtime and must be completed together with the campaign persistence boundary, not through a temporary placeholder.
+- **Manual browser acceptance remains outstanding.** CI and the Pages deployment verify build and automated behavior, but a person still needs to open both Cassandra and standalone Dev Lab and exercise their visible flows.
+- **No merge approval is implied by the passing CI.** Before any future merge, perform a separate final diff/security/regression audit, resolve or explicitly accept every remaining item, and obtain the user's explicit permission. `main` remains off-limits until then.
