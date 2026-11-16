@@ -1,9 +1,9 @@
-# Cassandra .cass Save Compatibility & Migration — Working Proposal
+# Cassandra .cass and Dev Lab .dlcass Save Isolation & Migration — Working Proposal
 
 **Status:** Working proposal updated with agreed compatibility policy; implementation details remain open  
 **Branch:** work  
 **Source audit:** 2026-11-15, work  
-**Scope:** Existing .cass file compatibility, save identity boundaries, future spatial-state migration and safe upgrade behavior
+**Scope:** Cassandra .cass and Dev Lab .dlcass file compatibility, independent save identities, future spatial-state migration and safe upgrade behavior
 
 This document records the current save implementation and the agreed policy for future Cassandra campaign saves. It does not authorize source/runtime changes, a format bump, automatic conversion, or changes to existing save files.
 
@@ -24,19 +24,29 @@ Regardless of compatibility, the save system must ensure:
 
 Any migration that Cassandra chooses to support is an application-level responsibility for Cassandra domain state. Engine provides participant schema migration and transactional restore primitives, but it must not infer Cassandra map, environment, colony or expedition semantics. No general promise to migrate or load all prior save versions is made.
 
-## 2. Audited current .cass file format
+## 2. Audited current application save formats
 
-### 2.1 Outer file envelope
+### 2.1 Outer file envelopes
 
 Source: src/adapters/storage/local-file-save-adapter.js
 
-Current constants:
+**Cassandra (.cass):**
 - format = "cassandra.save"
 - fileFormatVersion = 1
 - Default filename: save.cass
 - MIME type: application/vnd.cassandra.save+json
+- Save slot: cassandra-main-world
+- State ID: cassandra-main-world
 
-The adapter writes the following logical envelope:
+**Dev Lab (.dlcass):**
+- format = "cassandra.dev-lab.save"
+- fileFormatVersion = 1
+- Default filename: workspace.dlcass
+- MIME type: application/vnd.cassandra.dev-lab-save+json
+- Save slot: dev-lab-workspace
+- State ID: cassandra-dev-lab-workspace
+
+Each application instance configures the same low-level adapter with its own format identifier, extension, MIME type, default filename and slot. The adapter writes the following logical envelope, with the application-specific format value:
 
     {
       "format": "cassandra.save",
@@ -48,7 +58,7 @@ The adapter writes the following logical envelope:
       }
     }
 
-The adapter's parser currently accepts only this exact format identifier and outer file version 1. Malformed JSON, another format identifier or another outer version is rejected. The adapter unwraps data and passes it to Engine Persistence.
+The parser accepts only the exact format identifier configured for that adapter instance and outer file version 1. Malformed JSON, another application format identifier or another outer version is rejected before Engine Persistence receives the data.
 
 The adapter exposes an atomic-write contract. With a File System Access handle it writes to a writable stream and aborts on write/close failure. Without a persistent file handle it exports a download. The actual guarantees of the browser/storage provider still need to be verified against the future target platform and interruption model.
 
@@ -81,23 +91,31 @@ Engine Persistence:
 
 **Important migration limitation:** Engine Persistence has no general hook to synthesize a snapshot for a newly introduced required participant that is entirely absent from a legacy save. Such a save fails with MISSING_REQUIRED_SNAPSHOT. A participant's migrateSnapshot only handles a snapshot that already exists.
 
-### 2.3 Current application identity is not a campaign identity
+### 2.3 Independent application identities
 
 Sources:
 - cassandra/application/cassandra-application-shell.js
+- dev-lab/application/application-shell.js
 - src/adapters/storage/local-file-save-adapter.js
-- tests/unit/workspace-persistence-controller.test.js
+- tests/unit/local-file-save-adapter.test.js
 
-The current shell configures:
+Cassandra configures its adapter for:
+- Save slot: cassandra-main-world
+- State ID: cassandra-main-world
+- File extension: .cass
+- Outer format: cassandra.save
+
+Standalone Dev Lab configures its adapter for:
 - Save slot: dev-lab-workspace
 - State ID: cassandra-dev-lab-workspace
-- File extension: .cass
+- File extension: .dlcass
+- Outer format: cassandra.dev-lab.save
 
-The adapter itself only accepts the dev-lab-workspace slot. The current runtime is composed from the Unit System and Colony Control plus input; the visible shell is the Dev Lab/workspace-oriented prototype surface.
+The low-level adapter validates its configured slot, file extension and outer format. Engine Persistence separately validates the inner state ID. The application boundaries therefore have independent identity at the file, adapter-slot and Engine-state layers.
 
-Therefore, the currently audited .cass path is a **Dev Lab/workspace save using the Cassandra file envelope**, not evidence of a complete future Cassandra colony/campaign save format.
+The Cassandra .cass file represents the current main-world runtime save; it is not a claim that every future campaign/expedition participant or migration path is complete. The Dev Lab .dlcass file remains a workspace save and must not be interpreted as a Cassandra colony or campaign save.
 
-This is a critical distinction. It must not be relabelled, auto-converted or treated as proof of cross-save compatibility. Cassandra and Dev Lab are separate applications with separate persistence identity and no cross-save compatibility goal.
+Legacy Dev Lab files created before this separation use .cass and the cassandra.save outer format. They are intentionally not auto-converted: Dev Lab rejects the old extension, rejects a renamed file by outer format, and Cassandra rejects the old Dev Lab state ID. Preserve the original file; any future conversion must be a separately designed, explicit workflow.
 
 ## 3. Audited current snapshot participants
 
@@ -169,18 +187,18 @@ Whether the preflight is implemented as a Cassandra adapter wrapper, a dedicated
 
 If migration is implemented for a specific legacy format, keep these two tracks distinct:
 
-**Track A — Current Dev Lab/workspace .cass**
+**Track A — Current Dev Lab/workspace .dlcass**
 - Recognize the exact current state identity cassandra-dev-lab-workspace and slot/workspace contract.
 - Preserve the current workspace behavior independently.
 - Do not reinterpret it as a persistent Cassandra colony or expedition save.
 - Do not use it as a migration source for campaign environment, inventory, location or expedition data that it never stored.
 
-**Track B — Future Cassandra campaign .cass**
+**Track B — Cassandra main-world .cass and future campaign evolution**
 - Define its own stable campaign state identity, application-owned save schema and required participants.
 - Define the authoritative legacy campaign format before writing a migration.
 - Migrate only from actual saved domain data that exists in that legacy format.
 - Preserve campaign identity, entity identity, world/location identity, resources, environment and other durable data exactly according to their domain contracts.
-- Do not reuse Dev Lab's slot or state ID merely because both files have a .cass extension.
+- Keep the Cassandra main-world slot/state ID distinct from Dev Lab's workspace slot/state ID.
 
 The two tracks may share low-level Engine mechanisms and file-envelope code, but they do not share save identity or cross-load compatibility.
 
@@ -254,7 +272,8 @@ A migration failure must never lead to a partially restored colony or a rewritte
 The current repository audit found unit tests for the outer adapter and Engine Persistence behavior, but did not identify a checked-in representative golden .cass file fixture. For every format/version that the current build claims to support, create sanitized, real fixtures from actual save outputs; do not invent fixture structures from memory. Historical versions that are not explicitly supported may be rejected and do not require migration fixtures.
 
 Minimum fixture set for currently supported formats and any deliberately supported legacy migration:
-1. Current Dev Lab/workspace .cass outer envelope v1.
+1. Current Dev Lab/workspace .dlcass outer envelope v1.
+2. Current Cassandra main-world .cass outer envelope v1.
 2. Current workspace save with Entity Registry schema v1.
 3. Current workspace save with World Registry schema v1.
 4. Current workspace save with current Entity Registry v2 and World Registry v2.
@@ -265,7 +284,9 @@ Minimum fixture set for currently supported formats and any deliberately support
 9. A future grid-backed save round-trip fixture containing multiple contents and multi-cell occupancy, after those systems exist.
 
 Minimum acceptance scenarios:
-- A current workspace .cass can be loaded under its own application identity and current supported format.
+- A current Dev Lab workspace .dlcass can be loaded under its own application identity and current supported format.
+- A current Cassandra main-world .cass can be loaded under its own application identity and current supported format.
+- A legacy Dev Lab .cass file is rejected by the new Dev Lab format; a renamed file is rejected by the outer format, and Cassandra rejects its old state ID.
 - An older unsupported outer format, inner format, participant schema or content version is rejected cleanly, without runtime mutation or source-file modification.
 - A workspace save cannot be loaded as a Cassandra campaign save or vice versa.
 - Outer file version and inner Engine format version are checked independently.
@@ -292,9 +313,10 @@ Minimum acceptance scenarios:
 - This policy does not alter the separate Cassandra/Dev Lab application and save-identity boundary; cross-save compatibility remains out of scope.
 
 Audited on branch work:
-- src/adapters/storage/local-file-save-adapter.js — outer .cass envelope, strict version-1 parser, workspace-only slot.
+- src/adapters/storage/local-file-save-adapter.js — configurable, application-specific outer envelopes, extensions, MIME types and slot enforcement.
 - shared/application/file-persistence-controller.js — file selection, save/load/import orchestration and state identity injection.
-- cassandra/application/cassandra-application-shell.js — current slot/state ID wiring and current shell composition.
+- cassandra/application/cassandra-application-shell.js — Cassandra .cass slot/state ID wiring and current shell composition.
+- dev-lab/application/application-shell.js — Dev Lab .dlcass slot/state ID wiring and standalone shell composition.
 - cassandra/application/cassandra-runtime-host.js — current Cassandra runtime systems and services.
 - engine/core/persistence.js — inner format, participant schemas, migration behavior and transactional restore.
 - engine/core/core-assembly.js — Core participant registration and persistence boundary.
@@ -303,7 +325,7 @@ Audited on branch work:
 - engine/core/world-context.js — schema v1 placement snapshot, no migration hook.
 - src/gameplay/unit/unit-system.js — schema v1 Unit snapshot and definition references.
 - src/gameplay/colony/colony-control-system.js — schema v1 Colony Control snapshot.
-- tests/unit/local-file-save-adapter.test.js — adapter envelope and file selection behavior.
+- tests/unit/local-file-save-adapter.test.js — application-specific envelopes, extension rejection, slot isolation and file selection behavior.
 - tests/unit/workspace-persistence-controller.test.js — workspace slot/state identity behavior.
 - tests/unit/workspace-persistence.test.js — workspace round-trip and cross-participant restore.
 - tests/persistence-logger.test.js — Engine Persistence schema migration, missing required snapshots, write failure and rollback behavior.
@@ -315,17 +337,17 @@ No source/runtime code was changed during this audit.
 **Agreed application boundary (previously decided):**
 - Cassandra and Dev Lab are separate applications with separate persistence identities and formats.
 - No cross-save compatibility or cross-save converter is a goal.
-- The current Dev Lab/workspace .cass path must not be interpreted as a Cassandra campaign save.
+- The current Dev Lab/workspace .dlcass path must not be interpreted as a Cassandra main-world or campaign save.
 
 **Still open before implementation:**
-1. Define the first authoritative Cassandra campaign save schema and its state identity when the campaign data model is ready.
+1. Define the complete authoritative Cassandra campaign save schema and its state identity when the campaign data model is ready.
 2. Decide the application preflight migration integration point.
 3. Define exact coordinate conversion for each legacy spatial source before deriving grid occupancy.
 4. Audit the actual legacy environment/map/resource persistence format before writing any environment migration.
-5. Define the golden .cass fixtures and the platform's atomic replacement/backup guarantees.
+5. Define golden .cass and .dlcass fixtures and the platform's atomic replacement/backup guarantees.
 6. Decide whether legacy saves are upgraded only by creating a new file, or whether a later explicit in-place upgrade is supported.
 
-**Recommended default:** Keep the existing workspace .cass contract isolated and define a distinct campaign save identity/schema. Do not promise backward compatibility. Reject unsupported historical versions safely. Add an application-owned preflight migration only for specifically selected versions where preserving that path is worth the cost; preserve the source file and reject any migration that cannot prove data preservation.
+**Recommended default:** Keep Cassandra .cass and Dev Lab .dlcass identities strictly isolated. Do not promise backward compatibility or silently convert legacy Dev Lab .cass files. Reject unsupported historical versions safely. Add an application-owned preflight migration only for specifically selected versions where preserving that path is worth the cost; preserve the source file and reject any migration that cannot prove data preservation.
 
 ## 12. Related contracts
 
