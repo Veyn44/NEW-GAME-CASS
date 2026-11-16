@@ -135,6 +135,7 @@ export class WorldContext {
   #worlds;
   #placements = new Map();
   #spatialCoordinationRequired = false;
+  #mutationGuard = null;
 
   constructor({ entityRegistry, worldRegistry } = {}) {
     if (!entityRegistry || typeof entityRegistry.get !== "function") {
@@ -152,6 +153,16 @@ export class WorldContext {
   requireSpatialCoordination(authority) {
     if (authority !== PLACEMENT_AUTHORITY) throw new WorldContextError("PLACEMENT_AUTHORITY_REQUIRED", "Only Engine placement services may enable grid coordination.");
     this.#spatialCoordinationRequired = true;
+  }
+
+  setMutationGuard(guard, authority) {
+    if (authority !== PLACEMENT_AUTHORITY) throw new WorldContextError("PLACEMENT_AUTHORITY_REQUIRED", "Only Engine placement services may configure the World Context mutation guard.");
+    if (typeof guard !== "function") throw new WorldContextError("INVALID_MUTATION_GUARD", "World Context mutation guard must be a function.");
+    this.#mutationGuard = guard;
+  }
+
+  #assertMutationAllowed() {
+    this.#mutationGuard?.();
   }
 
   getPlacement(entityId) {
@@ -173,6 +184,7 @@ export class WorldContext {
   }
 
   placeEntity(entityId, worldId, position) {
+    this.#assertMutationAllowed();
     if (this.#placements.has(assertId(entityId, "Entity ID"))) {
       throw new WorldContextError("ENTITY_ALREADY_PLACED", `Entity "${entityId}" already has a placement.`, { entityId });
     }
@@ -184,6 +196,7 @@ export class WorldContext {
   }
 
   storeEntity(entityId, storeId) {
+    this.#assertMutationAllowed();
     assertId(entityId, "Entity ID");
     const current = this.#placements.get(entityId);
     if (!current || current.type !== "world") {
@@ -204,6 +217,7 @@ export class WorldContext {
   }
 
   placeInStore(entityId, storeId) {
+    this.#assertMutationAllowed();
     assertId(entityId, "Entity ID");
     if (this.#placements.has(entityId)) {
       throw new WorldContextError("ENTITY_ALREADY_PLACED", `Entity "${entityId}" already has a placement.`, { entityId });
@@ -218,6 +232,7 @@ export class WorldContext {
   }
 
   moveEntity(entityId, target) {
+    this.#assertMutationAllowed();
     assertId(entityId, "Entity ID");
     const current = this.#placements.get(entityId);
     if (!current) throw new WorldContextError("ENTITY_NOT_PLACED", `Entity "${entityId}" has no current placement.`, { entityId });
@@ -230,6 +245,7 @@ export class WorldContext {
   }
 
   removePlacement(entityId) {
+    this.#assertMutationAllowed();
     const id = assertId(entityId, "Entity ID");
     const current = this.#placements.get(id);
     if (current?.type === "world" && this.#worlds.get(current.worldId)?.grid != null) throw new WorldContextError("GRID_COORDINATOR_REQUIRED", "Grid-backed placement removal must use PlacementCoordinator.", { entityId: id });
@@ -239,6 +255,7 @@ export class WorldContext {
   /** Internal prepared mutation; only the Engine placement coordinator has the capability. */
   prepareCoordinatedPlacementChange(entityId, target, authority, { retire = false } = {}) {
     if (authority !== PLACEMENT_AUTHORITY) throw new WorldContextError("PLACEMENT_AUTHORITY_REQUIRED", "Only PlacementCoordinator may prepare coordinated changes.");
+    this.#assertMutationAllowed();
     const id = assertId(entityId, "Entity ID"), previous = this.#placements.get(id) ?? null;
     const previousWorld = previous?.type === "world" ? this.#worlds.get(previous.worldId) : null;
     let next = null, lifecycle = null;
@@ -340,6 +357,7 @@ export class WorldContext {
   }
 
   prepareRestore(snapshot, { deferReferenceValidation = false, authority = null } = {}) {
+    this.#assertMutationAllowed();
     const liveGridPlacement = [...this.#placements.values()].some((item) => item.type === "world" && this.#worlds.get(item.worldId)?.grid != null);
     const snapshotHasWorldPlacement = Array.isArray(snapshot?.placements) && snapshot.placements.some((item) => item?.type === "world");
     const snapshotGridPlacement = Array.isArray(snapshot?.placements) && snapshot.placements.some((item) => item?.type === "world" && this.#worlds.get(item.worldId)?.grid != null);
