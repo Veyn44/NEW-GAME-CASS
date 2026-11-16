@@ -2,7 +2,7 @@ import { loadCassandraDatabase } from "../database/load-cassandra-database.js";
 import { createCassandraRuntimeHost } from "./cassandra-runtime-host.js";
 import { createWorldViewport } from "../../shared/presentation/world-viewport.js";
 import { createViewportInputController } from "../../shared/input/viewport-input-controller.js";
-import { LocalFileSaveAdapter } from "../../src/adapters/storage/local-file-save-adapter.js";
+import { LocalFileSaveAdapter, CASSANDRA_SAVE_SLOT, CASSANDRA_SAVE_STATE_ID, CASSANDRA_SAVE_FILE_EXTENSION, CASSANDRA_SAVE_FILE_NAME } from "../../src/adapters/storage/local-file-save-adapter.js";
 import { createFilePersistenceController } from "../../shared/application/file-persistence-controller.js";
 import { createDefinitionCatalogController } from "../../shared/application/definition-catalog-controller.js";
 import { createViewNavigationController } from "../../shared/application/view-navigation-controller.js";
@@ -358,7 +358,7 @@ let runtimeHost = null;
 export async function startCassandraApplication() {
   await loadCassandraDatabase();
   definitionCatalog.refresh();
-  state.saveAdapter = new LocalFileSaveAdapter();
+  state.saveAdapter = new LocalFileSaveAdapter({ slotId: CASSANDRA_SAVE_SLOT });
   runtimeHost = createCassandraRuntimeHost({
     saveAdapter: state.saveAdapter,
     inputController,
@@ -391,13 +391,13 @@ export async function startCassandraApplication() {
       state.gameplayUi = services.gameplayUi;
       state.workspacePersistence = createFilePersistenceController({
         persistenceApi: services.persistenceApi,
-        saveSlot: "dev-lab-workspace",
-        stateId: "cassandra-dev-lab-workspace",
+        saveSlot: CASSANDRA_SAVE_SLOT,
+        stateId: CASSANDRA_SAVE_STATE_ID,
         supportsFileAccess: () => LocalFileSaveAdapter.supportsFileAccess,
         requestFileName: ({ currentFileName, defaultFileName }) =>
           window.prompt("Name this Cassandra save:", currentFileName || defaultFileName),
-        fileExtension: ".cass",
-        defaultFileName: "save.cass",
+        fileExtension: CASSANDRA_SAVE_FILE_EXTENSION,
+        defaultFileName: CASSANDRA_SAVE_FILE_NAME,
         saveAdapter: state.saveAdapter,
         fileInput,
         onRestore() {
