@@ -189,7 +189,8 @@ export class LocalFileSaveAdapter {
     if (!file || typeof file.text !== "function") {
       throw new TypeError(`A readable ${this.#fileExtension} file is required.`);
     }
-    if (file.name) this.#assertConfiguredExtension(file.name);
+    if (typeof file.name !== "string" || !file.name) this.#assertConfiguredExtension("");
+    this.#assertConfiguredExtension(file.name);
     const importedData = parseEnvelope(await file.text(), this.#format);
     this.#importedData = importedData;
     this.#fileHandle = null;
