@@ -221,11 +221,6 @@ export class WorldRuntimeManager {
     return updates;
   }
 
-  commitStep(participants, deltaSeconds) {
-    const updates = this.validateStep(participants, deltaSeconds);
-    return updates;
-  }
-
   createPersistenceParticipant({ id = "core.world-runtime", order = -85 } = {}) {
     if (typeof id !== "string" || !/^[a-z][a-z0-9.-]*$/.test(id) || !Number.isSafeInteger(order)) {
       throw new WorldRuntimeError("INVALID_PARTICIPANT_CONFIG", "World runtime persistence participant ID/order is invalid.", { id, order });
