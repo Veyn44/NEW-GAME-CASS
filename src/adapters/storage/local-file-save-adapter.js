@@ -113,6 +113,23 @@ export class LocalFileSaveAdapter {
     this.#importedData = null;
   }
 
+  captureSelection() {
+    const previous = {
+      fileHandle: this.#fileHandle,
+      fileName: this.#fileName,
+      importedData: this.#importedData
+    };
+    let restored = false;
+    return () => {
+      if (restored) return false;
+      this.#fileHandle = previous.fileHandle;
+      this.#fileName = previous.fileName;
+      this.#importedData = previous.importedData;
+      restored = true;
+      return true;
+    };
+  }
+
   #hasConfiguredExtension(fileName) {
     return typeof fileName === "string"
       && fileName.toLowerCase().endsWith(this.#fileExtension.toLowerCase());
