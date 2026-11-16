@@ -1,3 +1,5 @@
+> **SUPERSEDED (2026-11-16):** This proposal's composite World Context + Spatial Composition persistence design was implemented as the Engine's coordinated spatial-placement persistence participant and merged into `main` through PR #7 (`0a879ed0ef955110b069b9e89bb420ead4f58737`). Exact merge-commit Core/Host CI passed in [run 43940567950](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43940567950). The current implementation is documented in [spatial-placement-integration-contract-proposal.md](spatial-placement-integration-contract-proposal.md) and [current-implementation-status.md](current-implementation-status.md). Keep this file as the historical source-audit/design record; do not treat its open implementation questions as current work.
+
 # Spatial Placement & Persistence Integration — Working Proposal
 
 **Status:** Source-audited working proposal; no runtime implementation approved  

@@ -1,12 +1,12 @@
 # Phase 3 Cross-Contract Integration Audit
 
-> **Current status supersession (2026-11-16):** This audit remains useful for its cross-contract reasoning, but its implementation-status paragraphs and CI counts are a dated snapshot. Use [current-implementation-status.md](current-implementation-status.md) for current implementation and acceptance status. The initial multi-world runtime remains global fail-stop; per-world fault isolation is deferred.
+> **Post-merge audit record (2026-11-16):** This cross-contract audit informed the Phase 3 implementation and merge to `main` through PR #7. Its implementation-status paragraphs and CI counts are historical snapshots; use [current-implementation-status.md](current-implementation-status.md) for live status. The initial multi-world runtime remains global fail-stop; per-world fault isolation is deferred.
 
 **Status:** Documentation audit completed; implementation specification still requires focused closure  
-**Branch:** `work`  
+**Integrated branch:** `main`  
 **Audit date:** 2026-11-15  
 **Scope:** Cross-contract consistency, integrated acceptance coverage and dependency-ordered implementation plan  
-**Authority:** This audit records consistency findings and implementation recommendations. It does not authorize source/runtime changes, PR creation/merge or changes to `main`.
+**Authority:** This audit records consistency findings and implementation recommendations. It is a historical review artifact, not a current authorization to change source/runtime behavior.
 
 ## 1. Audit result
 

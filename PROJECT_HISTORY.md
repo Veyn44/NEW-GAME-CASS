@@ -78,4 +78,24 @@ The Engine/application boundary restructuring was completed and merged into `mai
 - The current Engine capability baseline and remaining ownership gaps are summarized in [Engine / Cassandra / Dev Lab — Capability and Ownership Review](docs/architecture/engine-game-devlab-capability-map.md). That review is a working map, not an approval to implement every listed proposal.
 - Cassandra and Dev Lab are separate applications and are not intended to exchange save files. Their persistence adapters, formats/envelopes and slot/state identities must be isolated. Cross-application save compatibility is not a product requirement.
 
-The post-merge `work` branch is the active working baseline for subsequent documentation and design work. Historical Phase 2 records above remain valid for the earlier milestone and should not be read as the current repository status.
+At the time of the PR #6 restructuring record, immediately after that merge and before PR #7, the post-merge `work` branch was the working baseline for subsequent work. This is a historical snapshot, not the current branch state. PR #7 later integrated that work into `main`; future work should branch from the then-current `main`.
+
+
+## 2026-11-16 — Phase 3 integration merged into main
+
+The completed Cassandra/Engine/Dev Lab Phase 3 implementation history from `work` was integrated into `main` through [PR #7](https://github.com/Veyn44/NEW-GAME-CASS/pull/7).
+
+- Merge commit: [`0a879ed`](https://github.com/Veyn44/NEW-GAME-CASS/commit/0a879ed0ef955110b069b9e89bb420ead4f58737).
+- The PR integrated 622 commits, covering 92 changed files, into the stable branch.
+- The exact merge-commit Core/Host workflow [43940567950](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43940567950) completed successfully.
+- Pre-merge refs were preserved as `backup/pre-merge-main-2026-11-16` and `backup/pre-merge-work-2026-11-16`; the owner's verified local bundle and mirror are also retained.
+- The original `work` branch remains available as a historical pre-merge line; future work should branch from the then-current `main`.
+- PR #4, a separate documentation-only roadmap proposal, was closed without merging. Its useful Cassandra-first product direction is consolidated into `NEXT_STEPS.md`.
+
+### Phase 3 outcome and remaining boundaries
+
+The Engine grid/spatial foundation (Slices 1–6) is implemented and merged. Cassandra integration (Slice 7) provides Unit/grid movement, Main/Temporary World session policy, runtime identity projection, Change Package/Change Buffer foundations, an application-owned Campaign session seam and a candidate IndexedDB compare-and-swap adapter. This is infrastructure, not a complete campaign or player-facing expedition workflow: authoritative campaign aggregate models, production typed domain handlers, full expedition result reconciliation and real-browser durability/recovery acceptance remain future work.
+
+Dev Lab spatial inspection and controlled test workflows use the shared Engine services and have automated host coverage. The user's manual acceptance applies to the currently exposed Pages-hosted Cassandra workflow and its `.cass` save/load path; it does not imply that standalone Dev Lab, every spatial diagnostic, Main/Temporary World edge case, environment regression or performance benchmark has been accepted.
+
+No environment simulation source was changed as part of this Phase 3 integration. No post-Phase-3 implementation roadmap has been agreed. Future work will be selected jointly; browser readiness and direct acceptance of existing functionality remain possible discussion topics, not an approved next phase.

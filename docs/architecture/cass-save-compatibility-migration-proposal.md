@@ -1,8 +1,10 @@
 # Cassandra .cass and Dev Lab .dlcass Save Isolation & Migration — Working Proposal
 
-**Status:** Working proposal updated with agreed compatibility policy; implementation details remain open  
-**Branch:** work  
-**Source audit:** 2026-11-15, work  
+> **Post-merge status (2026-11-16):** The save-domain separation described here is part of the merged baseline. Cassandra `.cass` workspace saves and standalone Dev Lab `.dlcass` saves remain separate; this document's future campaign-save/migration design remains a proposal. See [application-boundaries.md](application-boundaries.md) and [current-implementation-status.md](current-implementation-status.md).
+
+**Status:** Current `.cass` / `.dlcass` save isolation implemented and merged; future Campaign save compatibility/migration decisions remain open.  
+**Integrated branch:** `main`  
+**Source audit:** 2026-11-15, pre-merge  
 **Scope:** Cassandra .cass and Dev Lab .dlcass file compatibility, independent save identities, future spatial-state migration and safe upgrade behavior
 
 This document records the current save implementation and the agreed policy for future Cassandra campaign saves. It does not authorize source/runtime changes, a format bump, automatic conversion, or changes to existing save files.

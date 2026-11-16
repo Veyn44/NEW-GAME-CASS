@@ -1,11 +1,13 @@
 # Spatial Placement Integration Contract — Working Proposal
 
-**Status:** Engine grid placement coordination and composite restore implemented on `work`; Cassandra domain integration remains separate  
-**Branch:** `work`  
+> **Post-merge status (2026-11-16):** The Engine grid-placement coordinator and composite persistence participant described here are included in `main` through PR #7. Exact merge-commit Core/Host CI passed in [run 43940567950](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43940567950). Cassandra domain integration remains separately scoped; see [current-implementation-status.md](current-implementation-status.md).
+
+**Status:** Engine grid placement coordination and composite restore implemented and merged; Cassandra domain integration remains separate.  
+**Integrated branch:** `main`  
 **Decision recorded:** 2026-11-15  
 **Scope:** Coordinated placement between Engine Core World Context and Engine Spatial Composition
 
-This document records the agreed placement ownership model and its Engine implementation. The implemented scope is limited to reusable Engine spatial capabilities on `work`; it does not authorize Cassandra application integration or a merge to `main`.
+This document records the agreed placement ownership model and its implemented Engine baseline. It does not authorize unrelated Cassandra gameplay changes.
 
 ## 1. Agreed ownership
 
@@ -195,7 +197,7 @@ Presentation remains a read-only consumer and must not write either representati
 
 ## 11. Remaining integration details
 
-The Engine-side coordinator, prepared-state mechanism, Core Assembly service registration, composite participant schema, internal mutation capability and fatal-fault clock pause are implemented on `work`.
+The Engine-side coordinator, prepared-state mechanism, Core Assembly service registration, composite participant schema, internal mutation capability and fatal-fault clock pause are implemented and merged into `main`.
 
 The remaining work is application-facing and deliberately separate:
 - Cassandra must decide which entity/domain classes participate in grid occupancy.

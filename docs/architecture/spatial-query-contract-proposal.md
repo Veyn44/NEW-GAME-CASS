@@ -1,8 +1,10 @@
 # Spatial Query Contract — Working Proposal
 
-**Status:** Slice 3 implemented on `work`; read-only query baseline verified by unit tests, host-specific integration remains later work  
+> **Post-merge status (2026-11-16):** Slice 3 and its read-only query baseline are included in `main` through PR #7. Exact merge-commit Core/Host CI passed in [run 43940567950](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43940567950). Host-specific/manual acceptance remains tracked in the current status index.
+
+**Status:** Slice 3 implemented and merged; selected host/browser acceptance remains separate.  
 **Scope:** Generic read/query interface over grid cells, spatial contents, entity occupancy and footprints  
-**Branch:** `work`  
+**Integrated branch:** `main`  
 **Source audit:** 2026-11-15
 
 This document defines how Engine consumers inspect spatial composition without changing it. It builds on Grid Geometry, Spatial Composition and Movement & Collision. It does not authorize source/runtime changes.

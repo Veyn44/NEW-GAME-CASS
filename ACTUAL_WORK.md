@@ -2,37 +2,36 @@
 
 Last updated: 2026-11-16  
 Repository: `Veyn44/NEW-GAME-CASS`  
-Working baseline inspected: `main` at `458ecc52d4267b6b31fb3d59559374533c49fa64`
+Integrated baseline: `main` at `0a879ed0ef955110b069b9e89bb420ead4f58737`
 
-> This is the live work log and handoff document. It records what we are doing now, what has actually been inspected, proposed ownership, and the next safe action. It does not replace `NEXT_STEPS.md`; that file is the long-range roadmap.
+> This file contains a dated work log and handoff record. Older sections are historical snapshots of what was believed or planned at that time; they are not authoritative current instructions. For confirmed project direction and the current open decision, see `NEXT_STEPS.md` and `docs/architecture/current-implementation-status.md`.
 
 ## 1. Current objective
 
-Complete the pre-merge audit of `work` against `main` and make only source-backed corrections required for a safe merge. Do not add gameplay features, begin Phase 4, or change `main`. When the audit has only minor/accepted gaps remaining, present a merge-readiness report and wait for explicit approval.
+The pre-merge audit is complete and the development history has been integrated into `main` through PR #7. The current task is documentation reconciliation after the merge. No next implementation phase or gameplay scope has been agreed. Do not add gameplay features or change the tested environment simulation as part of documentation cleanup.
 
-After the merge, Phase 4 will be planned together. Its agreed goal is to prepare the existing Cassandra/Dev Lab implementation for direct browser testing of what already exists — reliable entry points, host composition, test workflows, diagnostics and persistence interactions — not to invent new gameplay rules.
+Cassandra is the primary project. The reusable Engine is developed from Cassandra's concrete needs while retaining application-neutral contracts. Dev Lab remains a development/verification tool that exercises the real runtime and is not a dependency of the shipped game.
 
-The repository's established dependency direction remains:
+Dependency direction:
 
 `Dev Lab → Engine`  
 `Cassandra → Engine`
 
 Engine must not import Dev Lab or Cassandra. The standalone Dev Lab must not require Cassandra, and Cassandra must not require the standalone Dev Lab shell.
 
-## 1.1 Current pre-merge audit checkpoint
+## 1.1 Post-merge integration checkpoint
 
-- Latest verified source/test checkpoint: `99fe57c824aa4e40d575ec0206e5b2adc2dd77eb`.
-- Core/host CI: [43892955121](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43892955121) — 233/233 Core tests, 294/294 Host tests, browser syntax checks passed.
-- Development preview: [43892955199](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43892955199) — success.
-- GitHub Pages build/deployment: [43892954608](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43892954608) — success.
-- The checkpoint includes a regression for retiring a scoped Temporary World Unit after its placement has already been removed.
-- Narrow fixes on `work`: Persistence restore rollback now faults/stops the runtime if rollback fails; Spatial Composition read-only movement-policy guards cover removals and restore transactions; World Registry lifecycle operations respect World Runtime state and active simulation rounds; Entity Registry lifecycle changes cannot bypass non-grid World Context placements; failed save selection is rolled back and file operations are serialized to prevent import races.
-- Test fixtures were corrected to provide the required Runtime Host input controller and inject cleanup failures through the supported Temporary World cleanup hook.
-- User-confirmed manual regression: established Cassandra behavior remains as before Phase 3 and redundant test buttons were removed. This does not complete the full browser acceptance checklist.
-- Remaining gates: real-browser Dev Lab/Main/Temporary World workflows, strict IndexedDB durability/cross-tab/interruption behavior, performance measurements, and identification of the authoritative environment simulation host/baseline.
-- No environment simulation source was changed. `main` remains untouched; no PR or merge has been created.
+- PR #7 merged `work` into `main` on 2026-11-16.
+- Merge commit: `0a879ed0ef955110b069b9e89bb420ead4f58737`.
+- Exact merge-commit Core/Host CI: [43940567950](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43940567950) — completed successfully.
+- Verified pre-merge source/test checkpoint: [43892955121](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43892955121) — 233/233 Core tests, 294/294 Host tests and browser syntax checks passed.
+- Pre-merge development preview: [43892955199](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43892955199) — success; Pages deployment: [43892954608](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43892954608) — success.
+- The merged code includes the regression for retiring a scoped Temporary World Unit after its placement has already been removed.
+- User-confirmed manual acceptance: the deployed Pages-hosted Cassandra workflow and its `.cass` save/load path work. This does not claim every standalone Dev Lab, spatial diagnostic, Main/Temporary World edge case, IndexedDB durability or performance check has passed.
+- No environment simulation source was changed.
+- Pre-merge recovery refs remain available: `backup/pre-merge-main-2026-11-16` and `backup/pre-merge-work-2026-11-16`. The local verified bundle/mirror are retained by the repository owner.
 
-> Historical entries below record the state at the time they were written. Where they say CI was unconfirmed or list earlier test counts, the verified checkpoint above and [Current implementation status](docs/architecture/current-implementation-status.md) supersede those statements.
+> Historical entries below record the state at the time they were written. Old statements that CI was unconfirmed, `main` was untouched or the merge was pending are historical snapshots; use this post-merge checkpoint and [Current implementation status](docs/architecture/current-implementation-status.md) for the live state.
 
 ## 2. Safety / recovery position
 
@@ -44,8 +43,8 @@ Engine must not import Dev Lab or Cassandra. The standalone Dev Lab must not req
   - `maintenance/active-world-viewport-cleanup-2026-11-13`
   - `maintenance/safe-cleanup-2026-11-13`
 - `refactor/dev-lab-entrypoint-decoupling-2026-11-14` was deleted after PR #5 was closed without merging.
-- PR #4 (`docs/phase-3-roadmap-2026-11-14`) remains open and is not approved as the current architecture plan. Review it for useful details before deciding its fate.
-- `next-step/phase-2` was retained pending final archive/recovery confirmation; user now confirms there is an archived Phase 2 merge. Verify archive identity before deleting that old branch.
+- PR #4 (`docs/phase-3-roadmap-2026-11-14`) was closed without merging on 2026-11-16. Its useful Cassandra-first product direction is retained in `NEXT_STEPS.md`; the branch is archival and can be removed after the documentation reconciliation is merged.
+- `next-step/phase-2` is a historical branch with an archived Phase 2 merge. It is not a base for future work; the owner may delete it after confirming the archive is retained.
 - **Branch rule:** do not create a branch without first explaining why and asking the user. Do not merge to `main`, delete historical branches, rewrite history or discard work without explicit approval.
 
 ## 3. Actual repository structure inspected on main
@@ -242,7 +241,7 @@ After each coherent step: run relevant tests, then full suite; inspect imports; 
 
 ## 8. Current status
 
-- [x] New long-range roadmap committed in `NEXT_STEPS.md`.
+- [x] A roadmap draft was committed in `NEXT_STEPS.md` at this historical point; it was later reframed as project status and open directions, not an approved future-phase plan.
 - [x] User confirmed Control Modes belong to Engine as a general mechanism; Cassandra defines actions and transition rules.
 - [x] User confirmed Engine Entity is generic and Unit belongs to Cassandra.
 - [x] User confirmed database mechanism belongs to Engine and game data to Cassandra.
@@ -1144,3 +1143,13 @@ Latest code/test commit: `9a62f056a58d180d1cfcca56742252be9fa3fb8d`. CI verifica
 - Branch comparison at the final source review was `work` 621 ahead / 2 behind `main`, with merge base `e99b688771af984c3ebd85c82cd6671bdcf09885`; subsequent commits in this audit series are documentation-only. The only main-side file is `docs/architecture/spatial-placement-persistence-integration-proposal.md`, a proposal whose composite placement persistence solution is implemented on `work`. It should be marked superseded after merge; do not edit `main` during this audit.
 - No new runtime blocker was confirmed in the reviewed paths. No source-code changes were made during this audit continuation; `main` remains untouched and no PR/merge was created.
 - CI evidence: source/test checkpoint `99fe57c824aa4e40d575ec0206e5b2adc2dd77eb` passed Core 233/233 and Host 294/294 with browser syntax checks; docs-only checkpoint `240a5197507bd9a7de41d7bd91c0f825a7800f2c` passed Core/Host, preview and Pages workflows. The later checklist-only commit `ec3600ce3f9ad7098f7daa5f4e0da0e100e2ce97` requires exact-head CI confirmation before final readiness sign-off.
+
+
+## 2026-11-16 — Post-merge documentation reconciliation
+
+- PR #7 merged the completed `work` history into `main`; merge commit `0a879ed0ef955110b069b9e89bb420ead4f58737`.
+- The merge-commit Core/Host workflow [43940567950](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43940567950) completed successfully.
+- PR #4 was closed without merging. Its only changed file was `NEXT_STEPS.md`; its Cassandra-first product direction is consolidated into the canonical roadmap.
+- The two pre-merge backup branches and the owner's local verified bundle/mirror are retained. No backup is to be deleted during documentation cleanup.
+- Documentation updates are being made on `docs/post-merge-documentation-2026-11-16`, not directly on `main`. The documentation PR must be reviewed and explicitly approved before merge.
+- No post-Phase-3 implementation phase has been selected. Possible future directions are only broad discussion topics until they are jointly defined; this work log does not authorize new gameplay rules.

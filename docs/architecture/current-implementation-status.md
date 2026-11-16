@@ -2,22 +2,23 @@
 
 **Audit date:** 2026-11-16  
 **Repository:** `Veyn44/NEW-GAME-CASS`  
-**Working branch:** `work`  
-**Latest verified source/test checkpoint:** `99fe57c824aa4e40d575ec0206e5b2adc2dd77eb`  
-**Latest verified docs-only CI checkpoint:** `240a5197507bd9a7de41d7bd91c0f825a7800f2c`  
-**Current audit documentation follow-up:** `ec3600ce3f9ad7098f7daa5f4e0da0e100e2ce97` (manual acceptance scope clarification; exact-head CI still to be confirmed)  
-**Documentation follow-up series:** `b50bf3f14aedf29fb42aa76271fe17df4b868f54`, `6d05de7c1c9436edd3141efe9670664216727468`, `cb89a02379c9b0f5e5c004649259077253ec1ee2`, `1b7faf15a8cff659fc7a5085f635ad275cfc5f7f`, `57f46f6ac656a51bebf6fafcc9f7ad986328e73c`, `0d01c3530c9c28c1283a05ef2f245a8bf4f475b1`  
-**Audited main HEAD:** `458ecc52d4267b6b31fb3d59559374533c49fa64`  
-**Documentation reconciliation commits:** `bdbf56312f3e5e24ccd5f7da83b4d519a991a928`, `2d52d21bbbe183b7199c6b1d85153f14c6326bb4`, `b50bf3f14aedf29fb42aa76271fe17df4b868f54`
+**Stable branch:** `main`  
+**Integrated merge commit:** `0a879ed0ef955110b069b9e89bb420ead4f58737`  
+**Merge PR:** [#7 — work into main](https://github.com/Veyn44/NEW-GAME-CASS/pull/7)  
+**Exact merge-commit Core/Host CI:** [43940567950 — success](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43940567950)  
+**Pre-merge verified source/test checkpoint:** `99fe57c824aa4e40d575ec0206e5b2adc2dd77eb` (233/233 Core, 294/294 Host, browser syntax checks passed)  
+**Pre-merge Pages deployment:** [43892954608 — success](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43892954608)  
+**Documentation update branch:** `docs/post-merge-documentation-2026-11-16` (this reconciliation is prepared separately from `main`).
 
 This is the current status index for the implementation described by the Phase 3 plans and architecture reviews. Where older sections of those documents still describe pre-implementation gaps or old test counts, this dated status record supersedes those historical statements. Source code and current tests remain authoritative.
 
 ## 1. Branch and change safety
 
-- All work described here is on `work`.
-- `main` remains at `458ecc52d4267b6b31fb3d59559374533c49fa64` and is not part of this work.
-- The latest verified source/test checkpoint is `99fe57c824aa4e40d575ec0206e5b2adc2dd77eb`. The later `240a519…` documentation-only checkpoint was also run through Core/Host, development preview and Pages workflows successfully. The audit-only checklist clarification is `ec3600c…`; its exact-head CI must be confirmed before calling it the final verified head. The later `c84b2de…` and `9d4ed2f…` commits refine Temporary World Unit cleanup, and `d2a6f34…` / `99fe57c…` add its unplaced-Unit regression coverage.
-- No merge or pull request is authorized by this status record.
+- PR #7 successfully integrated `work` into `main` on 2026-11-16. The current integrated baseline is merge commit `0a879ed0ef955110b069b9e89bb420ead4f58737`.
+- Exact merge-commit Core/Host CI run [43940567950](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43940567950) completed successfully.
+- The pre-merge `work` branch is retained and was 3 commits behind / 0 commits ahead of `main` in the branch view immediately after merge. Future work should start from the then-current `main` on a dedicated branch.
+- Recovery refs `backup/pre-merge-main-2026-11-16` and `backup/pre-merge-work-2026-11-16` preserve the exact pre-merge states. The owner also retains a locally verified bundle and mirror.
+- No direct edits to `main` are part of this documentation reconciliation. The documentation changes are being prepared on `docs/post-merge-documentation-2026-11-16` for review and a separate approved PR.
 
 ## 2. Phase 3 implementation summary
 
@@ -37,7 +38,7 @@ This is the current status index for the implementation described by the Phase 3
 
 ## 3. Engine multi-world runtime
 
-The initial deterministic multi-world lifecycle contract is implemented on `work`.
+The initial deterministic multi-world lifecycle contract is implemented and merged into `main`.
 
 ### Ownership and behavior now present
 
@@ -107,7 +108,7 @@ The existing infrastructure is a foundation only. The outstanding gameplay/domai
 
 The checkpoint includes the Campaign session lifecycle, Applied-ledger host integration, persistence rollback fail-stop, spatial read-only mutation guards, World Registry lifecycle guard, non-grid Entity Registry placement guard, save-target rollback, serialized file operations, and a regression proving that Temporary World disposal retires a scoped Unit even after its placement was already removed.
 
-The documentation reconciliation commits after the earlier `35bab1…` checkpoint updated implementation notes, the manual checklist and the agreed Phase 4 objective. Later code/test commits refined the scoped-Unit disposal path and added its regression coverage; the current checkpoint above includes those changes.
+The documentation reconciliation commits after the earlier `35bab1…` checkpoint updated implementation notes and the manual checklist. Later code/test commits refined the scoped-Unit disposal path and added its regression coverage; the current checkpoint above includes those changes.
 
 CI and syntax checks do not prove all browser interactions, real IndexedDB strict durability, cross-tab behavior, crash/reopen recovery or performance.
 
@@ -129,14 +130,14 @@ These deferred checks are not being represented as passed. They are also not pre
 
 - `docs/architecture/world-lifecycle-design-proposal.md` is an old, non-binding pre-implementation proposal. It is historical context, not the current lifecycle contract.
 - `docs/architecture/world-lifecycle-contract-proposal.md` is the current lifecycle contract and records the implemented initial Engine contract with host/browser verification still pending.
-- `main` contains `docs/architecture/spatial-placement-persistence-integration-proposal.md` as a proposal-only addition after the merge base. The composite World Context + Spatial Composition persistence participant is already implemented and tested on `work`; after merge, that proposal should be marked as implemented/superseded rather than treated as open runtime work.
+- `docs/architecture/spatial-placement-persistence-integration-proposal.md` is a proposal-only document that was integrated with the merge. Its composite World Context + Spatial Composition persistence participant is implemented and covered by tests; mark the proposal as superseded rather than treating it as open runtime work.
 - Older pre-implementation “Current gap” statements in the capability map and older status/test-count paragraphs in the Phase 3 plan are historical snapshots. Use this status index for the current state; do not treat old proposed steps as unimplemented when their implementation is recorded above.
 
 ## 9. Next engineering decision
 
-The immediate objective is to finish the read-only pre-merge audit of `work` against `main`, confirm CI on the exact final documentation/source head, and present a merge-readiness report. No new gameplay features or Phase 4 work are in scope. No merge or pull request is authorized without the user's explicit approval.
+Phase 3 has been integrated into `main` and its exact merge-commit Core/Host CI passed. The current documentation reconciliation is being handled separately in PR #8.
 
-After the audit is accepted and `work` is merged, Phase 4 will be planned jointly. Its agreed goal is to prepare the existing Cassandra/Dev Lab implementation for direct browser testing of what already exists — entry points, host composition, test workflows, diagnostics, and persistence interactions — not to invent new gameplay rules.
+No post-Phase-3 implementation phase, sequence of slices or immediate gameplay scope has been agreed. The remaining manual/browser and platform-specific checks listed above are facts about current acceptance status; they do not, by themselves, prescribe the next development phase. The next direction will be selected jointly based on Cassandra's needs and the decisions made during the next planning discussion.
 
 ## 2026-11-16 follow-up — Applied Ledger verifier runtime path
 
