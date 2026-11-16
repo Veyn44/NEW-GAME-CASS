@@ -79,6 +79,8 @@ export function createFilePersistenceController({
   }
 
   async function persist({ chooseFile = false } = {}) {
+    const restoreSelection = chooseFile ? saveAdapter.captureSelection?.() : null;
+    let saved = false;
     try {
       if (chooseFile) {
         if (supportsFileAccess()) {
@@ -110,10 +112,12 @@ export function createFilePersistenceController({
         stateId,
         kind: "manual"
       });
+      saved = true;
       const fileName = saveAdapter.selectedFileName || defaultFileName;
       report(copy.saved + " · " + fileName, copy.savedDetail + " · " + metadata.createdAt);
       return true;
     } catch (error) {
+      if (chooseFile && !saved) restoreSelection?.();
       if (error?.name === "AbortError") return false;
       report(copy.saveFailed + " · " + error.message);
       return false;
