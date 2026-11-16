@@ -57,7 +57,7 @@ Engine owns generic snapshot/restore contracts. Cassandra and Dev Lab own separa
 **Completed and merged to `main` through PR #6 on 2026-11-14.** Do not restart the mechanical restructuring. Remaining boundary cleanup is follow-up work only when a concrete dependency requires it.
 
 ### Phase 3 — Engine physical-world foundation and application integration
-**Infrastructure slices are substantially implemented on `work`; current Pages workflow manually accepted, with separate later-scope checks explicitly deferred.**
+**Phase 3 infrastructure and integration have been merged into `main`; current Pages workflow is manually accepted, with separate later-scope checks explicitly deferred.**
 
 - **Slices 1–6 — implemented:** Grid Geometry, Spatial Composition, Spatial Queries, Movement, coordinated spatial persistence and Core Assembly integration.
 - **Slice 7 — partially implemented:** Cassandra grid-backed Unit movement, Main/Temporary World session policy, runtime identity projection and persistence, Change Package/Change Buffer protocol foundations, and a candidate IndexedDB compare-and-swap backend exist. Authoritative campaign aggregate/domain handlers, full expedition workflow, complete reconciliation/disposition rules and real-browser backend verification remain open.
