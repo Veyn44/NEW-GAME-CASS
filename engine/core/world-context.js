@@ -282,12 +282,14 @@ export class WorldContext {
     return Object.freeze({
       previous, current: next,
       commit: () => {
+        this.#assertMutationAllowed();
         if (committed) throw new WorldContextError("TRANSACTION_ALREADY_COMMITTED", "Transaction already committed.");
         lifecycle?.commit();
         if (next === null) this.#placements.delete(id); else this.#placements.set(id, next);
         committed = true;
       },
       rollback: () => {
+        this.#assertMutationAllowed();
         if (!committed) return false;
         if (previous === null) this.#placements.delete(id); else this.#placements.set(id, previous);
         lifecycle?.rollback(); committed = false; return true;
@@ -373,6 +375,7 @@ export class WorldContext {
     let committed = false;
     return Object.freeze({
       commit: () => {
+        this.#assertMutationAllowed();
         if (committed) throw new WorldContextError("RESTORE_ALREADY_COMMITTED", "World Context restore transaction was already committed.");
         // Cross-registry references are validated at commit time, after the
         // entity and world participants have committed their staged snapshots.
@@ -381,6 +384,7 @@ export class WorldContext {
         committed = true;
       },
       rollback: () => {
+        this.#assertMutationAllowed();
         if (!committed) return false;
         this.#placements = previous;
         committed = false;
