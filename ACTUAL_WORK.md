@@ -936,3 +936,30 @@ Added `docs/architecture/world-lifecycle-design-proposal.md` as a **non-binding 
 The proposal includes required invariants, pre-implementation acceptance scenarios and a migration strategy. It does not change source code, runtime behavior, save schemas, Pages configuration or `main`.
 
 **Awaiting user review/approval:** independent per-world simulation time; preservation of partial scheduler backlog on pause/disable; separate World Registry and simulation-runtime persistence; host ownership of focus/rendering. No implementation is authorized until these contracts are agreed.
+
+
+## 2026-11-16 — Cassandra / Dev Lab UI and save identity isolation
+
+### UI boundary and preview
+
+- Removed the Dev Lab spatial inspector and test-entity controls from the Cassandra root page. The main Cassandra shell no longer advertises these unhandled test controls.
+- Restored the complete spatial inspector and all 21 DOM controls expected by the standalone Dev Lab application in `dev-lab.html`.
+- Added a boundary regression test that checks all 21 required IDs exist only in standalone Dev Lab and that the inspector panel is absent from Cassandra's root HTML.
+- Updated the Pages preview workflow to deploy pushes from `work` only. The stale `next-step/phase-2` trigger and restrictive path filter were removed. The workflow no longer has a manual-dispatch path that could accidentally publish another branch.
+
+### Save identity boundary
+
+- Generalized `LocalFileSaveAdapter` so its outer format identifier, extension, MIME type, file description, default filename and supported slot are configured per application.
+- Cassandra uses `.cass`, outer format `cassandra.save`, MIME type `application/vnd.cassandra.save+json`, slot `cassandra-main-world` and state ID `cassandra-main-world`.
+- Standalone Dev Lab uses `.dlcass`, outer format `cassandra.dev-lab.save`, MIME type `application/vnd.cassandra.dev-lab-save+json`, slot `dev-lab-workspace` and state ID `cassandra-dev-lab-workspace`.
+- File extension and outer format are checked on import and native file-picker selection; the adapter also rejects writes/reads through a slot other than its configured slot. Engine Persistence independently checks the state ID.
+- Existing Dev Lab `.cass` files are not auto-converted. The new Dev Lab rejects the old extension, rejects a renamed legacy envelope by format, and Cassandra rejects the legacy Dev Lab state ID. Original files remain untouched.
+- Updated the save compatibility proposal to document both current formats and their non-interoperability.
+
+### Verification
+
+- Current implementation HEAD at the time of this record: `02715754fd2804b7f223c88ee56b73c1e47cd64c`.
+- GitHub Actions: Core **230/230 passed**, host/unit **264/264 passed**, browser entry-point syntax checks passed.
+- The first Pages deployment after correcting the preview workflow completed successfully from `work`. The deployment for the later save-isolation HEAD was queued behind the preceding Pages run at the time of this record.
+- No real-browser manual acceptance has been performed by the assistant; the user should still verify both standalone Dev Lab and Cassandra in the deployed preview.
+- `main` remains unchanged at `458ecc52d4267b6b31fb3d59559374533c49fa64`. No merge or PR was created.
