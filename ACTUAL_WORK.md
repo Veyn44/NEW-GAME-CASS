@@ -1009,3 +1009,22 @@ The proposal includes required invariants, pre-implementation acceptance scenari
 - **Campaign / Change Package integration remains intentionally deferred.** The `isPackageApplied` path is not yet fully wired through the ordinary browser runtime and must be completed together with the campaign persistence boundary, not through a temporary placeholder.
 - **Manual browser acceptance remains outstanding.** CI and the Pages deployment verify build and automated behavior, but a person still needs to open both Cassandra and standalone Dev Lab and exercise their visible flows.
 - **No merge approval is implied by the passing CI.** Before any future merge, perform a separate final diff/security/regression audit, resolve or explicitly accept every remaining item, and obtain the user's explicit permission. `main` remains off-limits until then.
+
+## 2026-11-16 — Temporary World disposal rollback transaction
+
+### Implementation on `work`
+
+- Added `Persistence.runAtomicMutation({ prepare, commit })` as a synchronous runtime-mutation boundary. Preparation runs at the Core safe boundary before a detached checkpoint is captured from every registered persistence participant.
+- Every participant validates and prepares its own restore transaction before the first destructive mutation. If the commit phase throws, the pre-mutation snapshots are restored in the same dependency order used by normal Persistence restore.
+- If any participant cannot restore, Persistence enters a faulted state, rejects later save/load/runtime-transaction requests, and Core pauses the simulation through `core.persistence-integrity-fault`. The fatal error is logged and surfaced; it is not swallowed.
+- Refactored Cassandra Temporary World completion to run its ownership/spatial preflight and destructive cleanup inside this transaction boundary. Unit removal, entity retirement, spatial content removal, World Runtime disposal, World Registry closure/unregistration, projection cleanup and session-reference clearing are now covered by the same in-memory rollback checkpoint.
+- The existing two-phase cleanup-handler contract remains: preparation is synchronous and side-effect-free; cleanup commit callbacks run last.
+- Added a regression test that injects a failure after Units, entities, content and World Runtime have already been removed/disposed. The test asserts restoration of both Units, Colony Leader/Draft state, Entity Registry, WorldContext placement, Spatial Composition occupancy/content, World Runtime state, World Registry descriptor and Cassandra session reference.
+
+### Verification status
+
+- Latest implementation commit: `bb787366483250ee4389d23df6d94fcfa041d1b4`.
+- The workflow is configured to run `npm run test:all` and browser entry-point syntax checks on pushes to `work`; automated result for this exact commit has not yet been confirmed from the available GitHub status response.
+- The regression test is committed but must not be described as passing until CI reports its result.
+- No environment simulation rules were changed.
+- `main` remains untouched. No PR or merge was created.
