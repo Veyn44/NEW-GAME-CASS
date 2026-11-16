@@ -2,12 +2,13 @@ import { loadCassandraDatabase } from "../database/load-cassandra-database.js";
 import { createCassandraRuntimeHost } from "./cassandra-runtime-host.js";
 import { createWorldViewport } from "../../shared/presentation/world-viewport.js";
 import { createViewportInputController } from "../../shared/input/viewport-input-controller.js";
-import { LocalFileSaveAdapter } from "../../src/adapters/storage/local-file-save-adapter.js";
+import { LocalFileSaveAdapter, CASSANDRA_SAVE_SLOT, CASSANDRA_SAVE_STATE_ID, CASSANDRA_SAVE_FILE_EXTENSION, CASSANDRA_SAVE_FILE_NAME } from "../../src/adapters/storage/local-file-save-adapter.js";
 import { createFilePersistenceController } from "../../shared/application/file-persistence-controller.js";
 import { createDefinitionCatalogController } from "../../shared/application/definition-catalog-controller.js";
 import { createViewNavigationController } from "../../shared/application/view-navigation-controller.js";
 import { createPauseMenuController } from "../../shared/application/pause-menu-controller.js";
 import { getDefinition, listDefinitionIndex, getCategories, loadDefinitionDetail } from "../../engine/database/definition-registry.js";
+import { createCassandraCampaignSessionController } from "./cassandra-campaign-session-controller.js";
 
 const views = [...document.querySelectorAll("[data-view]")];
 const databaseView = document.querySelector('[data-view="database"]');
@@ -48,6 +49,7 @@ const state = {
   gameplayUi: null,
   clock: null,
   worldRegistry: null,
+  worldSessionApi: null,
   persistenceApi: null,
   saveAdapter: null,
   workspacePersistence: null,
@@ -67,8 +69,8 @@ function refreshWorldMarkers() {
     .filter((unit) => unit.placement?.type === "world" && unit.placement.worldId === activeWorldId)
     .map((unit) => ({
       id: unit.id,
-      x: unit.placement.position.x,
-      y: unit.placement.position.y,
+      x: unit.position.x,
+      y: unit.position.y,
       label: getDefinition(unit.definitionId)?.name ?? unit.definitionId
     })));
 }
@@ -274,7 +276,7 @@ window.addEventListener("keydown", (event) => {
       inspectGameplayEntity(action.controlState.leaderId);
       if (action.leader?.placement?.type === "world"
         && action.leader.placement.worldId === state.worldRegistry?.activeWorldId) {
-        viewport.setCameraFollowTarget(action.leader.id, action.leader.placement.position);
+        viewport.setCameraFollowTarget(action.leader.id, action.leader.position);
       }
     } else clearSelection();
     updateSimulationUi();
@@ -318,7 +320,15 @@ document.addEventListener("visibilitychange", () => {
 worldSizeSelect.addEventListener("change", () => {
   if (!state.paused || !state.worldRegistry) return;
   const size = Number(worldSizeSelect.value);
-  state.worldRegistry.activateWorld(`cassandra-world-${size}`);
+  try {
+    state.worldSessionApi.setMainWorldWorld(`cassandra-world-${size}`);
+  } catch (error) {
+    const session = state.worldSessionApi?.getState();
+    const mainWorld = session?.mainWorldId ? state.worldRegistry.get(session.mainWorldId) : null;
+    if (mainWorld) worldSizeSelect.value = String(mainWorld.dimensions.width);
+    simulationStatus.textContent = `WORLD SWITCH REJECTED · ${error.code ?? error.message}`;
+    return;
+  }
   viewport.resetCameraToWorld(size);
   clearSelection();
   refreshWorldMarkers();
@@ -349,9 +359,11 @@ let runtimeHost = null;
 export async function startCassandraApplication() {
   await loadCassandraDatabase();
   definitionCatalog.refresh();
-  state.saveAdapter = new LocalFileSaveAdapter();
+  state.saveAdapter = new LocalFileSaveAdapter({ slotId: CASSANDRA_SAVE_SLOT });
+  const campaignSessionApi = createCassandraCampaignSessionController();
   runtimeHost = createCassandraRuntimeHost({
     saveAdapter: state.saveAdapter,
+    isPackageApplied: (packageId, digest) => campaignSessionApi.isPackageApplied(packageId, digest),
     inputController,
     onUnitMoved(moved) {
       refreshWorldMarkers();
@@ -360,7 +372,7 @@ export async function startCassandraApplication() {
     updateFreeCamera: applyFreeCameraInput,
     shouldAdvance: () => !pauseMenuController.isOpen(),
     onReady({ services }) {
-      if (!services?.worldRegistry || !services?.persistenceApi || !services?.clock || !services?.gameplayApi) {
+      if (!services?.worldRegistry || !services?.worldSessionApi || !services?.persistenceApi || !services?.clock || !services?.gameplayApi) {
         throw new TypeError("Cassandra runtime services are incomplete.");
       }
       const worlds = services.worldRegistry;
@@ -369,30 +381,37 @@ export async function startCassandraApplication() {
           worldId: `cassandra-world-${size}`,
           type: "cassandra-world",
           dimensions: { width: size, height: size },
+          grid: { width: size, height: size },
           coordinateSystem: "tiles"
         });
       }
       worlds.activateWorld(`cassandra-world-${Number(worldSizeSelect.value)}`);
+      services.worldSessionApi.registerMainWorld(worlds.activeWorldId);
       state.worldRegistry = worlds;
+      state.worldSessionApi = services.worldSessionApi;
       state.persistenceApi = services.persistenceApi;
       state.gameplayApi = services.gameplayApi;
       state.gameplayUi = services.gameplayUi;
       state.workspacePersistence = createFilePersistenceController({
         persistenceApi: services.persistenceApi,
-        saveSlot: "dev-lab-workspace",
-        stateId: "cassandra-dev-lab-workspace",
+        saveSlot: CASSANDRA_SAVE_SLOT,
+        stateId: CASSANDRA_SAVE_STATE_ID,
         supportsFileAccess: () => LocalFileSaveAdapter.supportsFileAccess,
         requestFileName: ({ currentFileName, defaultFileName }) =>
           window.prompt("Name this Cassandra save:", currentFileName || defaultFileName),
-        fileExtension: ".cass",
-        defaultFileName: "save.cass",
+        fileExtension: CASSANDRA_SAVE_FILE_EXTENSION,
+        defaultFileName: CASSANDRA_SAVE_FILE_NAME,
         saveAdapter: state.saveAdapter,
         fileInput,
         onRestore() {
+          state.worldSessionApi.resumeAfterRestore();
           refreshWorldMarkers();
           clearSelection();
-          const world = worlds.get(worlds.activeWorldId);
-          if (world) viewport.resetCameraToWorld(world.dimensions.width);
+          const session = state.worldSessionApi.getState();
+          const mainWorld = worlds.get(session.mainWorldId);
+          const activeWorld = worlds.get(worlds.activeWorldId);
+          if (mainWorld) worldSizeSelect.value = String(mainWorld.dimensions.width);
+          if (activeWorld) viewport.resetCameraToWorld(activeWorld.dimensions.width);
           updateSimulationUi();
         },
         onStatus({ saveStatus: nextSaveStatus, simulationStatus: nextStatus }) {
@@ -429,4 +448,5 @@ export async function startCassandraApplication() {
     simulationStatus.textContent = `CASSANDRA STARTUP FAILED · ${error.message}`;
   }
   navigation.showView("menu");
+  return Object.freeze({ campaignSessionApi, runtimeHost });
 }

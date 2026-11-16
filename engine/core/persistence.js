@@ -128,13 +128,16 @@ export class Persistence {
   #logger;
   #applicationVersion;
   #formatVersion;
+  #faulted = false;
+  #onFatalIntegrityFault;
 
   constructor({
     adapter,
     runAtSafeBoundary,
     applicationVersion = "0.0.0",
     formatVersion = FORMAT_VERSION,
-    logger = null
+    logger = null,
+    onFatalIntegrityFault = null
   } = {}) {
     if (!adapter || typeof adapter.read !== "function" || typeof adapter.writeAtomic !== "function") {
       throw new PersistenceError("INVALID_ADAPTER", "Persistence adapter must implement read(slotId) and writeAtomic(slotId, saveData).");
@@ -147,11 +150,16 @@ export class Persistence {
       throw new PersistenceError("INVALID_FORMAT_VERSION", "formatVersion must be a positive safe integer.");
     }
     if (logger !== null && typeof logger.error !== "function") throw new PersistenceError("INVALID_LOGGER", "Logger must expose error(message, details).");
+    if (onFatalIntegrityFault !== null && typeof onFatalIntegrityFault !== "function") {
+      throw new PersistenceError("INVALID_FATAL_INTEGRITY_HANDLER",
+        "onFatalIntegrityFault must be a function or null.");
+    }
     this.#adapter = adapter;
     this.#runAtSafeBoundary = runAtSafeBoundary;
     this.#applicationVersion = applicationVersion;
     this.#formatVersion = formatVersion;
     this.#logger = logger;
+    this.#onFatalIntegrityFault = onFatalIntegrityFault;
   }
 
   registerParticipant(participant) {
@@ -172,14 +180,32 @@ export class Persistence {
     if (participant.migrateSnapshot != null && typeof participant.migrateSnapshot !== "function") {
       throw new PersistenceError("INVALID_PARTICIPANT", `Participant "${id}" migrateSnapshot must be a function.`);
     }
+    if (participant.prepareRestoreMissing != null && typeof participant.prepareRestoreMissing !== "function") {
+      throw new PersistenceError("INVALID_PARTICIPANT", `Participant "${id}" prepareRestoreMissing must be a function.`);
+    }
+    const hasRuntimeCheckpointCapture = participant.captureRuntimeCheckpoint != null;
+    const hasRuntimeCheckpointRestore = participant.prepareRuntimeCheckpointRestore != null;
+    if (hasRuntimeCheckpointCapture !== hasRuntimeCheckpointRestore
+      || (hasRuntimeCheckpointCapture && typeof participant.captureRuntimeCheckpoint !== "function")
+      || (hasRuntimeCheckpointRestore && typeof participant.prepareRuntimeCheckpointRestore !== "function")) {
+      throw new PersistenceError("INVALID_PARTICIPANT",
+        `Participant "${id}" must provide both runtime checkpoint hooks as functions.`);
+    }
+    if (participant.allowMissingSnapshot != null && typeof participant.allowMissingSnapshot !== "boolean") {
+      throw new PersistenceError("INVALID_PARTICIPANT", `Participant "${id}" allowMissingSnapshot must be a boolean.`);
+    }
     const entry = Object.freeze({
       id,
       schemaVersion: participant.schemaVersion,
       required: participant.required !== false,
+      allowMissingSnapshot: participant.allowMissingSnapshot === true,
       order: Number.isSafeInteger(participant.order) ? participant.order : 0,
       captureSnapshot: participant.captureSnapshot.bind(participant),
       validateSnapshot: participant.validateSnapshot == null ? null : participant.validateSnapshot.bind(participant),
       migrateSnapshot: participant.migrateSnapshot == null ? null : participant.migrateSnapshot.bind(participant),
+      prepareRestoreMissing: participant.prepareRestoreMissing == null ? null : participant.prepareRestoreMissing.bind(participant),
+      captureRuntimeCheckpoint: participant.captureRuntimeCheckpoint == null ? null : participant.captureRuntimeCheckpoint.bind(participant),
+      prepareRuntimeCheckpointRestore: participant.prepareRuntimeCheckpointRestore == null ? null : participant.prepareRuntimeCheckpointRestore.bind(participant),
       prepareRestore: participant.prepareRestore.bind(participant)
     });
     this.#participants.set(id, entry);
@@ -190,7 +216,126 @@ export class Persistence {
     return Object.freeze([...this.#participants.keys()].sort());
   }
 
+  get isFaulted() {
+    return this.#faulted;
+  }
+
+  #assertHealthy() {
+    if (this.#faulted) {
+      throw new PersistenceError("PERSISTENCE_FAULTED",
+        "Persistence is faulted after a failed runtime rollback; restart and recovery are required.");
+    }
+  }
+
+  /**
+   * Runs a synchronous multi-system runtime mutation with an in-memory
+   * rollback checkpoint built from every registered persistence participant.
+   *
+   * prepare() must be synchronous and side-effect-free. It runs at the safe
+   * boundary before the checkpoint is captured. commit(plan) must be
+   * synchronous. If commit throws, each participant is restored from the
+   * checkpoint in normal dependency order before the original error is
+   * rethrown. A failed restoration is surfaced as a fatal integrity error.
+   */
+  runAtomicMutation({ prepare, commit } = {}) {
+    this.#assertHealthy();
+    if (typeof prepare !== "function" || typeof commit !== "function") {
+      throw new PersistenceError("INVALID_ATOMIC_MUTATION",
+        "Runtime atomic mutation requires synchronous prepare() and commit(plan) functions.");
+    }
+
+    return this.#runAtSafeBoundary(async () => {
+      const plan = prepare();
+      if (plan && typeof plan.then === "function") {
+        throw new PersistenceError("ASYNC_ATOMIC_PREPARATION",
+          "Runtime atomic mutation preparation must be synchronous and side-effect-free.");
+      }
+
+      const participants = [...this.#participants.values()]
+        .sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
+      const prepared = [];
+
+      // Capture and prepare every participant before the first live mutation.
+      // A missing/invalid participant checkpoint aborts without running commit.
+      for (const participant of participants) {
+        const captureCheckpoint = participant.captureRuntimeCheckpoint ?? participant.captureSnapshot;
+        const prepareCheckpointRestore = participant.prepareRuntimeCheckpointRestore ?? participant.prepareRestore;
+        const snapshot = await captureCheckpoint();
+        if (snapshot === undefined) {
+          throw new PersistenceError("ATOMIC_CHECKPOINT_MISSING",
+            `Participant "${participant.id}" did not provide a runtime rollback snapshot.`,
+            { participantId: participant.id });
+        }
+        const detached = cloneSerializable(snapshot, `runtimeCheckpoint.${participant.id}`);
+        if (participant.validateSnapshot && await participant.validateSnapshot(detached) !== true) {
+          throw new PersistenceError("ATOMIC_CHECKPOINT_INVALID",
+            `Participant "${participant.id}" rejected its runtime rollback snapshot.`,
+            { participantId: participant.id });
+        }
+        const transaction = await prepareCheckpointRestore(deepFreeze(detached), Object.freeze({
+          metadata: Object.freeze({ kind: "runtime-checkpoint" }),
+          storedVersion: participant.schemaVersion,
+          schemaVersion: participant.schemaVersion,
+          runtimeCheckpoint: true
+        }));
+        if (!transaction || typeof transaction.commit !== "function"
+          || typeof transaction.rollback !== "function") {
+          throw new PersistenceError("INVALID_ATOMIC_CHECKPOINT",
+            `Participant "${participant.id}" did not prepare a reversible runtime checkpoint.`,
+            { participantId: participant.id });
+        }
+        prepared.push({ participantId: participant.id, transaction });
+      }
+
+      try {
+        const result = commit(plan);
+        if (result && typeof result.then === "function") {
+          throw new PersistenceError("ASYNC_ATOMIC_COMMIT",
+            "Runtime atomic mutation commit must be synchronous; asynchronous work belongs before prepare().");
+        }
+        return result;
+      } catch (cause) {
+        const restoreFailures = [];
+        // Participant order is the same dependency order used by load():
+        // registries first, then placements/runtime, then domain participants.
+        for (const item of prepared) {
+          try {
+            await item.transaction.commit();
+          } catch (restoreError) {
+            let rollbackError = null;
+            try { await item.transaction.rollback(); }
+            catch (error) { rollbackError = error; }
+            restoreFailures.push({
+              participantId: item.participantId,
+              restoreError: restoreError?.message ?? String(restoreError),
+              rollbackError: rollbackError?.message ?? null
+            });
+          }
+        }
+
+        if (restoreFailures.length) {
+          this.#faulted = true;
+          try { this.#onFatalIntegrityFault?.(Object.freeze({ cause, restoreFailures })); } catch { /* Fault signaling must not mask the integrity failure. */ }
+          this.#log("critical", "Runtime mutation failed and its rollback checkpoint could not be fully restored.", {
+            cause: cause?.message ?? String(cause),
+            restoreFailures
+          });
+          throw new PersistenceError("ATOMIC_MUTATION_ROLLBACK_FAILED",
+            "Runtime mutation failed and one or more persistence participants could not restore the pre-mutation state.",
+            { cause, restoreFailures });
+        }
+
+        this.#log("warn", "Runtime mutation failed; all persistence participants were restored from the in-memory checkpoint.", {
+          cause: cause?.message ?? String(cause),
+          participantCount: prepared.length
+        });
+        throw cause;
+      }
+    });
+  }
+
   async save(slotId, { stateId, seed = null, kind = "manual" } = {}) {
+    this.#assertHealthy();
     assertSlotId(slotId);
     if (typeof stateId !== "string" || !stateId.trim()) {
       throw new PersistenceError("INVALID_STATE_ID", "stateId is required for a save.");
@@ -251,6 +396,7 @@ export class Persistence {
   }
 
   async load(slotId, { stateId = null } = {}) {
+    this.#assertHealthy();
     assertSlotId(slotId);
     return this.#runAtSafeBoundary(async () => {
       try {
@@ -270,7 +416,18 @@ export class Persistence {
         const prepared = [];
         for (const participant of ordered) {
           if (!Object.hasOwn(saveData.snapshots, participant.id)) {
-            if (participant.required) throw new PersistenceError("MISSING_REQUIRED_SNAPSHOT", `Save is missing required participant "${participant.id}".`, { participantId: participant.id });
+            if (participant.required && !participant.allowMissingSnapshot) throw new PersistenceError("MISSING_REQUIRED_SNAPSHOT", `Save is missing required participant "${participant.id}".`, { participantId: participant.id });
+            if (participant.prepareRestoreMissing) {
+              const transaction = await participant.prepareRestoreMissing(Object.freeze({
+                metadata: normalizedMetadata,
+                schemaVersion: participant.schemaVersion,
+                missingSnapshot: true
+              }));
+              if (!transaction || typeof transaction.commit !== "function" || typeof transaction.rollback !== "function") {
+                throw new PersistenceError("INVALID_RESTORE_TRANSACTION", `Participant "${participant.id}" must return commit() and rollback() functions from prepareRestoreMissing().`, { participantId: participant.id });
+              }
+              prepared.push({ participantId: participant.id, transaction });
+            }
             continue;
           }
           let snapshot = saveData.snapshots[participant.id];
@@ -301,11 +458,33 @@ export class Persistence {
             await item.transaction.commit();
           }
         } catch (error) {
+          const rollbackFailures = [];
           for (const item of committed.reverse()) {
             try { await item.transaction.rollback(); }
-            catch (rollbackError) { this.#log("critical", "Restore rollback failed.", { participantId: item.participantId, error: rollbackError?.message ?? String(rollbackError) }); }
+            catch (rollbackError) {
+              const failure = {
+                participantId: item.participantId,
+                error: rollbackError?.message ?? String(rollbackError)
+              };
+              rollbackFailures.push(failure);
+              this.#log("critical", "Restore rollback failed.", failure);
+            }
           }
-          throw new PersistenceError("RESTORE_COMMIT_FAILED", "Restore transaction failed; committed participants were rolled back where possible.", { cause: error });
+          if (rollbackFailures.length > 0) {
+            this.#faulted = true;
+            try {
+              this.#onFatalIntegrityFault?.(Object.freeze({
+                cause: error,
+                rollbackFailures: Object.freeze(rollbackFailures.map((failure) => Object.freeze({ ...failure })))
+              }));
+            } catch { /* Fault signaling must not mask the integrity failure. */ }
+            throw new PersistenceError(
+              "RESTORE_ROLLBACK_FAILED",
+              "Restore failed and one or more participants could not restore the prior runtime state; restart and recovery are required.",
+              { cause: error, rollbackFailures }
+            );
+          }
+          throw new PersistenceError("RESTORE_COMMIT_FAILED", "Restore transaction failed; committed participants were rolled back.", { cause: error });
         }
         this.#log("info", "State save restored.", { slotId, stateId: normalizedMetadata.stateId, participantCount: prepared.length });
         return deepFreeze(normalizedMetadata);

@@ -23,9 +23,24 @@ jobs:
           node --check tests/unit/cassandra-runtime-host.test.js
           node --check cassandra/application/dev-lab-gameplay-controller.js
           node --check cassandra/application/dev-lab-unit-inspector-ui.js
+          node --check src/gameplay/unit/unit-system.js
+          node --check src/gameplay/colony/colony-control-system.js
+          node --check src/gameplay/world/cassandra-world-session-system.js
+          node --check src/gameplay/expedition/cassandra-change-package-system.js
+          node --check src/gameplay/expedition/cassandra-expedition-projection.js
+          node --check src/gameplay/expedition/cassandra-expedition-projection-system.js
+          node --check src/gameplay/expedition/cassandra-unit-expedition-projection.js
+          node --check tests/unit/cassandra-unit-expedition-projection.test.js
+          node --check tests/unit/cassandra-expedition-projection.test.js
+          node --check src/adapters/storage/indexeddb-campaign-save-adapter.js
+          node --check tests/unit/indexeddb-campaign-save-adapter.test.js
+          node --check tests/unit/cassandra-change-package-system.test.js
           node --check dev-lab/application/application-shell.js
           node --check dev-lab/application/standalone-entry.js
           node --check dev-lab/application/create-dev-lab-runtime.js
+          node --check dev-lab/application/spatial-inspector.js
+          node --check tests/unit/dev-lab-hosted-spatial-acceptance.test.js
+          node --check dev-lab/application/spatial-test-controller.js
           node --check engine/runtime/create-game-runtime.js
           node --check engine/input/input-system.js
           node --check dev-lab/presentation/dev-world-preview.js

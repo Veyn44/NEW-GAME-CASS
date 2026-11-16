@@ -3,6 +3,8 @@ import { createInputSystem } from "../../engine/input/input-system.js";
 import { getDefinition } from "../../engine/database/definition-registry.js";
 import { createUnitSystem } from "../../src/gameplay/unit/unit-system.js";
 import { createColonyControlSystem } from "../../src/gameplay/colony/colony-control-system.js";
+import { createCassandraWorldSessionSystem } from "../../src/gameplay/world/cassandra-world-session-system.js";
+import { createCassandraExpeditionProjectionSystem } from "../../src/gameplay/expedition/cassandra-expedition-projection-system.js";
 import { createCassandraDevLabGameplayController } from "./dev-lab-gameplay-controller.js";
 import { createCassandraDevLabUnitInspectorUi } from "./dev-lab-unit-inspector-ui.js";
 import { createApplicationRuntimeHost } from "../../shared/application/runtime-host.js";
@@ -11,6 +13,7 @@ import { createApplicationRuntimeHost } from "../../shared/application/runtime-h
 export function createCassandraRuntime({
   saveAdapter,
   inputController,
+  isPackageApplied = null,
   onUnitMoved,
   updateFreeCamera
 } = {}) {
@@ -22,11 +25,13 @@ export function createCassandraRuntime({
     hostSystems: [
       createInputSystem({ inputController }),
       createUnitSystem({ definitionLookup: getDefinition }),
-      createColonyControlSystem()
+      createColonyControlSystem(),
+      createCassandraWorldSessionSystem({ isPackageApplied }),
+      createCassandraExpeditionProjectionSystem()
     ],
     simulationTasks: [{
       systemId: "game.colony-control",
-      update({ deltaSeconds, context }) {
+      update({ deltaSeconds, tick, context }) {
         gameplayController ??= createCassandraDevLabGameplayController({
           unitApi: context.getService("game.unit-api"),
           colonyControlApi: context.getService("game.colony-control-api"),
@@ -35,9 +40,9 @@ export function createCassandraRuntime({
         if (gameplayController.getControlState().drafted) {
           const moved = gameplayController.update(deltaSeconds);
           if (moved) onUnitMoved?.(moved);
-          return;
+        } else {
+          updateFreeCamera?.(deltaSeconds);
         }
-        updateFreeCamera?.(deltaSeconds);
       }
     }]
   });
@@ -59,6 +64,8 @@ export function resolveCassandraRuntimeServices(context) {
     worldRegistry,
     persistenceApi: context.getService("core.persistence"),
     clock: context.getService("core.game-clock"),
+    worldSessionApi: context.getService("game.world-session-api"),
+    expeditionProjectionApi: context.getService("game.expedition-projection-api"),
     gameplayApi,
     gameplayUi
   };
@@ -73,6 +80,7 @@ export function createCassandraRuntimeHost({
   resolveRuntimeServices = resolveCassandraRuntimeServices,
   saveAdapter,
   inputController,
+  isPackageApplied = null,
   onUnitMoved,
   updateFreeCamera,
   shouldAdvance = () => true,
@@ -86,7 +94,7 @@ export function createCassandraRuntimeHost({
   return createApplicationRuntimeHost({
     createRuntime: (options) => createRuntime(options),
     resolveRuntimeServices,
-    runtimeOptions: { saveAdapter, inputController, onUnitMoved, updateFreeCamera },
+    runtimeOptions: { saveAdapter, inputController, isPackageApplied, onUnitMoved, updateFreeCamera },
     requestFrame,
     cancelFrame,
     shouldAdvance,

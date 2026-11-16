@@ -1,32 +1,45 @@
 # ACTUAL WORK — Engine / Dev Lab / Cassandra restructuring
 
-Last updated: 2026-11-14  
+Last updated: 2026-11-16  
 Repository: `Veyn44/NEW-GAME-CASS`  
-Working baseline inspected: `main` at `494307b19494b1212d6f431764107dc524c6ede1` (roadmap documentation commit)
+Working baseline inspected: `main` at `458ecc52d4267b6b31fb3d59559374533c49fa64`
 
 > This is the live work log and handoff document. It records what we are doing now, what has actually been inspected, proposed ownership, and the next safe action. It does not replace `NEXT_STEPS.md`; that file is the long-range roadmap.
 
 ## 1. Current objective
 
-Restructure the existing project into three areas in one repository:
+Complete the pre-merge audit of `work` against `main` and make only source-backed corrections required for a safe merge. Do not add gameplay features, begin Phase 4, or change `main`. When the audit has only minor/accepted gaps remaining, present a merge-readiness report and wait for explicit approval.
 
-- **Engine** — reusable technology, independent of both applications.
-- **Dev Lab** — the Engine's development workspace, using the same Engine runtime systems as the game.
-- **Cassandra** — the actual game, with its own gameplay rules, content and UI, depending on Engine.
+After the merge, Phase 4 will be planned together. Its agreed goal is to prepare the existing Cassandra/Dev Lab implementation for direct browser testing of what already exists — reliable entry points, host composition, test workflows, diagnostics and persistence interactions — not to invent new gameplay rules.
 
-Dependency direction:
+The repository's established dependency direction remains:
 
 `Dev Lab → Engine`  
 `Cassandra → Engine`
 
-Engine must not import Dev Lab or Cassandra. Dev Lab must not be required to run Cassandra. Cassandra must not be required to run Dev Lab.
+Engine must not import Dev Lab or Cassandra. The standalone Dev Lab must not require Cassandra, and Cassandra must not require the standalone Dev Lab shell.
+
+## 1.1 Current pre-merge audit checkpoint
+
+- Latest verified source/test checkpoint: `99fe57c824aa4e40d575ec0206e5b2adc2dd77eb`.
+- Core/host CI: [43892955121](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43892955121) — 233/233 Core tests, 294/294 Host tests, browser syntax checks passed.
+- Development preview: [43892955199](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43892955199) — success.
+- GitHub Pages build/deployment: [43892954608](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43892954608) — success.
+- The checkpoint includes a regression for retiring a scoped Temporary World Unit after its placement has already been removed.
+- Narrow fixes on `work`: Persistence restore rollback now faults/stops the runtime if rollback fails; Spatial Composition read-only movement-policy guards cover removals and restore transactions; World Registry lifecycle operations respect World Runtime state and active simulation rounds; Entity Registry lifecycle changes cannot bypass non-grid World Context placements; failed save selection is rolled back and file operations are serialized to prevent import races.
+- Test fixtures were corrected to provide the required Runtime Host input controller and inject cleanup failures through the supported Temporary World cleanup hook.
+- User-confirmed manual regression: established Cassandra behavior remains as before Phase 3 and redundant test buttons were removed. This does not complete the full browser acceptance checklist.
+- Remaining gates: real-browser Dev Lab/Main/Temporary World workflows, strict IndexedDB durability/cross-tab/interruption behavior, performance measurements, and identification of the authoritative environment simulation host/baseline.
+- No environment simulation source was changed. `main` remains untouched; no PR or merge has been created.
+
+> Historical entries below record the state at the time they were written. Where they say CI was unconfirmed or list earlier test counts, the verified checkpoint above and [Current implementation status](docs/architecture/current-implementation-status.md) supersede those statements.
 
 ## 2. Safety / recovery position
 
 - The user confirms that the Phase 2 work was merged into `main` and that the merged state is archived in the separate archive repository.
 - The archived repository was previously verified to have the same tree as active `main` at that time. This is an additional recovery reference, not a substitute for checking the current active `main` SHA before a risky operation.
-- Current `main` before this work log: `494307b19494b1212d6f431764107dc524c6ede1`.
-- No source files have been moved or behavior changed in this work step.
+- Current `main` before this work log: `458ecc52d4267b6b31fb3d59559374533c49fa64`.
+- Historical note: no source files were moved in the original restructuring step; the later pre-merge audit corrections are listed in §1.1.
 - User manually deleted the two merged maintenance branches:
   - `maintenance/active-world-viewport-cleanup-2026-11-13`
   - `maintenance/safe-cleanup-2026-11-13`
@@ -815,3 +828,319 @@ production modules are unchanged.
   user's responsibility; the standalone Engine-only Dev Lab is not a required
   acceptance target unless the user chooses to develop it further.
 - Do not merge to `main` as part of this cleanup.
+
+
+## 19. Engine / Cassandra / Dev Lab capability review — 2026-11-15
+
+### User direction confirmed
+
+- The user accepted the capability review as a practical summary of the recent design discussions and prefers to proceed incrementally rather than spend another long session re-reading every line.
+- Engine, Dev Lab and Cassandra remain separate responsibility areas with one-way dependencies into Engine.
+- Cassandra and Dev Lab are separate applications and will not communicate through or exchange save files. Cross-application save compatibility is not a requirement.
+- The current shared save adapter/slot/state identity is transitional debt. The target is separate application-owned persistence adapters, formats/envelopes and identities, while Engine retains generic persistence coordination only.
+- This confirmation does not approve every proposed/open feature in the capability review and does not authorize source implementation.
+
+### Consolidated review
+
+Added `docs/architecture/engine-game-devlab-capability-map.md` as a working capability and ownership map. It records:
+
+- what Engine Core currently provides and what it does not provide (in particular, current World Context placement is not grid occupancy, and the visual viewport grid is not authoritative physical state);
+- the Engine capabilities implied by Cassandra's agreed direction: world lifecycle, grid geometry, spatial composition/occupancy, multi-cell footprints, spatial queries, and potentially movement/collision and transactional change application;
+- Cassandra-owned systems such as universe generation, scans, expeditions, resources, mining, combat, Clear/Done and remote bases;
+- Dev Lab-owned editor, inspection, diagnostics, test scenarios, browser adapters and workspace workflow;
+- the distinction between agreed direction, proposals and unresolved contracts.
+
+The review is a navigation/ownership aid, not a complete implementation specification. Its open items must be designed before implementation, and proposals remain non-binding.
+
+### Documentation alignment performed
+
+- Updated `NEXT_STEPS.md`: PR #6 restructuring is now recorded as completed; stale Phase 2 “not started” execution checkboxes were replaced with the actual next design/verification steps. Phase 3 now references per-application save/load verification rather than generic cross-app compatibility.
+- Updated `PROJECT_HISTORY.md`: recorded PR #6 and its merge commit as the completed architecture milestone.
+- Updated `docs/architecture/application-boundaries.md`: explicitly recorded that Cassandra and Dev Lab save domains must be isolated and cross-save is out of scope.
+- Added the capability review link to the current roadmap.
+
+### Current verification and limitations
+
+- The read-only audit baseline previously inspected GitHub Actions run [#644](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43697707032) for the then-current `work` commit: Core 198/198 and Host 112/112 passed.
+- That CI run is not evidence for the documentation-only commits in this section; check the latest run for the current `work` HEAD if a fresh CI result is needed.
+- There is no browser E2E evidence. The menu-button responsiveness issue and manual Pages acceptance remain unresolved.
+- No source code, runtime behavior, environment simulation, save format, or application entry point was changed in this documentation pass.
+
+### Next safe step
+
+Use the capability map as the shared reference and proceed one Engine capability at a time. Before implementation, select the first concrete capability, define its public contract and acceptance tests, and check the existing Core behavior/source again. Do not reopen already agreed Cassandra gameplay details unless a concrete Engine dependency requires it. Do not merge to `main` without explicit user approval.
+
+
+### First Engine design slice — world lifecycle source re-check
+
+A focused source/test re-read was performed for `WorldRegistry`, `WorldContext`, `GameClock`, `SimulationScheduler`, and their Core tests.
+
+Confirmed facts:
+
+- `WorldRegistry` registers multiple world descriptors but enforces exactly zero or one `active` world. Activating another world deactivates the previous one; snapshot validation rejects multiple active worlds.
+- Its own contract says it does not own simulation or rendering. Therefore `active` currently cannot be assumed to mean loaded, simulating, paused, focused or rendered.
+- `GameClock` is one global simulation clock with global pause reasons. `SimulationScheduler` has one ordered task set and no world-specific scheduler state.
+- `WorldContext` stores one placement per entity and does not define world loading/simulation lifecycle.
+- Existing tests explicitly encode the single-active-world behavior. Changing it requires a designed contract and regression/migration coverage.
+
+The next design task is therefore to define the meaning and independent dimensions of world lifecycle before editing these modules. In particular, decide how host-level focus/selection relates to multiple loaded/simulated worlds, and whether multiple worlds share one timeline or require independent clocks. No implementation choice has been made and no source code was changed.
+
+## 20. Campaign snapshot adapter hardening — 2026-11-15
+
+Continued the Cassandra campaign-persistence infrastructure work on the existing
+`work` branch. No gameplay/domain inventory, health, equipment or other
+unmodeled systems were introduced.
+
+### Findings and changes
+
+- The IndexedDB adapter previously accepted an `initialSnapshot` with an
+  invalid campaign envelope and returned it as revision 0 when no durable
+  record existed. The constructor now validates the initial snapshot against
+  the same required top-level shape as an atomic write.
+- The initial snapshot is detached at construction, so later caller mutation
+  cannot alter the adapter's fallback state.
+- Snapshot cloning now preserves an own `__proto__` data property without
+  changing the clone's prototype.
+- Snapshot cloning rejects sparse array entries and accessor properties
+  instead of silently normalizing holes or executing getters during cloning.
+- The Change Package coordinator now reopens the campaign save after each
+  atomic write and compares the complete canonical snapshot with the intended
+  candidate, rather than accepting a matching storage revision alone.
+- Added focused regression tests for all of the above cases, including a
+  storage adapter that reports a durable write but returns a mismatched
+  read-back snapshot.
+- Existing guarantees remain unchanged: one complete campaign snapshot per
+  IndexedDB record, strict-durability readwrite transactions, storage-revision
+  compare-and-swap, fail-closed handling of corrupt records, and isolation of
+  loaded/write-input snapshots.
+
+### Verification
+
+- Latest relevant workflow: [GitHub Actions run
+  #43764917932](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43764917932),
+  for commit `1af68932a9ea185bfce96a62d2518d8e6ed1e652`.
+- Core: **205/205 passed**.
+- Host/unit: **254/254 passed**.
+- Browser entry-point syntax check: passed.
+- No manual real-browser IndexedDB durability/crash-reopen acceptance has been
+  performed; deterministic adapter tests do not replace that check.
+- `main` was not modified. No PR or merge was created.
+
+
+
+## 2026-11-15 — Change Package canonical input hardening
+
+The Change Package canonical clone now applies the same strict JSON-data safeguards as the IndexedDB campaign snapshot adapter:
+
+- Sparse array entries and array-index accessors are rejected instead of being normalized during canonical serialization.
+- Enumerable object accessors are rejected using property descriptors, without invoking getters.
+- Own `__proto__` data properties are copied with `Object.defineProperty`, preserving the data key without changing the clone's prototype.
+- Added regression tests for sparse arrays, non-invoked getters and own `__proto__` preservation, including digest verification.
+
+GitHub Actions run [#43765588791](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43765588791) passed: Core **205/205**, host/unit **257/257**, and browser entry-point syntax checks. This remains infrastructure hardening only; no gameplay operation handlers or inventory/health/equipment rules were introduced. `main` was not modified.
+
+
+## 2026-11-15 — World Lifecycle design proposal
+
+Completed a source-level re-check of the current World Registry, World Context, Game Clock, Simulation Scheduler and their tests on `work`.
+
+Added `docs/architecture/world-lifecycle-design-proposal.md` as a **non-binding design proposal**. It separates registration, loading/readiness, simulation participation, pause, host focus/selection, rendering/visibility and disposal. It recommends independent per-world clocks/schedulers, host-owned focus/rendering, separate simulation persistence and explicit pause/disable backlog semantics.
+
+The proposal includes required invariants, pre-implementation acceptance scenarios and a migration strategy. It does not change source code, runtime behavior, save schemas, Pages configuration or `main`.
+
+**Awaiting user review/approval:** independent per-world simulation time; preservation of partial scheduler backlog on pause/disable; separate World Registry and simulation-runtime persistence; host ownership of focus/rendering. No implementation is authorized until these contracts are agreed.
+
+
+## 2026-11-16 — Cassandra / Dev Lab UI and save identity isolation
+
+### UI boundary and preview
+
+- Removed the Dev Lab spatial inspector and test-entity controls from the Cassandra root page. The main Cassandra shell no longer advertises these unhandled test controls.
+- Restored the complete spatial inspector and all 21 DOM controls expected by the standalone Dev Lab application in `dev-lab.html`.
+- Added a boundary regression test that checks all 21 required IDs exist only in standalone Dev Lab and that the inspector panel is absent from Cassandra's root HTML.
+- Updated the Pages preview workflow to deploy pushes from `work` only. The stale `next-step/phase-2` trigger and restrictive path filter were removed. The workflow no longer has a manual-dispatch path that could accidentally publish another branch.
+
+### Save identity boundary
+
+- Generalized `LocalFileSaveAdapter` so its outer format identifier, extension, MIME type, file description, default filename and supported slot are configured per application.
+- Cassandra uses `.cass`, outer format `cassandra.save`, MIME type `application/vnd.cassandra.save+json`, slot `cassandra-main-world` and state ID `cassandra-main-world`.
+- Standalone Dev Lab uses `.dlcass`, outer format `cassandra.dev-lab.save`, MIME type `application/vnd.cassandra.dev-lab-save+json`, slot `dev-lab-workspace` and state ID `cassandra-dev-lab-workspace`.
+- File extension and outer format are checked on import and native file-picker selection; the adapter also rejects writes/reads through a slot other than its configured slot. Engine Persistence independently checks the state ID.
+- Existing Dev Lab `.cass` files are not auto-converted. The new Dev Lab rejects the old extension, rejects a renamed legacy envelope by format, and Cassandra rejects the legacy Dev Lab state ID. Original files remain untouched.
+- Updated the save compatibility proposal to document both current formats and their non-interoperability.
+
+### Verification
+
+- Current implementation HEAD at the time of this record: `02715754fd2804b7f223c88ee56b73c1e47cd64c`.
+- GitHub Actions: Core **230/230 passed**, host/unit **264/264 passed**, browser entry-point syntax checks passed.
+- The first Pages deployment after correcting the preview workflow completed successfully from `work`. The deployment for the later save-isolation HEAD was queued behind the preceding Pages run at the time of this record.
+- No real-browser manual acceptance has been performed by the assistant; the user should still verify both standalone Dev Lab and Cassandra in the deployed preview.
+- `main` remains unchanged at `458ecc52d4267b6b31fb3d59559374533c49fa64`. No merge or PR was created.
+
+
+## 2026-11-16 — Lifecycle, spatial policy, clock and definition integrity
+
+### Unit lifecycle and Colony Control
+
+- UnitSystem now publishes the typed `game.unit.removed` lifecycle event only after a Unit has been successfully removed from its placement and identity registries.
+- ColonyControlSystem subscribes to that event and immediately clears a removed Colony Leader, including the Draft state.
+- Added defensive leader reconciliation before updates and persistence snapshots.
+- Added regression coverage for leader removal followed by save/restore, non-leader removal, and bulk Unit removal during Temporary World disposal.
+
+### Placement and movement policy boundaries
+
+- PlacementCoordinator rejects a world-coordinate target into a grid-backed world unless the caller supplies an explicit grid anchor and footprint.
+- WorldContext now accepts an internal mutation guard installed by PlacementCoordinator. Direct placement, transfer, storage, removal and restore operations are blocked while a movement policy is being evaluated.
+- Prepared WorldContext restore/coordinated-placement transactions also check the guard at commit and rollback time, preventing a transaction prepared earlier from being committed inside a policy callback.
+- Added regression coverage for direct WorldContext mutation attempts during policy evaluation.
+
+### World clock restore precedence
+
+- WorldRuntimeManager now records whether the current Persistence restore included its authoritative `core.world-runtime` snapshot or used the missing-snapshot fallback.
+- The legacy `game.world-session.worldTimes` compatibility mirror is applied only when the authoritative runtime snapshot is absent.
+- When both are present, the Engine runtime snapshot wins. Legacy clock migration remains active for old saves missing `core.world-runtime`.
+- Added regression coverage for stale mirrored times and retained the existing legacy-only migration test.
+
+### Definition registry data ownership
+
+- DefinitionRegistry now recursively clones supported plain JSON data before freezing canonical definitions. Nested input objects are detached; registering a definition no longer freezes or shares mutable nested objects from the caller.
+- Cycles, sparse arrays, accessors, symbol properties and non-plain nested objects are rejected before a batch can be partially registered.
+- DefinitionPackageLoader now normalizes a new package once, while preserving normalized comparison for idempotent reloads.
+
+### Verification
+
+- Implementation HEAD: `b50cc1b0eca3be499ba1aa34a1c08b45127fbe05`.
+- GitHub Actions: Core **230/230 passed**, host/unit **273/273 passed**, browser entry-point syntax checks passed.
+- Development preview deployment workflow completed successfully from `work`; the GitHub Pages build/deployment status was still processing at the time of this record.
+- No environment simulation rules were changed.
+- `main` remains untouched; no merge or PR was created.
+
+
+## Remaining audit gates — do not treat this pass as merge approval
+
+- **Temporary World disposal is still sequential after preflight.** The current code validates the full cleanup scope before mutation, but unit/entity/content/runtime/registry cleanup is not yet one cross-system transaction. A truly unexpected failure during the commit sequence could still leave partial cleanup. Strengthen this before enabling expeditions; do not disguise it with a shallow catch-and-continue.
+- **Campaign / Change Package integration remains intentionally deferred.** The `isPackageApplied` path is not yet fully wired through the ordinary browser runtime and must be completed together with the campaign persistence boundary, not through a temporary placeholder.
+- **Manual browser acceptance remains outstanding.** CI and the Pages deployment verify build and automated behavior, but a person still needs to open both Cassandra and standalone Dev Lab and exercise their visible flows.
+- **No merge approval is implied by the passing CI.** Before any future merge, perform a separate final diff/security/regression audit, resolve or explicitly accept every remaining item, and obtain the user's explicit permission. `main` remains off-limits until then.
+
+## 2026-11-16 — Temporary World disposal rollback transaction
+
+### Implementation on `work`
+
+- Added `Persistence.runAtomicMutation({ prepare, commit })` as a synchronous runtime-mutation boundary. Preparation runs at the Core safe boundary before a detached checkpoint is captured from every registered persistence participant.
+- Every participant validates and prepares its own restore transaction before the first destructive mutation. If the commit phase throws, the pre-mutation snapshots are restored in the same dependency order used by normal Persistence restore.
+- If any participant cannot restore, Persistence enters a faulted state, rejects later save/load/runtime-transaction requests, and Core pauses the simulation through `core.persistence-integrity-fault`. The fatal error is logged and surfaced; it is not swallowed.
+- Refactored Cassandra Temporary World completion to run its ownership/spatial preflight and destructive cleanup inside this transaction boundary. Unit removal, entity retirement, spatial content removal, World Runtime disposal, World Registry closure/unregistration, projection cleanup and session-reference clearing are now covered by the same in-memory rollback checkpoint.
+- The existing two-phase cleanup-handler contract remains: preparation is synchronous and side-effect-free; cleanup commit callbacks run last.
+- Added a regression test that injects a failure after Units, entities, content and World Runtime have already been removed/disposed. The test asserts restoration of both Units, Colony Leader/Draft state, Entity Registry, WorldContext placement, Spatial Composition occupancy/content, World Runtime state, World Registry descriptor and Cassandra session reference.
+
+### Verification status
+
+- Latest implementation commit: `bb787366483250ee4389d23df6d94fcfa041d1b4`.
+- The workflow is configured to run `npm run test:all` and browser entry-point syntax checks on pushes to `work`; automated result for this exact commit has not yet been confirmed from the available GitHub status response.
+- The regression test is committed but must not be described as passing until CI reports its result.
+- No environment simulation rules were changed.
+- `main` remains untouched. No PR or merge was created.
+
+### Runtime-checkpoint precision follow-up
+
+A review of the first rollback implementation found that the ordinary persisted `core.world-runtime` snapshot intentionally stores local time/step counters but not transient residency, readiness or simulation-participation state. Reusing it for an in-memory rollback would therefore restore a disposed Temporary World as Unloaded rather than to its exact pre-failure Ready state.
+
+- Added optional runtime-checkpoint hooks to Persistence participants. Ordinary save/load schemas remain unchanged.
+- WorldRuntimeManager now captures and restores its complete in-memory lifecycle state for runtime rollback only: status, disposal target, simulation participation, pause reasons, local simulated time and completed steps.
+- Added explicit validation for checkpoint lifecycle combinations and duplicate/invalid pause reasons.
+- Extended the mid-commit failure regression test to assert that the Temporary World returns to Ready and remains simulation-disabled after rollback.
+- Fatal rollback failure remains fail-closed: Persistence blocks later save/load/runtime transactions and Core retains a dedicated pause reason.
+
+Latest code/test commit: `9a62f056a58d180d1cfcca56742252be9fa3fb8d`. CI verification is still pending confirmation for this commit.
+
+### Fatal rollback regression coverage
+
+- Extended the Cassandra World Session test setup to accept an additional host system.
+- Added a deliberately failing persistence participant to force the rollback-restoration path itself to fail after an injected Temporary World cleanup failure.
+- The regression asserts that Persistence becomes faulted, Core retains the dedicated simulation pause reason, and subsequent save attempts fail closed with `PERSISTENCE_FAULTED`.
+- Latest code/test commit: `771acbd01320e18c41b51522fd50ba77be117cac`.
+- CI for this exact commit remains unconfirmed; do not treat the new tests as passing until the workflow result is available.
+
+## 2026-11-16 — Applied Ledger verifier wiring through Cassandra Runtime Host
+
+### Implementation on `work`
+
+- Completed the missing option path from `createCassandraRuntimeHost({ isPackageApplied })` through the shared Application Runtime Host into `createCassandraRuntime({ isPackageApplied })`, where it is supplied to Cassandra World Session.
+- Kept the verifier as an injected dependency. The runtime does not invent a campaign ID, select a storage adapter, or construct placeholder domain operation handlers.
+- Replaced the narrow option-capture test with an end-to-end runtime-host regression: start the actual Cassandra runtime through its host, register Main and Temporary Worlds, return to Main, and verify that the injected Applied Ledger callback receives the exact package ID and digest.
+- The regression also asserts that a negative ledger result blocks Temporary World disposal and preserves the Temporary World descriptor/session reference.
+- No Engine contracts, campaign domain rules, save formats or environment simulation were changed.
+
+### Verification status
+
+- Latest code/test commit: `e009565cc9f762c7158357664436c99ec123e9f8`.
+- The test is committed; automated CI result for this exact commit has not been confirmed. Do not report it as passing until the workflow result is available.
+- `main` remains untouched; no PR or merge was created.
+
+### Remaining Slice 7 gates
+
+- The browser/application shell still needs an owner-selected campaign identity and an authoritative campaign storage lifecycle before production wiring can instantiate the Change Package coordinator.
+- Production typed operation handlers and campaign aggregate models remain intentionally unimplemented pending the approved domain contract.
+- Real-browser IndexedDB strict-durability and crash/reopen acceptance remain outstanding.
+
+### World Runtime rollback checkpoint audit follow-up
+
+- A focused review found that the exact runtime checkpoint initially reused the public World Runtime state projection, which intentionally omits the transient disposal target. A world captured while `Disposing` would therefore not be restorable to a valid transition state.
+- Changed runtime-only checkpoint capture to include the internal disposal target without exposing it in ordinary runtime state or save snapshots.
+- Added a WorldRuntimeManager regression that captures a world during `Disposing`, changes both worlds' lifecycle/pause state, restores the checkpoint, and proves the original unload transition can still finish. The same test checks simulation participation, pause reasons and local time/step counters.
+- Test commit: `15e5ed8f3eb4f5806b0f2a405e14c4e691582500`. CI for this exact commit is not yet confirmed.
+
+
+## 2026-11-16 — Application-owned Campaign session lifecycle
+
+### Implementation on `work`
+
+- Added `createCassandraCampaignSessionController` in the Cassandra Application layer. It owns one explicitly selected Campaign ID and one separate IndexedDB campaign adapter instance.
+- The controller supports explicit `create(campaignId, initialSnapshot)`, `open(campaignId)`, `loadSnapshot()`, and `close()` operations. It never generates a campaign ID, silently switches campaigns, or creates a default campaign.
+- Campaign creation requires a caller-supplied initial snapshot and confirms the first durable compare-and-swap write plus reopen. Opening requires an existing durable record. Failed open/create attempts close their candidate adapter and leave no active session.
+- The controller exposes an exact Applied-ledger verifier. It returns false when no campaign is selected and only accepts a matching package ID + SHA-256 digest with ledger status `applied`.
+- The Cassandra Application Shell owns the controller and injects its verifier into the existing Runtime Host. The `.cass` LocalFileSaveAdapter remains unchanged and is still used only for the current workspace save flow.
+- The Pages entry point now exports the started application object as `cassandraApplication`, exposing `campaignSessionApi` for controlled browser-console/manual testing. No campaign-selection UI or full Cassandra game was added; Pages remains a development/test host.
+- Added focused unit coverage for explicit identity, create/open/close, durable reopening, duplicate creation, no implicit switching, Applied-ledger matching, closed-session behavior and rejection of non-CAS adapters.
+- The Change Package Coordinator is intentionally not instantiated: approved campaign aggregate models and production typed operation/manifest handlers do not yet exist.
+
+### Verification and boundaries
+
+- Test source added: `tests/unit/cassandra-campaign-session-controller.test.js`.
+- Tests are committed but have not been executed/confirmed by CI for the new commits. Do not describe them as passing.
+- Real-browser IndexedDB strict-durability, crash/reopen and Pages interaction acceptance remain outstanding.
+- No Engine behavior, environment simulation, or `.cass` save format was changed.
+- All changes are on `work`; `main` was not modified. No PR or merge was created.
+
+
+### Runtime-host integration regression
+
+- Extended `tests/unit/cassandra-runtime-host.test.js` with an integration test using the actual Cassandra runtime, the application Campaign session controller and the injected Applied-ledger verifier.
+- The test proves that Temporary World disposal is rejected while no Campaign is active, then succeeds only after an explicitly created Campaign contains the exact package ID/digest with `status: "applied"`.
+- Test commit: `8ec757cb8881c2ddcd3b40bde398ba3075fb7874`. CI for this exact commit is not confirmed; test execution remains unverified.
+
+
+## 2026-11-16 — Pre-merge audit: unplaced Temporary World Unit cleanup
+
+- Revalidated the current Engine guards: World Registry lifecycle transitions consult World Runtime; Entity Registry refuses one-sided lifecycle changes while placements exist; Spatial Composition refuses content mutation during movement-policy evaluation, including content removal.
+- Revalidated Persistence fail-stop behavior: a failed restore rollback faults Persistence and triggers Core Assembly's clock pause callback.
+- Found a narrow cleanup edge case: a scoped Unit can remain in UnitSystem after its placement has already been removed. Temporary World disposal now retires every Unit whose Engine identity matches the exact `world:<temporaryWorldId>` scope.
+- Corrected the cleanup commit to derive its scope ID locally rather than referring to a variable scoped to the prepare callback.
+- Added a focused regression in `tests/unit/cassandra-world-session-system.test.js`: remove a scoped Unit's placement, complete the Temporary World, then verify UnitSystem record, Engine identity and World Registry state.
+- Verified source/test checkpoint `99fe57c824aa4e40d575ec0206e5b2adc2dd77eb`: Core 233/233, Host 294/294, browser syntax checks, development preview and GitHub Pages deployment all succeeded. CI: [43892955121](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43892955121); preview: [43892955199](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43892955199); Pages: [43892954608](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43892954608).
+- The first version of the new test asserted a boolean from `PlacementCoordinator.removePlacement()`; the API correctly returns a transaction result. The assertion was corrected to inspect `current` and `occupancy`. This required no runtime change.
+- All changes are on `work`. `main` remains untouched; no PR or merge was created.
+
+
+## 2026-11-16 — Final pre-merge audit continuation
+
+- Rechecked the exact current save-domain configuration: Pages-hosted Cassandra (including its embedded Dev Lab workspace) uses the Cassandra `.cass` envelope/slot/state identity; the separate standalone Engine-only Dev Lab uses `.dlcass`. Automated tests cover cross-format rejection. No save-format or runtime code change was required.
+- Rechecked Engine placement ownership: World Context and Spatial Composition are persisted through the composite `core.spatial-placement` participant; direct one-sided grid placement, restore and entity lifecycle paths are guarded. Placement Coordinator tests cover mismatch rejection and rollback failure.
+- Rechecked persistence restore and runtime atomic-mutation rollback. A failed restore rollback faults Persistence and Core Assembly pauses simulation; the temporary-world disposal regression also covers cleanup when a Unit placement was already removed.
+- Rechecked Campaign scope: IndexedDB adapter and Change Package infrastructure have deterministic unit coverage, but authoritative aggregate models, production operation handlers and player-facing Campaign workflow do not exist yet. Real-browser durability, cross-tab and interruption tests are deferred until that scope exists.
+- User-confirmed manual acceptance: deployed Pages-hosted Cassandra workflow and its `.cass` save/load path work. This does not imply that every spatial diagnostic, Main/Temporary World edge case, standalone Dev Lab or performance check passed.
+- Updated `docs/architecture/phase-3-manual-acceptance-checklist.md` to separate accepted Pages workflow from standalone Dev Lab, Campaign, environment and performance checks that belong to later validation.
+- Branch comparison at the final source review was `work` 621 ahead / 2 behind `main`, with merge base `e99b688771af984c3ebd85c82cd6671bdcf09885`; subsequent commits in this audit series are documentation-only. The only main-side file is `docs/architecture/spatial-placement-persistence-integration-proposal.md`, a proposal whose composite placement persistence solution is implemented on `work`. It should be marked superseded after merge; do not edit `main` during this audit.
+- No new runtime blocker was confirmed in the reviewed paths. No source-code changes were made during this audit continuation; `main` remains untouched and no PR/merge was created.
+- CI evidence: source/test checkpoint `99fe57c824aa4e40d575ec0206e5b2adc2dd77eb` passed Core 233/233 and Host 294/294 with browser syntax checks; docs-only checkpoint `240a5197507bd9a7de41d7bd91c0f825a7800f2c` passed Core/Host, preview and Pages workflows. The later checklist-only commit `ec3600ce3f9ad7098f7daa5f4e0da0e100e2ce97` requires exact-head CI confirmation before final readiness sign-off.

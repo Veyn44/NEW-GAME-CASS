@@ -1,6 +1,8 @@
+import { validateGridDescriptor } from "../spatial/grid-geometry.js";
+
 const WORLD_ID_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9:._-]{0,159}$/;
 const WORLD_TYPE_PATTERN = /^[a-z][a-z0-9.-]*$/;
-const SNAPSHOT_VERSION = 2;
+const SNAPSHOT_VERSION = 3;
 
 export class WorldRegistryError extends Error {
   constructor(code, message, details = {}) {
@@ -83,12 +85,26 @@ function clonePlain(value, path = "snapshot", seen = new Set()) {
   } finally { seen.delete(value); }
 }
 
+function normalizeGridDescriptor(grid, worldId) {
+  if (grid == null) return null;
+  try {
+    return validateGridDescriptor(grid);
+  } catch (error) {
+    throw new WorldRegistryError(
+      "INVALID_GRID_DESCRIPTOR",
+      `World "${worldId}" has an invalid grid descriptor: ${error.message}`,
+      { worldId, causeCode: error.code ?? null }
+    );
+  }
+}
+
 function freezeWorld(raw) {
   return Object.freeze({
     worldId: raw.worldId,
     type: raw.type,
     status: raw.status,
     dimensions: Object.freeze({ width: raw.dimensions.width, height: raw.dimensions.height }),
+    grid: normalizeGridDescriptor(raw.grid, raw.worldId),
     coordinateSystem: raw.coordinateSystem,
     metadata: clonePlain(raw.metadata ?? {}, "world.metadata")
   });
@@ -111,9 +127,13 @@ function validateWorld(raw, index) {
   if (typeof raw.coordinateSystem !== "string" || raw.coordinateSystem.length < 1 || raw.coordinateSystem.length > 80) {
     throw new WorldRegistryError("INVALID_SNAPSHOT", `World "${worldId}" requires a coordinateSystem label.`, { worldId });
   }
+  if (!Object.hasOwn(raw, "grid")) {
+    throw new WorldRegistryError("INVALID_SNAPSHOT", `World "${worldId}" is missing its explicit grid capability field.`, { worldId });
+  }
   return freezeWorld({
     worldId, type, status: raw.status,
     dimensions: { width, height },
+    grid: raw.grid,
     coordinateSystem: raw.coordinateSystem,
     metadata: clonePlain(raw.metadata ?? {}, `worlds[${index}].metadata`)
   });
@@ -127,12 +147,29 @@ export class WorldRegistry {
   #worlds = new Map();
   #activeWorldId = null;
   #idFactory;
+  #lifecycleGuard = null;
 
   constructor({ idFactory = defaultIdFactory } = {}) {
     if (typeof idFactory !== "function") {
       throw new WorldRegistryError("INVALID_ID_FACTORY", "idFactory must be a function.");
     }
     this.#idFactory = idFactory;
+  }
+
+  /** Install the one-time Engine runtime lifecycle guard. */
+  setLifecycleGuard(guard) {
+    if (typeof guard !== "function") {
+      throw new WorldRegistryError("INVALID_LIFECYCLE_GUARD", "World lifecycle guard must be a function.");
+    }
+    if (this.#lifecycleGuard !== null) {
+      throw new WorldRegistryError("LIFECYCLE_GUARD_ALREADY_SET", "World lifecycle guard has already been installed.");
+    }
+    this.#lifecycleGuard = guard;
+    return true;
+  }
+
+  #assertLifecycleAllowed(worldId, operation) {
+    this.#lifecycleGuard?.(worldId, operation);
   }
 
   get size() { return this.#worlds.size; }
@@ -142,6 +179,7 @@ export class WorldRegistry {
     worldId = null,
     type,
     dimensions,
+    grid = null,
     coordinateSystem = "world-units",
     metadata = {}
   } = {}) {
@@ -163,7 +201,7 @@ export class WorldRegistry {
     }
     const world = freezeWorld({
       worldId: id, type: worldType, status: "inactive",
-      dimensions: { width, height }, coordinateSystem,
+      dimensions: { width, height }, grid, coordinateSystem,
       metadata: clonePlain(metadata, "world.metadata")
     });
     this.#worlds.set(id, world);
@@ -227,8 +265,26 @@ export class WorldRegistry {
     if (current.status === "active" || this.#activeWorldId === worldId) {
       throw new WorldRegistryError("WORLD_ACTIVE", "An active world must be deactivated before it can be closed.", { worldId });
     }
+    this.#assertLifecycleAllowed(worldId, "close");
     this.#worlds.set(worldId, freezeWorld({ ...current, status: "closed" }));
     return true;
+  }
+
+  /**
+   * Removes a closed, inactive World descriptor after the host has removed all
+   * placements, occupancy and world-scoped content that reference it.
+   */
+  unregisterWorld(worldId) {
+    const current = this.#require(worldId);
+    if (current.status === "active" || this.#activeWorldId === worldId) {
+      throw new WorldRegistryError("WORLD_ACTIVE", "An active World cannot be unregistered.", { worldId });
+    }
+    if (current.status !== "closed") {
+      throw new WorldRegistryError("WORLD_NOT_CLOSED", "A World must be closed before it can be unregistered.", { worldId });
+    }
+    this.#assertLifecycleAllowed(worldId, "unregister");
+    this.#worlds.delete(worldId);
+    return current;
   }
 
   createPersistenceParticipant({ id = "core.world-registry", order = -90 } = {}) {
@@ -245,17 +301,31 @@ export class WorldRegistry {
       order,
       captureSnapshot: () => this.captureSnapshot(),
       migrateSnapshot: (snapshot, fromVersion) => {
-        if (fromVersion !== 1 || !snapshot || snapshot.version !== 1 || !Array.isArray(snapshot.worlds)) {
-          throw new WorldRegistryError("UNSUPPORTED_MIGRATION", "World Registry can migrate only version-one snapshots.");
+        if (!snapshot || snapshot.version !== fromVersion || !Array.isArray(snapshot.worlds)) {
+          throw new WorldRegistryError("UNSUPPORTED_MIGRATION", "World Registry snapshot cannot be migrated from the declared version.");
         }
-        return {
-          version: SNAPSHOT_VERSION,
-          activeWorldId: snapshot.activeWorldId ?? null,
-          worlds: snapshot.worlds.map((world) => {
-            const { locationId, encounterId, metadata = {}, ...record } = world;
-            return { ...record, metadata: { ...metadata, ...(locationId == null ? {} : { locationId }), ...(encounterId == null ? {} : { encounterId }) } };
-          })
-        };
+        if (fromVersion === 2) {
+          return {
+            version: SNAPSHOT_VERSION,
+            activeWorldId: snapshot.activeWorldId ?? null,
+            worlds: snapshot.worlds.map((world) => ({ ...world, grid: null }))
+          };
+        }
+        if (fromVersion === 1) {
+          return {
+            version: SNAPSHOT_VERSION,
+            activeWorldId: snapshot.activeWorldId ?? null,
+            worlds: snapshot.worlds.map((world) => {
+              const { locationId, encounterId, metadata = {}, ...record } = world;
+              return {
+                ...record,
+                grid: null,
+                metadata: { ...metadata, ...(locationId == null ? {} : { locationId }), ...(encounterId == null ? {} : { encounterId }) }
+              };
+            })
+          };
+        }
+        throw new WorldRegistryError("UNSUPPORTED_MIGRATION", `World Registry cannot migrate snapshot version ${fromVersion}.`);
       },
       validateSnapshot: (snapshot) => {
         try { this.#parseSnapshot(snapshot); return true; }
@@ -274,6 +344,7 @@ export class WorldRegistry {
         type: world.type,
         status: world.status,
         dimensions: { width: world.dimensions.width, height: world.dimensions.height },
+        grid: world.grid === null ? null : { width: world.grid.width, height: world.grid.height },
         coordinateSystem: world.coordinateSystem,
         metadata: world.metadata
       })))

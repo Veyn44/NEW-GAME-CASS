@@ -106,18 +106,21 @@ Cassandra or Dev Lab application policy.
   application injects its save adapter, save slot, state identifier, file-picker
   capability, file extension, default filename, filename prompt, and UI status
   copy.
-- Both application shells still select the existing
-  `LocalFileSaveAdapter` as a compatibility bridge. That adapter owns the
-  Cassandra `.cass` envelope and legacy save slot (`dev-lab-workspace`);
-  both shells also preserve the state identifier
-  (`cassandra-dev-lab-workspace`). The shared controller is format-neutral,
-  but the adapter itself is not yet application-neutral. A later persistence
-  migration must preserve existing saves.
+### Persistence isolation — current implementation
+
+- Cassandra and standalone Dev Lab have separate save/workspace domains. They are not intended to open or exchange one another's save files; cross-application save compatibility is explicitly out of scope.
+- Both shells currently use the same configurable `LocalFileSaveAdapter` implementation, but inject separate application configurations:
+  - Cassandra: `cassandra.save` envelope, `.cass` extension, `cassandra-main-world` slot and `cassandra-main-world` state ID.
+  - Standalone Dev Lab: `cassandra.dev-lab.save` envelope, `.dlcass` extension, `dev-lab-workspace` slot and `cassandra-dev-lab-workspace` state ID.
+- The Cassandra-hosted Dev Lab workspace is part of the Cassandra application and therefore uses Cassandra's `.cass` save domain. The standalone Engine-only Dev Lab entry uses `.dlcass`.
+- The adapter validates the configured extension and envelope format. Automated tests verify that Cassandra rejects Dev Lab files and Dev Lab rejects Cassandra files. Failed restore/Save As operations preserve the previously selected save target, and the shared file controller serializes concurrent save/load operations.
+- This achieves the required save-domain separation without duplicating the generic adapter implementation. Engine continues to provide only generic persistence coordination and participant contracts. Do not add cross-save conversion or compatibility logic.
 - The remaining `src/gameplay/unit/unit-system.js` and
   `src/gameplay/colony/colony-control-system.js` are Cassandra gameplay
   systems awaiting a future ownership cleanup. The
-  `src/adapters/storage/local-file-save-adapter.js` remains a compatibility
-  bridge for Cassandra save files. Their current location is known technical
+  `src/adapters/storage/local-file-save-adapter.js` remains a shared,
+  configurable adapter implementation for the distinct Cassandra and
+  standalone Dev Lab save domains. Their current location is known technical
   debt, not a reason for an unplanned move.
 - Simulation currently has one time flow and no user-selectable 1x/2x/3x
   speed control. Camera behavior at accelerated simulation speeds is
@@ -125,13 +128,18 @@ Cassandra or Dev Lab application policy.
   for a speculative timing refactor. When time multipliers are introduced,
   verify that camera movement remains appropriately independent of simulation
   speed.
-- The menu-button responsiveness issue remains unresolved. The user reported
-  that the menu buttons did not respond in the current Pages build, preventing
-  meaningful manual acceptance of the application flow. Do not mark the menu
-  interaction or full browser acceptance as verified until it is fixed and retested.
-- CI must be evaluated from the latest workflow run for the exact commit.
-  A previous run passed 198/198 Core tests and 104/106 host tests; the two
-  failures were stale imports in `colony-control-system.test.js` and
-  `game-input-system.test.js`. Those test imports have since been corrected
-  to `shared/input/viewport-input-controller.js`; the follow-up run is the
-  authoritative verification.
+- The earlier menu-button responsiveness problem is no longer the current
+  blocker. The user has manually confirmed that the deployed Pages-hosted
+  Cassandra workflow and its `.cass` save/load path behave as expected. This
+  accepts the currently exposed Pages workflow, not every detailed diagnostic
+  or edge-case test. The standalone Dev Lab `.dlcass` entry point, Campaign
+  IndexedDB browser durability/crash recovery, Main/Temporary World edge cases
+  and performance measurements remain separately deferred.
+- Latest verified source/test checkpoint before this documentation update:
+  `99fe57c824aa4e40d575ec0206e5b2adc2dd77eb`. GitHub Actions passed 233/233
+  Core tests, 294/294 host tests and browser entry-point syntax checks. A later
+  docs-only checkpoint `240a5197507bd9a7de41d7bd91c0f825a7800f2c` also passed
+  Core/Host, development preview and Pages workflows. The source checkpoint
+  includes regression coverage for Temporary World disposal of a scoped Unit
+  whose placement has already been removed. See the current status index for
+  exact workflow runs and remaining manual acceptance gates.

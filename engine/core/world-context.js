@@ -1,3 +1,5 @@
+import { PLACEMENT_AUTHORITY } from "../spatial/placement-authority.js";
+
 const ID_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9:._-]{0,159}$/;
 const SNAPSHOT_VERSION = 1;
 
@@ -132,6 +134,8 @@ export class WorldContext {
   #entities;
   #worlds;
   #placements = new Map();
+  #spatialCoordinationRequired = false;
+  #mutationGuard = null;
 
   constructor({ entityRegistry, worldRegistry } = {}) {
     if (!entityRegistry || typeof entityRegistry.get !== "function") {
@@ -145,6 +149,21 @@ export class WorldContext {
   }
 
   get size() { return this.#placements.size; }
+
+  requireSpatialCoordination(authority) {
+    if (authority !== PLACEMENT_AUTHORITY) throw new WorldContextError("PLACEMENT_AUTHORITY_REQUIRED", "Only Engine placement services may enable grid coordination.");
+    this.#spatialCoordinationRequired = true;
+  }
+
+  setMutationGuard(guard, authority) {
+    if (authority !== PLACEMENT_AUTHORITY) throw new WorldContextError("PLACEMENT_AUTHORITY_REQUIRED", "Only Engine placement services may configure the World Context mutation guard.");
+    if (typeof guard !== "function") throw new WorldContextError("INVALID_MUTATION_GUARD", "World Context mutation guard must be a function.");
+    this.#mutationGuard = guard;
+  }
+
+  #assertMutationAllowed() {
+    this.#mutationGuard?.();
+  }
 
   getPlacement(entityId) {
     assertId(entityId, "Entity ID");
@@ -165,34 +184,42 @@ export class WorldContext {
   }
 
   placeEntity(entityId, worldId, position) {
+    this.#assertMutationAllowed();
     if (this.#placements.has(assertId(entityId, "Entity ID"))) {
       throw new WorldContextError("ENTITY_ALREADY_PLACED", `Entity "${entityId}" already has a placement.`, { entityId });
     }
+    const world = this.#worlds.get(assertId(worldId, "World ID"));
+    if (world?.grid != null) throw new WorldContextError("GRID_COORDINATOR_REQUIRED", "Grid-backed placement must use PlacementCoordinator.", { entityId, worldId });
     const placement = this.#prepareWorldPlacement(entityId, worldId, position);
     this.#placements.set(entityId, placement);
     return placement;
   }
 
   storeEntity(entityId, storeId) {
+    this.#assertMutationAllowed();
     assertId(entityId, "Entity ID");
     const current = this.#placements.get(entityId);
     if (!current || current.type !== "world") {
       throw new WorldContextError("ENTITY_NOT_IN_WORLD", "Only an entity currently placed in a world can be transferred to the persistent storage.", { entityId });
     }
+    if (this.#worlds.get(current.worldId)?.grid != null) throw new WorldContextError("GRID_COORDINATOR_REQUIRED", "Grid-backed storage transfer must use PlacementCoordinator.", { entityId });
     const stableStoreId = assertId(storeId, "Store ID");
     const entity = this.#requireActiveEntity(entityId);
     if (entity.scope !== "scoped" || entity.status !== "active") {
       throw new WorldContextError("ENTITY_NOT_STORABLE", "Only an active scoped entity can be transferred to persistent storage.", { entityId, scope: entity.scope, status: entity.status });
     }
-    // EntityRegistry.store is the only mutating operation and runs after all validation.
-    // The following placement replacement cannot fail, so both registries change in one synchronous operation.
-    this.#entities.store(entityId);
+    // Prepare the identity lifecycle change through the same internal placement
+    // capability used by PlacementCoordinator, so direct EntityRegistry calls
+    // cannot change lifecycle while this World Context placement still exists.
+    const lifecycle = this.#entities.prepareCoordinatedLifecycleChange(entityId, "store", PLACEMENT_AUTHORITY);
     const placement = freezePlacement({ entityId, type: "store", storeId: stableStoreId });
+    lifecycle.commit();
     this.#placements.set(entityId, placement);
     return Object.freeze({ previous: current, current: placement });
   }
 
   placeInStore(entityId, storeId) {
+    this.#assertMutationAllowed();
     assertId(entityId, "Entity ID");
     if (this.#placements.has(entityId)) {
       throw new WorldContextError("ENTITY_ALREADY_PLACED", `Entity "${entityId}" already has a placement.`, { entityId });
@@ -207,18 +234,69 @@ export class WorldContext {
   }
 
   moveEntity(entityId, target) {
+    this.#assertMutationAllowed();
     assertId(entityId, "Entity ID");
     const current = this.#placements.get(entityId);
     if (!current) throw new WorldContextError("ENTITY_NOT_PLACED", `Entity "${entityId}" has no current placement.`, { entityId });
     const next = this.#prepareTarget(entityId, target);
+    if ((current.type === "world" && this.#worlds.get(current.worldId)?.grid != null) ||
+        (next.type === "world" && this.#worlds.get(next.worldId)?.grid != null)) throw new WorldContextError("GRID_COORDINATOR_REQUIRED", "Transfers involving grid-backed placements must use PlacementCoordinator.", { entityId });
     // One synchronous map replacement is the commit point. Validation above is side-effect free.
     this.#placements.set(entityId, next);
     return Object.freeze({ previous: current, current: next });
   }
 
   removePlacement(entityId) {
-    assertId(entityId, "Entity ID");
-    return this.#placements.delete(entityId);
+    this.#assertMutationAllowed();
+    const id = assertId(entityId, "Entity ID");
+    const current = this.#placements.get(id);
+    if (current?.type === "world" && this.#worlds.get(current.worldId)?.grid != null) throw new WorldContextError("GRID_COORDINATOR_REQUIRED", "Grid-backed placement removal must use PlacementCoordinator.", { entityId: id });
+    return this.#placements.delete(id);
+  }
+
+  /** Internal prepared mutation; only the Engine placement coordinator has the capability. */
+  prepareCoordinatedPlacementChange(entityId, target, authority, { retire = false } = {}) {
+    if (authority !== PLACEMENT_AUTHORITY) throw new WorldContextError("PLACEMENT_AUTHORITY_REQUIRED", "Only PlacementCoordinator may prepare coordinated changes.");
+    this.#assertMutationAllowed();
+    const id = assertId(entityId, "Entity ID"), previous = this.#placements.get(id) ?? null;
+    const previousWorld = previous?.type === "world" ? this.#worlds.get(previous.worldId) : null;
+    let next = null, lifecycle = null;
+    if (retire) {
+      if (!previous || previous.type !== "world" || previousWorld?.grid == null) throw new WorldContextError("GRID_PLACEMENT_REQUIRED", "Retirement requires a grid-backed placement.", { entityId: id });
+      lifecycle = this.#entities.prepareCoordinatedLifecycleChange(id, "remove", authority);
+    } else if (target === null) {
+      if (!previous || previous.type !== "world" || previousWorld?.grid == null) throw new WorldContextError("GRID_PLACEMENT_REQUIRED", "Removal requires a grid-backed placement.", { entityId: id });
+    } else if (target?.type === "world") {
+      const world = this.#worlds.get(assertId(target.worldId, "World ID"));
+      if (!world) throw new WorldContextError("UNKNOWN_WORLD", `World "${target.worldId}" is not registered.`);
+      if (world.grid == null && previousWorld?.grid == null) throw new WorldContextError("GRID_COORDINATION_NOT_REQUIRED", "At least one transfer side must be grid-backed.");
+      const entity = this.#requireActiveEntity(id);
+      if (entity.status === "stored") lifecycle = this.#entities.prepareCoordinatedLifecycleChange(id, "activate", authority);
+      next = this.#prepareWorldPlacement(id, target.worldId, target.position, { allowStored: entity.status === "stored" });
+    } else if (target?.type === "store") {
+      if (!previous || previous.type !== "world" || previousWorld?.grid == null) throw new WorldContextError("GRID_PLACEMENT_REQUIRED", "Storage transfer requires a grid-backed source.");
+      const entity = this.#requireActiveEntity(id);
+      if (entity.scope !== "scoped" || entity.status !== "active") throw new WorldContextError("ENTITY_NOT_STORABLE", "Only active scoped entities can be stored.", { entityId: id });
+      next = freezePlacement({ entityId: id, type: "store", storeId: assertId(target.storeId, "Store ID") });
+      lifecycle = this.#entities.prepareCoordinatedLifecycleChange(id, "store", authority);
+    } else throw new WorldContextError("INVALID_TARGET", "Invalid coordinated placement target.");
+    let committed = false;
+    return Object.freeze({
+      previous, current: next,
+      commit: () => {
+        this.#assertMutationAllowed();
+        if (committed) throw new WorldContextError("TRANSACTION_ALREADY_COMMITTED", "Transaction already committed.");
+        lifecycle?.commit();
+        if (next === null) this.#placements.delete(id); else this.#placements.set(id, next);
+        committed = true;
+      },
+      rollback: () => {
+        this.#assertMutationAllowed();
+        if (!committed) return false;
+        if (previous === null) this.#placements.delete(id); else this.#placements.set(id, previous);
+        lifecycle?.rollback(); committed = false; return true;
+      }
+    });
   }
 
   #prepareTarget(entityId, target) {
@@ -237,17 +315,18 @@ export class WorldContext {
     throw new WorldContextError("INVALID_TARGET", "A transfer target must have type world or store.");
   }
 
-  #prepareWorldPlacement(entityId, worldId, position) {
+  #prepareWorldPlacement(entityId, worldId, position, { allowStored = false } = {}) {
     const entity = this.#requireActiveEntity(entityId);
     const world = this.#worlds.get(assertId(worldId, "World ID"));
     if (!world) throw new WorldContextError("UNKNOWN_WORLD", `World "${worldId}" is not registered.`, { worldId });
     if (world.status === "closed") throw new WorldContextError("WORLD_CLOSED", `World "${worldId}" is closed.`, { worldId });
-    if (entity.status === "stored") {
+    if (entity.status === "stored" && !allowStored) {
       throw new WorldContextError("ENTITY_STORED", "A stored entity must be activated before world placement.", { entityId });
     }
     const point = clonePosition(position);
-    if (point.x < 0 || point.y < 0 || point.x >= world.dimensions.width || point.y >= world.dimensions.height) {
-      throw new WorldContextError("POSITION_OUT_OF_BOUNDS", "Entity position must be inside the target world's dimensions.", { entityId, worldId, position: point });
+    const bounds = world.grid ?? world.dimensions;
+    if (point.x < 0 || point.y < 0 || point.x >= bounds.width || point.y >= bounds.height) {
+      throw new WorldContextError("POSITION_OUT_OF_BOUNDS", "Entity position must be inside the target world's spatial bounds.", { entityId, worldId, position: point });
     }
     return freezePlacement({ entityId, type: "world", worldId, position: point });
   }
@@ -281,7 +360,14 @@ export class WorldContext {
     });
   }
 
-  prepareRestore(snapshot, { deferReferenceValidation = false } = {}) {
+  prepareRestore(snapshot, { deferReferenceValidation = false, authority = null } = {}) {
+    this.#assertMutationAllowed();
+    const liveGridPlacement = [...this.#placements.values()].some((item) => item.type === "world" && this.#worlds.get(item.worldId)?.grid != null);
+    const snapshotHasWorldPlacement = Array.isArray(snapshot?.placements) && snapshot.placements.some((item) => item?.type === "world");
+    const snapshotGridPlacement = Array.isArray(snapshot?.placements) && snapshot.placements.some((item) => item?.type === "world" && this.#worlds.get(item.worldId)?.grid != null);
+    if ((liveGridPlacement || snapshotGridPlacement || (this.#spatialCoordinationRequired && snapshotHasWorldPlacement)) && authority !== PLACEMENT_AUTHORITY) {
+      throw new WorldContextError("GRID_COORDINATOR_REQUIRED", "Restoring grid-backed placements requires the composite Placement Coordinator participant.");
+    }
     // Detach untrusted input once. The same immutable-by-ownership copy is
     // validated and later committed, preventing getters and prepare/commit
     // time mutation from changing the staged restore.
@@ -291,6 +377,7 @@ export class WorldContext {
     let committed = false;
     return Object.freeze({
       commit: () => {
+        this.#assertMutationAllowed();
         if (committed) throw new WorldContextError("RESTORE_ALREADY_COMMITTED", "World Context restore transaction was already committed.");
         // Cross-registry references are validated at commit time, after the
         // entity and world participants have committed their staged snapshots.
@@ -299,6 +386,7 @@ export class WorldContext {
         committed = true;
       },
       rollback: () => {
+        this.#assertMutationAllowed();
         if (!committed) return false;
         this.#placements = previous;
         committed = false;

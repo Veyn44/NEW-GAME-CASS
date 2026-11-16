@@ -12,10 +12,11 @@ export function createCoreAssembly({ demoSystem = null, ...options } = {}) {
   const demo = {
     id: "game.integration-demo",
     provides: ["core.demo-api"],
-    requires: ["core.entity-registry", "core.world-registry", "core.world-context", "core.event-bus"],
+    requires: ["core.entity-registry", "core.world-registry", "core.world-runtime", "core.world-context", "core.event-bus"],
     initialize(context) {
       const entities = context.getService("core.entity-registry");
       const worlds = context.getService("core.world-registry");
+      const worldRuntime = context.getService("core.world-runtime");
       const placements = context.getService("core.world-context");
       const events = context.getService("core.event-bus");
       worlds.registerWorld({
@@ -26,6 +27,9 @@ export function createCoreAssembly({ demoSystem = null, ...options } = {}) {
         coordinateSystem: "world-units"
       });
       worlds.activateWorld("world:cassandra");
+      worldRuntime.beginLoading("world:cassandra");
+      worldRuntime.markReady("world:cassandra");
+      worldRuntime.setSimulationEnabled("world:cassandra", true);
       const entity = entities.registerPersistent({
         id: "entity:integration-pawn",
         kind: "pawn",

@@ -1,5 +1,6 @@
 import { createCoreAssembly } from "./fixtures/create-demo-assembly.js";
 import { createCoreAssembly as createEngineCoreAssembly } from "../engine/core/core-assembly.js";
+import { MemorySaveAdapter } from "../engine/core/persistence.js";
 
 const tests = [];
 function test(name, run) { tests.push({ name, run }); }
@@ -86,6 +87,125 @@ test("host simulation tasks follow the validated host-system dependency order", 
   await runtime.destroy();
 });
 
+test("Core Assembly simulates two persistent worlds independently of active-world selection", async () => {
+  const runtime = createEngineCoreAssembly({
+    saveAdapter: new MemorySaveAdapter(),
+    fixedStepSeconds: 1,
+    hostSystems: [{
+      id: "game.world-setup",
+      requires: ["core.world-registry", "core.world-runtime"],
+      initialize(context) {
+        const worlds = context.getService("core.world-registry");
+        const runtimeState = context.getService("core.world-runtime");
+        for (const worldId of ["world:beta", "world:alpha"]) {
+          worlds.registerWorld({ worldId, type: "colony", dimensions: { width: 16, height: 16 } });
+          runtimeState.beginLoading(worldId);
+          runtimeState.markReady(worldId);
+          runtimeState.setSimulationEnabled(worldId, true);
+        }
+        worlds.activateWorld("world:alpha");
+      }
+    }, {
+      id: "game.world-step",
+      requires: ["core.world-runtime"],
+      initialize() { return {}; }
+    }],
+    simulationTasks: [{
+      systemId: "game.world-step",
+      scope: "world",
+      update({ world }) { calls.push(world.worldId); }
+    }]
+  });
+  const calls = [];
+  const context = await runtime.start();
+  const worlds = context.getService("core.world-registry");
+  const worldRuntime = context.getService("core.world-runtime");
+  const scheduler = context.getService("core.scheduler");
+  const persistence = context.getService("core.persistence");
+
+  scheduler.advance(1);
+  equal(calls.join(","), "world:alpha,world:beta");
+  equal(worldRuntime.getState("world:alpha").simulatedSeconds, 1);
+  equal(worldRuntime.getState("world:beta").simulatedSeconds, 1);
+  equal(worlds.activeWorldId, "world:alpha");
+
+  worldRuntime.setSimulationEnabled("world:beta", false);
+  scheduler.advance(1);
+  equal(worldRuntime.getState("world:alpha").simulatedSeconds, 2);
+  equal(worldRuntime.getState("world:beta").simulatedSeconds, 1);
+  equal(worlds.activeWorldId, "world:alpha");
+
+  await persistence.save("two-worlds", { stateId: "integration:two-worlds" });
+  worldRuntime.setSimulationEnabled("world:beta", true);
+  scheduler.advance(1);
+  equal(worldRuntime.getState("world:alpha").simulatedSeconds, 3);
+  equal(worldRuntime.getState("world:beta").simulatedSeconds, 2);
+
+  await persistence.load("two-worlds", { stateId: "integration:two-worlds" });
+  equal(worldRuntime.getState("world:alpha").simulatedSeconds, 2);
+  equal(worldRuntime.getState("world:beta").simulatedSeconds, 1);
+  equal(worldRuntime.getState("world:alpha").status, "Unloaded");
+  equal(worldRuntime.getState("world:beta").status, "Unloaded");
+  equal(worlds.activeWorldId, "world:alpha");
+
+  for (const worldId of ["world:alpha", "world:beta"]) {
+    worldRuntime.beginLoading(worldId);
+    worldRuntime.markReady(worldId);
+    worldRuntime.setSimulationEnabled(worldId, true);
+  }
+  scheduler.advance(1);
+  equal(worldRuntime.getState("world:alpha").simulatedSeconds, 3);
+  equal(worldRuntime.getState("world:beta").simulatedSeconds, 2);
+  equal(worlds.activeWorldId, "world:alpha");
+  await runtime.destroy();
+});
+
+test("an older save without the optional Engine world-runtime snapshot restores worlds safely", async () => {
+  const adapter = new MemorySaveAdapter();
+  const runtime = createCoreAssembly({ saveAdapter: adapter });
+  const context = await runtime.start();
+  const worldRuntime = context.getService("core.world-runtime");
+  const persistence = context.getService("core.persistence");
+  worldRuntime.setSimulationEnabled("world:cassandra", true);
+  worldRuntime.commitStep(worldRuntime.getParticipants(), 12);
+  await persistence.save("legacy-runtime", { stateId: "integration:legacy-runtime" });
+
+  const legacySave = await adapter.read("legacy-runtime");
+  delete legacySave.snapshots["core.world-runtime"];
+  delete legacySave.schemas["core.world-runtime"];
+  await adapter.writeAtomic("legacy-runtime", legacySave);
+  worldRuntime.commitStep(worldRuntime.getParticipants(), 6);
+
+  await persistence.load("legacy-runtime", { stateId: "integration:legacy-runtime" });
+  equal(worldRuntime.getState("world:cassandra").simulatedSeconds, 0);
+  equal(worldRuntime.getState("world:cassandra").status, "Unloaded");
+  equal(worldRuntime.getState("world:cassandra").simulationEnabled, false);
+  await runtime.destroy();
+});
+
+test("Core Assembly persists per-world simulation time and restores worlds unloaded", async () => {
+  const runtime = createCoreAssembly();
+  const context = await runtime.start();
+  const worlds = context.getService("core.world-registry");
+  const worldRuntime = context.getService("core.world-runtime");
+  const persistence = context.getService("core.persistence");
+  worldRuntime.setSimulationEnabled("world:cassandra", true);
+  worldRuntime.commitStep(worldRuntime.getParticipants(), 12);
+
+  await persistence.save("world-runtime-save", { stateId: "integration:world-runtime" });
+  worldRuntime.commitStep(worldRuntime.getParticipants(), 6);
+  equal(worldRuntime.getState("world:cassandra").simulatedSeconds, 18);
+
+  await persistence.load("world-runtime-save", { stateId: "integration:world-runtime" });
+  const restored = worldRuntime.getState("world:cassandra");
+  equal(restored.simulatedSeconds, 12);
+  equal(restored.completedSteps, 1);
+  equal(restored.status, "Unloaded");
+  equal(restored.simulationEnabled, false);
+  equal(worlds.activeWorldId, "world:cassandra");
+  await runtime.destroy();
+});
+
 test("demo system creates an entity with an exclusive world placement", async () => {
   const runtime = createCoreAssembly();
   const context = await runtime.start();
@@ -160,11 +280,33 @@ test("restore transaction stages worlds before validating entity placements", as
   const persistence = context.getService("core.persistence");
   const worlds = context.getService("core.world-registry");
   await persistence.save("restore-slot", { stateId: "campaign:restore" });
-  worlds.prepareRestore({ version: 2, activeWorldId: null, worlds: [] }).commit();
+  worlds.prepareRestore({ version: 3, activeWorldId: null, worlds: [] }).commit();
   await persistence.load("restore-slot", { stateId: "campaign:restore" });
   assert(worlds.get("world:cassandra"), "Saved world was not restored before placement validation.");
   assert(context.getService("core.entity-registry").has("entity:integration-pawn"));
   equal(context.getService("core.world-context").getPlacement("entity:integration-pawn").worldId, "world:cassandra");
+  await runtime.destroy();
+});
+
+test("Core persistence round-trips grid placement and derived occupancy as one participant", async () => {
+  const runtime = createCoreAssembly();
+  const context = await runtime.start();
+  const entities = context.getService("core.entity-registry");
+  const worlds = context.getService("core.world-registry");
+  const coordinator = context.getService("core.placement-coordinator");
+  const worldContext = context.getService("core.world-context");
+  const spatial = context.getService("core.spatial-composition");
+  const persistence = context.getService("core.persistence");
+  worlds.registerWorld({ worldId: "world:grid-save", type: "test.grid", dimensions: { width: 12, height: 12 }, grid: { width: 12, height: 12 } });
+  entities.registerPersistent({ id: "entity:grid-save", kind: "probe" });
+  coordinator.placeEntity("entity:grid-save", { worldId: "world:grid-save", anchor: { x: 2, y: 3 }, footprint: [{ x: 0, y: 0 }, { x: 1, y: 0 }] });
+  await persistence.save("grid-placement", { stateId: "campaign:grid-placement" });
+  coordinator.moveEntity("entity:grid-save", { type: "grid", worldId: "world:grid-save", anchor: { x: 7, y: 7 }, footprint: [{ x: 0, y: 0 }] });
+  await persistence.load("grid-placement", { stateId: "campaign:grid-placement" });
+  equal(worldContext.getPlacement("entity:grid-save").position.x, 2.5);
+  equal(worldContext.getPlacement("entity:grid-save").position.y, 3.5);
+  equal(spatial.getEntityOccupancy("entity:grid-save").cells.length, 2);
+  equal(spatial.getCellEntities("world:grid-save", { x: 3, y: 3 })[0], "entity:grid-save");
   await runtime.destroy();
 });
 
@@ -222,7 +364,7 @@ test("persistence participant set includes identity, world and placement owners"
   const runtime = createCoreAssembly();
   const context = await runtime.start();
   const persistence = context.getService("core.persistence");
-  for (const id of ["core.entity-registry", "core.world-registry", "core.world-context"]) {
+  for (const id of ["core.entity-registry", "core.world-registry", "core.spatial-placement"]) {
     assert(persistence.participantIds.includes(id), `Missing participant ${id}`);
   }
   await runtime.destroy();
@@ -350,7 +492,22 @@ test("asynchronous demo update is rejected before publishing a successful simula
 test("an externally faulted Event Bus stops host simulation before the next update", async () => {
   let updates = 0;
   const runtime = createCoreAssembly({
-    hostSystems: [{ id: "game.probe", provides: ["game.probe-api"], initialize() { return { "game.probe-api": {} }; } }],
+    hostSystems: [
+      {
+        id: "game.world-setup",
+        requires: ["core.world-registry", "core.world-runtime"],
+        initialize(context) {
+          context.getService("core.world-registry").registerWorld({
+            worldId: "world:probe", type: "test.world", dimensions: { width: 8, height: 8 }
+          });
+          const runtimeState = context.getService("core.world-runtime");
+          runtimeState.beginLoading("world:probe");
+          runtimeState.markReady("world:probe");
+          runtimeState.setSimulationEnabled("world:probe", true);
+        }
+      },
+      { id: "game.probe", provides: ["game.probe-api"], initialize() { return { "game.probe-api": {} }; } }
+    ],
     simulationTasks: [{ systemId: "game.probe", update() { updates += 1; } }]
   });
   const context = await runtime.start();
@@ -623,14 +780,17 @@ test("cross-registry reference failure rolls back entity counters, worlds and pl
     ...saved,
     snapshots: {
       ...saved.snapshots,
-      "core.world-context": {
-        ...saved.snapshots["core.world-context"],
+      "core.spatial-placement": {
+        ...saved.snapshots["core.spatial-placement"],
+        worldContext: {
+          ...saved.snapshots["core.spatial-placement"].worldContext,
         placements: [{
           entityId: "entity:missing-cross-reference",
           type: "world",
           worldId: "world:rollback-original",
           position: { x: 1, y: 1 }
         }]
+        }
       }
     }
   };

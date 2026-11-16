@@ -66,3 +66,16 @@ The archive is a preserved reference, not the active development repository. New
 The active repository is [Veyn44/NEW-GAME-CASS](https://github.com/Veyn44/NEW-GAME-CASS), branch `main`. The Phase 2 merge commit is the stable historical integration point. Documentation consolidation is being performed separately from source implementation.
 
 No claim in this file should be used as a substitute for checking the current source, tests or Git history when implementation details matter.
+
+
+## Architecture and application restructuring — PR #6
+
+The Engine/application boundary restructuring was completed and merged into `main` on **2026-11-14**.
+
+- PR: [#6 — Merge engine and application architecture restructuring](https://github.com/Veyn44/NEW-GAME-CASS/pull/6)
+- Merge commit on `main`: [`19cc018`](https://github.com/Veyn44/NEW-GAME-CASS/commit/19cc018fedf45b11206a1a390e7ec5e1a2ed3a61)
+- The restructuring separated the Engine Core, Cassandra application composition/gameplay, standalone Engine-only Dev Lab composition, and neutral shared application/presentation mechanisms. It did not complete every intended product boundary: Cassandra-hosted Dev Lab remains the primary workflow, while standalone Dev Lab is an optional separate entry point.
+- The current Engine capability baseline and remaining ownership gaps are summarized in [Engine / Cassandra / Dev Lab — Capability and Ownership Review](docs/architecture/engine-game-devlab-capability-map.md). That review is a working map, not an approval to implement every listed proposal.
+- Cassandra and Dev Lab are separate applications and are not intended to exchange save files. Their persistence adapters, formats/envelopes and slot/state identities must be isolated. Cross-application save compatibility is not a product requirement.
+
+The post-merge `work` branch is the active working baseline for subsequent documentation and design work. Historical Phase 2 records above remain valid for the earlier milestone and should not be read as the current repository status.

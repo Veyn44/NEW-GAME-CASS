@@ -28,16 +28,19 @@ export function createWorldViewport({
 const context = canvas.getContext("2d");
 
 let worldMarkers = [];
+let spatialHighlightCells = [];
 let selectionEnabled = false;
 let onMarkerSelect = null;
+let onCellInspect = null;
 let selectedMarkerId = null;
 let placementArtwork = null;
 let placementImage = null;
 let placementImageReady = false;
-function setWorldInteraction({ paused = false, inspectionEnabled = false, onSelect = null } = {}) {
+function setWorldInteraction({ paused = false, inspectionEnabled = false, onSelect = null, onInspectCell = null } = {}) {
   state.paused = Boolean(paused);
   selectionEnabled = Boolean(inspectionEnabled);
   onMarkerSelect = typeof onSelect === "function" ? onSelect : null;
+  onCellInspect = typeof onInspectCell === "function" ? onInspectCell : null;
   render();
 }
 
@@ -86,10 +89,11 @@ function cancelWorldPlacement() {
   setWorldPlacement(null);
 }
 
+// Marker and camera-follow positions are world-space coordinates (cell centers), not integer grid anchors.
 function setCameraFollowTarget(entityId, position) {
   if (entityId && position && Number.isFinite(position.x) && Number.isFinite(position.y)) {
-    state.cameraX = position.x + 0.5;
-    state.cameraY = position.y + 0.5;
+    state.cameraX = position.x;
+    state.cameraY = position.y;
     clampCamera();
     render();
   }
@@ -122,11 +126,26 @@ function setSelectedWorldMarker(entityId) {
   render();
 }
 
+// Each marker x/y is already a world-space coordinate; do not add another cell-center offset here.
 function setWorldMarkers(markers) {
   worldMarkers = Array.isArray(markers) ? markers.map((marker) => ({ ...marker })) : [];
   if (selectedMarkerId && !worldMarkers.some((marker) => marker.id === selectedMarkerId)) {
     selectedMarkerId = null;
   }
+  render();
+}
+
+function setSpatialHighlights(cells = []) {
+  if (!Array.isArray(cells)) throw new TypeError("Spatial highlights must be an array of grid cells.");
+  const unique = new Map();
+  for (const cell of cells) {
+    if (!cell || !Number.isSafeInteger(cell.x) || !Number.isSafeInteger(cell.y)
+      || cell.x < 0 || cell.y < 0 || cell.x >= state.worldSize || cell.y >= state.worldSize) {
+      throw new TypeError("Spatial highlight cells must be valid coordinates inside the current world.");
+    }
+    unique.set(`${cell.y},${cell.x}`, Object.freeze({ x: cell.x, y: cell.y }));
+  }
+  spatialHighlightCells = [...unique.values()];
   render();
 }
 
@@ -230,9 +249,37 @@ function render() {
   context.strokeRect(worldLeft, worldTop, state.worldSize * cellWidth, state.worldSize * cellHeight);
   context.globalAlpha = 1;
 
+  if (spatialHighlightCells.length) {
+    context.save();
+    context.fillStyle = "rgba(129, 32, 68, 0.30)";
+    context.strokeStyle = "rgba(230, 92, 135, 0.95)";
+    context.lineWidth = 2;
+    for (const cell of spatialHighlightCells) {
+      const cellX = (cell.x - left) * cellWidth;
+      const cellY = (cell.y - top) * cellHeight;
+      if (cellX + cellWidth < 0 || cellX > width || cellY + cellHeight < 0 || cellY > height) continue;
+      context.fillRect(cellX + 1, cellY + 1, Math.max(0, cellWidth - 2), Math.max(0, cellHeight - 2));
+      context.strokeRect(cellX + 1, cellY + 1, Math.max(0, cellWidth - 2), Math.max(0, cellHeight - 2));
+    }
+    context.restore();
+  }
+
   for (const marker of worldMarkers) {
-    const markerX = (marker.x + 0.5 - left) * cellWidth;
-    const markerY = (marker.y + 0.5 - top) * cellHeight;
+    if (Array.isArray(marker.cells) && marker.cells.length) {
+      context.save();
+      context.fillStyle = marker.id === selectedMarkerId ? "rgba(243, 201, 105, 0.24)" : "rgba(56, 214, 197, 0.16)";
+      context.strokeStyle = marker.id === selectedMarkerId ? "rgba(255, 224, 155, 0.95)" : "rgba(56, 214, 197, 0.75)";
+      context.lineWidth = marker.id === selectedMarkerId ? 2 : 1;
+      for (const cell of marker.cells) {
+        const cellX = (cell.x - left) * cellWidth;
+        const cellY = (cell.y - top) * cellHeight;
+        context.fillRect(cellX + 1, cellY + 1, Math.max(0, cellWidth - 2), Math.max(0, cellHeight - 2));
+        context.strokeRect(cellX + 1, cellY + 1, Math.max(0, cellWidth - 2), Math.max(0, cellHeight - 2));
+      }
+      context.restore();
+    }
+    const markerX = (marker.x - left) * cellWidth;
+    const markerY = (marker.y - top) * cellHeight;
     if (markerX < 0 || markerX > width || markerY < 0 || markerY > height) continue;
     context.beginPath();
     context.fillStyle = marker.id === selectedMarkerId ? "#f3c969" : "#38d6c5";
@@ -344,7 +391,8 @@ canvas.addEventListener("pointerdown", (event) => {
     event.preventDefault();
     return;
   }
-  if (event.button === 0 && selectionEnabled && onMarkerSelect) {
+  if (event.button === 0 && selectionEnabled && (onMarkerSelect || onCellInspect)) {
+    const tile = screenPointToTile(event.clientX, event.clientY);
     const bounds = canvas.getBoundingClientRect();
     const view = visibleDimensions();
     const cellWidth = bounds.width / view.columns;
@@ -354,11 +402,13 @@ canvas.addEventListener("pointerdown", (event) => {
     const pointerX = event.clientX - bounds.left;
     const pointerY = event.clientY - bounds.top;
     const hit = [...worldMarkers].reverse().find((marker) => {
-      const x = (marker.x + 0.5 - left) * cellWidth;
-      const y = (marker.y + 0.5 - top) * cellHeight;
+      const x = (marker.x - left) * cellWidth;
+      const y = (marker.y - top) * cellHeight;
       return Math.hypot(pointerX - x, pointerY - y) <= Math.max(9, Math.min(16, cellWidth * 0.55));
     });
-    onMarkerSelect(hit?.id ?? null);
+    onMarkerSelect?.(hit?.id ?? null);
+    if (tile?.valid) onCellInspect?.({ x: tile.x, y: tile.y });
+    event.preventDefault();
     return;
   }
   // Middle mouse remains available for camera panning in both pause states.
@@ -438,6 +488,7 @@ resizeCanvas();
     moveCameraBy,
     setSelectedWorldMarker,
     setWorldMarkers,
+    setSpatialHighlights,
     getState() {
       return Object.freeze({
         worldSize: state.worldSize,

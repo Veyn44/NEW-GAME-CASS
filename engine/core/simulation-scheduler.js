@@ -38,6 +38,7 @@ function assertId(value, label) {
  */
 export class SimulationScheduler {
   #clock;
+  #worldRuntime;
   #fixedStepSeconds;
   #maxStepsPerFrame;
   #warningBacklogSeconds;
@@ -55,6 +56,7 @@ export class SimulationScheduler {
 
   constructor({
     clock,
+    worldRuntime = null,
     systemOrder,
     tasks = [],
     fixedStepSeconds = 6,
@@ -67,6 +69,10 @@ export class SimulationScheduler {
         typeof clock.commitSimulationStep !== "function" ||
         typeof clock.pause !== "function" || typeof clock.resume !== "function") {
       throw new SchedulerError("INVALID_CLOCK", "SimulationScheduler requires a compatible GameClock.");
+    }
+    if (worldRuntime !== null && (typeof worldRuntime.getParticipants !== "function"
+      || typeof worldRuntime.validateStep !== "function" || typeof worldRuntime.commitStep !== "function")) {
+      throw new SchedulerError("INVALID_WORLD_RUNTIME", "worldRuntime must expose getParticipants(), validateStep() and commitStep().");
     }
     if (!Array.isArray(systemOrder) || systemOrder.some((id) => typeof id !== "string" || !ID_PATTERN.test(id))) {
       throw new SchedulerError("INVALID_SYSTEM_ORDER", "systemOrder must be an array of stable system IDs.");
@@ -106,15 +112,23 @@ export class SimulationScheduler {
       if (typeof task.update !== "function") {
         throw new SchedulerError("INVALID_TASK_HANDLER", `Task "${systemId}" must provide a synchronous update function.`, { systemId });
       }
+      const scope = task.scope ?? "global";
+      if (scope !== "global" && scope !== "world") {
+        throw new SchedulerError("INVALID_TASK_SCOPE", `Task "${systemId}" scope must be "global" or "world".`, { systemId, scope });
+      }
+      if (scope === "world" && !worldRuntime) {
+        throw new SchedulerError("WORLD_RUNTIME_REQUIRED", `World-scoped task "${systemId}" requires WorldRuntimeManager.`, { systemId });
+      }
       const everyTicks = task.everyTicks ?? 1;
       if (!Number.isSafeInteger(everyTicks) || everyTicks < 1) {
         throw new SchedulerError("INVALID_TASK_FREQUENCY", `Task "${systemId}" everyTicks must be a positive safe integer.`, { systemId, everyTicks });
       }
       seen.add(systemId);
-      return Object.freeze({ systemId, update: task.update, everyTicks, order: orderIndex.get(systemId) });
+      return Object.freeze({ systemId, update: task.update, everyTicks, scope, order: orderIndex.get(systemId) });
     }).sort((a, b) => a.order - b.order);
 
     this.#clock = clock;
+    this.#worldRuntime = worldRuntime;
     this.#fixedStepSeconds = fixedStepSeconds;
     this.#maxStepsPerFrame = maxStepsPerFrame;
     this.#warningBacklogSeconds = warningBacklogSeconds;
@@ -157,6 +171,15 @@ export class SimulationScheduler {
       throw new SchedulerError("INVALID_REAL_DELTA", "realDeltaSeconds must be a non-negative finite number.", { realDeltaSeconds });
     }
     if (this.#clock.paused) return this.snapshot;
+    if (this.#worldRuntime && this.#worldRuntime.getParticipants().length === 0) {
+      // With no participating worlds there is no simulation round. Discard
+      // accumulated simulation backlog so disabled/paused worlds do not accrue
+      // time that would be replayed when they rejoin.
+      this.#segments = [];
+      this.#backlogSeconds = 0;
+      this.#updateWarningState();
+      return Object.freeze({ ...this.snapshot, processedSteps: 0 });
+    }
 
     this.#advancing = true;
     try {
@@ -172,7 +195,7 @@ export class SimulationScheduler {
       while (!this.#clock.paused &&
              this.#backlogSeconds + EPSILON >= this.#fixedStepSeconds &&
              processed < this.#maxStepsPerFrame) {
-        this.#runStep();
+        if (this.#runStep() === false) break;
         processed += 1;
       }
 
@@ -249,6 +272,8 @@ export class SimulationScheduler {
 
   #runStep() {
     const nextTick = this.#tick + 1;
+    const participants = this.#worldRuntime?.getParticipants() ?? null;
+    if (participants && participants.length === 0) return false;
     const realDeltaSeconds = this.#previewRealDelta(this.#fixedStepSeconds);
     const context = Object.freeze({
       tick: nextTick,
@@ -257,20 +282,35 @@ export class SimulationScheduler {
       timeSeconds: this.#clock.totalSeconds + this.#fixedStepSeconds
     });
 
+    let worldRoundStarted = false;
     try {
+      if (participants) {
+        this.#worldRuntime.beginSimulationRound(participants);
+        worldRoundStarted = true;
+      }
       for (const task of this.#tasks) {
-        if (nextTick % task.everyTicks !== 0) continue;
-        const result = task.update(context);
-        if (result && typeof result.then === "function") {
-          throw new SchedulerError(
-            "ASYNC_TASK_NOT_SUPPORTED",
-            `Simulation task "${task.systemId}" returned a Promise; fixed-step updates must complete synchronously.`,
-            { systemId: task.systemId, tick: nextTick }
-          );
+        if (task.scope === "global") {
+          if (nextTick % task.everyTicks !== 0) continue;
+          this.#invokeTask(task, context);
+          continue;
+        }
+        for (const participant of participants) {
+          if (participant.nextStep % task.everyTicks !== 0) continue;
+          const world = Object.freeze({
+            worldId: participant.worldId,
+            completedSteps: participant.completedSteps,
+            nextStep: participant.nextStep,
+            simulatedSeconds: participant.simulatedSeconds,
+            timeSeconds: participant.simulatedSeconds + this.#fixedStepSeconds
+          });
+          this.#invokeTask(task, Object.freeze({ ...context, world }));
         }
       }
+      this.#clock.validateSimulationStep(this.#fixedStepSeconds);
+      if (participants) this.#worldRuntime.validateStep(participants, this.#fixedStepSeconds);
       this.#consumeTime(this.#fixedStepSeconds);
       this.#clock.commitSimulationStep(this.#fixedStepSeconds);
+      if (participants) this.#worldRuntime.commitStep(participants, this.#fixedStepSeconds);
       this.#tick = nextTick;
     } catch (error) {
       this.#faulted = true;
@@ -284,6 +324,19 @@ export class SimulationScheduler {
         cause: error,
         tick: nextTick
       });
+    } finally {
+      if (worldRoundStarted) this.#worldRuntime.endSimulationRound();
+    }
+  }
+
+  #invokeTask(task, context) {
+    const result = task.update(context);
+    if (result && typeof result.then === "function") {
+      throw new SchedulerError(
+        "ASYNC_TASK_NOT_SUPPORTED",
+        `Simulation task "${task.systemId}" returned a Promise; fixed-step updates must complete synchronously.`,
+        { systemId: task.systemId, tick: context.tick, worldId: context.world?.worldId ?? null }
+      );
     }
   }
 

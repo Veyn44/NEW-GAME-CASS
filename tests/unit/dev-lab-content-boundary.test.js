@@ -66,6 +66,7 @@ test("standalone Dev Lab entry and page do not load Cassandra application code",
   assert.ok(entry.includes("await startDevLab()"));
   assert.equal(entry.toLowerCase().includes("cassandra/"), false);
   assert.ok(html.includes("standalone-entry.js"));
+  assert.ok(html.includes('accept=".dlcass,application/vnd.cassandra.dev-lab-save+json"'));
   assert.ok(html.includes('data-view="dev-lab"'));
   assert.equal(html.includes("application-entry.js"), false);
   assert.equal(html.toLowerCase().includes("cassandra/"), false);
@@ -131,18 +132,38 @@ test("Dev Lab shell delegates viewport and workspace persistence to owned servic
   assert.ok(shell.includes("createWorldViewport"));
   assert.ok(shell.includes("createFilePersistenceController"));
   assert.equal(shell.includes('from "../presentation/dev-world-preview.js"'), false);
-  assert.equal(shell.includes("DEV_LAB_SAVE_SLOT"), false);
-  assert.equal(shell.includes("async function persistWorkspace"), false);
   assert.ok(viewport.includes("export function createWorldViewport"));
   assert.ok(viewport.includes("setWorldMarkers"));
   assert.ok(viewport.includes("resetCameraToWorld"));
   assert.equal(viewport.includes('document.querySelector("#world-canvas")'), false);
   assert.ok(persistence.includes("export function createFilePersistenceController"));
   assert.ok(persistence.includes("persistenceApi.save(saveSlot"));
-  assert.ok(shell.includes('stateId: "cassandra-dev-lab-workspace"'));
-  assert.ok(shell.includes('saveSlot: "dev-lab-workspace"'));
-  assert.ok(shell.includes('fileExtension: ".cass"'));
-  assert.ok(shell.includes('defaultFileName: "save.cass"'));
+  assert.ok(shell.includes("DEV_LAB_SAVE_STATE_ID"));
+  assert.ok(shell.includes("DEV_LAB_SAVE_SLOT"));
+  assert.ok(shell.includes("DEV_LAB_SAVE_FORMAT"));
+  assert.ok(shell.includes("DEV_LAB_SAVE_FILE_EXTENSION"));
+  assert.ok(shell.includes("DEV_LAB_SAVE_FILE_NAME"));
+  assert.ok(shell.includes("DEV_LAB_SAVE_MIME_TYPE"));
+  assert.ok(shell.includes("Name this Dev Lab workspace:"));
+  assert.equal(shell.includes("async function persistWorkspace"), false);
+
+  const cassandraShell = await read("../../cassandra/application/cassandra-application-shell.js");
+  assert.ok(cassandraShell.includes("CASSANDRA_SAVE_SLOT"));
+  assert.ok(cassandraShell.includes("CASSANDRA_SAVE_STATE_ID"));
+  assert.ok(cassandraShell.includes("CASSANDRA_SAVE_FILE_EXTENSION"));
+  assert.ok(cassandraShell.includes("CASSANDRA_SAVE_FILE_NAME"));
+
+  const saveAdapter = await read("../../src/adapters/storage/local-file-save-adapter.js");
+  for (const identity of [
+    'CASSANDRA_SAVE_FORMAT = "cassandra.save"',
+    'DEV_LAB_SAVE_FORMAT = "cassandra.dev-lab.save"',
+    'CASSANDRA_SAVE_SLOT = "cassandra-main-world"',
+    'DEV_LAB_SAVE_SLOT = "dev-lab-workspace"',
+    'CASSANDRA_SAVE_STATE_ID = "cassandra-main-world"',
+    'DEV_LAB_SAVE_STATE_ID = "cassandra-dev-lab-workspace"',
+    'CASSANDRA_SAVE_FILE_EXTENSION = ".cass"',
+    'DEV_LAB_SAVE_FILE_EXTENSION = ".dlcass"'
+  ]) assert.ok(saveAdapter.includes(identity), `Missing save identity: ${identity}`);
 });
 
 
@@ -277,4 +298,25 @@ test("shared presentation and application controllers do not depend on either ap
   assert.equal(persistence.includes(".cass"), false);
   assert.equal(viewport.includes(".viewport-panel"), false);
   assert.equal(viewport.includes(".viewport-crosshair"), false);
+});
+
+
+test("spatial inspection and test controls belong only to standalone Dev Lab", async () => {
+  const cassandraHtml = await read("../../index.html");
+  const devLabHtml = await read("../../dev-lab.html");
+  const requiredIds = [
+    "spatial-cell-label", "spatial-cell-data", "test-entity-footprint",
+    "create-spatial-test-entity", "move-spatial-test-entity", "remove-spatial-test-entity",
+    "spatial-test-status", "spatial-neighbors-four", "spatial-neighbors-eight",
+    "spatial-radius-manhattan", "spatial-radius-chebyshev", "spatial-footprint",
+    "spatial-movement-history", "spatial-region-min-x", "spatial-region-min-y",
+    "spatial-region-max-x", "spatial-region-max-y", "spatial-region-categories",
+    "spatial-region-layers", "spatial-region-kinds", "spatial-region-query"
+  ];
+  for (const id of requiredIds) {
+    assert.ok(devLabHtml.includes(`id="${id}"`), `Standalone Dev Lab must provide #${id}`);
+    assert.equal(cassandraHtml.includes(`id="${id}"`), false, `Cassandra must not expose Dev Lab control #${id}`);
+  }
+  assert.ok(devLabHtml.includes('id="spatial-inspector"'));
+  assert.equal(cassandraHtml.includes('id="spatial-inspector"'), false);
 });

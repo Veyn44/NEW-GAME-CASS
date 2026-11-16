@@ -123,7 +123,7 @@ export class GameClock {
    * Commits one successfully completed strategic simulation step.
    * Called by SimulationScheduler, not by render or UI code.
    */
-  commitSimulationStep(strategicDeltaSeconds) {
+  validateSimulationStep(strategicDeltaSeconds) {
     if (!Number.isFinite(strategicDeltaSeconds) || strategicDeltaSeconds <= 0) {
       throw new GameClockError("INVALID_SIMULATION_DELTA", "A committed simulation step must be a positive finite number.", { strategicDeltaSeconds });
     }
@@ -131,6 +131,11 @@ export class GameClock {
     if (!Number.isFinite(next) || next <= this.#totalSeconds) {
       throw new GameClockError("TIME_EXHAUSTED", "Strategic time can no longer advance safely.");
     }
+    return next;
+  }
+
+  commitSimulationStep(strategicDeltaSeconds) {
+    const next = this.validateSimulationStep(strategicDeltaSeconds);
     this.#totalSeconds = next;
     return this.#totalSeconds;
   }

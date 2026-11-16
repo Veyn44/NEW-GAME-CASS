@@ -50,6 +50,7 @@ export function createFilePersistenceController({
     restored: "WORKSPACE RESTORED",
     initialNoSelection: "NO SAVE SELECTED",
     filePickerUnavailable: "FILE PICKER UNAVAILABLE · LOAD " + fileExtension.toUpperCase() + " / EXPORT DOWNLOAD",
+    busy: "SAVE / LOAD IN PROGRESS",
     ...messages
   };
 
@@ -57,6 +58,20 @@ export function createFilePersistenceController({
     saveStatus,
     simulationStatus
   });
+
+  let operationInProgress = false;
+  async function runExclusive(operation) {
+    if (operationInProgress) {
+      report(copy.busy);
+      return false;
+    }
+    operationInProgress = true;
+    try {
+      return await operation();
+    } finally {
+      operationInProgress = false;
+    }
+  }
 
   function describeLoadFailure(error) {
     const code = error?.code ?? "LOAD_FAILED";
@@ -70,6 +85,7 @@ export function createFilePersistenceController({
       SCHEMA_MISMATCH: "A saved system schema is incompatible.",
       INVALID_SNAPSHOT: "A saved system rejected its data.",
       RESTORE_COMMIT_FAILED: "A system failed while restoring the save. The restore was rolled back where possible.",
+      RESTORE_ROLLBACK_FAILED: "A restore rollback failed. The runtime is faulted and must be restarted before continuing.",
       SAVE_NOT_FOUND: "No save data was found.",
       SAVE_SOURCE_NOT_SELECTED: "No save file is selected."
     };
@@ -78,6 +94,8 @@ export function createFilePersistenceController({
   }
 
   async function persist({ chooseFile = false } = {}) {
+    const restoreSelection = chooseFile ? saveAdapter.captureSelection?.() : null;
+    let saved = false;
     try {
       if (chooseFile) {
         if (supportsFileAccess()) {
@@ -109,10 +127,12 @@ export function createFilePersistenceController({
         stateId,
         kind: "manual"
       });
+      saved = true;
       const fileName = saveAdapter.selectedFileName || defaultFileName;
       report(copy.saved + " · " + fileName, copy.savedDetail + " · " + metadata.createdAt);
       return true;
     } catch (error) {
+      if (chooseFile && !saved) restoreSelection?.();
       if (error?.name === "AbortError") return false;
       report(copy.saveFailed + " · " + error.message);
       return false;
@@ -120,6 +140,8 @@ export function createFilePersistenceController({
   }
 
   async function restore() {
+    const restoreSelection = saveAdapter.captureSelection?.();
+    let loaded = false;
     try {
       if (supportsFileAccess()) {
         const fileName = await saveAdapter.selectLoadFile();
@@ -130,10 +152,12 @@ export function createFilePersistenceController({
         return false;
       }
       await persistenceApi.load(saveSlot, { stateId });
+      loaded = true;
       onRestore();
       report(copy.loaded + " · " + saveAdapter.selectedFileName, copy.restored);
       return true;
     } catch (error) {
+      if (!loaded) restoreSelection?.();
       if (error?.name === "AbortError") return false;
       report(describeLoadFailure(error));
       return false;
@@ -142,26 +166,38 @@ export function createFilePersistenceController({
 
   async function importFile(file) {
     if (!file) return false;
+    const restoreSelection = saveAdapter.captureSelection?.();
+    let loaded = false;
     try {
       await saveAdapter.importFile(file);
       await persistenceApi.load(saveSlot, { stateId });
+      loaded = true;
       onRestore();
       report(copy.loaded + " · " + file.name, copy.restored);
       return true;
     } catch (error) {
+      if (!loaded) restoreSelection?.();
       report(describeLoadFailure(error));
       return false;
     }
   }
 
   return Object.freeze({
-    save: () => persist(),
-    saveAs: () => persist({ chooseFile: true }),
-    load: restore,
-    importFile,
-    clearSelection: () => saveAdapter.clearSelection(),
+    save: () => runExclusive(() => persist()),
+    saveAs: () => runExclusive(() => persist({ chooseFile: true })),
+    load: () => runExclusive(restore),
+    importFile: (file) => runExclusive(() => importFile(file)),
+    clearSelection: () => {
+      if (operationInProgress) {
+        report(copy.busy);
+        return false;
+      }
+      saveAdapter.clearSelection();
+      return true;
+    },
     get selectedFileName() { return saveAdapter.selectedFileName; },
     get adapter() { return saveAdapter; },
+    get isBusy() { return operationInProgress; },
     get initialStatus() {
       return supportsFileAccess() ? copy.initialNoSelection : copy.filePickerUnavailable;
     }

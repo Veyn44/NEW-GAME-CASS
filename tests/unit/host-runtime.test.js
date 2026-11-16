@@ -53,7 +53,19 @@ test("host advances registered synchronous tasks through the Core scheduler", as
     saveAdapter: createAdapter(),
     fixedStepSeconds: 0.1,
     maxStepsPerFrame: 10,
-    hostSystems: [probe],
+    hostSystems: [{
+      id: "game.host-world",
+      requires: ["core.world-registry", "core.world-runtime"],
+      initialize(context) {
+        context.getService("core.world-registry").registerWorld({
+          worldId: "world:host-test", type: "test.world", dimensions: { width: 8, height: 8 }
+        });
+        const runtimeState = context.getService("core.world-runtime");
+        runtimeState.beginLoading("world:host-test");
+        runtimeState.markReady("world:host-test");
+        runtimeState.setSimulationEnabled("world:host-test", true);
+      }
+    }, probe],
     simulationTasks: [{
       systemId: "game.host-probe",
       update(step) {
@@ -87,7 +99,19 @@ test("host pause and resume control simulation advancement", async () => {
   const runtime = createGameRuntime({
     saveAdapter: createAdapter(),
     fixedStepSeconds: 0.1,
-    hostSystems: [probe],
+    hostSystems: [{
+      id: "game.pause-world",
+      requires: ["core.world-registry", "core.world-runtime"],
+      initialize(context) {
+        context.getService("core.world-registry").registerWorld({
+          worldId: "world:pause-test", type: "test.world", dimensions: { width: 8, height: 8 }
+        });
+        const runtimeState = context.getService("core.world-runtime");
+        runtimeState.beginLoading("world:pause-test");
+        runtimeState.markReady("world:pause-test");
+        runtimeState.setSimulationEnabled("world:pause-test", true);
+      }
+    }, probe],
     simulationTasks: [{
       systemId: "game.pause-probe",
       update() {
