@@ -128,13 +128,16 @@ export class Persistence {
   #logger;
   #applicationVersion;
   #formatVersion;
+  #faulted = false;
+  #onFatalIntegrityFault;
 
   constructor({
     adapter,
     runAtSafeBoundary,
     applicationVersion = "0.0.0",
     formatVersion = FORMAT_VERSION,
-    logger = null
+    logger = null,
+    onFatalIntegrityFault = null
   } = {}) {
     if (!adapter || typeof adapter.read !== "function" || typeof adapter.writeAtomic !== "function") {
       throw new PersistenceError("INVALID_ADAPTER", "Persistence adapter must implement read(slotId) and writeAtomic(slotId, saveData).");
@@ -147,11 +150,16 @@ export class Persistence {
       throw new PersistenceError("INVALID_FORMAT_VERSION", "formatVersion must be a positive safe integer.");
     }
     if (logger !== null && typeof logger.error !== "function") throw new PersistenceError("INVALID_LOGGER", "Logger must expose error(message, details).");
+    if (onFatalIntegrityFault !== null && typeof onFatalIntegrityFault !== "function") {
+      throw new PersistenceError("INVALID_FATAL_INTEGRITY_HANDLER",
+        "onFatalIntegrityFault must be a function or null.");
+    }
     this.#adapter = adapter;
     this.#runAtSafeBoundary = runAtSafeBoundary;
     this.#applicationVersion = applicationVersion;
     this.#formatVersion = formatVersion;
     this.#logger = logger;
+    this.#onFatalIntegrityFault = onFatalIntegrityFault;
   }
 
   registerParticipant(participant) {
@@ -198,6 +206,17 @@ export class Persistence {
     return Object.freeze([...this.#participants.keys()].sort());
   }
 
+  get isFaulted() {
+    return this.#faulted;
+  }
+
+  #assertHealthy() {
+    if (this.#faulted) {
+      throw new PersistenceError("PERSISTENCE_FAULTED",
+        "Persistence is faulted after a failed runtime rollback; restart and recovery are required.");
+    }
+  }
+
   /**
    * Runs a synchronous multi-system runtime mutation with an in-memory
    * rollback checkpoint built from every registered persistence participant.
@@ -209,6 +228,7 @@ export class Persistence {
    * rethrown. A failed restoration is surfaced as a fatal integrity error.
    */
   runAtomicMutation({ prepare, commit } = {}) {
+    this.#assertHealthy();
     if (typeof prepare !== "function" || typeof commit !== "function") {
       throw new PersistenceError("INVALID_ATOMIC_MUTATION",
         "Runtime atomic mutation requires synchronous prepare() and commit(plan) functions.");
@@ -282,6 +302,8 @@ export class Persistence {
         }
 
         if (restoreFailures.length) {
+          this.#faulted = true;
+          try { this.#onFatalIntegrityFault?.(Object.freeze({ cause, restoreFailures })); } catch { /* Fault signaling must not mask the integrity failure. */ }
           this.#log("critical", "Runtime mutation failed and its rollback checkpoint could not be fully restored.", {
             cause: cause?.message ?? String(cause),
             restoreFailures
@@ -301,6 +323,7 @@ export class Persistence {
   }
 
   async save(slotId, { stateId, seed = null, kind = "manual" } = {}) {
+    this.#assertHealthy();
     assertSlotId(slotId);
     if (typeof stateId !== "string" || !stateId.trim()) {
       throw new PersistenceError("INVALID_STATE_ID", "stateId is required for a save.");
@@ -361,6 +384,7 @@ export class Persistence {
   }
 
   async load(slotId, { stateId = null } = {}) {
+    this.#assertHealthy();
     assertSlotId(slotId);
     return this.#runAtSafeBoundary(async () => {
       try {
