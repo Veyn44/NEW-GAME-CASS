@@ -1048,3 +1048,25 @@ Latest code/test commit: `9a62f056a58d180d1cfcca56742252be9fa3fb8d`. CI verifica
 - The regression asserts that Persistence becomes faulted, Core retains the dedicated simulation pause reason, and subsequent save attempts fail closed with `PERSISTENCE_FAULTED`.
 - Latest code/test commit: `771acbd01320e18c41b51522fd50ba77be117cac`.
 - CI for this exact commit remains unconfirmed; do not treat the new tests as passing until the workflow result is available.
+
+## 2026-11-16 — Applied Ledger verifier wiring through Cassandra Runtime Host
+
+### Implementation on `work`
+
+- Completed the missing option path from `createCassandraRuntimeHost({ isPackageApplied })` through the shared Application Runtime Host into `createCassandraRuntime({ isPackageApplied })`, where it is supplied to Cassandra World Session.
+- Kept the verifier as an injected dependency. The runtime does not invent a campaign ID, select a storage adapter, or construct placeholder domain operation handlers.
+- Replaced the narrow option-capture test with an end-to-end runtime-host regression: start the actual Cassandra runtime through its host, register Main and Temporary Worlds, return to Main, and verify that the injected Applied Ledger callback receives the exact package ID and digest.
+- The regression also asserts that a negative ledger result blocks Temporary World disposal and preserves the Temporary World descriptor/session reference.
+- No Engine contracts, campaign domain rules, save formats or environment simulation were changed.
+
+### Verification status
+
+- Latest code/test commit: `e009565cc9f762c7158357664436c99ec123e9f8`.
+- The test is committed; automated CI result for this exact commit has not been confirmed. Do not report it as passing until the workflow result is available.
+- `main` remains untouched; no PR or merge was created.
+
+### Remaining Slice 7 gates
+
+- The browser/application shell still needs an owner-selected campaign identity and an authoritative campaign storage lifecycle before production wiring can instantiate the Change Package coordinator.
+- Production typed operation handlers and campaign aggregate models remain intentionally unimplemented pending the approved domain contract.
+- Real-browser IndexedDB strict-durability and crash/reopen acceptance remain outstanding.
