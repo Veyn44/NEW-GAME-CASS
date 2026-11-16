@@ -343,22 +343,23 @@ test("Temporary World disposal rejects asynchronous cleanup preparation without 
   }
 });
 
-test("Temporary World disposal fails closed if its registry descriptor was removed early", async () => {
+test("World Registry cannot close a Ready Temporary World outside its runtime disposal lifecycle", async () => {
   const state = await setup();
   try {
     state.session.beginTemporaryWorld({ worldId: "encounter:missing-registry", width: 32, height: 32 });
     state.session.returnToMainWorld();
-    state.worlds.closeWorld("encounter:missing-registry");
-    state.worlds.unregisterWorld("encounter:missing-registry");
-
-    await assert.rejects(
-      () => state.session.completeTemporaryWorld({
-        packageId: "package:missing-registry",
-        digest: "1".repeat(64)
-      }),
-      { code: "TEMPORARY_WORLD_REGISTRY_MISSING" }
+    assert.throws(
+      () => state.worlds.closeWorld("encounter:missing-registry"),
+      { code: "WORLD_RUNTIME_NOT_STOPPED" }
     );
     assert.equal(state.session.getState().temporaryWorldId, "encounter:missing-registry");
+    assert.equal(state.worlds.has("encounter:missing-registry"), true);
+
+    await state.session.completeTemporaryWorld({
+      packageId: "package:missing-registry",
+      digest: "1".repeat(64)
+    });
+    assert.equal(state.session.getState().temporaryWorldId, null);
     assert.equal(state.worlds.has("encounter:missing-registry"), false);
   } finally {
     await state.runtime.destroy();
