@@ -113,10 +113,21 @@ export class LocalFileSaveAdapter {
     this.#importedData = null;
   }
 
-  #isValidFileName(fileName) {
-    if (typeof fileName !== "string" || !fileName.toLowerCase().endsWith(this.#fileExtension.toLowerCase())) {
-      return false;
+  #hasConfiguredExtension(fileName) {
+    return typeof fileName === "string"
+      && fileName.toLowerCase().endsWith(this.#fileExtension.toLowerCase());
+  }
+
+  #assertConfiguredExtension(fileName) {
+    if (!this.#hasConfiguredExtension(fileName)) {
+      const error = new Error(`Choose a ${this.#fileExtension} save file.`);
+      error.code = "INVALID_SAVE_EXTENSION";
+      throw error;
     }
+  }
+
+  #isValidFileName(fileName) {
+    if (!this.#hasConfiguredExtension(fileName)) return false;
     const baseName = fileName.slice(0, -this.#fileExtension.length);
     return /^[a-zA-Z0-9._ -]+$/.test(baseName);
   }
@@ -143,8 +154,10 @@ export class LocalFileSaveAdapter {
       excludeAcceptAllOption: true
     });
     if (!handle) return null;
+    const fileName = handle.name ?? this.#defaultFileName;
+    this.#assertConfiguredExtension(fileName);
     this.#fileHandle = handle;
-    this.#fileName = handle.name ?? this.#defaultFileName;
+    this.#fileName = fileName;
     this.#importedData = null;
     await this.#ensurePermission("readwrite");
     return this.#fileName;
@@ -163,8 +176,10 @@ export class LocalFileSaveAdapter {
       excludeAcceptAllOption: true
     });
     if (!handle) return null;
+    const fileName = handle.name ?? this.#defaultFileName;
+    this.#assertConfiguredExtension(fileName);
     this.#fileHandle = handle;
-    this.#fileName = handle.name ?? this.#defaultFileName;
+    this.#fileName = fileName;
     this.#importedData = null;
     await this.#ensurePermission("read");
     return this.#fileName;
@@ -174,11 +189,7 @@ export class LocalFileSaveAdapter {
     if (!file || typeof file.text !== "function") {
       throw new TypeError(`A readable ${this.#fileExtension} file is required.`);
     }
-    if (file.name && !file.name.toLowerCase().endsWith(this.#fileExtension.toLowerCase())) {
-      const error = new Error(`Choose a ${this.#fileExtension} save file.`);
-      error.code = "INVALID_SAVE_EXTENSION";
-      throw error;
-    }
+    if (file.name) this.#assertConfiguredExtension(file.name);
     const importedData = parseEnvelope(await file.text(), this.#format);
     this.#importedData = importedData;
     this.#fileHandle = null;
