@@ -175,10 +175,14 @@ export class Persistence {
     if (participant.prepareRestoreMissing != null && typeof participant.prepareRestoreMissing !== "function") {
       throw new PersistenceError("INVALID_PARTICIPANT", `Participant "${id}" prepareRestoreMissing must be a function.`);
     }
+    if (participant.allowMissingSnapshot != null && typeof participant.allowMissingSnapshot !== "boolean") {
+      throw new PersistenceError("INVALID_PARTICIPANT", `Participant "${id}" allowMissingSnapshot must be a boolean.`);
+    }
     const entry = Object.freeze({
       id,
       schemaVersion: participant.schemaVersion,
       required: participant.required !== false,
+      allowMissingSnapshot: participant.allowMissingSnapshot === true,
       order: Number.isSafeInteger(participant.order) ? participant.order : 0,
       captureSnapshot: participant.captureSnapshot.bind(participant),
       validateSnapshot: participant.validateSnapshot == null ? null : participant.validateSnapshot.bind(participant),
@@ -274,7 +278,7 @@ export class Persistence {
         const prepared = [];
         for (const participant of ordered) {
           if (!Object.hasOwn(saveData.snapshots, participant.id)) {
-            if (participant.required) throw new PersistenceError("MISSING_REQUIRED_SNAPSHOT", `Save is missing required participant "${participant.id}".`, { participantId: participant.id });
+            if (participant.required && !participant.allowMissingSnapshot) throw new PersistenceError("MISSING_REQUIRED_SNAPSHOT", `Save is missing required participant "${participant.id}".`, { participantId: participant.id });
             if (participant.prepareRestoreMissing) {
               const transaction = await participant.prepareRestoreMissing(Object.freeze({
                 metadata: normalizedMetadata,

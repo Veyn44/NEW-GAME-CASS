@@ -289,7 +289,8 @@ export class WorldRuntimeManager {
     return Object.freeze({
       id,
       schemaVersion: SNAPSHOT_VERSION,
-      required: false,
+      required: true,
+      allowMissingSnapshot: true,
       order,
       captureSnapshot: () => this.captureSnapshot(),
       prepareRestoreMissing: () => this.prepareRestoreMissing(),
