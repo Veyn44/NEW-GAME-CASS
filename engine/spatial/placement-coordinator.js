@@ -15,6 +15,7 @@ export class PlacementCoordinator {
     this.#worldContext.requireSpatialCoordination(PLACEMENT_AUTHORITY);
     this.#worldContext.setMutationGuard(() => this.#assertMutationAllowed(), PLACEMENT_AUTHORITY);
     this.#entities.setSpatialOccupancyGuard((id) => this.#spatial.hasEntityOccupancy(id), PLACEMENT_AUTHORITY);
+    this.#entities.setPlacementGuard((id) => this.#worldContext.getPlacement(id) !== null, PLACEMENT_AUTHORITY);
   }
   get isFaulted() { return this.#faulted; }
   withPolicyEvaluation(callback, authority) {
