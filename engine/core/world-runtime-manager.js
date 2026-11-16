@@ -74,6 +74,7 @@ export class WorldRuntimeManager {
   #worlds;
   #records = new Map();
   #simulationRoundActive = false;
+  #lastRestoreIncludedSnapshot = null;
 
   constructor({ worldRegistry } = {}) {
     if (!worldRegistry || typeof worldRegistry.get !== "function" || typeof worldRegistry.list !== "function") {
@@ -298,8 +299,17 @@ export class WorldRuntimeManager {
     }
     const previous = new Map();
     let committed = false;
+    let applied = false;
     return Object.freeze({
       commit: () => {
+        if (committed) throw new WorldRuntimeError("RESTORE_ALREADY_COMMITTED", "Legacy world-time restore was already committed.");
+        // The authoritative core.world-runtime participant commits earlier in
+        // the same Persistence transaction. Its snapshot must win over this
+        // compatibility mirror when both are present.
+        if (this.#lastRestoreIncludedSnapshot === true) {
+          committed = true;
+          return;
+        }
         const updates = [];
         for (const [worldId, seconds] of parsed) {
           const record = this.#requireRecord(worldId);
@@ -307,15 +317,19 @@ export class WorldRuntimeManager {
           updates.push({ record, seconds });
         }
         for (const update of updates) update.record.simulatedSeconds = update.seconds;
+        applied = true;
         committed = true;
       },
       rollback: () => {
         if (!committed) return false;
-        for (const [worldId, seconds] of previous) {
-          const record = this.#records.get(worldId);
-          if (record) record.simulatedSeconds = seconds;
+        if (applied) {
+          for (const [worldId, seconds] of previous) {
+            const record = this.#records.get(worldId);
+            if (record) record.simulatedSeconds = seconds;
+          }
         }
         committed = false;
+        applied = false;
         return true;
       }
     });
@@ -323,6 +337,7 @@ export class WorldRuntimeManager {
 
   prepareRestoreMissing() {
     const previous = this.#records;
+    const previousRestoreIncludedSnapshot = this.#lastRestoreIncludedSnapshot;
     let committed = false;
     return Object.freeze({
       commit: () => {
@@ -331,11 +346,13 @@ export class WorldRuntimeManager {
           if (world.status !== "closed") next.set(world.worldId, createRecord(world.worldId));
         }
         this.#records = next;
+        this.#lastRestoreIncludedSnapshot = false;
         committed = true;
       },
       rollback: () => {
         if (!committed) return false;
         this.#records = previous;
+        this.#lastRestoreIncludedSnapshot = previousRestoreIncludedSnapshot;
         committed = false;
         return true;
       }
@@ -377,6 +394,7 @@ export class WorldRuntimeManager {
   prepareRestore(snapshot) {
     const parsed = parseSnapshot(snapshot);
     const previous = this.#records;
+    const previousRestoreIncludedSnapshot = this.#lastRestoreIncludedSnapshot;
     let committed = false;
     return Object.freeze({
       commit: () => {
@@ -389,11 +407,13 @@ export class WorldRuntimeManager {
         const next = new Map();
         for (const world of registered) next.set(world.worldId, createRecord(world.worldId, parsed.get(world.worldId)));
         this.#records = next;
+        this.#lastRestoreIncludedSnapshot = true;
         committed = true;
       },
       rollback: () => {
         if (!committed) return false;
         this.#records = previous;
+        this.#lastRestoreIncludedSnapshot = previousRestoreIncludedSnapshot;
         committed = false;
         return true;
       }
