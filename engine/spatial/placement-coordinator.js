@@ -33,8 +33,12 @@ export class PlacementCoordinator {
   }
   placeEntity(entityId, target) {
     this.#assertHealthy();
+    if (!target || typeof target !== "object" || Array.isArray(target)
+      || (Object.hasOwn(target, "type") && target.type !== "grid")) {
+      throw new PlacementCoordinatorError("INVALID_GRID_TARGET", "placeEntity requires a grid target with an anchor and footprint.");
+    }
     if (this.#worldContext.getPlacement(entityId)) throw new PlacementCoordinatorError("ENTITY_ALREADY_PLACED", "Entity already has a placement.", { entityId });
-    return this.#apply(entityId, { type: "grid", ...target });
+    return this.#apply(entityId, { ...target, type: "grid" });
   }
   moveEntity(entityId, target) {
     this.#assertHealthy();
@@ -60,7 +64,16 @@ export class PlacementCoordinator {
       occupancyTarget = { worldId: target.worldId, anchor: target.anchor, footprint: target.footprint, orientation: target.orientation ?? 0 };
       worldTarget = { type: "world", worldId: target.worldId, position: { x: target.anchor.x + 0.5, y: target.anchor.y + 0.5 } };
     }
-    const targetGrid = worldTarget?.type === "world" && this.#worlds.get(worldTarget.worldId)?.grid != null;
+    const targetWorld = worldTarget?.type === "world" ? this.#worlds.get(worldTarget.worldId) : null;
+    if (worldTarget?.type === "world" && !targetWorld) {
+      throw new PlacementCoordinatorError("UNKNOWN_WORLD", "Target world is not registered.", { worldId: worldTarget.worldId });
+    }
+    if (targetWorld?.grid != null && occupancyTarget === null) {
+      throw new PlacementCoordinatorError("GRID_TARGET_REQUIRED",
+        "A grid-backed target must provide an explicit grid anchor and footprint; world coordinates alone are ambiguous.",
+        { worldId: targetWorld.worldId });
+    }
+    const targetGrid = targetWorld?.grid != null;
     if (!sourceGrid && !targetGrid) throw new PlacementCoordinatorError("GRID_COORDINATION_NOT_REQUIRED", "At least one side must be grid-backed.");
     if (sourceGrid) this.#assertCurrentOccupancy(entityId, previous);
     const worldTx = this.#worldContext.prepareCoordinatedPlacementChange(entityId, worldTarget, PLACEMENT_AUTHORITY, { retire });
