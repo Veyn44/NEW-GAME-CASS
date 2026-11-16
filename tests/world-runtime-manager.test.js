@@ -197,8 +197,8 @@ export function runWorldRuntimeManagerTests() {
     ready(runtime, "world:beta");
     runtime.setSimulationEnabled("world:alpha", true);
     runtime.setSimulationEnabled("world:beta", true);
-    runtime.pause("world:beta", "host-maintenance");
     runtime.commitStep(runtime.getParticipants(), 5);
+    runtime.pause("world:beta", "host-maintenance");
     runtime.beginUnload("world:alpha");
 
     const checkpoint = runtime.captureRuntimeCheckpoint();
