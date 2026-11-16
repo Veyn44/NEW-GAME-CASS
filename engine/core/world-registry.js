@@ -147,12 +147,29 @@ export class WorldRegistry {
   #worlds = new Map();
   #activeWorldId = null;
   #idFactory;
+  #lifecycleGuard = null;
 
   constructor({ idFactory = defaultIdFactory } = {}) {
     if (typeof idFactory !== "function") {
       throw new WorldRegistryError("INVALID_ID_FACTORY", "idFactory must be a function.");
     }
     this.#idFactory = idFactory;
+  }
+
+  /** Install the one-time Engine runtime lifecycle guard. */
+  setLifecycleGuard(guard) {
+    if (typeof guard !== "function") {
+      throw new WorldRegistryError("INVALID_LIFECYCLE_GUARD", "World lifecycle guard must be a function.");
+    }
+    if (this.#lifecycleGuard !== null) {
+      throw new WorldRegistryError("LIFECYCLE_GUARD_ALREADY_SET", "World lifecycle guard has already been installed.");
+    }
+    this.#lifecycleGuard = guard;
+    return true;
+  }
+
+  #assertLifecycleAllowed(worldId, operation) {
+    this.#lifecycleGuard?.(worldId, operation);
   }
 
   get size() { return this.#worlds.size; }
@@ -248,6 +265,7 @@ export class WorldRegistry {
     if (current.status === "active" || this.#activeWorldId === worldId) {
       throw new WorldRegistryError("WORLD_ACTIVE", "An active world must be deactivated before it can be closed.", { worldId });
     }
+    this.#assertLifecycleAllowed(worldId, "close");
     this.#worlds.set(worldId, freezeWorld({ ...current, status: "closed" }));
     return true;
   }
@@ -264,6 +282,7 @@ export class WorldRegistry {
     if (current.status !== "closed") {
       throw new WorldRegistryError("WORLD_NOT_CLOSED", "A World must be closed before it can be unregistered.", { worldId });
     }
+    this.#assertLifecycleAllowed(worldId, "unregister");
     this.#worlds.delete(worldId);
     return current;
   }
