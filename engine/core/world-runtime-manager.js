@@ -123,10 +123,21 @@ export class WorldRuntimeManager {
   #lastRestoreIncludedSnapshot = null;
 
   constructor({ worldRegistry } = {}) {
-    if (!worldRegistry || typeof worldRegistry.get !== "function" || typeof worldRegistry.list !== "function") {
-      throw new WorldRuntimeError("INVALID_WORLD_REGISTRY", "WorldRuntimeManager requires a compatible WorldRegistry.");
+    if (!worldRegistry || typeof worldRegistry.get !== "function" || typeof worldRegistry.list !== "function"
+      || typeof worldRegistry.setLifecycleGuard !== "function") {
+      throw new WorldRuntimeError("INVALID_WORLD_REGISTRY", "WorldRuntimeManager requires a WorldRegistry with lifecycle-guard support.");
     }
     this.#worlds = worldRegistry;
+    worldRegistry.setLifecycleGuard((worldId, operation) => {
+      this.#assertLifecycleBoundary();
+      this.#synchronizeRegisteredWorlds();
+      const record = this.#records.get(worldId);
+      if (record && record.status !== "Unloaded" && record.status !== "Disposed") {
+        throw new WorldRuntimeError("WORLD_RUNTIME_NOT_STOPPED",
+          `World "${worldId}" must be Unloaded or Disposed before the registry can ${operation} it.`,
+          { worldId, operation, status: record.status });
+      }
+    });
   }
 
   beginLoading(worldId) {
