@@ -331,6 +331,7 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
           commit(plan) {
             // Persistence captured and prepared an in-memory checkpoint for
             // every registered state owner before this first destructive call.
+            const scopeId = `world:${plan.id}`;
             for (const unit of unitApi.listUnits()) {
               const identity = entities.get(unit.id);
               if (identity?.scope === "scoped" && identity.scopeId === scopeId) {
