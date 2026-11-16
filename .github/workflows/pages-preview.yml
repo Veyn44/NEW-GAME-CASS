@@ -2,7 +2,7 @@ name: Deploy development preview
 
 on:
   push:
-    branches: [work]:
+    branches: [work]
 
 permissions:
   contents: read
