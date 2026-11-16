@@ -65,7 +65,7 @@ export class LocalFileSaveAdapter {
   constructor({
     download = downloadSave,
     format = CASSANDRA_SAVE_FORMAT,
-    fileExtension = ".cass",
+    fileExtension = CASSANDRA_SAVE_FILE_EXTENSION,
     mimeType = CASSANDRA_SAVE_MIME_TYPE,
     fileDescription = "Cassandra save",
     defaultFileName = CASSANDRA_SAVE_FILE_NAME,
