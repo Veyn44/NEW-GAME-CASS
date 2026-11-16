@@ -183,6 +183,14 @@ export class Persistence {
     if (participant.prepareRestoreMissing != null && typeof participant.prepareRestoreMissing !== "function") {
       throw new PersistenceError("INVALID_PARTICIPANT", `Participant "${id}" prepareRestoreMissing must be a function.`);
     }
+    const hasRuntimeCheckpointCapture = participant.captureRuntimeCheckpoint != null;
+    const hasRuntimeCheckpointRestore = participant.prepareRuntimeCheckpointRestore != null;
+    if (hasRuntimeCheckpointCapture !== hasRuntimeCheckpointRestore
+      || (hasRuntimeCheckpointCapture && typeof participant.captureRuntimeCheckpoint !== "function")
+      || (hasRuntimeCheckpointRestore && typeof participant.prepareRuntimeCheckpointRestore !== "function")) {
+      throw new PersistenceError("INVALID_PARTICIPANT",
+        `Participant "${id}" must provide both runtime checkpoint hooks as functions.`);
+    }
     if (participant.allowMissingSnapshot != null && typeof participant.allowMissingSnapshot !== "boolean") {
       throw new PersistenceError("INVALID_PARTICIPANT", `Participant "${id}" allowMissingSnapshot must be a boolean.`);
     }
@@ -196,6 +204,8 @@ export class Persistence {
       validateSnapshot: participant.validateSnapshot == null ? null : participant.validateSnapshot.bind(participant),
       migrateSnapshot: participant.migrateSnapshot == null ? null : participant.migrateSnapshot.bind(participant),
       prepareRestoreMissing: participant.prepareRestoreMissing == null ? null : participant.prepareRestoreMissing.bind(participant),
+      captureRuntimeCheckpoint: participant.captureRuntimeCheckpoint == null ? null : participant.captureRuntimeCheckpoint.bind(participant),
+      prepareRuntimeCheckpointRestore: participant.prepareRuntimeCheckpointRestore == null ? null : participant.prepareRuntimeCheckpointRestore.bind(participant),
       prepareRestore: participant.prepareRestore.bind(participant)
     });
     this.#participants.set(id, entry);
@@ -248,7 +258,9 @@ export class Persistence {
       // Capture and prepare every participant before the first live mutation.
       // A missing/invalid participant checkpoint aborts without running commit.
       for (const participant of participants) {
-        const snapshot = await participant.captureSnapshot();
+        const captureCheckpoint = participant.captureRuntimeCheckpoint ?? participant.captureSnapshot;
+        const prepareCheckpointRestore = participant.prepareRuntimeCheckpointRestore ?? participant.prepareRestore;
+        const snapshot = await captureCheckpoint();
         if (snapshot === undefined) {
           throw new PersistenceError("ATOMIC_CHECKPOINT_MISSING",
             `Participant "${participant.id}" did not provide a runtime rollback snapshot.`,
@@ -260,7 +272,7 @@ export class Persistence {
             `Participant "${participant.id}" rejected its runtime rollback snapshot.`,
             { participantId: participant.id });
         }
-        const transaction = await participant.prepareRestore(deepFreeze(detached), Object.freeze({
+        const transaction = await prepareCheckpointRestore(deepFreeze(detached), Object.freeze({
           metadata: Object.freeze({ kind: "runtime-checkpoint" }),
           storedVersion: participant.schemaVersion,
           schemaVersion: participant.schemaVersion,
