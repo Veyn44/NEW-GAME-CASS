@@ -1,8 +1,10 @@
 # Grid Geometry Contract — Working Proposal
 
-**Status:** Working contract; optional-grid decision approved, technical defaults proposed
+> **Post-merge status (2026-11-16):** The initial Grid Geometry capability described here is implemented and merged into `main` through PR #7. See [current-implementation-status.md](current-implementation-status.md) for verified slice status and remaining acceptance limits.
+
+**Status:** Initial Grid Geometry contract implemented and merged; refinements remain requirement-driven.
 **Scope:** Generic Engine grid geometry, bounds and coordinate semantics
-**Branch:** `work`
+**Integrated branch:** `main`
 **Source audit:** 2026-11-15
 
 This document defines the first usable grid contract for Engine. It separates geometry from cell contents, occupancy, environmental data, rendering and game rules. It is intended to let implementation proceed; technical defaults may be refined when concrete integration exposes a need.
