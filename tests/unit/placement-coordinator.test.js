@@ -216,3 +216,32 @@ test("Persistence rolls back the composite placement aggregate when a later part
   assert.deepEqual(s.spatial.getCellEntities("grid-b", { x: 5, y: 4 }), ["pawn:one"]);
   assert.deepEqual(s.spatial.getCellEntities("grid-a", { x: 1, y: 1 }), []);
 });
+
+
+test("grid-backed target requires an explicit grid anchor and footprint", () => {
+  const s = setup(); pawn(s.entities);
+  s.coordinator.placeEntity("pawn:one", gridTarget("grid-a", { x: 1, y: 1 }, [{ x: 0, y: 0 }]));
+  const placement = s.worldContext.getPlacement("pawn:one");
+  const occupancy = s.spatial.getEntityOccupancy("pawn:one");
+
+  throwsCode(() => s.coordinator.moveEntity("pawn:one", {
+    type: "world",
+    worldId: "grid-b",
+    position: { x: 4.5, y: 4.5 }
+  }), "GRID_TARGET_REQUIRED");
+
+  assert.equal(s.worldContext.getPlacement("pawn:one"), placement);
+  assert.equal(s.spatial.getEntityOccupancy("pawn:one"), occupancy);
+  assert.deepEqual(s.spatial.getCellEntities("grid-b", { x: 4, y: 4 }), []);
+});
+
+test("placeEntity rejects an explicitly non-grid target instead of coercing it", () => {
+  const s = setup(); pawn(s.entities);
+  throwsCode(() => s.coordinator.placeEntity("pawn:one", {
+    type: "world",
+    worldId: "grid-a",
+    position: { x: 2.5, y: 2.5 }
+  }), "INVALID_GRID_TARGET");
+  assert.equal(s.worldContext.getPlacement("pawn:one"), null);
+  assert.equal(s.spatial.getEntityOccupancy("pawn:one"), null);
+});
