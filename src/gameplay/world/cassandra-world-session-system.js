@@ -64,6 +64,7 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
   let worlds;
   let persistence;
   let scheduler;
+  let worldRuntime;
   let entities;
   let worldContext;
   let spatial;
@@ -92,6 +93,22 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
     return world;
   }
 
+  function ensureWorldReady(worldId) {
+    const state = worldRuntime.getState(worldId);
+    if (state.status === "Unloaded" || state.status === "Disposed") {
+      worldRuntime.beginLoading(worldId);
+      worldRuntime.markReady(worldId);
+    } else if (state.status !== "Ready") {
+      throw new CassandraWorldSessionError("WORLD_RUNTIME_NOT_READY",
+        `World "${worldId}" cannot be selected while its runtime is ${state.status}.`, { worldId, status: state.status });
+    }
+  }
+
+  function setWorldParticipation(worldId, enabled) {
+    ensureWorldReady(worldId);
+    worldRuntime.setSimulationEnabled(worldId, enabled);
+  }
+
   const api = Object.freeze({
     registerMainWorld(worldId) {
       commitPendingStepIfSuccessful();
@@ -100,8 +117,12 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
       if (mainWorldId !== null && mainWorldId !== id) {
         throw new CassandraWorldSessionError("MAIN_WORLD_ALREADY_REGISTERED", "Use setMainWorldWorld() to change the selected Main World.", { current: mainWorldId, requested: id });
       }
+      if (mainWorldId && mainWorldId !== id && worlds.has(mainWorldId)) {
+        worldRuntime.setSimulationEnabled(mainWorldId, false);
+      }
       mainWorldId = id;
       if (!worldTimes.has(id)) worldTimes.set(id, 0);
+      setWorldParticipation(id, true);
       if (worlds.activeWorldId !== id) worlds.activateWorld(id);
       return api.getState();
     },
@@ -113,8 +134,12 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
       if (temporaryWorldId !== null) {
         throw new CassandraWorldSessionError("TEMPORARY_WORLD_PENDING", "Return from or resolve the Temporary World before changing the Main World.");
       }
+      if (mainWorldId && mainWorldId !== id && worlds.has(mainWorldId)) {
+        worldRuntime.setSimulationEnabled(mainWorldId, false);
+      }
       mainWorldId = id;
       if (!worldTimes.has(id)) worldTimes.set(id, 0);
+      setWorldParticipation(id, true);
       worlds.activateWorld(id);
       return api.getState();
     },
@@ -148,6 +173,9 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
       });
       temporaryWorldId = id;
       worldTimes.set(id, 0);
+      setWorldParticipation(mainWorldId, false);
+      ensureWorldReady(id);
+      worldRuntime.setSimulationEnabled(id, true);
       worlds.activateWorld(id);
       return api.getState();
     },
@@ -162,6 +190,8 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
         throw new CassandraWorldSessionError("NO_TEMPORARY_WORLD", "There is no Temporary World to enter.");
       }
       requireGridWorld(temporaryWorldId, "Temporary World");
+      setWorldParticipation(mainWorldId, false);
+      setWorldParticipation(temporaryWorldId, true);
       worlds.activateWorld(temporaryWorldId);
       return api.getState();
     },
@@ -172,6 +202,10 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
         throw new CassandraWorldSessionError("MAIN_WORLD_NOT_REGISTERED", "No Main World is registered.");
       }
       requireGridWorld(mainWorldId, "Main World");
+      setWorldParticipation(mainWorldId, true);
+      if (temporaryWorldId && worlds.has(temporaryWorldId)) {
+        worldRuntime.setSimulationEnabled(temporaryWorldId, false);
+      }
       if (worlds.activeWorldId === mainWorldId) return api.getState();
       worlds.activateWorld(mainWorldId);
       return api.getState();
@@ -333,8 +367,18 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
               "Temporary World still has placements, occupancy or content after scoped cleanup.",
               { worldId: id });
           }
-          if (worlds.get(id)?.status !== "closed") worlds.closeWorld(id);
-          worlds.unregisterWorld(id);
+          if (worlds.has(id)) {
+            const runtimeState = worldRuntime.getState(id);
+            if (runtimeState.status === "Ready" || runtimeState.status === "Loading") {
+              worldRuntime.beginDisposal(id);
+              worldRuntime.finishDisposal(id);
+            } else if (runtimeState.status !== "Disposed") {
+              throw new CassandraWorldSessionError("TEMPORARY_WORLD_RUNTIME_NOT_DISPOSABLE",
+                "Temporary World runtime must be ready, loading or already disposed before registry removal.", { worldId: id, status: runtimeState.status });
+            }
+            if (worlds.get(id)?.status !== "closed") worlds.closeWorld(id);
+            worlds.unregisterWorld(id);
+          }
         }
 
         // Prepared commits are deliberately tiny, synchronous state swaps.
@@ -465,6 +509,7 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
     provides: ["game.world-session-api"],
     requires: [
       "core.world-registry",
+      "core.world-runtime",
       "core.persistence",
       "core.scheduler",
       "core.entity-registry",
@@ -475,6 +520,7 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
     ],
     initialize(context) {
       worlds = context.getService("core.world-registry");
+      worldRuntime = context.getService("core.world-runtime");
       persistence = context.getService("core.persistence");
       scheduler = context.getService("core.scheduler");
       entities = context.getService("core.entity-registry");
