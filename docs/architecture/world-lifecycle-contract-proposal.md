@@ -408,4 +408,4 @@ The CI result is not a substitute for launching the actual Pages/browser applica
 3. Treat parallel execution as a future optimization. The current contract guarantees deterministic multi-world simulation, not concurrent CPU execution.
 4. If Cassandra later supports several persistent colonies, define its host policy and UI separately; no Engine API redesign should be necessary.
 
-The implementation on `work` is not approved for merge to `main` until browser/Pages verification and the user's explicit approval.
+The implementation has been merged into `main` through PR #7. Remaining browser/Pages acceptance is tracked separately; see the post-merge status note at the top of this document.
