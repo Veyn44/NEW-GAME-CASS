@@ -532,7 +532,9 @@ test("Temporary World disposal restores every persistence participant after a mi
     assert.deepEqual(spatial.listContents({ worldId }).map((entry) => entry.contentId), [
       "content:atomic-disposal-rollback"
     ]);
-    assert.equal(state.context.getService("core.world-runtime").getState(worldId).status, "Ready");
+    const restoredRuntimeState = state.context.getService("core.world-runtime").getState(worldId);
+    assert.equal(restoredRuntimeState.status, "Ready");
+    assert.equal(restoredRuntimeState.simulationEnabled, false);
     assert.equal(state.context.getService("core.event-bus").pendingCount, 0);
   } finally {
     await state.runtime.destroy();
