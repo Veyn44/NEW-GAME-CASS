@@ -1,10 +1,10 @@
 # Phase 3 — Manual acceptance checklist
 
-> **Current status (2026-11-16):** Still prepared and not executed. Automated CI does not complete these checks. See [current-implementation-status.md](current-implementation-status.md) for the current acceptance gaps and environment-source limitation.
+> **Current status (2026-11-16):** Partially exercised by the user. The user confirms that established Cassandra behavior on `work` remains as it did before Phase 3 and that redundant test buttons were removed. All other items below remain pending unless separately recorded as passed. Automated CI does not complete these checks. See [current-implementation-status.md](current-implementation-status.md) for exact CI evidence and remaining gates.
 
-**Status:** Prepared, not executed. This checklist is intentionally reserved for the final phase review; it is not a request for user testing while implementation is still in progress.
+**Status:** Partial manual regression only; full Phase 3 browser acceptance is not complete.
 
-Automated CI currently covers the deterministic Core/host contracts. The following checks require a real browser, the actual application UI, or the target persistence platform.
+Automated CI covers deterministic Core/host contracts. The remaining checks require a real browser, the actual application UI, or the target persistence platform.
 
 ## Dev Lab UI
 
@@ -14,8 +14,9 @@ Automated CI currently covers the deterministic Core/host contracts. The followi
 - [ ] Attempt a move into an occupied footprint; verify the exact overlapping cells are highlighted and the diagnostic shows source, target, result and overlapping Entity IDs.
 - [ ] Open movement history and verify ordered attempts and outcomes.
 - [ ] Remove a test entity; reset the workspace; verify occupancy and movement history are cleared.
-- [ ] Save/reopen a current-format Dev Lab .cass workspace and verify markers/footprints rebuild without stale selection.
-- [ ] Import an unsupported historical .cass file and verify it is rejected without replacing the currently selected save or in-memory workspace.
+- [ ] Save/reopen a current-format standalone Dev Lab `.dlcass` workspace and verify markers/footprints rebuild without stale selection.
+- [ ] Import an unsupported historical `.dlcass` file and verify it is rejected without replacing the currently selected save or in-memory workspace.
+- [ ] Verify standalone Dev Lab rejects Cassandra `.cass` files and Cassandra rejects Dev Lab `.dlcass` files; each application must keep its own selected save target.
 
 ## Cassandra Main / Temporary World
 
