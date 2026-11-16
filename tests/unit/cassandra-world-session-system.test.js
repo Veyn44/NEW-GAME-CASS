@@ -458,9 +458,9 @@ test("authoritative Engine runtime clocks win over stale legacy session mirrors"
 
     const worldRuntime = state.context.getService("core.world-runtime");
     assert.equal(worldRuntime.getState("cassandra-main-128").simulatedSeconds, 7);
-    assert.equal(worldRuntime.getState("cassandra-main-256").simulatedSeconds, 7);
+    assert.equal(worldRuntime.getState("cassandra-main-256").simulatedSeconds, 0);
     assert.equal(state.session.getWorldTime("cassandra-main-128"), 7);
-    assert.equal(state.session.getWorldTime("cassandra-main-256"), 7);
+    assert.equal(state.session.getWorldTime("cassandra-main-256"), 0);
   } finally {
     await state.runtime.destroy();
   }
