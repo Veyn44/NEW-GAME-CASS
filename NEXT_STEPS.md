@@ -1,6 +1,6 @@
-# Next Steps and Development Roadmap
+# Project Status, Decisions and Open Directions
 
-> **Canonical roadmap status:** 2026-11-16, post-merge. `main` is the integrated baseline; future implementation branches must start from the then-current `main`. Source code and tests remain authoritative; exact implementation status and CI evidence are summarized in [Current implementation status](docs/architecture/current-implementation-status.md).
+> **Document status:** 2026-11-16, post-merge. This document records confirmed project direction, completed milestones and current constraints. It is not an approved roadmap or a commitment to a sequence of future phases. `main` is the integrated baseline; future work should start from the then-current `main` on a dedicated branch and PR. Source code and tests remain authoritative; exact implementation status and CI evidence are summarized in [Current implementation status](docs/architecture/current-implementation-status.md).
 
 **Product direction:** Cassandra is the primary project. The reusable Engine is developed from concrete Cassandra needs, while remaining technically independent of Cassandra-specific rules, content and presentation. Dev Lab is a development/verification tool that exercises the real shared runtime; it must not become a shipped-game dependency or a parallel implementation.
 
@@ -45,48 +45,26 @@ Dev Lab owns editor/test UI, spatial inspection and controlled test scenarios. I
 ### Persistence
 Engine owns generic snapshot/restore contracts. Cassandra and Dev Lab own separate storage adapters, formats and save identities. Cross-application save compatibility is not required. Unsupported old formats may be rejected safely; do not invent a migration chain.
 
-## Roadmap status
+## Completed development phases
 
-### Phase 0 — Baseline and repository protection
-**Completed for the current working branch.** The branch split and current CI evidence are recorded in the implementation-status document. Re-check the live branch and test state before each new implementation slice.
+- **Phase 0 — Baseline and repository protection:** completed for the integrated project baseline. Re-check live branch and test state before future implementation work.
+- **Phase 1 — Architecture and ownership:** the Engine / Cassandra / Dev Lab responsibility split and dependency direction are established. New public contracts still require focused design and approval where open.
+- **Phase 2 — Repository restructuring:** completed and merged to `main` through PR #6 on 2026-11-14.
+- **Phase 3 — Engine physical-world foundation and application integration:** merged to `main` through PR #7 on 2026-11-16. Slices 1–6 are implemented; Slice 7 provides partial Cassandra infrastructure; Slice 8 has automated Dev Lab integration coverage; final manual/browser acceptance and several later-scope checks remain open. See [Current implementation status](docs/architecture/current-implementation-status.md) for exact boundaries.
 
-### Phase 1 — Architecture and ownership
-**Agreed at the current conceptual level.** Engine/Dev Lab/Cassandra ownership and dependency direction are established. Individual new public contracts still require focused design and approval where marked open.
+The phase labels above describe completed historical work and its current implementation status. They do not imply that a subsequent numbered phase has been approved.
 
-### Phase 2 — Repository restructuring
-**Completed and merged to `main` through PR #6 on 2026-11-14.** Do not restart the mechanical restructuring. Remaining boundary cleanup is follow-up work only when a concrete dependency requires it.
+## Possible future directions (not approved)
 
-### Phase 3 — Engine physical-world foundation and application integration
-**Phase 3 infrastructure and integration have been merged into `main`; current Pages workflow is manually accepted, with separate later-scope checks explicitly deferred.**
+The next body of work has not been selected. Possible areas to explore include improving direct browser verification of the current applications, defining Cassandra's game and campaign experience in more detail, and extending reusable Engine capabilities when concrete Cassandra needs justify them. These are only broad discussion topics, not prioritized tasks, accepted scope, or a delivery sequence. The next phase and its requirements will be defined together when we are ready to plan it.
 
-- **Slices 1–6 — implemented:** Grid Geometry, Spatial Composition, Spatial Queries, Movement, coordinated spatial persistence and Core Assembly integration.
-- **Slice 7 — partially implemented:** Cassandra grid-backed Unit movement, Main/Temporary World session policy, runtime identity projection and persistence, Change Package/Change Buffer protocol foundations, and a candidate IndexedDB compare-and-swap backend exist. Authoritative campaign aggregate/domain handlers, full expedition workflow, complete reconciliation/disposition rules and real-browser backend verification remain open.
-- **Slice 8 — implemented at the automated integration level:** Dev Lab spatial inspection and controlled test workflows use the shared Engine services. Actual browser interaction/layout acceptance remains open.
-- **Slice 9 — pending final acceptance:** automated CI coverage exists, but the manual/browser acceptance checklist has not been executed.
+## Current handoff
 
-Do not interpret “Slice 7 foundations implemented” as “Cassandra expedition gameplay is complete”. Do not invent missing campaign or environment rules to close a checklist.
+The pre-merge audit is complete and `work` was merged into `main` through PR #7. The merge commit is `0a879ed0ef955110b069b9e89bb420ead4f58737`. The exact merge-commit Core/Host workflow [43940567950](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43940567950) completed successfully.
 
-### Phase 4 — Direct testing readiness for Cassandra and Dev Lab
-**Next planned phase after the completed merge.** The agreed goal is to prepare the existing Cassandra and Dev Lab implementations for direct browser testing of what already exists. Scope should focus on reliable entry points, host composition, accessible test workflows, diagnostics, and save/load interaction. It is not a gameplay feature phase and must not invent campaign, inventory, health, equipment, resource, crew, disposition or expedition rules. Define the exact Phase 4 slices together after the merge.
+The current task is documentation reconciliation in PR #8, on the dedicated documentation branch. Once the documentation is reviewed and merged with the user's explicit approval, we will decide together what Cassandra needs next. No post-Phase-3 implementation phase, slice sequence or immediate gameplay task has been agreed.
 
-### Phase 5 — Cassandra as an independent game host
-**Not complete.** The current branch contains a Cassandra application/runtime prototype and infrastructure integrations, not the complete campaign/gameplay experience. Continue only through jointly designed, bounded gameplay slices.
-
-### Phase 6 — Single Pages deployment and acceptance
-**Pending owner-led browser verification.** Verify actual Pages source/configuration, direct entry points, refresh/deep links, assets, browser console, save/load and both application workflows. Do not infer successful deployment from workflow syntax checks.
-
-### Phase 7 — Architecture audit and stable milestone
-**Pending.** Run after the implementation scope and acceptance gates are complete. Audit dependency boundaries, duplication, dead code, runtime/browser behavior, persistence, test quality and measured performance. Fix findings in small separately verifiable changes.
-
-## Immediate next step
-
-The pre-merge audit is complete and `work` has been merged into `main` through PR #7. The merge commit is `0a879ed0ef955110b069b9e89bb420ead4f58737`. The exact merge-commit Core/Host workflow [43940567950](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43940567950) completed successfully.
-
-The immediate documentation task is to reconcile the canonical roadmap, implementation index, work log and architecture contracts with the merged repository state. After that documentation PR is reviewed and merged, plan Phase 4 together. Phase 4 is a browser-readiness/acceptance phase for the existing Cassandra and Dev Lab implementations—not a gameplay feature phase.
-
-Phase 4 planning should cover reliable entry points, host composition, repeatable browser test workflows, diagnostics, save/load interaction and explicit manual acceptance gates. Do not invent campaign, inventory, health, equipment, resource, crew, disposition or expedition rules to make a checklist appear complete.
-
-The full current status, verified CI evidence and outstanding manual gates are maintained in [Current implementation status](docs/architecture/current-implementation-status.md).
+The full implementation status, verified CI evidence and outstanding manual gates are maintained in [Current implementation status](docs/architecture/current-implementation-status.md).
 
 ## Protected constraints
 
@@ -110,6 +88,6 @@ The lifecycle controller now supports explicit create/open/load/close and is exp
 
 **Important product boundary:** the current Pages entry point is still a development/test host. A separate, complete Cassandra game and player-facing Campaign selection UI do not exist yet. Do not describe this lifecycle seam as a finished game integration.
 
-### Next engineering slice
+### Next engineering decision
 
-No additional Campaign gameplay slice is authorized as the immediate next step. Complete the post-merge documentation reconciliation, then plan Phase 4 around direct browser testing of the existing implementation. Any later Campaign aggregate or typed Change Package work still requires a separate domain contract and acceptance criteria.
+No next implementation slice has been selected. Campaign aggregate models, typed Change Package handlers and further gameplay/domain work require separate joint design and acceptance criteria before implementation.
