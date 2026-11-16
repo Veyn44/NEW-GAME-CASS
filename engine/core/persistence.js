@@ -198,6 +198,108 @@ export class Persistence {
     return Object.freeze([...this.#participants.keys()].sort());
   }
 
+  /**
+   * Runs a synchronous multi-system runtime mutation with an in-memory
+   * rollback checkpoint built from every registered persistence participant.
+   *
+   * prepare() must be synchronous and side-effect-free. It runs at the safe
+   * boundary before the checkpoint is captured. commit(plan) must be
+   * synchronous. If commit throws, each participant is restored from the
+   * checkpoint in normal dependency order before the original error is
+   * rethrown. A failed restoration is surfaced as a fatal integrity error.
+   */
+  runAtomicMutation({ prepare, commit } = {}) {
+    if (typeof prepare !== "function" || typeof commit !== "function") {
+      throw new PersistenceError("INVALID_ATOMIC_MUTATION",
+        "Runtime atomic mutation requires synchronous prepare() and commit(plan) functions.");
+    }
+
+    return this.#runAtSafeBoundary(async () => {
+      const plan = prepare();
+      if (plan && typeof plan.then === "function") {
+        throw new PersistenceError("ASYNC_ATOMIC_PREPARATION",
+          "Runtime atomic mutation preparation must be synchronous and side-effect-free.");
+      }
+
+      const participants = [...this.#participants.values()]
+        .sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
+      const prepared = [];
+
+      // Capture and prepare every participant before the first live mutation.
+      // A missing/invalid participant checkpoint aborts without running commit.
+      for (const participant of participants) {
+        const snapshot = await participant.captureSnapshot();
+        if (snapshot === undefined) {
+          throw new PersistenceError("ATOMIC_CHECKPOINT_MISSING",
+            `Participant "${participant.id}" did not provide a runtime rollback snapshot.`,
+            { participantId: participant.id });
+        }
+        const detached = cloneSerializable(snapshot, `runtimeCheckpoint.${participant.id}`);
+        if (participant.validateSnapshot && await participant.validateSnapshot(detached) !== true) {
+          throw new PersistenceError("ATOMIC_CHECKPOINT_INVALID",
+            `Participant "${participant.id}" rejected its runtime rollback snapshot.`,
+            { participantId: participant.id });
+        }
+        const transaction = await participant.prepareRestore(deepFreeze(detached), Object.freeze({
+          metadata: Object.freeze({ kind: "runtime-checkpoint" }),
+          storedVersion: participant.schemaVersion,
+          schemaVersion: participant.schemaVersion,
+          runtimeCheckpoint: true
+        }));
+        if (!transaction || typeof transaction.commit !== "function"
+          || typeof transaction.rollback !== "function") {
+          throw new PersistenceError("INVALID_ATOMIC_CHECKPOINT",
+            `Participant "${participant.id}" did not prepare a reversible runtime checkpoint.`,
+            { participantId: participant.id });
+        }
+        prepared.push({ participantId: participant.id, transaction });
+      }
+
+      try {
+        const result = commit(plan);
+        if (result && typeof result.then === "function") {
+          throw new PersistenceError("ASYNC_ATOMIC_COMMIT",
+            "Runtime atomic mutation commit must be synchronous; asynchronous work belongs before prepare().");
+        }
+        return result;
+      } catch (cause) {
+        const restoreFailures = [];
+        // Participant order is the same dependency order used by load():
+        // registries first, then placements/runtime, then domain participants.
+        for (const item of prepared) {
+          try {
+            await item.transaction.commit();
+          } catch (restoreError) {
+            let rollbackError = null;
+            try { await item.transaction.rollback(); }
+            catch (error) { rollbackError = error; }
+            restoreFailures.push({
+              participantId: item.participantId,
+              restoreError: restoreError?.message ?? String(restoreError),
+              rollbackError: rollbackError?.message ?? null
+            });
+          }
+        }
+
+        if (restoreFailures.length) {
+          this.#log("critical", "Runtime mutation failed and its rollback checkpoint could not be fully restored.", {
+            cause: cause?.message ?? String(cause),
+            restoreFailures
+          });
+          throw new PersistenceError("ATOMIC_MUTATION_ROLLBACK_FAILED",
+            "Runtime mutation failed and one or more persistence participants could not restore the pre-mutation state.",
+            { cause, restoreFailures });
+        }
+
+        this.#log("warn", "Runtime mutation failed; all persistence participants were restored from the in-memory checkpoint.", {
+          cause: cause?.message ?? String(cause),
+          participantCount: prepared.length
+        });
+        throw cause;
+      }
+    });
+  }
+
   async save(slotId, { stateId, seed = null, kind = "manual" } = {}) {
     assertSlotId(slotId);
     if (typeof stateId !== "string" || !stateId.trim()) {
