@@ -197,4 +197,11 @@ test("Cassandra adapter rejects Dev Lab files even when their JSON payload is re
     }),
     (error) => error.code === "INVALID_SAVE_EXTENSION"
   );
+  await assert.rejects(
+    adapter.importFile({
+      name: "renamed-dev-lab-save.cass",
+      async text() { return envelope(sampleSave, DEV_LAB_SAVE_FORMAT); }
+    }),
+    (error) => error.code === "INCOMPATIBLE_SAVE_FILE"
+  );
 });
