@@ -1,5 +1,7 @@
 # World Lifecycle — Design Proposal
 
+> **SUPERSEDED (2026-11-16):** This is a historical, non-binding pre-implementation proposal. The agreed initial contract and implemented behavior are documented in [world-lifecycle-contract-proposal.md](world-lifecycle-contract-proposal.md); current implementation and verification status are in [current-implementation-status.md](current-implementation-status.md). Do not use this proposal's independent-clock recommendations or open-decision list as current requirements.
+
 > **Status:** Non-binding proposal for review. No Engine API or behavior is approved by this document.
 > **Branch:** work
 > **Scope:** First Engine design slice: world lifecycle, simulation ownership, time and host presentation boundaries.

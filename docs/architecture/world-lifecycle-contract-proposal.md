@@ -1,5 +1,7 @@
 # World Lifecycle Contract
 
+> **Current verification status (2026-11-16):** The implementation and CI evidence are summarized in [current-implementation-status.md](current-implementation-status.md). The contract is implemented on `work`; real host/browser acceptance remains pending.
+
 **Status:** Initial deterministic multi-world contract implemented on `work`; pending host/browser verification  
 **Scope:** Engine Core world lifecycle, simulation participation, time, failure isolation and persistence  
 **Branch:** `work`  

@@ -1,5 +1,7 @@
 # Phase 3 — Manual acceptance checklist
 
+> **Current status (2026-11-16):** Still prepared and not executed. Automated CI does not complete these checks. See [current-implementation-status.md](current-implementation-status.md) for the current acceptance gaps and environment-source limitation.
+
 **Status:** Prepared, not executed. This checklist is intentionally reserved for the final phase review; it is not a request for user testing while implementation is still in progress.
 
 Automated CI currently covers the deterministic Core/host contracts. The following checks require a real browser, the actual application UI, or the target persistence platform.

@@ -1,5 +1,7 @@
 # Phase 3 Physical World — Implementation Plan
 
+> **Current status supersession (2026-11-16):** Use [current-implementation-status.md](current-implementation-status.md) for the live slice status and verified CI evidence. Status paragraphs, test counts and “current gap” statements below are retained as implementation history and must not override that index.
+
 **Status:** Slices 1–6 are implemented on `work`; initial Dev Lab spatial test workflows, Cassandra grid/Unit movement, Main/Temporary World session and the first Change Package protocol foundation are implemented. Production campaign persistence, domain integration and final acceptance remain in progress. Automated tests may run during implementation; user-led acceptance testing remains deferred until Phase 3 is complete. The latest confirmed GitHub Actions run `43764452167` passed 205/205 Core tests and 249/249 host tests.  
 **Branch:** `work`  
 **Source audit:** 2026-11-15  

@@ -1,5 +1,7 @@
 # Engine / Cassandra / Dev Lab — Capability and Ownership Review
 
+> **Implementation status note (2026-11-16):** This document remains the conceptual ownership/gap map. Its pre-implementation “Current gap” descriptions are historical and have been superseded where implementation exists. Use [current-implementation-status.md](current-implementation-status.md) for the live implementation state; “Candidate” and “Open” ownership decisions remain non-binding unless separately approved.
+
 > **Purpose:** Consolidate the current Engine implementation, Cassandra's agreed and proposed gameplay needs, and Dev Lab's development-tool requirements into one ownership and capability map.
 >
 > **Status:** Review document — not an implementation approval.

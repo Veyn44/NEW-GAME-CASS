@@ -1,5 +1,7 @@
 # Phase 3 Cross-Contract Integration Audit
 
+> **Current status supersession (2026-11-16):** This audit remains useful for its cross-contract reasoning, but its implementation-status paragraphs and CI counts are a dated snapshot. Use [current-implementation-status.md](current-implementation-status.md) for current implementation and acceptance status. The initial multi-world runtime remains global fail-stop; per-world fault isolation is deferred.
+
 **Status:** Documentation audit completed; implementation specification still requires focused closure  
 **Branch:** `work`  
 **Audit date:** 2026-11-15  
@@ -28,7 +30,7 @@ One documentation conflict was found and corrected during this audit: older word
 | Cell composition | Spatial Composition | Sparse contents; multiple independent contents/entities per cell; empty is neutral; vacuum is explicit | Consistent |
 | Spatial queries | Spatial Composition query surface | Read-only, deterministic, bounded, no hidden activation/materialization/mutation | Consistent |
 | Movement | Spatial Movement + host policy | Engine commits geometry only; Cassandra decides passability, speed and consequences | Consistent |
-| Simulation time | GameClock/Scheduler + world-local time | One global time base; only successful world steps advance that world's local time; paused worlds do not age | Consistent |
+| Simulation time | GameClock/Scheduler + world-local time | One global time base; only successful world steps advance that world's local time; paused worlds do not age | Implemented on `work`; global fail-stop remains |
 | Expedition projection | Cassandra | Persistent campaign identity is distinct from temporary runtime entity identity; explicit mapping | Consistent |
 | Expedition result | Cassandra Change Package | Immutable, durable package; explicit disposition/reconciliation; no whole-Main-World replacement | Consistent |
 | Campaign promotion | Cassandra Major State + Change Buffer | Build isolated Candidate; validate all; atomically promote Major State + Applied ledger | Consistent |
@@ -184,7 +186,7 @@ Every scenario below must be covered by an automated test or a clearly identifie
 - Only successful steps advance the relevant world-local simulated time.
 - Paused Main World time remains unchanged during an expedition.
 - Rendering/focus/selection do not advance simulation.
-- A world-local failure is isolated; a shared infrastructure failure may stop the runtime.
+- A task failure still faults/pauses the global scheduler; per-world failure isolation is deferred.
 - A world that fails after partial synchronous mutation is not resumed without restore/rebuild or an explicitly added transactional mechanism.
 
 ### F. Persistence and restore
