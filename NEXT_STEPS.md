@@ -77,7 +77,7 @@ Do not interpret “Slice 7 foundations implemented” as “Cassandra expeditio
 
 ## Immediate next step
 
-The current task is a pre-merge audit of `work` against `main`. Continue only with source-backed merge blockers and small, testable corrections; do not expand features or begin Phase 4 during this audit. The latest verified source/test checkpoint is `35bab1be841e3471be1bb721a7dd0ed5dfe06343` with 233/233 Core tests, 293/293 Host tests, browser syntax checks, development preview deployment and GitHub Pages deployment all successful.
+The current task is a pre-merge audit of `work` against `main`. Continue only with source-backed merge blockers and small, testable corrections; do not expand features or begin Phase 4 during this audit. The latest verified source/test checkpoint is `99fe57c824aa4e40d575ec0206e5b2adc2dd77eb` with 233/233 Core tests, 294/294 Host tests, browser syntax checks, development preview deployment and GitHub Pages deployment all successful. It also includes regression coverage for disposing a Temporary World Unit after its placement has already been removed.
 
 When the audit has only minor/accepted gaps remaining, present the merge-readiness report and wait for the user's explicit approval. After the merge, plan Phase 4 together around direct browser testing of the existing Cassandra/Dev Lab implementation.
 
