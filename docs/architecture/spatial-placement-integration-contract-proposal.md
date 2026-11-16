@@ -197,7 +197,7 @@ Presentation remains a read-only consumer and must not write either representati
 
 ## 11. Remaining integration details
 
-The Engine-side coordinator, prepared-state mechanism, Core Assembly service registration, composite participant schema, internal mutation capability and fatal-fault clock pause are implemented on `work`.
+The Engine-side coordinator, prepared-state mechanism, Core Assembly service registration, composite participant schema, internal mutation capability and fatal-fault clock pause are implemented and merged into `main`.
 
 The remaining work is application-facing and deliberately separate:
 - Cassandra must decide which entity/domain classes participate in grid occupancy.
