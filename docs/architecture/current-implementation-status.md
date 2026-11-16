@@ -4,7 +4,7 @@
 **Repository:** `Veyn44/NEW-GAME-CASS`  
 **Working branch:** `work`  
 **Latest verified source/test checkpoint:** `35bab1be841e3471be1bb721a7dd0ed5dfe06343`  
-**Documentation follow-up:** `b50bf3f14aedf29fb42aa76271fe17df4b868f54`  
+**Documentation follow-up series:** `b50bf3f14aedf29fb42aa76271fe17df4b868f54`, `6d05de7c1c9436edd3141efe9670664216727468`, `cb89a02379c9b0f5e5c004649259077253ec1ee2`, `1b7faf15a8cff659fc7a5085f635ad275cfc5f7f`, `57f46f6ac656a51bebf6fafcc9f7ad986328e73c`, `0d01c3530c9c28c1283a05ef2f245a8bf4f475b1`  
 **Audited main HEAD:** `458ecc52d4267b6b31fb3d59559374533c49fa64`  
 **Documentation reconciliation commits:** `bdbf56312f3e5e24ccd5f7da83b4d519a991a928`, `2d52d21bbbe183b7199c6b1d85153f14c6326bb4`, `b50bf3f14aedf29fb42aa76271fe17df4b868f54`
 
@@ -14,7 +14,7 @@ This is the current status index for the implementation described by the Phase 3
 
 - All work described here is on `work`.
 - `main` remains at `458ecc52d4267b6b31fb3d59559374533c49fa64` and is not part of this work.
-- The latest verified source/test checkpoint is `35bab1be841e3471be1bb721a7dd0ed5dfe06343`; subsequent commits in this audit are documentation-only or narrowly scoped regression-test/source corrections recorded below.
+- The latest verified source/test checkpoint is `35bab1be841e3471be1bb721a7dd0ed5dfe06343`. The subsequent commits listed in the documentation follow-up series are documentation-only; they do not change runtime or test source.
 - No merge or pull request is authorized by this status record.
 
 ## 2. Phase 3 implementation summary
@@ -40,7 +40,7 @@ The initial deterministic multi-world lifecycle contract is implemented on `work
 ### Ownership and behavior now present
 
 - `engine/core/world-runtime-manager.js` provides `WorldRuntimeManager` and `WorldRuntimeError`, published as `core.world-runtime`.
-- World Registry continues to own registered world descriptors. World Runtime Manager separately owns runtime readiness/lifecycle, simulation participation, pause reasons, committed local simulated time and completed local steps.
+- World Registry continues to own registered world descriptors. World Runtime Manager separately owns runtime readiness/lifecycle, simulation participation, pause reasons, committed local simulated time and completed local steps. It installs a lifecycle guard so direct registry close/unregister cannot bypass runtime disposal or occur during an active simulation round.
 - Multiple worlds may be Ready and may participate in the same global simulation round.
 - Simulation tasks support `scope: "global"` and `scope: "world"` within one dependency-ordered task sequence. Existing tasks default to Global.
 - World tasks execute in deterministic ascending ordinal world-ID order and receive immutable world context.
@@ -104,7 +104,7 @@ The existing infrastructure is a foundation only. The outstanding gameplay/domai
 
 The checkpoint includes the Campaign session lifecycle, Applied-ledger host integration, persistence rollback fail-stop, spatial read-only mutation guards, World Registry lifecycle guard, non-grid Entity Registry placement guard, save-target rollback and serialized file operations.
 
-The following commit `b50bf3f14aedf29fb42aa76271fe17df4b868f54` updates documentation only; its workflows are being checked separately. The code/test checkpoint above remains the latest verified runtime/test state.
+The documentation-only follow-ups after `35bab1be841e3471be1bb721a7dd0ed5dfe06343` update implementation notes, the manual checklist and the agreed Phase 4 objective. They do not change the verified runtime/test source checkpoint.
 
 CI and syntax checks do not prove all browser interactions, real IndexedDB strict durability, cross-tab behavior, crash/reopen recovery or performance.
 
@@ -125,6 +125,7 @@ Outstanding categories include:
 
 - `docs/architecture/world-lifecycle-design-proposal.md` is an old, non-binding pre-implementation proposal. It is historical context, not the current lifecycle contract.
 - `docs/architecture/world-lifecycle-contract-proposal.md` is the current lifecycle contract and records the implemented initial Engine contract with host/browser verification still pending.
+- `main` contains `docs/architecture/spatial-placement-persistence-integration-proposal.md` as a proposal-only addition after the merge base. The composite World Context + Spatial Composition persistence participant is already implemented and tested on `work`; after merge, that proposal should be marked as implemented/superseded rather than treated as open runtime work.
 - Older pre-implementation “Current gap” statements in the capability map and older status/test-count paragraphs in the Phase 3 plan are historical snapshots. Use this status index for the current state; do not treat old proposed steps as unimplemented when their implementation is recorded above.
 
 ## 9. Next engineering decision
@@ -154,11 +155,11 @@ After the audit is accepted and `work` is merged, Phase 4 will be planned jointl
 - Campaign identity is supplied by the caller; there is no generated/default campaign ID and no implicit switch while another Campaign is open.
 - Creation requires an explicit initial Major State / Change Buffer / Applied Ledger snapshot, writes it with revision-0 compare-and-swap, and verifies the reopened durable revision. Opening only accepts an existing durable campaign record.
 - The controller's Applied-ledger verifier checks the exact package ID, digest and `applied` status; without an active Campaign it returns false.
-- Cassandra Application Shell owns this controller and injects the verifier into Runtime Host. The `.cass` workspace adapter and its save flow remain separate and unchanged.
+- Cassandra Application Shell owns this controller and injects the verifier into Runtime Host. The `.cass` workspace format remains separate from Campaign IndexedDB persistence. Later pre-merge audit work hardened file-target rollback and serialized save/load/import operations without changing the `.cass` envelope.
 - `application-entry.js` exports `cassandraApplication` so Pages/manual testing can access `campaignSessionApi`. This is a development/test seam, not a finished game UI; no separate Cassandra game or Campaign selection UI exists yet.
 - Focused lifecycle tests were added in `tests/unit/cassandra-campaign-session-controller.test.js` and are included in the later successful Host test suite [43890217044](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43890217044).
 - The Change Package Coordinator remains uninstantiated until authoritative campaign aggregate models and approved domain handlers/manifest reconciliation exist.
-- Real-browser IndexedDB strict-durability and crash/reopen acceptance remain pending. No Engine or environment simulation changes; `main` remains unchanged.
+- Real-browser IndexedDB strict-durability and crash/reopen acceptance remain pending. No environment simulation changes; later narrowly scoped Engine audit corrections are recorded below. `main` remains unchanged.
 
 
 ### Campaign verifier host regression
@@ -180,4 +181,4 @@ The following narrowly scoped corrections were made on `work` after source revie
 
 All these corrections are included in the verified source/test checkpoint `35bab1be841e3471be1bb721a7dd0ed5dfe06343` and its successful CI run [43890217044](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43890217044). The development preview and GitHub Pages deployment for that checkpoint also succeeded.
 
-Remaining merge gates are full manual/browser acceptance, real-browser IndexedDB durability and interruption tests, performance measurements, and identifying the authoritative environment simulation host/baseline. No environment simulation source was changed. `main` remains untouched.
+Remaining merge gates are full manual/browser acceptance, real-browser IndexedDB durability and interruption tests, performance measurements, and identifying the authoritative environment simulation host/baseline. No environment simulation source was changed. `main` remains untouched. The latest main-only difference is one documentation proposal for spatial-placement persistence; no runtime code is missing from `work` because of the two commits ahead on `main`.
