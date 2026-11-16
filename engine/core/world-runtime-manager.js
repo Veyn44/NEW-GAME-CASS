@@ -177,6 +177,22 @@ export class WorldRuntimeManager {
   }
 
   validateStep(participants, deltaSeconds) {
+    this.#prepareStep(participants, deltaSeconds);
+    return true;
+  }
+
+  commitStep(participants, deltaSeconds) {
+    const updates = this.#prepareStep(participants, deltaSeconds);
+    // All values are validated before any record is changed. These assignments
+    // are synchronous and invoke no host callbacks.
+    for (const update of updates) {
+      update.record.simulatedSeconds = update.simulatedSeconds;
+      update.record.completedSteps = update.completedSteps;
+    }
+    return updates.length;
+  }
+
+  #prepareStep(participants, deltaSeconds) {
     if (!Array.isArray(participants)) {
       throw new WorldRuntimeError("INVALID_PARTICIPANTS", "Simulation participants must be an array.");
     }
@@ -207,13 +223,7 @@ export class WorldRuntimeManager {
 
   commitStep(participants, deltaSeconds) {
     const updates = this.validateStep(participants, deltaSeconds);
-    // All values are validated before any record is changed. These assignments
-    // are synchronous and invoke no host callbacks.
-    for (const update of updates) {
-      update.record.simulatedSeconds = update.simulatedSeconds;
-      update.record.completedSteps = update.completedSteps;
-    }
-    return updates.length;
+    return updates;
   }
 
   createPersistenceParticipant({ id = "core.world-runtime", order = -85 } = {}) {

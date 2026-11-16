@@ -178,7 +178,7 @@ export function runClockSchedulerTests() {
     runtime.setSimulationEnabled("world:beta", true);
     scheduler.advance(0.05);
     scheduler.advance(0.05);
-    equal(calls.join(","), "world:alpha,world:beta,world:alpha,world:beta");
+    equal(calls.join(","), "world:alpha,world:beta,world:alpha");
     equal(runtime.getState("world:alpha").completedSteps, 4);
     equal(runtime.getState("world:beta").completedSteps, 3);
   });

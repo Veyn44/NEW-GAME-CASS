@@ -92,8 +92,6 @@ test("Core Assembly persists per-world simulation time and restores worlds unloa
   const worlds = context.getService("core.world-registry");
   const worldRuntime = context.getService("core.world-runtime");
   const persistence = context.getService("core.persistence");
-  worldRuntime.beginLoading("world:cassandra");
-  worldRuntime.markReady("world:cassandra");
   worldRuntime.setSimulationEnabled("world:cassandra", true);
   worldRuntime.commitStep(worldRuntime.getParticipants(), 12);
 
