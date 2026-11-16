@@ -145,6 +145,7 @@ function validateRecord(raw, index) {
 export class EntityRegistry {
   #entities = new Map();
   #spatialOccupancyGuard = null;
+  #placementGuard = null;
   #idFactory;
   #scopeCounters = new Map();
   #logger;
@@ -231,6 +232,7 @@ export class EntityRegistry {
   store(id) {
     const current = this.#require(id);
     if (this.#spatialOccupancyGuard?.(id)) throw new EntityRegistryError("GRID_COORDINATOR_REQUIRED", "An entity with grid occupancy must be stored through PlacementCoordinator.", { id });
+    if (this.#placementGuard?.(id)) throw new EntityRegistryError("PLACEMENT_COORDINATOR_REQUIRED", "An entity with a World Context placement must be stored through its placement owner.", { id });
     if (current.status !== "active" || current.scope !== "scoped") {
       throw new EntityRegistryError("ENTITY_NOT_STORABLE", `Entity "${id}" is not an active scoped entity.`, { id, scope: current.scope, status: current.status });
     }
@@ -248,6 +250,13 @@ export class EntityRegistry {
     if (typeof guard !== "function") throw new EntityRegistryError("INVALID_OCCUPANCY_GUARD", "Occupancy guard must be a function.");
     if (this.#spatialOccupancyGuard && this.#spatialOccupancyGuard !== guard) throw new EntityRegistryError("OCCUPANCY_GUARD_ALREADY_SET", "Occupancy guard already installed.");
     this.#spatialOccupancyGuard = guard;
+  }
+
+  setPlacementGuard(guard, authority) {
+    if (authority !== PLACEMENT_AUTHORITY) throw new EntityRegistryError("PLACEMENT_AUTHORITY_REQUIRED", "Only Engine placement services may install the placement guard.");
+    if (typeof guard !== "function") throw new EntityRegistryError("INVALID_PLACEMENT_GUARD", "Placement guard must be a function.");
+    if (this.#placementGuard && this.#placementGuard !== guard) throw new EntityRegistryError("PLACEMENT_GUARD_ALREADY_SET", "Placement guard already installed.");
+    this.#placementGuard = guard;
   }
 
   prepareCoordinatedLifecycleChange(id, operation, authority) {
@@ -273,6 +282,7 @@ export class EntityRegistry {
   /** Marks a stored identity as active again; world placement is handled elsewhere. */
   activateStored(id) {
     const current = this.#require(id);
+    if (this.#placementGuard?.(id)) throw new EntityRegistryError("PLACEMENT_COORDINATOR_REQUIRED", "An entity with a storage placement must be reactivated through its placement owner.", { id });
     if (current.status !== "stored") {
       throw new EntityRegistryError("ENTITY_NOT_STORED", `Entity "${id}" is not stored.`, { id, status: current.status });
     }
@@ -285,6 +295,7 @@ export class EntityRegistry {
   remove(id) {
     const current = this.#require(id);
     if (this.#spatialOccupancyGuard?.(id)) throw new EntityRegistryError("GRID_COORDINATOR_REQUIRED", "An entity with grid occupancy must be retired through PlacementCoordinator.", { id });
+    if (this.#placementGuard?.(id)) throw new EntityRegistryError("PLACEMENT_COORDINATOR_REQUIRED", "An entity with a World Context placement must be retired through its placement owner.", { id });
     if (current.status === "removed") return false;
     this.#entities.set(id, freezeRecord({ ...current, status: "removed" }));
     return true;
