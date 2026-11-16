@@ -80,6 +80,7 @@ export function createCassandraRuntimeHost({
   resolveRuntimeServices = resolveCassandraRuntimeServices,
   saveAdapter,
   inputController,
+  isPackageApplied = null,
   onUnitMoved,
   updateFreeCamera,
   shouldAdvance = () => true,
@@ -93,7 +94,7 @@ export function createCassandraRuntimeHost({
   return createApplicationRuntimeHost({
     createRuntime: (options) => createRuntime(options),
     resolveRuntimeServices,
-    runtimeOptions: { saveAdapter, inputController, onUnitMoved, updateFreeCamera },
+    runtimeOptions: { saveAdapter, inputController, isPackageApplied, onUnitMoved, updateFreeCamera },
     requestFrame,
     cancelFrame,
     shouldAdvance,
