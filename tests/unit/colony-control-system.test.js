@@ -194,3 +194,55 @@ test("Draft automatically disengages while its leader belongs to an inactive wor
     clearDefinitionsForTests();
   }
 });
+
+
+test("Removing the Colony Leader clears its reference and allows a valid save restore", async () => {
+  const state = await setup();
+  try {
+    state.control.setLeader(state.leader.id);
+    state.control.setDrafted(true);
+    assert.deepEqual(state.control.getState(), { leaderId: state.leader.id, drafted: true });
+
+    assert.equal(state.units.removeUnit(state.leader.id), true);
+    assert.deepEqual(state.control.getState(), { leaderId: null, drafted: false });
+
+    const persistence = state.context.getService("core.persistence");
+    await persistence.save("colony-after-leader-removal", { stateId: "colony-after-leader-removal-state" });
+
+    const replacement = state.units.createUnit({
+      definitionId: "pawn.johny",
+      worldId: "colony-test-world",
+      position: { x: 30, y: 30 }
+    });
+    state.control.setLeader(replacement.id);
+    state.control.setDrafted(true);
+
+    await persistence.load("colony-after-leader-removal", { stateId: "colony-after-leader-removal-state" });
+    assert.deepEqual(state.control.getState(), { leaderId: null, drafted: false });
+    assert.equal(state.units.getUnit(state.leader.id), null);
+    assert.equal(state.units.getUnit(replacement.id), null);
+  } finally {
+    await state.runtime.destroy();
+    clearDefinitionsForTests();
+  }
+});
+
+test("Removing a non-leader Unit does not clear or disengage the Colony Leader", async () => {
+  const state = await setup();
+  try {
+    const other = state.units.createUnit({
+      definitionId: "pawn.johny",
+      worldId: "colony-test-world",
+      position: { x: 40, y: 40 }
+    });
+    state.control.setLeader(state.leader.id);
+    state.control.setDrafted(true);
+
+    assert.equal(state.units.removeUnit(other.id), true);
+    assert.deepEqual(state.control.getState(), { leaderId: state.leader.id, drafted: true });
+    assert.ok(state.units.getUnit(state.leader.id));
+  } finally {
+    await state.runtime.destroy();
+    clearDefinitionsForTests();
+  }
+});
