@@ -106,20 +106,15 @@ Cassandra or Dev Lab application policy.
   application injects its save adapter, save slot, state identifier, file-picker
   capability, file extension, default filename, filename prompt, and UI status
   copy.
-### Persistence isolation — target architecture
+### Persistence isolation — current implementation
 
-- Cassandra and Dev Lab are separate applications with separate save/workspace domains. They are not intended to open or exchange one another's save files; cross-application save compatibility is explicitly out of scope.
-- The current shared `LocalFileSaveAdapter`, Cassandra `.cass` envelope, and legacy `dev-lab-workspace` / `cassandra-dev-lab-workspace` identities are transitional implementation debt, not a desired shared-save contract.
-- The target is an application-owned persistence adapter, file format/envelope, slot identity, and state identity for each application. Engine continues to provide only the generic persistence coordination and participant contracts.
-- Do not add cross-save conversion or compatibility logic. When the split is implemented, verify that each application can only select and write its own save domain and that existing Cassandra saves are preserved as required by the Cassandra migration.
-
-- Both application shells still select the existing
-  `LocalFileSaveAdapter` as a compatibility bridge. That adapter owns the
-  Cassandra `.cass` envelope and legacy save slot (`dev-lab-workspace`);
-  both shells also preserve the state identifier
-  (`cassandra-dev-lab-workspace`). The shared controller is format-neutral,
-  but the adapter itself is not yet application-neutral. A later persistence
-  migration must preserve existing saves.
+- Cassandra and standalone Dev Lab have separate save/workspace domains. They are not intended to open or exchange one another's save files; cross-application save compatibility is explicitly out of scope.
+- Both shells currently use the same configurable `LocalFileSaveAdapter` implementation, but inject separate application configurations:
+  - Cassandra: `cassandra.save` envelope, `.cass` extension, `cassandra-main-world` slot and `cassandra-main-world` state ID.
+  - Standalone Dev Lab: `cassandra.dev-lab.save` envelope, `.dlcass` extension, `dev-lab-workspace` slot and `cassandra-dev-lab-workspace` state ID.
+- The Cassandra-hosted Dev Lab workspace is part of the Cassandra application and therefore uses Cassandra's `.cass` save domain. The standalone Engine-only Dev Lab entry uses `.dlcass`.
+- The adapter validates the configured extension and envelope format. Automated tests verify that Cassandra rejects Dev Lab files and Dev Lab rejects Cassandra files. Failed restore/Save As operations preserve the previously selected save target, and the shared file controller serializes concurrent save/load operations.
+- This achieves the required save-domain separation without duplicating the generic adapter implementation. Engine continues to provide only generic persistence coordination and participant contracts. Do not add cross-save conversion or compatibility logic.
 - The remaining `src/gameplay/unit/unit-system.js` and
   `src/gameplay/colony/colony-control-system.js` are Cassandra gameplay
   systems awaiting a future ownership cleanup. The
@@ -132,13 +127,14 @@ Cassandra or Dev Lab application policy.
   for a speculative timing refactor. When time multipliers are introduced,
   verify that camera movement remains appropriately independent of simulation
   speed.
-- The menu-button responsiveness issue remains unresolved. The user reported
-  that the menu buttons did not respond in the current Pages build, preventing
-  meaningful manual acceptance of the application flow. Do not mark the menu
-  interaction or full browser acceptance as verified until it is fixed and retested.
-- CI must be evaluated from the latest workflow run for the exact commit.
-  A previous run passed 198/198 Core tests and 104/106 host tests; the two
-  failures were stale imports in `colony-control-system.test.js` and
-  `game-input-system.test.js`. Those test imports have since been corrected
-  to `shared/input/viewport-input-controller.js`; the follow-up run is the
-  authoritative verification.
+- The earlier menu-button responsiveness problem is no longer the current
+  blocker. The user has manually confirmed that the established Cassandra
+  behavior remains as it did before Phase 3 and that redundant test buttons
+  were removed. This is a limited manual regression check, not full browser
+  acceptance; Dev Lab spatial workflows, Main/Temporary World interactions,
+  Campaign IndexedDB durability, crash/reopen and performance remain pending.
+- Latest verified source/test checkpoint before this documentation update:
+  `35bab1be841e3471be1bb721a7dd0ed5dfe06343`. GitHub Actions passed 233/233
+  Core tests, 293/293 host tests and browser entry-point syntax checks. The
+  development preview deployment also succeeded. See the current status index
+  for the exact workflow run and remaining manual acceptance gates.
