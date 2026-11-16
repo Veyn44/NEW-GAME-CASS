@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { createCassandraRuntimeHost } from "../../cassandra/application/cassandra-runtime-host.js";
+import { MemorySaveAdapter } from "../../engine/core/persistence.js";
 
 test("Cassandra runtime host owns startup, frame lifecycle, pause and teardown", async () => {
   const frameCallbacks = new Map();
@@ -76,34 +77,54 @@ test("Cassandra runtime host owns startup, frame lifecycle, pause and teardown",
   assert.equal(frameCallbacks.size, 0);
 });
 
-test("Cassandra runtime host forwards the authoritative Applied ledger verifier", async () => {
-  const verifier = async (packageId, digest) =>
-    packageId === "package:verified" && digest === "a".repeat(64);
-  let receivedOptions = null;
+test("Cassandra runtime host forwards the authoritative Applied ledger verifier into World Session", async () => {
+  const expected = {
+    packageId: "package:host-forwarded",
+    digest: "a".repeat(64)
+  };
+  const calls = [];
+  const verifier = async (packageId, digest) => {
+    calls.push({ packageId, digest });
+    return false;
+  };
   const host = createCassandraRuntimeHost({
+    saveAdapter: new MemorySaveAdapter(),
     isPackageApplied: verifier,
-    createRuntime(options) {
-      receivedOptions = options;
-      return {
-        async start() { return {}; },
-        advance() {},
-        async destroy() {}
-      };
-    },
-    resolveRuntimeServices() {
-      return {
-        clock: {
-          paused: false,
-          pause() {},
-          resume() {}
-        }
-      };
+    resolveRuntimeServices(context) {
+      return { clock: context.getService("core.game-clock") };
     },
     requestFrame() { return 1; },
     cancelFrame() {}
   });
 
-  await host.start();
-  assert.equal(receivedOptions.isPackageApplied, verifier);
-  await host.stop();
+  try {
+    await host.start();
+    const context = host.getContext();
+    const worlds = context.getService("core.world-registry");
+    worlds.registerWorld({
+      worldId: "cassandra-main-host-test",
+      type: "cassandra-main",
+      dimensions: { width: 32, height: 32 },
+      grid: { width: 32, height: 32 },
+      coordinateSystem: "tiles"
+    });
+    const session = context.getService("game.world-session-api");
+    session.registerMainWorld("cassandra-main-host-test");
+    session.beginTemporaryWorld({
+      worldId: "encounter:host-forwarded",
+      width: 16,
+      height: 16
+    });
+    session.returnToMainWorld();
+
+    await assert.rejects(
+      () => session.completeTemporaryWorld(expected),
+      { code: "CHANGE_PACKAGE_NOT_APPLIED" }
+    );
+    assert.deepEqual(calls, [expected]);
+    assert.equal(worlds.has("encounter:host-forwarded"), true);
+    assert.equal(session.getState().temporaryWorldId, "encounter:host-forwarded");
+  } finally {
+    await host.stop();
+  }
 });
