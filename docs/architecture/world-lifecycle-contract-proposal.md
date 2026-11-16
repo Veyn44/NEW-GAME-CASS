@@ -1,11 +1,11 @@
 # World Lifecycle Contract — Proposal
 
-**Status:** Proposal for review — not an implementation specification  
+**Status:** Initial deterministic multi-world contract implemented on `work`; pending host/browser verification  
 **Scope:** Engine Core world lifecycle, simulation participation, time, failure isolation and persistence  
 **Branch:** `work`  
-**Last source audit:** 2026-11-15
+**Last source audit:** 2026-11-16
 
-This document translates the reviewed architectural direction into a concrete contract proposal. It does not authorize source-code changes. Terms marked **Proposed** remain subject to review.
+This document records the agreed contract and its current implementation. The implementation is not approved for merge to `main` until host/browser verification is completed.
 
 ## 1. Purpose
 
@@ -91,7 +91,7 @@ The existing World Registry remains the owner of persistent world identity and d
 - owning the committed per-world simulated time and completed-step counter;
 - supplying the scheduler's immutable participant snapshot.
 
-The runtime service does not load map contents, create domain systems, own rendering, or decide host policy. The host performs the actual load/build/teardown work and reports successful or failed lifecycle transitions to the service. A world cannot become Ready until the host confirms its required data and runtime services are prepared.
+The Engine `WorldRuntimeManager` does not load map contents, create domain systems, own rendering, or decide host policy. The host performs the actual load/build/teardown work and reports successful or failed lifecycle transitions to the service. A world cannot become Ready until the host confirms its required data and runtime services are prepared.
 
 Do not add these fields to the existing World descriptor. Registration/selection and runtime residency are separate lifecycles.
 ## 3. Allowed lifecycle transitions
@@ -105,12 +105,15 @@ The following is the proposed runtime transition contract.
 | Loading | Load fails | Unloaded or explicit Failed result; no Ready state |
 | Ready | Begin unload | Disposing, then Unloaded |
 | Ready | Dispose runtime | Disposing, then Disposed |
+| Loading | Dispose partial runtime | Disposing, then Disposed |
+| Unloaded | Dispose runtime | Disposing, then Disposed |
 | Disposed | Load again | Loading, if identity remains registered and host permits it |
 | Any runtime state | Close identity | Only after runtime is safely stopped and released; then registry becomes Closed |
 
 Rules:
 - Loading, unloading and disposal are explicit operations; they are not side effects of focus changes.
 - A world cannot receive simulation steps while Unloaded, Loading, Disposing or Disposed.
+- Lifecycle transitions are rejected while a simulation round is executing; teardown cannot begin mid-step.
 - A world cannot be disposed while it is executing a simulation step.
 - Closing a world identity must not implicitly delete host-owned persistent data. Data deletion is a separate host decision.
 - Invalid transitions return stable, diagnosable errors and do not partially mutate lifecycle state.
@@ -327,30 +330,50 @@ This contract does not design or implement:
 - cross-application save compatibility;
 - independent per-world clocks or independent time scaling;
 - automatic rollback of arbitrary host-system mutations during a failed simulation step;
-- a specific class/file layout or migration implementation.
+- parallel/multithreaded execution of world tasks.
 
-## 11. Current implementation facts and required migration caution
+## 11. Implementation status on `work`
 
-Source audit on work confirms:
-- WorldRegistry supports multiple registered descriptors, but `activeWorldId` is singular; activating another world deactivates the previous one.
-- The active-world selection is used by Cassandra gameplay/control code, not merely presentation: Colony Control checks the leader's placement against `activeWorldId`, and Cassandra World Session uses it to choose the world whose local time advances.
-- WorldRegistry currently persists descriptors and the single active-world reference. Its `active/inactive/closed` status is not runtime readiness.
-- GameClock is one global clock with one global set of pause reasons and one committed `totalSeconds` value.
-- SimulationScheduler is global, executes its task list synchronously in the dependency order supplied by Core Assembly, and commits one global clock step only after all tasks in that step complete.
-- CoreAssembly currently supplies one flat global `simulationTasks` list. Task callbacks receive a global step context and the Core service context, not a world-scoped execution context.
-- Scheduler task failure faults and globally pauses the scheduler; it does not roll back mutations made by tasks that ran earlier in the failed step.
-- WorldContext stores entity placement, not world runtime lifecycle or per-world simulation time.
-- Persistence already provides participant snapshots, migration, safe-boundary serialization, and transactional prepare/commit/rollback. It does not currently own Engine per-world simulation time or runtime readiness.
-- Cassandra's `CassandraWorldSessionSystem` currently owns a host-specific `worldTimes` map and commits a pending local-time increment after the global scheduler tick succeeds. Its `advance()` selects only `WorldRegistry.activeWorldId`. This is a valid Cassandra-specific bridge for the current one-active-world model, not a reusable Engine multi-world contract.
+The initial deterministic multi-world implementation is now present in the working branch.
 
-The proposed migration is therefore:
-1. Add a distinct Engine runtime lifecycle/simulation-state owner without changing World Registry's current identity/active-selection semantics.
-2. Extend the scheduler with explicit Global and World task scopes in one dependency-ordered task sequence, immutable participant snapshots, and the round commit boundary above.
-3. Add persistence for per-world committed time and local completed-step counters; restore worlds Unloaded and simulation-disabled.
-4. Migrate Cassandra's local time accounting to the Engine service while leaving Main/Temporary World policy, active-world selection and encounter rules in Cassandra.
-5. Add multi-world scheduler, lifecycle, persistence and host-integration tests before enabling more than one Cassandra world to participate.
+### 11.1 Engine runtime lifecycle
 
-Do not implement this by merely allowing multiple World Registry descriptors to have status `active`, by advancing each world's time from a host-side task after the scheduler tick, or by iterating a mutable world list during a step.
+- `engine/core/world-runtime-manager.js` exports `WorldRuntimeManager` and `WorldRuntimeError`; Core Assembly publishes it as `core.world-runtime`.
+- The manager owns each registered world's runtime state, participation flag, independent pause-reason set, committed local simulated time and completed-step counter. It does not change `WorldRegistry.activeWorldId`.
+- Public lifecycle operations are `beginLoading`, `markReady`, `failLoading`, `beginUnload`, `finishUnload`, `beginDisposal` and `finishDisposal`.
+- Participation and pause operations are `setSimulationEnabled`, `pause` and `resume`.
+- The scheduler uses immutable participant snapshots. Participation changes made during a task affect the next round; lifecycle teardown/loading transitions are rejected while a round is executing.
+- Unloaded, Loading, Disposing and Disposed worlds cannot participate. Disposed identities may be loaded again while the World Registry descriptor remains registered.
+
+### 11.2 Scheduler and time
+
+- Simulation tasks now accept `scope: "global"` or `scope: "world"`; omitted scope remains Global for task compatibility.
+- Both scopes remain in the single dependency-ordered task sequence supplied by SystemBootstrap.
+- A World task is invoked in ascending ordinal world-ID order for each participant and receives an immutable `world` context with world ID, local completed-step count, next local step and local simulated time.
+- Global task frequency remains based on the global tick. World task `everyTicks` frequency is based on that world's local completed-step counter.
+- If no world participates, Core Assembly runs no simulation round, executes no simulation tasks and clears the simulation backlog rather than accumulating time for later replay.
+- The scheduler validates global and local time counters before commit. It commits the one global Game Clock step and every participant's local time/step counter only after all tasks complete.
+- Any task failure still faults and globally pauses the scheduler. Domain mutations made earlier in the failed round are not rolled back; per-world fault isolation remains out of scope.
+
+### 11.3 Persistence and host migration
+
+- Core Assembly registers `core.world-runtime` as a required save participant at order `-85`, between World Registry (`-90`) and composite spatial placement (`-80`).
+- New saves must contain the runtime snapshot. For backward compatibility, a missing runtime snapshot in an older save invokes an explicit restore transaction that reconstructs registered worlds as Unloaded and simulation-disabled.
+- Cassandra's `CassandraWorldSessionSystem` now reads local time from Engine runtime state; it no longer owns a live `worldTimes` map or advances a second local clock from a host simulation task.
+- Cassandra retains a compatibility copy of local times in its session snapshot solely to migrate saves written before `core.world-runtime` existed. The Engine participant is the source of truth for current saves.
+- Cassandra host policy enables the selected Main or Temporary World and disables the other. Its application explicitly re-establishes the selected runtime after loading a save.
+- Dev Lab registers and prepares its editor world before enabling its simulation-scoped host task.
+
+### 11.4 Verification
+
+The latest CI run for this implementation slice completed successfully:
+- Core: 230/230
+- Host/Unit: 260/260
+- Browser entry-point syntax checks: passed
+- Workflow: https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43832633971
+
+The CI result is not a substitute for launching the actual Pages/browser application. Host-level manual verification remains outstanding.
+
 ## 12. Review status
 
 **Agreed direction:**
@@ -361,32 +384,26 @@ Do not implement this by merely allowing multiple World Registry descriptors to 
 - host applications own world policy;
 - shared infrastructure failures may stop the runtime.
 
-**Proposal still requiring review:**
-- final public service/API names and the exact lifecycle transition result/error shapes;
-- exact ownership and registration order of the new Engine runtime-state persistence participant relative to domain participants;
-- whether a future version should support transactional rollback or isolated continuation after a world-local task failure.
+**Implemented and covered by CI:**
+- Engine runtime lifecycle service and separate runtime-state ownership;
+- Global/World task scopes in one deterministic dependency order;
+- local per-world cadence and shared global time commit;
+- immutable participant snapshots and lifecycle boundary guards;
+- per-world time persistence, restore defaults and legacy-save compatibility;
+- Cassandra local-time migration and host participation policy;
+- two-world integration and single-world regression tests.
 
-The initial execution ordering, task scopes, per-world cadence, time-commit boundary, active-world compatibility rule and restore default are now specified above.
+**Still intentionally deferred:**
+- per-world failure isolation or rollback of arbitrary world/domain mutations;
+- parallel or multithreaded simulation;
+- Cassandra product policy for multiple persistent colonies (the Engine capability does not require Cassandra to enable it);
+- browser/Pages verification by the project owner.
 
-### 12.1 Implementation wiring identified by source audit
+### 12.1 Remaining verification and future work
 
-The existing Core composition can host this extension without replacing the current bootstrap or persistence coordinator:
+1. Launch Cassandra and Dev Lab through the actual Pages/browser entry points; verify startup, pause/resume, save/load and selected-world behavior.
+2. Keep the existing global fail-stop rule until a separate design proves safe world-local failure isolation and rollback/rebuild semantics.
+3. Treat parallel execution as a future optimization. The current contract guarantees deterministic multi-world simulation, not concurrent CPU execution.
+4. If Cassandra later supports several persistent colonies, define its host policy and UI separately; no Engine API redesign should be necessary.
 
-- Add the runtime lifecycle/simulation-state service as a Core system that requires `core.world-registry`. It is a separate service; it does not modify World Registry descriptors.
-- Make `core.scheduler` require that service and use it to snapshot participants and commit per-world time.
-- Make `core.persistence` require the service and register its persistence participant.
-- Current persistence participant ordering is Entity Registry `-100`, World Registry `-90`, and composite spatial placement `-80`. The proposed runtime-state participant order is `-85`: after World Registry has staged/committed the identities, before composite placement validates and commits references. Its restore transaction must validate world references at commit time, because Persistence prepares every participant before it commits any participant.
-- Preserve existing Core task order from `SystemBootstrap.initializationOrder`. The scope field extends each task's invocation semantics; it does not change dependency registration or host-system initialization.
-- Existing Core Assembly integration tests already assert that global tasks execute in validated dependency order and that a failed task leaves the global tick and clock uncommitted. Those tests are regression gates for the extension.
-
-### 12.2 Minimum implementation test groups
-
-1. Runtime lifecycle: valid and invalid transitions, Ready-only participation, reasoned pause, queued lifecycle changes at round boundaries, and no participation while unloading/disposed.
-2. Scheduler: global task backward compatibility; mixed Global/World tasks in dependency order; canonical world-ID ordering independent of registration order; per-world `everyTicks`; immutable participant snapshot; no round with zero participants.
-3. Time commit: each participant advances once per successful round; nonparticipants do not advance; global time advances once; task failure commits no time counters and preserves global scheduler fault behavior.
-4. Persistence: per-world time and local step counters round-trip; unknown/closed world references are rejected; restore defaults to Unloaded/Disabled; a later participant failure rolls back the runtime-state participant.
-5. Integration: two worlds remain loaded and simulated without switching `activeWorldId`; focus/active selection does not affect participation; Cassandra's host session no longer owns a duplicate local-time map after migration.
-6. Regression: all existing single-world scheduler, clock, World Registry, spatial placement, Cassandra session and save/restore tests continue to pass.
-
-
-No source-code implementation is authorized by this document.
+The implementation on `work` is not approved for merge to `main` until browser/Pages verification and the user's explicit approval.
