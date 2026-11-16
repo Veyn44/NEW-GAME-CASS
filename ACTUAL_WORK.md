@@ -1070,3 +1070,10 @@ Latest code/test commit: `9a62f056a58d180d1cfcca56742252be9fa3fb8d`. CI verifica
 - The browser/application shell still needs an owner-selected campaign identity and an authoritative campaign storage lifecycle before production wiring can instantiate the Change Package coordinator.
 - Production typed operation handlers and campaign aggregate models remain intentionally unimplemented pending the approved domain contract.
 - Real-browser IndexedDB strict-durability and crash/reopen acceptance remain outstanding.
+
+### World Runtime rollback checkpoint audit follow-up
+
+- A focused review found that the exact runtime checkpoint initially reused the public World Runtime state projection, which intentionally omits the transient disposal target. A world captured while `Disposing` would therefore not be restorable to a valid transition state.
+- Changed runtime-only checkpoint capture to include the internal disposal target without exposing it in ordinary runtime state or save snapshots.
+- Added a WorldRuntimeManager regression that captures a world during `Disposing`, changes both worlds' lifecycle/pause state, restores the checkpoint, and proves the original unload transition can still finish. The same test checks simulation participation, pause reasons and local time/step counters.
+- Test commit: `15e5ed8f3eb4f5806b0f2a405e14c4e691582500`. CI for this exact commit is not yet confirmed.
