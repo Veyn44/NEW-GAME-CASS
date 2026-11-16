@@ -439,3 +439,29 @@ test("Temporary World disposal clears Colony Leader when it removes Units in bul
     await state.runtime.destroy();
   }
 });
+
+
+test("authoritative Engine runtime clocks win over stale legacy session mirrors", async () => {
+  const state = await setup();
+  try {
+    state.runtime.advance(7);
+    await state.context.getService("core.persistence").save("authoritative-cassandra-clock", { stateId: "authoritative-cassandra" });
+    const save = await state.saveAdapter.read("authoritative-cassandra-clock");
+    save.snapshots["game.world-session"].worldTimes = [
+      { worldId: "cassandra-main-128", seconds: 2 },
+      { worldId: "cassandra-main-256", seconds: 3 }
+    ];
+    await state.saveAdapter.writeAtomic("authoritative-cassandra-clock", save);
+
+    state.runtime.advance(5);
+    await state.context.getService("core.persistence").load("authoritative-cassandra-clock", { stateId: "authoritative-cassandra" });
+
+    const worldRuntime = state.context.getService("core.world-runtime");
+    assert.equal(worldRuntime.getState("cassandra-main-128").simulatedSeconds, 7);
+    assert.equal(worldRuntime.getState("cassandra-main-256").simulatedSeconds, 7);
+    assert.equal(state.session.getWorldTime("cassandra-main-128"), 7);
+    assert.equal(state.session.getWorldTime("cassandra-main-256"), 7);
+  } finally {
+    await state.runtime.destroy();
+  }
+});
