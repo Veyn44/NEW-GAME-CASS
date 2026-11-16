@@ -1118,3 +1118,15 @@ Latest code/test commit: `9a62f056a58d180d1cfcca56742252be9fa3fb8d`. CI verifica
 - Extended `tests/unit/cassandra-runtime-host.test.js` with an integration test using the actual Cassandra runtime, the application Campaign session controller and the injected Applied-ledger verifier.
 - The test proves that Temporary World disposal is rejected while no Campaign is active, then succeeds only after an explicitly created Campaign contains the exact package ID/digest with `status: "applied"`.
 - Test commit: `8ec757cb8881c2ddcd3b40bde398ba3075fb7874`. CI for this exact commit is not confirmed; test execution remains unverified.
+
+
+## 2026-11-16 — Pre-merge audit: unplaced Temporary World Unit cleanup
+
+- Revalidated the current Engine guards: World Registry lifecycle transitions consult World Runtime; Entity Registry refuses one-sided lifecycle changes while placements exist; Spatial Composition refuses content mutation during movement-policy evaluation, including content removal.
+- Revalidated Persistence fail-stop behavior: a failed restore rollback faults Persistence and triggers Core Assembly's clock pause callback.
+- Found a narrow cleanup edge case: a scoped Unit can remain in UnitSystem after its placement has already been removed. Temporary World disposal now retires every Unit whose Engine identity matches the exact `world:<temporaryWorldId>` scope.
+- Corrected the cleanup commit to derive its scope ID locally rather than referring to a variable scoped to the prepare callback.
+- Added a focused regression in `tests/unit/cassandra-world-session-system.test.js`: remove a scoped Unit's placement, complete the Temporary World, then verify UnitSystem record, Engine identity and World Registry state.
+- Verified source/test checkpoint `99fe57c824aa4e40d575ec0206e5b2adc2dd77eb`: Core 233/233, Host 294/294, browser syntax checks, development preview and GitHub Pages deployment all succeeded. CI: [43892955121](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43892955121); preview: [43892955199](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43892955199); Pages: [43892954608](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43892954608).
+- The first version of the new test asserted a boolean from `PlacementCoordinator.removePlacement()`; the API correctly returns a transaction result. The assertion was corrected to inspect `current` and `occupancy`. This required no runtime change.
+- All changes are on `work`. `main` remains untouched; no PR or merge was created.
