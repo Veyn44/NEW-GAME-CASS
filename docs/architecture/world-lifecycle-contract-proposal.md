@@ -84,7 +84,7 @@ Rendering is presentation owned by the host/application, not by Engine Core worl
 
 ### 2.7 Ownership of runtime state
 
-The existing World Registry remains the owner of persistent world identity and descriptors. A separate Engine-owned runtime lifecycle/simulation-state service is proposed for each registered world. Its responsibilities are limited to:
+The existing World Registry remains the owner of persistent world identity and descriptors. The Engine-owned `WorldRuntimeManager` maintains a separate runtime lifecycle/simulation state record for each registered world. Its responsibilities are limited to:
 - tracking the runtime state (Unloaded, Loading, Ready, Disposing, Disposed);
 - tracking whether simulation participation is enabled;
 - tracking independent pause reasons;
@@ -96,7 +96,7 @@ The Engine `WorldRuntimeManager` does not load map contents, create domain syste
 Do not add these fields to the existing World descriptor. Registration/selection and runtime residency are separate lifecycles.
 ## 3. Allowed lifecycle transitions
 
-The following is the proposed runtime transition contract.
+The following is the runtime transition contract implemented by `WorldRuntimeManager`.
 
 | Current state | Operation | Result |
 |---|---|---|
@@ -151,7 +151,7 @@ If no world participates, the host may allow the runtime's global clock to remai
 - A **global simulation round** is one fixed-step interval on the shared scheduler timeline.
 - At the beginning of each round, the scheduler takes an immutable snapshot of the worlds that are Ready, enabled and not paused. That participant set cannot change partway through the round; lifecycle or participation changes requested during execution take effect at the next round boundary.
 - Every participating world receives at most one world-scoped step for that global round. A world that is not in the participant snapshot receives no step.
-- World iteration order must be independent of focus, rendering, registration order and incidental collection iteration. The proposed canonical order is ascending world ID using a locale-independent ordinal string comparison. Do not rely on the current WorldRegistry list locale-based sort as a cross-runtime determinism guarantee.
+- World iteration order must be independent of focus, rendering, registration order and incidental collection iteration. The canonical order is ascending world ID using a locale-independent ordinal string comparison. Do not rely on the current WorldRegistry list locale-based sort as a cross-runtime determinism guarantee.
 - Within each world, simulation systems retain the dependency order validated by SystemRegistry/Bootstrap. Do not introduce a second dependency graph.
 - The exact interleaving of global (non-world-scoped) tasks and world-scoped tasks must be specified by the scheduler contract before the public task API is implemented; it must not be left to incidental array order.
 - A world's local simulated time is committed only at the defined successful round boundary. The global clock advances once per completed global round, not once per participating world.
@@ -161,7 +161,7 @@ If no world participates, the host may allow the runtime's global clock to remai
 
 ### 4.5 Task scope and execution order
 
-The proposed scheduler extension keeps one ordered simulation-task sequence and gives each task an explicit execution scope:
+The scheduler keeps one ordered simulation-task sequence and gives each task an explicit execution scope:
 
 - **Global task:** executes once per global simulation round.
 - **World task:** executes once for each world in that round's immutable participant snapshot.
@@ -298,7 +298,7 @@ Engine does not know the words Main World, expedition, encounter, or colony.
 
 ## 9. Acceptance scenarios
 
-These are proposed minimum acceptance tests before implementation is considered complete.
+These are the minimum acceptance scenarios for the complete contract; the current Core implementation and regression coverage are summarized in Section 11.
 
 1. Register several worlds without implicitly loading or simulating them.
 2. Load two worlds; both can remain Ready simultaneously.
