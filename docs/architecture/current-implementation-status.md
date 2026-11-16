@@ -38,7 +38,7 @@ This is the current status index for the implementation described by the Phase 3
 
 ## 3. Engine multi-world runtime
 
-The initial deterministic multi-world lifecycle contract is implemented on `work`.
+The initial deterministic multi-world lifecycle contract is implemented and merged into `main`.
 
 ### Ownership and behavior now present
 
