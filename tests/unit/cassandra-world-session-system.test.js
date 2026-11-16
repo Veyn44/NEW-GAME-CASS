@@ -13,7 +13,11 @@ import {
   createCassandraWorldSessionSystem
 } from "../../src/gameplay/world/cassandra-world-session-system.js";
 
-async function setup({ isPackageApplied = async () => true, definitionLookup = getDefinition } = {}) {
+async function setup({
+  isPackageApplied = async () => true,
+  definitionLookup = getDefinition,
+  extraHostSystems = []
+} = {}) {
   const saveAdapter = new MemorySaveAdapter();
   const inputController = createViewportInputController();
   const runtime = createGameRuntime({
@@ -24,7 +28,8 @@ async function setup({ isPackageApplied = async () => true, definitionLookup = g
       createInputSystem({ inputController }),
       createUnitSystem({ definitionLookup }),
       createColonyControlSystem(),
-      createCassandraWorldSessionSystem({ isPackageApplied })
+      createCassandraWorldSessionSystem({ isPackageApplied }),
+      ...extraHostSystems
     ]
   });
   const context = await runtime.start();
@@ -536,6 +541,64 @@ test("Temporary World disposal restores every persistence participant after a mi
     assert.equal(restoredRuntimeState.status, "Ready");
     assert.equal(restoredRuntimeState.simulationEnabled, false);
     assert.equal(state.context.getService("core.event-bus").pendingCount, 0);
+  } finally {
+    await state.runtime.destroy();
+  }
+});
+
+test("failed Temporary World rollback faults Persistence and pauses simulation", async () => {
+  const rollbackFailureSystem = {
+    id: "test.rollback-failure",
+    requires: ["core.persistence"],
+    initialize(context) {
+      context.getService("core.persistence").registerParticipant({
+        id: "test.rollback-failure",
+        schemaVersion: 1,
+        order: 100,
+        captureSnapshot: () => ({ version: 1, value: "before" }),
+        validateSnapshot: (snapshot) => snapshot?.version === 1 && snapshot.value === "before",
+        prepareRestore: () => Object.freeze({
+          commit() {
+            throw new Error("injected checkpoint restore failure");
+          },
+          rollback() {
+            return true;
+          }
+        })
+      });
+      return {};
+    }
+  };
+  const state = await setup({ extraHostSystems: [rollbackFailureSystem] });
+  try {
+    state.session.beginTemporaryWorld({ worldId: "encounter:fatal-rollback", width: 16, height: 16 });
+    state.session.returnToMainWorld();
+
+    const persistence = state.context.getService("core.persistence");
+    const clock = state.context.getService("core.game-clock");
+    const originalUnregisterWorld = state.worlds.unregisterWorld;
+    state.worlds.unregisterWorld = function injectedUnregisterFailure() {
+      throw new Error("injected cleanup failure");
+    };
+
+    try {
+      await assert.rejects(
+        () => state.session.completeTemporaryWorld({
+          packageId: "package:fatal-rollback",
+          digest: "4".repeat(64)
+        }),
+        { code: "ATOMIC_MUTATION_ROLLBACK_FAILED" }
+      );
+    } finally {
+      state.worlds.unregisterWorld = originalUnregisterWorld;
+    }
+
+    assert.equal(persistence.isFaulted, true);
+    assert.ok(clock.pauseReasons.includes("core.persistence-integrity-fault"));
+    await assert.rejects(
+      () => persistence.save("faulted-runtime", { stateId: "faulted-runtime" }),
+      { code: "PERSISTENCE_FAULTED" }
+    );
   } finally {
     await state.runtime.destroy();
   }
