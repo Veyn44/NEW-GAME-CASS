@@ -443,7 +443,15 @@ export class WorldRuntimeManager {
     this.#synchronizeRegisteredWorlds();
     const worlds = [...this.#records.values()]
       .sort((a, b) => compareWorldIds(a.worldId, b.worldId))
-      .map((record) => this.#snapshotRecord(record));
+      .map((record) => Object.freeze({
+        worldId: record.worldId,
+        status: record.status,
+        disposalTarget: record.disposalTarget,
+        simulationEnabled: record.simulationEnabled,
+        pauseReasons: Object.freeze([...record.pauseReasons].sort(compareWorldIds)),
+        simulatedSeconds: record.simulatedSeconds,
+        completedSteps: record.completedSteps
+      }));
     return Object.freeze({ version: SNAPSHOT_VERSION, worlds: Object.freeze(worlds) });
   }
 
