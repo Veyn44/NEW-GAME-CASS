@@ -1,6 +1,8 @@
 # Next Steps and Development Roadmap
 
-> **Canonical roadmap status:** 2026-11-16. This file describes the current working plan for `work`. The source code and tests remain authoritative; implementation status and exact CI evidence are summarized in [Current implementation status](docs/architecture/current-implementation-status.md).
+> **Canonical roadmap status:** 2026-11-16, post-merge. `main` is the integrated baseline; future implementation branches must start from the then-current `main`. Source code and tests remain authoritative; exact implementation status and CI evidence are summarized in [Current implementation status](docs/architecture/current-implementation-status.md).
+
+**Product direction:** Cassandra is the primary project. The reusable Engine is developed from concrete Cassandra needs, while remaining technically independent of Cassandra-specific rules, content and presentation. Dev Lab is a development/verification tool that exercises the real shared runtime; it must not become a shipped-game dependency or a parallel implementation.
 
 ## Project shape — agreed direction
 
@@ -20,8 +22,9 @@ Neither application is a runtime prerequisite for the other. The removal tests i
 ## Repository and safety rules
 
 - Repository: `Veyn44/NEW-GAME-CASS`.
-- Stable branch: `main`; active development branch: `work`.
-- Keep all ongoing implementation and verification on `work`.
+- Stable integrated branch: `main` (merge commit `0a879ed0ef955110b069b9e89bb420ead4f58737`).
+- `work` is retained as the pre-merge development branch and was 3 commits behind `main`, with no unique commits ahead at the time of the merge review. Do not assume it is the active branch for new work.
+- Start future implementation/documentation work from the then-current `main` on a dedicated branch and PR.
 - Do not merge, cherry-pick into, force-update or otherwise change `main` without the user's explicit approval.
 - Do not create or delete branches without explaining why and obtaining permission.
 - Do not claim browser/manual acceptance from Node/CI tests or syntax checks.
@@ -64,7 +67,7 @@ Engine owns generic snapshot/restore contracts. Cassandra and Dev Lab own separa
 Do not interpret “Slice 7 foundations implemented” as “Cassandra expedition gameplay is complete”. Do not invent missing campaign or environment rules to close a checklist.
 
 ### Phase 4 — Direct testing readiness for Cassandra and Dev Lab
-**Not started; plan only after the pre-merge audit and merge.** The agreed goal is to prepare the existing Cassandra and Dev Lab implementations for direct browser testing of what already exists. Scope should focus on reliable entry points, host composition, accessible test workflows, diagnostics, and save/load interaction. It is not a gameplay feature phase and must not invent campaign, inventory, health, equipment, resource, crew, disposition or expedition rules. Define the exact Phase 4 slices together after the merge.
+**Next planned phase after the completed merge.** The agreed goal is to prepare the existing Cassandra and Dev Lab implementations for direct browser testing of what already exists. Scope should focus on reliable entry points, host composition, accessible test workflows, diagnostics, and save/load interaction. It is not a gameplay feature phase and must not invent campaign, inventory, health, equipment, resource, crew, disposition or expedition rules. Define the exact Phase 4 slices together after the merge.
 
 ### Phase 5 — Cassandra as an independent game host
 **Not complete.** The current branch contains a Cassandra application/runtime prototype and infrastructure integrations, not the complete campaign/gameplay experience. Continue only through jointly designed, bounded gameplay slices.
@@ -77,9 +80,11 @@ Do not interpret “Slice 7 foundations implemented” as “Cassandra expeditio
 
 ## Immediate next step
 
-The current task is a pre-merge audit of `work` against `main`. Continue only with source-backed merge blockers and small, testable corrections; do not expand features or begin Phase 4 during this audit. The latest verified source/test checkpoint is `99fe57c824aa4e40d575ec0206e5b2adc2dd77eb` with 233/233 Core tests, 294/294 Host tests and browser syntax checks successful. A later docs-only checkpoint `240a5197507bd9a7de41d7bd91c0f825a7800f2c` also passed Core/Host CI, development preview and Pages deployment. The unplaced Temporary World Unit cleanup regression is included in the source/test checkpoint. The audit checklist clarification at `ec3600ce3f9ad7098f7daa5f4e0da0e100e2ce97` still needs exact-head CI confirmation.
+The pre-merge audit is complete and `work` has been merged into `main` through PR #7. The merge commit is `0a879ed0ef955110b069b9e89bb420ead4f58737`. The exact merge-commit Core/Host workflow [43940567950](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43940567950) completed successfully.
 
-When the audit has only minor/accepted gaps remaining, present the merge-readiness report and wait for the user's explicit approval. After the merge, plan Phase 4 together around direct browser testing of the existing Cassandra/Dev Lab implementation.
+The immediate documentation task is to reconcile the canonical roadmap, implementation index, work log and architecture contracts with the merged repository state. After that documentation PR is reviewed and merged, plan Phase 4 together. Phase 4 is a browser-readiness/acceptance phase for the existing Cassandra and Dev Lab implementations—not a gameplay feature phase.
+
+Phase 4 planning should cover reliable entry points, host composition, repeatable browser test workflows, diagnostics, save/load interaction and explicit manual acceptance gates. Do not invent campaign, inventory, health, equipment, resource, crew, disposition or expedition rules to make a checklist appear complete.
 
 The full current status, verified CI evidence and outstanding manual gates are maintained in [Current implementation status](docs/architecture/current-implementation-status.md).
 
@@ -90,7 +95,7 @@ The full current status, verified CI evidence and outstanding manual gates are m
 - A simulation task failure still faults/pauses the global scheduler. Per-world failure isolation and rollback are not implemented.
 - World lifecycle changes that would tear down a world are rejected during an active simulation round.
 - Cassandra's environment simulation is not to be modified without a concrete dependency and separate approval. The current branch audit did not locate an authoritative environment simulation module to integrate.
-- No merge to `main` without explicit user approval after the user has reviewed the browser/Pages result.
+- No merge to `main` without explicit user approval after the user has reviewed the proposed diff and verification evidence.
 
 ## Campaign application lifecycle — current state
 
@@ -107,4 +112,4 @@ The lifecycle controller now supports explicit create/open/load/close and is exp
 
 ### Next engineering slice
 
-No additional Campaign gameplay slice is authorized as the immediate next step. Complete the pre-merge audit first. After merge, Phase 4 planning will focus on making the current implementation directly testable in the browser; any later Campaign aggregate or typed Change Package work still requires a separate domain contract and acceptance criteria.
+No additional Campaign gameplay slice is authorized as the immediate next step. Complete the post-merge documentation reconciliation, then plan Phase 4 around direct browser testing of the existing implementation. Any later Campaign aggregate or typed Change Package work still requires a separate domain contract and acceptance criteria.
