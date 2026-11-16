@@ -172,6 +172,48 @@ test("policy evaluation cannot mutate Spatial Composition cell contents", () => 
   assert.equal(s.spatial.getContent("wall:illegal"), null);
 });
 
+test("policy evaluation cannot remove existing Spatial Composition cell contents", () => {
+  const s = setup();
+  place(s, "pawn:mover", { x: 1, y: 1 });
+  s.spatial.addCellContent({
+    contentId: "wall:existing",
+    worldId: "grid-a",
+    cell: { x: 2, y: 2 },
+    categoryId: "structure"
+  });
+  const before = occupancy(s, "pawn:mover");
+  const result = s.movement.moveEntity(
+    "pawn:mover",
+    { worldId: "grid-a", anchor: { x: 2, y: 2 } },
+    () => {
+      s.spatial.removeCellContent("wall:existing");
+      return true;
+    }
+  );
+  assert.equal(result.status, "policy-error");
+  assert.equal(result.code, "POLICY_EVALUATION_FAILED");
+  assert.equal(s.spatial.getContent("wall:existing")?.contentId, "wall:existing");
+  assert.equal(occupancy(s, "pawn:mover"), before);
+});
+
+test("policy evaluation cannot commit a prepared Spatial Composition restore", () => {
+  const s = setup();
+  const preparedRestore = s.spatial.prepareRestore(s.spatial.captureSnapshot());
+  place(s, "pawn:mover", { x: 1, y: 1 });
+  const before = occupancy(s, "pawn:mover");
+  const result = s.movement.moveEntity(
+    "pawn:mover",
+    { worldId: "grid-a", anchor: { x: 2, y: 2 } },
+    () => {
+      preparedRestore.commit();
+      return true;
+    }
+  );
+  assert.equal(result.status, "policy-error");
+  assert.equal(result.code, "POLICY_EVALUATION_FAILED");
+  assert.equal(occupancy(s, "pawn:mover"), before);
+});
+
 test("policy evaluation cannot mutate placements through PlacementCoordinator", () => {
   const s = setup();
   place(s, "pawn:mover", { x: 1, y: 1 });
