@@ -426,6 +426,41 @@ test("Cassandra world session state restores with World Registry selection and l
 });
 
 
+test("Temporary World disposal retires scoped Units even when their placement was already removed", async () => {
+  const state = await setup({ definitionLookup: (id) => ({ id }) });
+  const worldId = "encounter:unplaced-unit-disposal";
+  try {
+    state.session.beginTemporaryWorld({ worldId, width: 32, height: 32 });
+    const unit = state.units.createUnit({
+      definitionId: "test.unplaced-worker",
+      worldId,
+      position: { x: 5, y: 6 }
+    });
+    const entities = state.context.getService("core.entity-registry");
+    const worldContext = state.context.getService("core.world-context");
+    const placements = state.context.getService("core.placement-coordinator");
+
+    assert.ok(worldContext.getPlacement(unit.id));
+    assert.equal(placements.removePlacement(unit.id), true);
+    assert.equal(worldContext.getPlacement(unit.id), null);
+    assert.equal(entities.get(unit.id).status, "active");
+    assert.ok(state.units.getUnit(unit.id));
+
+    state.session.returnToMainWorld();
+    await state.session.completeTemporaryWorld({
+      packageId: "package:unplaced-unit-disposal",
+      digest: "5".repeat(64)
+    });
+
+    assert.equal(state.units.getUnit(unit.id), null);
+    assert.equal(entities.get(unit.id).status, "removed");
+    assert.equal(state.worlds.has(worldId), false);
+  } finally {
+    await state.runtime.destroy();
+  }
+});
+
+
 test("Temporary World disposal clears Colony Leader when it removes Units in bulk", async () => {
   const state = await setup({ definitionLookup: (id) => ({ id }) });
   try {
