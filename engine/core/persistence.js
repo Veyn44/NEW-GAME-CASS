@@ -458,11 +458,33 @@ export class Persistence {
             await item.transaction.commit();
           }
         } catch (error) {
+          const rollbackFailures = [];
           for (const item of committed.reverse()) {
             try { await item.transaction.rollback(); }
-            catch (rollbackError) { this.#log("critical", "Restore rollback failed.", { participantId: item.participantId, error: rollbackError?.message ?? String(rollbackError) }); }
+            catch (rollbackError) {
+              const failure = {
+                participantId: item.participantId,
+                error: rollbackError?.message ?? String(rollbackError)
+              };
+              rollbackFailures.push(failure);
+              this.#log("critical", "Restore rollback failed.", failure);
+            }
           }
-          throw new PersistenceError("RESTORE_COMMIT_FAILED", "Restore transaction failed; committed participants were rolled back where possible.", { cause: error });
+          if (rollbackFailures.length > 0) {
+            this.#faulted = true;
+            try {
+              this.#onFatalIntegrityFault?.(Object.freeze({
+                cause: error,
+                rollbackFailures: Object.freeze(rollbackFailures.map((failure) => Object.freeze({ ...failure })))
+              }));
+            } catch { /* Fault signaling must not mask the integrity failure. */ }
+            throw new PersistenceError(
+              "RESTORE_ROLLBACK_FAILED",
+              "Restore failed and one or more participants could not restore the prior runtime state; restart and recovery are required.",
+              { cause: error, rollbackFailures }
+            );
+          }
+          throw new PersistenceError("RESTORE_COMMIT_FAILED", "Restore transaction failed; committed participants were rolled back.", { cause: error });
         }
         this.#log("info", "State save restored.", { slotId, stateId: normalizedMetadata.stateId, participantCount: prepared.length });
         return deepFreeze(normalizedMetadata);
