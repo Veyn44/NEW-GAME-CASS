@@ -67,6 +67,30 @@ test("direct one-sided placement and lifecycle mutations are blocked", () => {
   throwsCode(() => s.entities.store("pawn:one"), "GRID_COORDINATOR_REQUIRED");
 });
 
+test("EntityRegistry lifecycle cannot bypass non-grid World Context placement", () => {
+  const s = setup();
+  const entityId = "scope:mission:plain-item";
+  s.entities.registerScoped({ scopeId: "mission", localId: "plain-item", kind: "item" });
+  s.worldContext.placeEntity(entityId, "plain", { x: 2.25, y: 3.5 });
+
+  throwsCode(() => s.entities.store(entityId), "PLACEMENT_COORDINATOR_REQUIRED");
+  throwsCode(() => s.entities.remove(entityId), "PLACEMENT_COORDINATOR_REQUIRED");
+  assert.equal(s.entities.get(entityId).status, "active");
+  assert.equal(s.worldContext.getPlacement(entityId).type, "world");
+
+  s.worldContext.storeEntity(entityId, "campaign:store");
+  assert.equal(s.entities.get(entityId).status, "stored");
+  assert.equal(s.worldContext.getPlacement(entityId).type, "store");
+  throwsCode(() => s.entities.activateStored(entityId), "PLACEMENT_COORDINATOR_REQUIRED");
+  throwsCode(() => s.entities.remove(entityId), "PLACEMENT_COORDINATOR_REQUIRED");
+
+  s.worldContext.removePlacement(entityId);
+  s.entities.activateStored(entityId);
+  assert.equal(s.entities.get(entityId).status, "active");
+  assert.equal(s.worldContext.getPlacement(entityId), null);
+  assert.equal(s.entities.remove(entityId), true);
+});
+
 test("grid to non-grid transfer clears occupancy and preserves continuous coordinates", () => {
   const s = setup(); pawn(s.entities);
   s.coordinator.placeEntity("pawn:one", gridTarget("grid-a", { x: 1, y: 1 }, [{ x: 0, y: 0 }]));
