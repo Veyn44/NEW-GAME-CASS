@@ -49,6 +49,52 @@ function parseSnapshot(snapshot) {
   return worlds;
 }
 
+function parseRuntimeCheckpoint(snapshot) {
+  if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)
+    || snapshot.version !== SNAPSHOT_VERSION || !Array.isArray(snapshot.worlds)) {
+    throw new WorldRuntimeError("INVALID_RUNTIME_CHECKPOINT",
+      "World runtime checkpoint has an unsupported version or shape.");
+  }
+  const worlds = new Map();
+  const statuses = new Set(["Unloaded", "Loading", "Ready", "Disposing", "Disposed"]);
+  for (const [index, entry] of snapshot.worlds.entries()) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      throw new WorldRuntimeError("INVALID_RUNTIME_CHECKPOINT",
+        `World runtime checkpoint entry at index ${index} must be an object.`);
+    }
+    const worldId = assertWorldId(entry.worldId);
+    if (worlds.has(worldId) || !statuses.has(entry.status)
+      || typeof entry.simulationEnabled !== "boolean"
+      || !Array.isArray(entry.pauseReasons)
+      || !Number.isFinite(entry.simulatedSeconds) || entry.simulatedSeconds < 0
+      || !Number.isSafeInteger(entry.completedSteps) || entry.completedSteps < 0) {
+      throw new WorldRuntimeError("INVALID_RUNTIME_CHECKPOINT",
+        `World runtime checkpoint data for "${worldId}" is invalid or duplicated.`, { worldId });
+    }
+    const disposalTarget = entry.disposalTarget ?? null;
+    if ((entry.status === "Disposing" && disposalTarget !== "Unloaded" && disposalTarget !== "Disposed")
+      || (entry.status !== "Disposing" && disposalTarget !== null)
+      || (entry.simulationEnabled && entry.status !== "Ready")) {
+      throw new WorldRuntimeError("INVALID_RUNTIME_CHECKPOINT",
+        `World runtime lifecycle data for "${worldId}" is inconsistent.`, { worldId });
+    }
+    const pauseReasons = new Set(entry.pauseReasons.map(assertPauseReason));
+    if (pauseReasons.size !== entry.pauseReasons.length) {
+      throw new WorldRuntimeError("INVALID_RUNTIME_CHECKPOINT",
+        `World runtime checkpoint for "${worldId}" contains duplicate pause reasons.`, { worldId });
+    }
+    worlds.set(worldId, Object.freeze({
+      status: entry.status,
+      disposalTarget,
+      simulationEnabled: entry.simulationEnabled,
+      pauseReasons: Object.freeze([...pauseReasons]),
+      simulatedSeconds: entry.simulatedSeconds,
+      completedSteps: entry.completedSteps
+    }));
+  }
+  return worlds;
+}
+
 function compareWorldIds(a, b) {
   return a < b ? -1 : a > b ? 1 : 0;
 }
@@ -370,6 +416,8 @@ export class WorldRuntimeManager {
       allowMissingSnapshot: true,
       order,
       captureSnapshot: () => this.captureSnapshot(),
+      captureRuntimeCheckpoint: () => this.captureRuntimeCheckpoint(),
+      prepareRuntimeCheckpointRestore: (snapshot) => this.prepareRuntimeCheckpointRestore(snapshot),
       prepareRestoreMissing: () => this.prepareRestoreMissing(),
       validateSnapshot: (snapshot) => {
         try { parseSnapshot(snapshot); return true; }
@@ -389,6 +437,52 @@ export class WorldRuntimeManager {
         completedSteps: record.completedSteps
       }));
     return Object.freeze({ version: SNAPSHOT_VERSION, worlds: Object.freeze(worlds) });
+  }
+
+  captureRuntimeCheckpoint() {
+    this.#synchronizeRegisteredWorlds();
+    const worlds = [...this.#records.values()]
+      .sort((a, b) => compareWorldIds(a.worldId, b.worldId))
+      .map((record) => this.#snapshotRecord(record));
+    return Object.freeze({ version: SNAPSHOT_VERSION, worlds: Object.freeze(worlds) });
+  }
+
+  prepareRuntimeCheckpointRestore(snapshot) {
+    const parsed = parseRuntimeCheckpoint(snapshot);
+    const previous = this.#records;
+    const previousRestoreIncludedSnapshot = this.#lastRestoreIncludedSnapshot;
+    let committed = false;
+    return Object.freeze({
+      commit: () => {
+        const registered = this.#worlds.list().filter((world) => world.status !== "closed");
+        const registeredIds = new Set(registered.map((world) => world.worldId));
+        if (parsed.size !== registeredIds.size
+          || [...parsed.keys()].some((worldId) => !registeredIds.has(worldId))) {
+          throw new WorldRuntimeError("WORLD_RUNTIME_REGISTRY_MISMATCH",
+            "Runtime checkpoint does not match the restored World Registry.");
+        }
+        const next = new Map();
+        for (const world of registered) {
+          const saved = parsed.get(world.worldId);
+          const record = createRecord(world.worldId, saved);
+          record.status = saved.status;
+          record.disposalTarget = saved.disposalTarget;
+          record.simulationEnabled = saved.simulationEnabled;
+          record.pauseReasons = new Set(saved.pauseReasons);
+          next.set(world.worldId, record);
+        }
+        this.#records = next;
+        this.#lastRestoreIncludedSnapshot = previousRestoreIncludedSnapshot;
+        committed = true;
+      },
+      rollback: () => {
+        if (!committed) return false;
+        this.#records = previous;
+        this.#lastRestoreIncludedSnapshot = previousRestoreIncludedSnapshot;
+        committed = false;
+        return true;
+      }
+    });
   }
 
   prepareRestore(snapshot) {
