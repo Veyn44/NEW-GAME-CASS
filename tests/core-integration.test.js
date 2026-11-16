@@ -397,7 +397,22 @@ test("asynchronous demo update is rejected before publishing a successful simula
 test("an externally faulted Event Bus stops host simulation before the next update", async () => {
   let updates = 0;
   const runtime = createCoreAssembly({
-    hostSystems: [{ id: "game.probe", provides: ["game.probe-api"], initialize() { return { "game.probe-api": {} }; } }],
+    hostSystems: [
+      {
+        id: "game.world-setup",
+        requires: ["core.world-registry", "core.world-runtime"],
+        initialize(context) {
+          context.getService("core.world-registry").registerWorld({
+            worldId: "world:probe", type: "test.world", dimensions: { width: 8, height: 8 }
+          });
+          const runtimeState = context.getService("core.world-runtime");
+          runtimeState.beginLoading("world:probe");
+          runtimeState.markReady("world:probe");
+          runtimeState.setSimulationEnabled("world:probe", true);
+        }
+      },
+      { id: "game.probe", provides: ["game.probe-api"], initialize() { return { "game.probe-api": {} }; } }
+    ],
     simulationTasks: [{ systemId: "game.probe", update() { updates += 1; } }]
   });
   const context = await runtime.start();

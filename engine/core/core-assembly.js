@@ -176,13 +176,15 @@ export function createCoreAssembly({
     {
       id: "core.scheduler",
       provides: [SERVICE.scheduler],
-      requires: [SERVICE.clock, SERVICE.events, SERVICE.logger],
+      requires: [SERVICE.clock, SERVICE.worldRuntime, SERVICE.events, SERVICE.logger],
       initialize(context) {
         const clock = required(context, SERVICE.clock);
+        const worldRuntime = required(context, SERVICE.worldRuntime);
         const events = required(context, SERVICE.events);
         const logger = required(context, SERVICE.logger);
         const scheduler = new SimulationScheduler({
           clock,
+          worldRuntime,
           systemOrder: [...bootstrap.initializationOrder.filter((id) => hostSystemIds.includes(id)), "core.scheduler"],
           fixedStepSeconds,
           maxStepsPerFrame,

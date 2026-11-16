@@ -1,5 +1,7 @@
 import { GameClock, GameClockError } from "../engine/core/game-clock.js";
 import { SchedulerError, SimulationScheduler } from "../engine/core/simulation-scheduler.js";
+import { WorldRegistry } from "../engine/core/world-registry.js";
+import { WorldRuntimeManager } from "../engine/core/world-runtime-manager.js";
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -124,6 +126,106 @@ export function runClockSchedulerTests() {
     });
     scheduler.advance(0.05);
     equal(calls.join(","), "provider,middle,consumer", "Task execution order");
+  });
+
+  test("world-scoped tasks run in dependency order and canonical world order", () => {
+    const clock = createClock();
+    const worlds = new WorldRegistry();
+    for (const worldId of ["world:zeta", "world:alpha"]) {
+      worlds.registerWorld({ worldId, type: "test.world", dimensions: { width: 8, height: 8 } });
+    }
+    const runtime = new WorldRuntimeManager({ worldRegistry: worlds });
+    for (const worldId of ["world:zeta", "world:alpha"]) {
+      runtime.beginLoading(worldId);
+      runtime.markReady(worldId);
+      runtime.setSimulationEnabled(worldId, true);
+    }
+    const calls = [];
+    const scheduler = new SimulationScheduler({
+      clock, worldRuntime: runtime, systemOrder: ["global", "world", "tail"],
+      tasks: [
+        { systemId: "tail", update: () => calls.push("tail") },
+        { systemId: "world", scope: "world", update: ({ world }) => calls.push(world.worldId) },
+        { systemId: "global", update: () => calls.push("global") }
+      ]
+    });
+    scheduler.advance(0.05);
+    equal(calls.join(","), "global,world:alpha,world:zeta,tail");
+    equal(runtime.getState("world:alpha").simulatedSeconds, 6);
+    equal(runtime.getState("world:zeta").simulatedSeconds, 6);
+    equal(clock.totalSeconds, 6);
+  });
+
+  test("world task frequency follows each world's local completed-step counter", () => {
+    const clock = createClock();
+    const worlds = new WorldRegistry();
+    worlds.registerWorld({ worldId: "world:alpha", type: "test.world", dimensions: { width: 8, height: 8 } });
+    worlds.registerWorld({ worldId: "world:beta", type: "test.world", dimensions: { width: 8, height: 8 } });
+    const runtime = new WorldRuntimeManager({ worldRegistry: worlds });
+    for (const worldId of ["world:alpha", "world:beta"]) {
+      runtime.beginLoading(worldId);
+      runtime.markReady(worldId);
+      runtime.setSimulationEnabled(worldId, true);
+    }
+    const calls = [];
+    const scheduler = new SimulationScheduler({
+      clock, worldRuntime: runtime, systemOrder: ["probe"],
+      tasks: [{ systemId: "probe", scope: "world", everyTicks: 2, update: ({ world }) => calls.push(world.worldId) }]
+    });
+    scheduler.advance(0.05);
+    runtime.setSimulationEnabled("world:beta", false);
+    scheduler.advance(0.05);
+    runtime.setSimulationEnabled("world:beta", true);
+    scheduler.advance(0.05);
+    scheduler.advance(0.05);
+    equal(calls.join(","), "world:alpha,world:beta,world:alpha,world:beta");
+    equal(runtime.getState("world:alpha").completedSteps, 4);
+    equal(runtime.getState("world:beta").completedSteps, 3);
+  });
+
+  test("no participating worlds means no simulation round or accumulated backlog", () => {
+    const clock = createClock();
+    const worlds = new WorldRegistry();
+    worlds.registerWorld({ worldId: "world:paused", type: "test.world", dimensions: { width: 8, height: 8 } });
+    const runtime = new WorldRuntimeManager({ worldRegistry: worlds });
+    const calls = [];
+    const scheduler = new SimulationScheduler({
+      clock, worldRuntime: runtime, systemOrder: ["global"],
+      tasks: [{ systemId: "global", update: () => calls.push("ran") }]
+    });
+    const result = scheduler.advance(10);
+    equal(result.processedSteps, 0);
+    equal(scheduler.tick, 0);
+    equal(scheduler.snapshot.backlogSeconds, 0);
+    equal(clock.totalSeconds, 0);
+    equal(calls.length, 0);
+  });
+
+  test("world time is not committed when a world-scoped task faults", () => {
+    const clock = createClock();
+    const worlds = new WorldRegistry();
+    worlds.registerWorld({ worldId: "world:alpha", type: "test.world", dimensions: { width: 8, height: 8 } });
+    const runtime = new WorldRuntimeManager({ worldRegistry: worlds });
+    runtime.beginLoading("world:alpha");
+    runtime.markReady("world:alpha");
+    runtime.setSimulationEnabled("world:alpha", true);
+    const scheduler = new SimulationScheduler({
+      clock, worldRuntime: runtime, systemOrder: ["broken"],
+      tasks: [{ systemId: "broken", scope: "world", update() { throw new Error("world update failed"); } }]
+    });
+    expectCode(() => scheduler.advance(0.05), "SIMULATION_STEP_FAILED");
+    equal(clock.totalSeconds, 0);
+    equal(runtime.getState("world:alpha").simulatedSeconds, 0);
+    equal(runtime.getState("world:alpha").completedSteps, 0);
+    assert(scheduler.snapshot.faulted, "World task failure must preserve global fail-stop behavior.");
+  });
+
+  test("world-scoped tasks require a WorldRuntimeManager", () => {
+    const clock = createClock();
+    expectCode(() => new SimulationScheduler({
+      clock, systemOrder: ["probe"],
+      tasks: [{ systemId: "probe", scope: "world", update() {} }]
+    }), "WORLD_RUNTIME_REQUIRED");
   });
 
   test("task frequency uses deterministic integer tick intervals", () => {

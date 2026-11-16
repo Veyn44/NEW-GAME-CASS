@@ -176,7 +176,7 @@ export class WorldRuntimeManager {
       })));
   }
 
-  commitStep(participants, deltaSeconds) {
+  validateStep(participants, deltaSeconds) {
     if (!Array.isArray(participants)) {
       throw new WorldRuntimeError("INVALID_PARTICIPANTS", "Simulation participants must be an array.");
     }
@@ -202,6 +202,11 @@ export class WorldRuntimeManager {
       seen.add(worldId);
       updates.push({ record, simulatedSeconds, completedSteps });
     }
+    return updates;
+  }
+
+  commitStep(participants, deltaSeconds) {
+    const updates = this.validateStep(participants, deltaSeconds);
     // All values are validated before any record is changed. These assignments
     // are synchronous and invoke no host callbacks.
     for (const update of updates) {
