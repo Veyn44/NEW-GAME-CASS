@@ -118,8 +118,9 @@ Cassandra or Dev Lab application policy.
 - The remaining `src/gameplay/unit/unit-system.js` and
   `src/gameplay/colony/colony-control-system.js` are Cassandra gameplay
   systems awaiting a future ownership cleanup. The
-  `src/adapters/storage/local-file-save-adapter.js` remains a compatibility
-  bridge for Cassandra save files. Their current location is known technical
+  `src/adapters/storage/local-file-save-adapter.js` remains a shared,
+  configurable adapter implementation for the distinct Cassandra and
+  standalone Dev Lab save domains. Their current location is known technical
   debt, not a reason for an unplanned move.
 - Simulation currently has one time flow and no user-selectable 1x/2x/3x
   speed control. Camera behavior at accelerated simulation speeds is
