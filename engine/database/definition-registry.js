@@ -121,7 +121,7 @@ export function registerDefinitions(batch) {
 
   for (const definition of normalized) {
     if (batchIds.has(definition.id)) {
-      throw new Error("Duplicate definition IDs in registration batch: " + definition.id);
+      throw new Error("Definition batch contains duplicate definition IDs: " + definition.id);
     }
     batchIds.add(definition.id);
     if (definitions.has(definition.id)) {
