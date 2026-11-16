@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { createCassandraRuntimeHost } from "../../cassandra/application/cassandra-runtime-host.js";
 import { MemorySaveAdapter } from "../../engine/core/persistence.js";
 import { createCassandraCampaignSessionController } from "../../cassandra/application/cassandra-campaign-session-controller.js";
+import { createViewportInputController } from "../../shared/input/viewport-input-controller.js";
 
 test("Cassandra runtime host owns startup, frame lifecycle, pause and teardown", async () => {
   const frameCallbacks = new Map();
@@ -90,6 +91,7 @@ test("Cassandra runtime host forwards the authoritative Applied ledger verifier 
   };
   const host = createCassandraRuntimeHost({
     saveAdapter: new MemorySaveAdapter(),
+    inputController: createViewportInputController(),
     isPackageApplied: verifier,
     resolveRuntimeServices(context) {
       return { clock: context.getService("core.game-clock") };
@@ -166,6 +168,7 @@ test("runtime Temporary World disposal is gated by the active Campaign Applied l
   const digest = "e".repeat(64);
   const host = createCassandraRuntimeHost({
     saveAdapter: new MemorySaveAdapter(),
+    inputController: createViewportInputController(),
     isPackageApplied: (id, hash) => campaignSessions.isPackageApplied(id, hash),
     resolveRuntimeServices(context) {
       return { clock: context.getService("core.game-clock") };
