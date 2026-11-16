@@ -1,6 +1,6 @@
 import { createWorldViewport } from "../../shared/presentation/world-viewport.js";
 import { createDevLabRuntime } from "./create-dev-lab-runtime.js";
-import { LocalFileSaveAdapter } from "../../src/adapters/storage/local-file-save-adapter.js";
+import { LocalFileSaveAdapter, DEV_LAB_SAVE_FORMAT, DEV_LAB_SAVE_SLOT, DEV_LAB_SAVE_STATE_ID, DEV_LAB_SAVE_FILE_EXTENSION, DEV_LAB_SAVE_FILE_NAME, DEV_LAB_SAVE_MIME_TYPE } from "../../src/adapters/storage/local-file-save-adapter.js";
 import { createFilePersistenceController } from "../../shared/application/file-persistence-controller.js";
 import { createDefinitionCatalogController } from "../../shared/application/definition-catalog-controller.js";
 import { createViewNavigationController } from "../../shared/application/view-navigation-controller.js";
@@ -550,7 +550,7 @@ const workspaceSession = createDevLabWorkspaceSessionController({
   closeUnitProfile: () => state.gameplayUi?.closeProfile(),
   clearSaveSelection: () => state.workspacePersistence?.clearSelection(),
   confirmReset: () => window.confirm(
-    "Reset Dev Lab? All current workspace entities and unsaved session state will be cleared. Saved .cass files will not be deleted."
+    "Reset Dev Lab? All current workspace entities and unsaved session state will be cleared. Saved .dlcass files will not be deleted."
   ),
   onResetStatus() {
     workspaceSaveStatus.textContent = "LAB RESET · NO SAVE SELECTED";
@@ -786,13 +786,13 @@ function createDevLabRuntimeHost({
     });
     state.workspacePersistence = createFilePersistenceController({
       persistenceApi: services.persistenceApi,
-      saveSlot: "dev-lab-workspace",
-      stateId: "cassandra-dev-lab-workspace",
+      saveSlot: DEV_LAB_SAVE_SLOT,
+      stateId: DEV_LAB_SAVE_STATE_ID,
       supportsFileAccess: () => LocalFileSaveAdapter.supportsFileAccess,
       requestFileName: ({ currentFileName, defaultFileName }) =>
-        window.prompt("Name this Cassandra save:", currentFileName || defaultFileName),
-        fileExtension: ".cass",
-        defaultFileName: "save.cass",
+        window.prompt("Name this Dev Lab workspace:", currentFileName || defaultFileName),
+        fileExtension: DEV_LAB_SAVE_FILE_EXTENSION,
+        defaultFileName: DEV_LAB_SAVE_FILE_NAME,
       saveAdapter: state.saveAdapter,
       fileInput: workspaceFileInput,
       onRestore() {
@@ -855,7 +855,14 @@ export async function startDevLab({
 } = {}) {
   await loadContentPackage();
   definitionCatalog.refresh();
-  state.saveAdapter = new LocalFileSaveAdapter();
+  state.saveAdapter = new LocalFileSaveAdapter({
+    format: DEV_LAB_SAVE_FORMAT,
+    fileExtension: DEV_LAB_SAVE_FILE_EXTENSION,
+    mimeType: DEV_LAB_SAVE_MIME_TYPE,
+    fileDescription: "Dev Lab workspace",
+    defaultFileName: DEV_LAB_SAVE_FILE_NAME,
+    slotId: DEV_LAB_SAVE_SLOT
+  });
   runtimeHost = createDevLabRuntimeHost({ createRuntime, resolveRuntimeServices });
   try {
     await runtimeHost.start();
