@@ -1077,3 +1077,25 @@ Latest code/test commit: `9a62f056a58d180d1cfcca56742252be9fa3fb8d`. CI verifica
 - Changed runtime-only checkpoint capture to include the internal disposal target without exposing it in ordinary runtime state or save snapshots.
 - Added a WorldRuntimeManager regression that captures a world during `Disposing`, changes both worlds' lifecycle/pause state, restores the checkpoint, and proves the original unload transition can still finish. The same test checks simulation participation, pause reasons and local time/step counters.
 - Test commit: `15e5ed8f3eb4f5806b0f2a405e14c4e691582500`. CI for this exact commit is not yet confirmed.
+
+
+## 2026-11-16 — Application-owned Campaign session lifecycle
+
+### Implementation on `work`
+
+- Added `createCassandraCampaignSessionController` in the Cassandra Application layer. It owns one explicitly selected Campaign ID and one separate IndexedDB campaign adapter instance.
+- The controller supports explicit `create(campaignId, initialSnapshot)`, `open(campaignId)`, `loadSnapshot()`, and `close()` operations. It never generates a campaign ID, silently switches campaigns, or creates a default campaign.
+- Campaign creation requires a caller-supplied initial snapshot and confirms the first durable compare-and-swap write plus reopen. Opening requires an existing durable record. Failed open/create attempts close their candidate adapter and leave no active session.
+- The controller exposes an exact Applied-ledger verifier. It returns false when no campaign is selected and only accepts a matching package ID + SHA-256 digest with ledger status `applied`.
+- The Cassandra Application Shell owns the controller and injects its verifier into the existing Runtime Host. The `.cass` LocalFileSaveAdapter remains unchanged and is still used only for the current workspace save flow.
+- The Pages entry point now exports the started application object as `cassandraApplication`, exposing `campaignSessionApi` for controlled browser-console/manual testing. No campaign-selection UI or full Cassandra game was added; Pages remains a development/test host.
+- Added focused unit coverage for explicit identity, create/open/close, durable reopening, duplicate creation, no implicit switching, Applied-ledger matching, closed-session behavior and rejection of non-CAS adapters.
+- The Change Package Coordinator is intentionally not instantiated: approved campaign aggregate models and production typed operation/manifest handlers do not yet exist.
+
+### Verification and boundaries
+
+- Test source added: `tests/unit/cassandra-campaign-session-controller.test.js`.
+- Tests are committed but have not been executed/confirmed by CI for the new commits. Do not describe them as passing.
+- Real-browser IndexedDB strict-durability, crash/reopen and Pages interaction acceptance remain outstanding.
+- No Engine behavior, environment simulation, or `.cass` save format was changed.
+- All changes are on `work`; `main` was not modified. No PR or merge was created.
