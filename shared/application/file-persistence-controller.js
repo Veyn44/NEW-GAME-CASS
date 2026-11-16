@@ -70,6 +70,7 @@ export function createFilePersistenceController({
       SCHEMA_MISMATCH: "A saved system schema is incompatible.",
       INVALID_SNAPSHOT: "A saved system rejected its data.",
       RESTORE_COMMIT_FAILED: "A system failed while restoring the save. The restore was rolled back where possible.",
+      RESTORE_ROLLBACK_FAILED: "A restore rollback failed. The runtime is faulted and must be restarted before continuing.",
       SAVE_NOT_FOUND: "No save data was found.",
       SAVE_SOURCE_NOT_SELECTED: "No save file is selected."
     };
@@ -120,6 +121,8 @@ export function createFilePersistenceController({
   }
 
   async function restore() {
+    const restoreSelection = saveAdapter.captureSelection?.();
+    let loaded = false;
     try {
       if (supportsFileAccess()) {
         const fileName = await saveAdapter.selectLoadFile();
@@ -130,10 +133,12 @@ export function createFilePersistenceController({
         return false;
       }
       await persistenceApi.load(saveSlot, { stateId });
+      loaded = true;
       onRestore();
       report(copy.loaded + " · " + saveAdapter.selectedFileName, copy.restored);
       return true;
     } catch (error) {
+      if (!loaded) restoreSelection?.();
       if (error?.name === "AbortError") return false;
       report(describeLoadFailure(error));
       return false;
@@ -142,13 +147,17 @@ export function createFilePersistenceController({
 
   async function importFile(file) {
     if (!file) return false;
+    const restoreSelection = saveAdapter.captureSelection?.();
+    let loaded = false;
     try {
       await saveAdapter.importFile(file);
       await persistenceApi.load(saveSlot, { stateId });
+      loaded = true;
       onRestore();
       report(copy.loaded + " · " + file.name, copy.restored);
       return true;
     } catch (error) {
+      if (!loaded) restoreSelection?.();
       report(describeLoadFailure(error));
       return false;
     }
