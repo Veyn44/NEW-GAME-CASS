@@ -338,6 +338,7 @@ export class SpatialComposition {
     return record;
   }
   removeCellContent(contentId) {
+    this.#assertWritable();
     const key = id(contentId, "Content ID"), record = this.#contents.get(key);
     if (!record) return false;
     const indexKey = cellKey(record.worldId, record.cell), ids = this.#byCell.get(indexKey);
@@ -363,11 +364,13 @@ export class SpatialComposition {
     let committed = false;
     return Object.freeze({
       commit: () => {
+        this.#assertWritable();
         if (committed) throw new SpatialCompositionError("RESTORE_ALREADY_COMMITTED", "Restore transaction was already committed.");
         const parsed = next ?? this.#parse(stableSnapshot);
         this.#contents = parsed.contents; this.#byCell = parsed.byCell; this.#reserved = parsed.reserved; this.#entityOccupancies = parsed.entityOccupancies; this.#entitiesByCell = parsed.entitiesByCell; committed = true;
       },
       rollback: () => {
+        this.#assertWritable();
         if (!committed) return false;
         this.#contents = previous.contents; this.#byCell = previous.byCell; this.#reserved = previous.reserved; this.#entityOccupancies = previous.entityOccupancies; this.#entitiesByCell = previous.entitiesByCell; committed = false; return true;
       }
