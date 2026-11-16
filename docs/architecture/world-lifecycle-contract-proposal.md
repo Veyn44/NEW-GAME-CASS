@@ -1,4 +1,4 @@
-# World Lifecycle Contract — Proposal
+# World Lifecycle Contract
 
 **Status:** Initial deterministic multi-world contract implemented on `work`; pending host/browser verification  
 **Scope:** Engine Core world lifecycle, simulation participation, time, failure isolation and persistence  
@@ -313,7 +313,7 @@ These are proposed minimum acceptance tests before implementation is considered 
 11. Pause World B for one reason, remove a different pause reason, and confirm World B remains paused until its own reason is removed.
 12. Cause a task failure in a multi-world round; the initial implementation faults and pauses the global scheduler, does not commit the global round, and does not claim that earlier world mutations were rolled back.
 13. Cause a shared scheduler/infrastructure failure; the runtime stops according to global safety rules.
-14. Attempt simulation while a world is Unloaded, Loading, Disposing or Disposed; the operation is rejected.
+14. Attempt simulation while a world is Unloaded, Loading, Disposing or Disposed; it receives no simulation steps.
 15. Unload and reload a registered world; its persistent data and committed simulated time are restored.
 16. Keep two persistent colony worlds loaded and enabled across many rounds; both continue to receive deterministic steps without requiring focus to switch between them.
 17. Save while both colony worlds are loaded; restore both worlds and their local simulated times, with participation disabled until the host explicitly enables them.
