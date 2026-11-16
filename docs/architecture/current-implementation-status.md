@@ -4,6 +4,8 @@
 **Repository:** `Veyn44/NEW-GAME-CASS`  
 **Working branch:** `work`  
 **Latest verified source/test checkpoint:** `99fe57c824aa4e40d575ec0206e5b2adc2dd77eb`  
+**Latest verified docs-only CI checkpoint:** `240a5197507bd9a7de41d7bd91c0f825a7800f2c`  
+**Current audit documentation follow-up:** `ec3600ce3f9ad7098f7daa5f4e0da0e100e2ce97` (manual acceptance scope clarification; exact-head CI still to be confirmed)  
 **Documentation follow-up series:** `b50bf3f14aedf29fb42aa76271fe17df4b868f54`, `6d05de7c1c9436edd3141efe9670664216727468`, `cb89a02379c9b0f5e5c004649259077253ec1ee2`, `1b7faf15a8cff659fc7a5085f635ad275cfc5f7f`, `57f46f6ac656a51bebf6fafcc9f7ad986328e73c`, `0d01c3530c9c28c1283a05ef2f245a8bf4f475b1`  
 **Audited main HEAD:** `458ecc52d4267b6b31fb3d59559374533c49fa64`  
 **Documentation reconciliation commits:** `bdbf56312f3e5e24ccd5f7da83b4d519a991a928`, `2d52d21bbbe183b7199c6b1d85153f14c6326bb4`, `b50bf3f14aedf29fb42aa76271fe17df4b868f54`
@@ -14,7 +16,7 @@ This is the current status index for the implementation described by the Phase 3
 
 - All work described here is on `work`.
 - `main` remains at `458ecc52d4267b6b31fb3d59559374533c49fa64` and is not part of this work.
-- The latest verified source/test checkpoint is `99fe57c824aa4e40d575ec0206e5b2adc2dd77eb`. The documented reconciliation commits are documentation-only; the later `c84b2de…` and `9d4ed2f…` commits refine Temporary World Unit cleanup, and `d2a6f34…` / `99fe57c…` add its unplaced-Unit regression coverage.
+- The latest verified source/test checkpoint is `99fe57c824aa4e40d575ec0206e5b2adc2dd77eb`. The later `240a519…` documentation-only checkpoint was also run through Core/Host, development preview and Pages workflows successfully. The audit-only checklist clarification is `ec3600c…`; its exact-head CI must be confirmed before calling it the final verified head. The later `c84b2de…` and `9d4ed2f…` commits refine Temporary World Unit cleanup, and `d2a6f34…` / `99fe57c…` add its unplaced-Unit regression coverage.
 - No merge or pull request is authorized by this status record.
 
 ## 2. Phase 3 implementation summary
@@ -94,8 +96,9 @@ The existing infrastructure is a foundation only. The outstanding gameplay/domai
 
 ### Latest verified source/test checkpoint
 
-- **Commit:** `99fe57c824aa4e40d575ec0206e5b2adc2dd77eb`.
+- **Source/test commit:** `99fe57c824aa4e40d575ec0206e5b2adc2dd77eb`.
 - **Core/host workflow:** [43892955121](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43892955121) — success.
+- **Later docs-only checkpoint:** `240a5197507bd9a7de41d7bd91c0f825a7800f2c`; Core/Host [43893376360](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43893376360), development preview [43893376367](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43893376367) and Pages [43893376253](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43893376253) all succeeded. No source code changed after the source/test commit.
 - **Core tests:** 233/233.
 - **Host/Unit tests:** 294/294.
 - **Browser entry-point syntax checks:** passed.
@@ -108,18 +111,19 @@ The documentation reconciliation commits after the earlier `35bab1…` checkpoin
 
 CI and syntax checks do not prove all browser interactions, real IndexedDB strict durability, cross-tab behavior, crash/reopen recovery or performance.
 
-## 7. Manual acceptance — partially exercised, not complete
+## 7. Manual acceptance — current Pages workflow accepted; other scopes explicitly deferred
 
-The user has confirmed that established Cassandra behavior on `work` remains as it did before Phase 3 and that redundant test buttons were removed. This is a limited manual regression check, not full Phase 3 acceptance. The checklist at [phase-3-manual-acceptance-checklist.md](phase-3-manual-acceptance-checklist.md) records the remaining work.
+The user confirms that the deployed GitHub Pages Cassandra application behaves as expected for the currently exposed game workflow and that its `.cass` save/load path works. This accepts the current Pages-hosted workflow; it does not claim that every diagnostic, edge case or performance check was individually exercised. The checklist at [phase-3-manual-acceptance-checklist.md](phase-3-manual-acceptance-checklist.md) records this distinction.
 
-Outstanding categories include:
+Remaining validation is classified by the application or feature it actually belongs to:
 
-- Dev Lab spatial inspection/test workflows and full browser interaction/layout/startup/teardown.
-- Main/Temporary World behavior through deployed browser entry points.
-- Real-browser IndexedDB strict durability, cross-tab CAS and interrupted promotion recovery.
-- Representative 128×128 and 256×256 performance measurements.
-- Pages direct-entry, refresh/deep-link, assets and browser-console verification.
-- Environment regression in its authoritative host against an identified baseline. No environment simulation source was changed in this branch, and no regression pass is claimed.
+- Pages-hosted Cassandra: detailed spatial diagnostics, Main/Temporary World edge cases and browser teardown/restart have not been separately recorded as passed.
+- Standalone Engine-only Dev Lab: its separate `.dlcass` entry point and UI acceptance are deferred; it is not the Cassandra-hosted Dev Lab workflow the user tested on Pages.
+- Campaign: real-browser IndexedDB strict durability, cross-tab CAS and interrupted promotion are deferred until player-facing Campaign workflow, authoritative aggregate models and production handlers exist.
+- Environment regression: the authoritative host/baseline was not located in this repository; no environment simulation source was changed and no regression pass is claimed.
+- Performance: representative 128×128 and 256×256 measurements have not been taken.
+
+These deferred checks are not being represented as passed. They are also not prerequisites for claiming the currently tested Pages workflow works; they remain acceptance gates for the respective later integration/feature scopes.
 
 ## 8. Superseded planning material
 
@@ -130,7 +134,7 @@ Outstanding categories include:
 
 ## 9. Next engineering decision
 
-The immediate objective is to complete the pre-merge audit of `work` against `main`, resolve only demonstrated merge blockers, and verify the exact final source/test checkpoint. Do not start new gameplay features or Phase 4 work during this audit. No merge or pull request is authorized without the user's explicit approval.
+The immediate objective is to finish the read-only pre-merge audit of `work` against `main`, confirm CI on the exact final documentation/source head, and present a merge-readiness report. No new gameplay features or Phase 4 work are in scope. No merge or pull request is authorized without the user's explicit approval.
 
 After the audit is accepted and `work` is merged, Phase 4 will be planned jointly. Its agreed goal is to prepare the existing Cassandra/Dev Lab implementation for direct browser testing of what already exists — entry points, host composition, test workflows, diagnostics, and persistence interactions — not to invent new gameplay rules.
 
