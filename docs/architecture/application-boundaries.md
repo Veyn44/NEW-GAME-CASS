@@ -135,7 +135,9 @@ Cassandra or Dev Lab application policy.
   acceptance; Dev Lab spatial workflows, Main/Temporary World interactions,
   Campaign IndexedDB durability, crash/reopen and performance remain pending.
 - Latest verified source/test checkpoint before this documentation update:
-  `35bab1be841e3471be1bb721a7dd0ed5dfe06343`. GitHub Actions passed 233/233
-  Core tests, 293/293 host tests and browser entry-point syntax checks. The
-  development preview deployment also succeeded. See the current status index
-  for the exact workflow run and remaining manual acceptance gates.
+  `99fe57c824aa4e40d575ec0206e5b2adc2dd77eb`. GitHub Actions passed 233/233
+  Core tests, 294/294 host tests and browser entry-point syntax checks. The
+  development preview and GitHub Pages deployments also succeeded. The checkpoint
+  includes regression coverage for Temporary World disposal of a scoped Unit
+  whose placement has already been removed. See the current status index for
+  exact workflow runs and remaining manual acceptance gates.
