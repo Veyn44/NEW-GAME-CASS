@@ -50,6 +50,35 @@ test("failed inner save validation preserves the previously selected save source
   assert.deepEqual(await adapter.read("cassandra-main-world"), previousData);
 });
 
+test("failed Save As preserves the previously selected save target", async () => {
+  const adapter = new LocalFileSaveAdapter();
+  const previousData = {
+    metadata: { stateId: "cassandra-main-world", formatVersion: 1 },
+    schemas: {},
+    snapshots: {}
+  };
+  await adapter.importFile(readableFile("previous.cass", previousData));
+
+  const controller = createFilePersistenceController({
+    persistenceApi: {
+      async load() { throw new Error("Not used by this test."); },
+      async save() { throw new Error("injected write failure"); }
+    },
+    saveAdapter: adapter,
+    fileInput: { click() {} },
+    saveSlot: "cassandra-main-world",
+    stateId: "cassandra-main-world",
+    supportsFileAccess: () => false,
+    requestFileName: () => "replacement.cass",
+    fileExtension: ".cass",
+    defaultFileName: "save.cass"
+  });
+
+  assert.equal(await controller.saveAs(), false);
+  assert.equal(adapter.selectedFileName, "previous.cass");
+  assert.deepEqual(await adapter.read("cassandra-main-world"), previousData);
+});
+
 test("successful import commits the new save source after persistence restore", async () => {
   const adapter = new LocalFileSaveAdapter();
   const previousData = {
