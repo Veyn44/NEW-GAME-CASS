@@ -287,7 +287,7 @@ test("policy evaluation cannot mutate WorldContext through direct APIs or prepar
   for (const [index, mutate] of attempts.entries()) {
     const result = s.movement.moveEntity(
       "pawn:mover",
-      { worldId: "grid-a", anchor: { x: 2 + index, y: 2 } },
+      { worldId: "grid-a", anchor: { x: 2 + (index % 4), y: 2 + Math.floor(index / 4) } },
       () => { mutate(); return true; }
     );
     assert.equal(result.status, "policy-error", `mutation attempt ${index}`);
