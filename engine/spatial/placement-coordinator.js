@@ -9,10 +9,11 @@ export class PlacementCoordinator {
   #entities; #worlds; #worldContext; #spatial; #faulted = false; #onFatalIntegrityFault; #policyEvaluation = 0;
   constructor({ entityRegistry, worldRegistry, worldContext, spatialComposition, onFatalIntegrityFault = null } = {}) {
     if (!entityRegistry?.get || !entityRegistry?.setSpatialOccupancyGuard || !worldRegistry?.get ||
-        !worldContext?.prepareCoordinatedPlacementChange || !spatialComposition?.prepareEntityOccupancyChange) throw new PlacementCoordinatorError("INVALID_DEPENDENCY", "PlacementCoordinator requires EntityRegistry, WorldRegistry, WorldContext and SpatialComposition.");
+        !worldContext?.prepareCoordinatedPlacementChange || !worldContext?.setMutationGuard || !spatialComposition?.prepareEntityOccupancyChange) throw new PlacementCoordinatorError("INVALID_DEPENDENCY", "PlacementCoordinator requires EntityRegistry, WorldRegistry, WorldContext and SpatialComposition.");
     if (onFatalIntegrityFault !== null && typeof onFatalIntegrityFault !== "function") throw new PlacementCoordinatorError("INVALID_FAULT_HANDLER", "onFatalIntegrityFault must be a function or null.");
     this.#entities = entityRegistry; this.#worlds = worldRegistry; this.#worldContext = worldContext; this.#spatial = spatialComposition; this.#onFatalIntegrityFault = onFatalIntegrityFault;
     this.#worldContext.requireSpatialCoordination(PLACEMENT_AUTHORITY);
+    this.#worldContext.setMutationGuard(() => this.#assertMutationAllowed(), PLACEMENT_AUTHORITY);
     this.#entities.setSpatialOccupancyGuard((id) => this.#spatial.hasEntityOccupancy(id), PLACEMENT_AUTHORITY);
   }
   get isFaulted() { return this.#faulted; }
