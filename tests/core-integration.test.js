@@ -86,6 +86,31 @@ test("host simulation tasks follow the validated host-system dependency order", 
   await runtime.destroy();
 });
 
+test("Core Assembly persists per-world simulation time and restores worlds unloaded", async () => {
+  const runtime = createCoreAssembly();
+  const context = await runtime.start();
+  const worlds = context.getService("core.world-registry");
+  const worldRuntime = context.getService("core.world-runtime");
+  const persistence = context.getService("core.persistence");
+  worldRuntime.beginLoading("world:cassandra");
+  worldRuntime.markReady("world:cassandra");
+  worldRuntime.setSimulationEnabled("world:cassandra", true);
+  worldRuntime.commitStep(worldRuntime.getParticipants(), 12);
+
+  await persistence.save("world-runtime-save", { stateId: "integration:world-runtime" });
+  worldRuntime.commitStep(worldRuntime.getParticipants(), 6);
+  equal(worldRuntime.getState("world:cassandra").simulatedSeconds, 18);
+
+  await persistence.load("world-runtime-save", { stateId: "integration:world-runtime" });
+  const restored = worldRuntime.getState("world:cassandra");
+  equal(restored.simulatedSeconds, 12);
+  equal(restored.completedSteps, 1);
+  equal(restored.status, "Unloaded");
+  equal(restored.simulationEnabled, false);
+  equal(worlds.activeWorldId, "world:cassandra");
+  await runtime.destroy();
+});
+
 test("demo system creates an entity with an exclusive world placement", async () => {
   const runtime = createCoreAssembly();
   const context = await runtime.start();
