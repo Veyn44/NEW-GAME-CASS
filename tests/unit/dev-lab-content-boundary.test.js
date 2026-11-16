@@ -278,3 +278,24 @@ test("shared presentation and application controllers do not depend on either ap
   assert.equal(viewport.includes(".viewport-panel"), false);
   assert.equal(viewport.includes(".viewport-crosshair"), false);
 });
+
+
+test("spatial inspection and test controls belong only to standalone Dev Lab", async () => {
+  const cassandraHtml = await read("../../index.html");
+  const devLabHtml = await read("../../dev-lab.html");
+  const requiredIds = [
+    "spatial-cell-label", "spatial-cell-data", "test-entity-footprint",
+    "create-spatial-test-entity", "move-spatial-test-entity", "remove-spatial-test-entity",
+    "spatial-test-status", "spatial-neighbors-four", "spatial-neighbors-eight",
+    "spatial-radius-manhattan", "spatial-radius-chebyshev", "spatial-footprint",
+    "spatial-movement-history", "spatial-region-min-x", "spatial-region-min-y",
+    "spatial-region-max-x", "spatial-region-max-y", "spatial-region-categories",
+    "spatial-region-layers", "spatial-region-kinds", "spatial-region-query"
+  ];
+  for (const id of requiredIds) {
+    assert.ok(devLabHtml.includes(`id="${id}"`), `Standalone Dev Lab must provide #${id}`);
+    assert.equal(cassandraHtml.includes(`id="${id}"`), false, `Cassandra must not expose Dev Lab control #${id}`);
+  }
+  assert.ok(devLabHtml.includes('id="spatial-inspector"'));
+  assert.equal(cassandraHtml.includes('id="spatial-inspector"'), false);
+});
