@@ -109,7 +109,7 @@ export class WorldRuntimeManager {
 
   beginDisposal(worldId) {
     const record = this.#requireRecord(worldId);
-    if (record.status !== "Ready" && record.status !== "Loading") {
+    if (record.status !== "Ready" && record.status !== "Loading" && record.status !== "Unloaded") {
       throw this.#transitionError(record, "Disposing");
     }
     record.status = "Disposing";
