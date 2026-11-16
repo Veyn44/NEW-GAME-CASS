@@ -8,6 +8,7 @@ import { createDefinitionCatalogController } from "../../shared/application/defi
 import { createViewNavigationController } from "../../shared/application/view-navigation-controller.js";
 import { createPauseMenuController } from "../../shared/application/pause-menu-controller.js";
 import { getDefinition, listDefinitionIndex, getCategories, loadDefinitionDetail } from "../../engine/database/definition-registry.js";
+import { createCassandraCampaignSessionController } from "./cassandra-campaign-session-controller.js";
 
 const views = [...document.querySelectorAll("[data-view]")];
 const databaseView = document.querySelector('[data-view="database"]');
@@ -359,8 +360,10 @@ export async function startCassandraApplication() {
   await loadCassandraDatabase();
   definitionCatalog.refresh();
   state.saveAdapter = new LocalFileSaveAdapter({ slotId: CASSANDRA_SAVE_SLOT });
+  const campaignSessionApi = createCassandraCampaignSessionController();
   runtimeHost = createCassandraRuntimeHost({
     saveAdapter: state.saveAdapter,
+    isPackageApplied: (packageId, digest) => campaignSessionApi.isPackageApplied(packageId, digest),
     inputController,
     onUnitMoved(moved) {
       refreshWorldMarkers();
@@ -445,4 +448,5 @@ export async function startCassandraApplication() {
     simulationStatus.textContent = `CASSANDRA STARTUP FAILED · ${error.message}`;
   }
   navigation.showView("menu");
+  return Object.freeze({ campaignSessionApi, runtimeHost });
 }
