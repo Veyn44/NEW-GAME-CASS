@@ -105,6 +105,27 @@ export function runWorldRuntimeManagerTests() {
     equal(runtime.getState("world:beta").simulatedSeconds, 0);
   });
 
+  check("World Registry close and unregister respect runtime lifecycle boundaries", () => {
+    const { worlds, runtime } = setup();
+    ready(runtime, "world:alpha");
+    ready(runtime, "world:beta");
+    runtime.setSimulationEnabled("world:beta", true);
+
+    throwsCode(() => worlds.closeWorld("world:alpha"), "WORLD_RUNTIME_NOT_STOPPED");
+
+    const participants = runtime.getParticipants();
+    runtime.beginSimulationRound(participants);
+    throwsCode(() => worlds.closeWorld("world:beta"), "WORLD_STEP_ACTIVE");
+    runtime.endSimulationRound();
+
+    runtime.beginDisposal("world:alpha");
+    runtime.finishDisposal("world:alpha");
+    equal(worlds.closeWorld("world:alpha"), true);
+    equal(worlds.get("world:alpha").status, "closed");
+    equal(worlds.unregisterWorld("world:alpha").worldId, "world:alpha");
+    equal(worlds.has("world:alpha"), false);
+  });
+
   check("lifecycle teardown is rejected while a world simulation round is active", () => {
     const worlds = new WorldRegistry();
     worlds.registerWorld({ worldId: "world:alpha", type: "test.world", dimensions: { width: 8, height: 8 } });
@@ -162,12 +183,15 @@ export function runWorldRuntimeManagerTests() {
   });
 
   check("runtime snapshot restores time but never readiness or participation", () => {
-    const { worlds, runtime } = setup();
+    const { runtime } = setup();
     ready(runtime, "world:alpha");
     runtime.setSimulationEnabled("world:alpha", true);
     runtime.commitStep(runtime.getParticipants(), 12);
     const snapshot = runtime.captureSnapshot();
-    const restored = new WorldRuntimeManager({ worldRegistry: worlds });
+    const restoredWorlds = new WorldRegistry();
+    restoredWorlds.registerWorld({ worldId: "world:alpha", type: "test.world", dimensions: { width: 10, height: 10 } });
+    restoredWorlds.registerWorld({ worldId: "world:beta", type: "test.world", dimensions: { width: 10, height: 10 } });
+    const restored = new WorldRuntimeManager({ worldRegistry: restoredWorlds });
     const transaction = restored.prepareRestore(snapshot);
     transaction.commit();
     const state = restored.getState("world:alpha");
