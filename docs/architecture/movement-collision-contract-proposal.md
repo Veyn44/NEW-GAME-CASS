@@ -1,8 +1,10 @@
 # Movement and Collision Contract — Working Proposal
 
-**Status:** Slice 4 generic Engine movement transaction implemented on `work`; Cassandra gameplay integration remains deferred  
+> **Post-merge status (2026-11-16):** The generic Engine movement transaction (Slice 4) is implemented and merged into `main` through PR #7. Cassandra-specific movement/passability policy remains application-owned. See [current-implementation-status.md](current-implementation-status.md) for current status and acceptance boundaries.
+
+**Status:** Slice 4 generic Engine movement transaction implemented and merged; Cassandra gameplay integration remains application-owned.  
 **Scope:** Generic movement transaction and spatial collision/overlap primitives above Spatial Composition  
-**Branch:** `work`  
+**Integrated branch:** `main`  
 **Source audit:** 2026-11-15
 
 This document defines the boundary between reusable Engine spatial operations and host-owned movement/collision behavior. It builds on the implemented Grid Geometry and Spatial Composition contracts. Slice 4 adds only the generic Engine movement transaction; Cassandra gameplay integration remains deferred.
