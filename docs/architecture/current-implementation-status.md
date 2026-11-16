@@ -4,7 +4,8 @@
 **Repository:** `Veyn44/NEW-GAME-CASS`  
 **Working branch:** `work`  
 **Audited work HEAD:** `90cf0b6f67155358089f1c007e06a78767746564`  
-**Audited main HEAD:** `458ecc52d4267b6b31fb3d59559374533c49fa64`
+**Audited main HEAD:** `458ecc52d4267b6b31fb3d59559374533c49fa64`  
+**Documentation reconciliation commits:** `bdbf56312f3e5e24ccd5f7da83b4d519a991a928`, `2d52d21bbbe183b7199c6b1d85153f14c6326bb4`
 
 This is the current status index for the implementation described by the Phase 3 plans and architecture reviews. Where older sections of those documents still describe pre-implementation gaps or old test counts, this dated status record supersedes those historical statements. Source code and current tests remain authoritative.
 
@@ -111,7 +112,7 @@ This is the latest confirmed CI evidence for the multi-world runtime code. The w
 ### Current audited HEAD
 
 - `90cf0b6f67155358089f1c007e06a78767746564` is later than those runs and contains documentation-only changes.
-- No separate CI run for this exact HEAD was confirmed during this audit.
+- No separate CI run for this exact HEAD was confirmed during the audit. The subsequent documentation-only reconciliation commits listed above also have no associated workflow run confirmed at the time of this update.
 
 CI and syntax checks do not prove actual browser UI behavior, Pages deployment correctness, IndexedDB durability in target browsers, crash/reopen recovery or performance.
 

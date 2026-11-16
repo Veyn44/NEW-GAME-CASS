@@ -77,7 +77,7 @@ Do not interpret “Slice 7 foundations implemented” as “Cassandra expeditio
 
 ## Immediate next step
 
-The documentation baseline is now being reconciled against the live `work` implementation. After that, the next engineering task should be selected from the explicitly open Slice 7 work, with its domain contract and acceptance criteria agreed before implementation. Do not start campaign inventory, health, equipment, resources, disposition, End Expedition or Abandon Expedition rules by assumption.
+The documentation reconciliation is complete on `work` (commits `bdbf563` and `2d52d21`). The next engineering task should be selected from the explicitly open Slice 7 work, with its domain contract and acceptance criteria agreed before implementation. Do not start campaign inventory, health, equipment, resources, disposition, End Expedition or Abandon Expedition rules by assumption.
 
 The full current status, verified CI evidence and outstanding manual gates are maintained in [Current implementation status](docs/architecture/current-implementation-status.md).
 
