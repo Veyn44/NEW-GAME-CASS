@@ -3,7 +3,7 @@
 **Audit date:** 2026-11-16  
 **Repository:** `Veyn44/NEW-GAME-CASS`  
 **Working branch:** `work`  
-**Latest verified source/test checkpoint:** `35bab1be841e3471be1bb721a7dd0ed5dfe06343`  
+**Latest verified source/test checkpoint:** `99fe57c824aa4e40d575ec0206e5b2adc2dd77eb`  
 **Documentation follow-up series:** `b50bf3f14aedf29fb42aa76271fe17df4b868f54`, `6d05de7c1c9436edd3141efe9670664216727468`, `cb89a02379c9b0f5e5c004649259077253ec1ee2`, `1b7faf15a8cff659fc7a5085f635ad275cfc5f7f`, `57f46f6ac656a51bebf6fafcc9f7ad986328e73c`, `0d01c3530c9c28c1283a05ef2f245a8bf4f475b1`  
 **Audited main HEAD:** `458ecc52d4267b6b31fb3d59559374533c49fa64`  
 **Documentation reconciliation commits:** `bdbf56312f3e5e24ccd5f7da83b4d519a991a928`, `2d52d21bbbe183b7199c6b1d85153f14c6326bb4`, `b50bf3f14aedf29fb42aa76271fe17df4b868f54`
@@ -14,7 +14,7 @@ This is the current status index for the implementation described by the Phase 3
 
 - All work described here is on `work`.
 - `main` remains at `458ecc52d4267b6b31fb3d59559374533c49fa64` and is not part of this work.
-- The latest verified source/test checkpoint is `35bab1be841e3471be1bb721a7dd0ed5dfe06343`. The subsequent commits listed in the documentation follow-up series are documentation-only; they do not change runtime or test source.
+- The latest verified source/test checkpoint is `99fe57c824aa4e40d575ec0206e5b2adc2dd77eb`. The documented reconciliation commits are documentation-only; the later `c84b2de…` and `9d4ed2f…` commits refine Temporary World Unit cleanup, and `d2a6f34…` / `99fe57c…` add its unplaced-Unit regression coverage.
 - No merge or pull request is authorized by this status record.
 
 ## 2. Phase 3 implementation summary
@@ -94,17 +94,17 @@ The existing infrastructure is a foundation only. The outstanding gameplay/domai
 
 ### Latest verified source/test checkpoint
 
-- **Commit:** `35bab1be841e3471be1bb721a7dd0ed5dfe06343`.
-- **Core/host workflow:** [43890217044](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43890217044) — success.
+- **Commit:** `99fe57c824aa4e40d575ec0206e5b2adc2dd77eb`.
+- **Core/host workflow:** [43892955121](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43892955121) — success.
 - **Core tests:** 233/233.
-- **Host/Unit tests:** 293/293.
+- **Host/Unit tests:** 294/294.
 - **Browser entry-point syntax checks:** passed.
-- **Development preview deployment:** [43890217123](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43890217123) — success.
-- **GitHub Pages build/deployment:** [43890216956](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43890216956) — success.
+- **Development preview deployment:** [43892955199](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43892955199) — success.
+- **GitHub Pages build/deployment:** [43892954608](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43892954608) — success.
 
-The checkpoint includes the Campaign session lifecycle, Applied-ledger host integration, persistence rollback fail-stop, spatial read-only mutation guards, World Registry lifecycle guard, non-grid Entity Registry placement guard, save-target rollback and serialized file operations.
+The checkpoint includes the Campaign session lifecycle, Applied-ledger host integration, persistence rollback fail-stop, spatial read-only mutation guards, World Registry lifecycle guard, non-grid Entity Registry placement guard, save-target rollback, serialized file operations, and a regression proving that Temporary World disposal retires a scoped Unit even after its placement was already removed.
 
-The documentation-only follow-ups after `35bab1be841e3471be1bb721a7dd0ed5dfe06343` update implementation notes, the manual checklist and the agreed Phase 4 objective. They do not change the verified runtime/test source checkpoint.
+The documentation reconciliation commits after the earlier `35bab1…` checkpoint updated implementation notes, the manual checklist and the agreed Phase 4 objective. Later code/test commits refined the scoped-Unit disposal path and added its regression coverage; the current checkpoint above includes those changes.
 
 CI and syntax checks do not prove all browser interactions, real IndexedDB strict durability, cross-tab behavior, crash/reopen recovery or performance.
 
@@ -138,7 +138,7 @@ After the audit is accepted and `work` is merged, Phase 4 will be planned jointl
 
 - `createCassandraRuntimeHost({ isPackageApplied })` now forwards the authoritative verifier through the shared host to `createCassandraRuntime` and Cassandra World Session.
 - Added an end-to-end host regression covering a real Cassandra runtime, a registered Main/Temporary World pair, return to Main, exact package ID/digest verification, and preservation of the Temporary World when the ledger rejects disposal.
-- This closes the missing callback-forwarding path only. It does **not** constitute production Campaign Persistence integration: the application shell still has no approved campaign identity/storage lifecycle, and production domain handlers remain open.
+- This closes the missing callback-forwarding path only. The application-owned Campaign identity/storage lifecycle is described in the later follow-up below; production campaign domain handlers and full expedition gameplay remain open.
 - This runtime path is included in the later verified source/test checkpoint `35bab1be841e3471be1bb721a7dd0ed5dfe06343`; see CI run [43890217044](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43890217044).
 - No environment simulation changes; `main` remains unchanged.
 
@@ -182,3 +182,12 @@ The following narrowly scoped corrections were made on `work` after source revie
 All these corrections are included in the verified source/test checkpoint `35bab1be841e3471be1bb721a7dd0ed5dfe06343` and its successful CI run [43890217044](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43890217044). The development preview and GitHub Pages deployment for that checkpoint also succeeded.
 
 Remaining merge gates are full manual/browser acceptance, real-browser IndexedDB durability and interruption tests, performance measurements, and identifying the authoritative environment simulation host/baseline. No environment simulation source was changed. `main` remains untouched. The latest main-only difference is one documentation proposal for spatial-placement persistence; no runtime code is missing from `work` because of the two commits ahead on `main`.
+
+
+## 2026-11-16 follow-up — unplaced Temporary World Unit disposal
+
+- A source audit identified that Temporary World cleanup must retire every Unit whose Engine identity belongs to the Temporary World scope, even when the Unit no longer has a World Context placement.
+- The implementation was narrowed to the UnitSystem-owned list and exact scoped identity. A follow-up correction derives the scope ID inside the cleanup commit itself, avoiding a reference to the preparation callback's local variable.
+- Added a regression that removes a Temporary Unit's placement through PlacementCoordinator, then completes the Temporary World and verifies that the UnitSystem record and Engine identity are both retired.
+- Latest verified commit: `99fe57c824aa4e40d575ec0206e5b2adc2dd77eb`; CI [43892955121](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43892955121) passed Core 233/233 and Host 294/294. Browser syntax checks, development preview and Pages deployment also succeeded.
+- The first version of the new test had an incorrect expectation for PlacementCoordinator's transaction return value; the test was corrected to assert the returned `current` and `occupancy` fields. No runtime change was needed for that test-only correction.
