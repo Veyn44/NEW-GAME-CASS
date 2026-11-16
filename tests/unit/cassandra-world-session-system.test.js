@@ -465,3 +465,76 @@ test("authoritative Engine runtime clocks win over stale legacy session mirrors"
     await state.runtime.destroy();
   }
 });
+
+test("Temporary World disposal restores every persistence participant after a mid-commit failure", async () => {
+  const state = await setup({ definitionLookup: (id) => ({ id }) });
+  const worldId = "encounter:atomic-disposal-rollback";
+  try {
+    state.session.beginTemporaryWorld({ worldId, width: 32, height: 32 });
+    const first = state.units.createUnit({
+      definitionId: "test.rollback-worker",
+      worldId,
+      position: { x: 3, y: 4 }
+    });
+    const second = state.units.createUnit({
+      definitionId: "test.rollback-worker",
+      worldId,
+      position: { x: 7, y: 8 }
+    });
+    state.colony.setLeader(first.id);
+    state.colony.setDrafted(true);
+
+    const spatial = state.context.getService("core.spatial-composition");
+    const worldContext = state.context.getService("core.world-context");
+    const entities = state.context.getService("core.entity-registry");
+    spatial.addCellContent({
+      contentId: "content:atomic-disposal-rollback",
+      worldId,
+      cell: { x: 12, y: 13 },
+      categoryId: "terrain",
+      layerId: "ground",
+      payload: { material: "rollback-test" }
+    });
+    state.runtime.advance(3);
+    state.session.returnToMainWorld();
+
+    const expectedWorldTime = state.session.getWorldTime(worldId);
+    const originalUnregisterWorld = state.worlds.unregisterWorld;
+    state.worlds.unregisterWorld = function injectedUnregisterFailure() {
+      throw new Error("injected failure after scoped cleanup");
+    };
+
+    try {
+      await assert.rejects(
+        () => state.session.completeTemporaryWorld({
+          packageId: "package:atomic-disposal-rollback",
+          digest: "3".repeat(64)
+        }),
+        /injected failure after scoped cleanup/
+      );
+    } finally {
+      state.worlds.unregisterWorld = originalUnregisterWorld;
+    }
+
+    assert.equal(state.worlds.has(worldId), true);
+    assert.equal(state.worlds.get(worldId).status, "inactive");
+    assert.equal(state.worlds.activeWorldId, "cassandra-main-128");
+    assert.equal(state.session.getState().temporaryWorldId, worldId);
+    assert.equal(state.session.getWorldTime(worldId), expectedWorldTime);
+
+    for (const unit of [first, second]) {
+      assert.ok(state.units.getUnit(unit.id), `Unit ${unit.id} must be restored`);
+      assert.equal(entities.get(unit.id).status, "active");
+      assert.equal(worldContext.getPlacement(unit.id).worldId, worldId);
+      assert.equal(spatial.getEntityOccupancy(unit.id).worldId, worldId);
+    }
+    assert.deepEqual(state.colony.getState(), { leaderId: first.id, drafted: true });
+    assert.deepEqual(spatial.listContents({ worldId }).map((entry) => entry.contentId), [
+      "content:atomic-disposal-rollback"
+    ]);
+    assert.equal(state.context.getService("core.world-runtime").getState(worldId).status, "Ready");
+    assert.equal(state.context.getService("core.event-bus").pendingCount, 0);
+  } finally {
+    await state.runtime.destroy();
+  }
+});
