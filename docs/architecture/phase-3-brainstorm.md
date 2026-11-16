@@ -1,3 +1,5 @@
+> **ARCHIVED DESIGN HISTORY (2026-11-16):** Phase 3 design was implemented in bounded slices and merged into `main` through PR #7. This brainstorm preserves the original discussion and alternatives; it is not the live roadmap or a current implementation checklist. Use [NEXT_STEPS.md](../../NEXT_STEPS.md) for the current roadmap and [current-implementation-status.md](current-implementation-status.md) for verified implementation status. Do not interpret historical open questions below as unimplemented requirements without checking the current source/status index.
+
 # Phase 3 — Physical World & Grid (Brainstorm)
 
 > **Purpose:** Working document for thinking through and specifying the next Engine capability before implementation.
