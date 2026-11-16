@@ -167,3 +167,9 @@ No runtime implementation, environment simulation change, Pages configuration ch
 - Focused lifecycle tests were added in `tests/unit/cassandra-campaign-session-controller.test.js`. CI for these commits is not confirmed; tests must not be described as passing.
 - The Change Package Coordinator remains uninstantiated until authoritative campaign aggregate models and approved domain handlers/manifest reconciliation exist.
 - Real-browser IndexedDB strict-durability and crash/reopen acceptance remain pending. No Engine or environment simulation changes; `main` remains unchanged.
+
+
+### Campaign verifier host regression
+
+- Added an end-to-end runtime-host test proving that no active Campaign means Temporary World disposal is rejected, while an explicitly created Campaign with the exact Applied ledger entry allows disposal.
+- Test commit: `8ec757cb8881c2ddcd3b40bde398ba3075fb7874`. CI for this exact commit is not confirmed; the test must not be reported as passing.
