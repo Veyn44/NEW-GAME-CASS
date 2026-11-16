@@ -441,7 +441,9 @@ test("Temporary World disposal retires scoped Units even when their placement wa
     const placements = state.context.getService("core.placement-coordinator");
 
     assert.ok(worldContext.getPlacement(unit.id));
-    assert.equal(placements.removePlacement(unit.id), true);
+    const removal = placements.removePlacement(unit.id);
+    assert.equal(removal.current, null);
+    assert.equal(removal.occupancy, null);
     assert.equal(worldContext.getPlacement(unit.id), null);
     assert.equal(entities.get(unit.id).status, "active");
     assert.ok(state.units.getUnit(unit.id));
