@@ -140,3 +140,11 @@ Outstanding categories include:
 After this documentation reconciliation, select one bounded remaining Slice 7 domain task for joint design and approval. Do not begin inventory, health, equipment, resource, crew/shuttle, disposition, End Expedition or Abandon Expedition rules without an explicit domain contract and acceptance criteria.
 
 No runtime implementation, environment simulation change, Pages configuration change or merge to `main` is authorized by this documentation status update.
+
+## 2026-11-16 follow-up — Applied Ledger verifier runtime path
+
+- `createCassandraRuntimeHost({ isPackageApplied })` now forwards the authoritative verifier through the shared host to `createCassandraRuntime` and Cassandra World Session.
+- Added an end-to-end host regression covering a real Cassandra runtime, a registered Main/Temporary World pair, return to Main, exact package ID/digest verification, and preservation of the Temporary World when the ledger rejects disposal.
+- This closes the missing callback-forwarding path only. It does **not** constitute production Campaign Persistence integration: the application shell still has no approved campaign identity/storage lifecycle, and production domain handlers remain open.
+- Latest code/test commit: `e009565cc9f762c7158357664436c99ec123e9f8`. CI for this exact commit is not yet confirmed.
+- No environment simulation changes; `main` remains unchanged.
