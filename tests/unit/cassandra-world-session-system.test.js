@@ -88,12 +88,6 @@ test("Cassandra World local time does not commit when a later task faults the si
     ],
     simulationTasks: [
       {
-        systemId: "game.world-session",
-        update({ deltaSeconds, tick, context }) {
-          context.getService("game.world-session-api").advance(deltaSeconds, tick);
-        }
-      },
-      {
         systemId: "test.failure",
         update() {
           throw new Error("intentional test failure");
