@@ -148,3 +148,9 @@ No runtime implementation, environment simulation change, Pages configuration ch
 - This closes the missing callback-forwarding path only. It does **not** constitute production Campaign Persistence integration: the application shell still has no approved campaign identity/storage lifecycle, and production domain handlers remain open.
 - Latest code/test commit: `e009565cc9f762c7158357664436c99ec123e9f8`. CI for this exact commit is not yet confirmed.
 - No environment simulation changes; `main` remains unchanged.
+
+### World Runtime rollback checkpoint precision
+
+- Runtime-only World Runtime checkpoints now preserve the internal disposal target as well as status, participation, pause reasons and local clocks. The ordinary World Runtime state API and persisted save schema remain unchanged.
+- Added regression coverage for restoring a world captured during `Disposing` and successfully completing its original unload transition after restore.
+- Test commit: `15e5ed8f3eb4f5806b0f2a405e14c4e691582500`; CI remains unconfirmed.
