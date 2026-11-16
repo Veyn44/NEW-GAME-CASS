@@ -1,13 +1,13 @@
 # World Lifecycle Contract
 
-> **Current verification status (2026-11-16):** The implementation and CI evidence are summarized in [current-implementation-status.md](current-implementation-status.md). The contract is implemented on `work`; real host/browser acceptance remains pending.
+> **Post-merge verification status (2026-11-16):** The implementation was merged into `main` through PR #7. Exact merge-commit Core/Host CI passed in [run 43940567950](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43940567950). Remaining browser/host acceptance is tracked separately in [phase-3-manual-acceptance-checklist.md](phase-3-manual-acceptance-checklist.md) and [current-implementation-status.md](current-implementation-status.md).
 
-**Status:** Initial deterministic multi-world contract implemented on `work`; pending host/browser verification  
+**Status:** Initial deterministic multi-world contract implemented and merged; selected real-browser lifecycle/acceptance checks remain open.  
 **Scope:** Engine Core world lifecycle, simulation participation, time, failure isolation and persistence  
-**Branch:** `work`  
+**Integrated branch:** `main`  
 **Last source audit:** 2026-11-16
 
-This document records the agreed contract and its current implementation. The implementation is not approved for merge to `main` until host/browser verification is completed.
+This document records the agreed contract and implemented baseline. It does not claim that every host/browser acceptance scenario has been executed.
 
 ## 1. Purpose
 
