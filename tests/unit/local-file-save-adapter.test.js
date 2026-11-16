@@ -205,3 +205,34 @@ test("Cassandra adapter rejects Dev Lab files even when their JSON payload is re
     (error) => error.code === "INCOMPATIBLE_SAVE_FILE"
   );
 });
+
+
+test("native file pickers enforce the configured application extension and MIME type", async () => {
+  const mismatchedFile = createFileHandle("wrong-application.cass");
+  const originalWindow = globalThis.window;
+  let saveOptions;
+  let loadOptions;
+  globalThis.window = {
+    async showSaveFilePicker(options) { saveOptions = options; return mismatchedFile; },
+    async showOpenFilePicker(options) { loadOptions = options; return [mismatchedFile]; }
+  };
+  try {
+    const adapter = new LocalFileSaveAdapter({
+      format: DEV_LAB_SAVE_FORMAT,
+      fileExtension: DEV_LAB_SAVE_FILE_EXTENSION,
+      mimeType: DEV_LAB_SAVE_MIME_TYPE,
+      fileDescription: "Dev Lab workspace",
+      defaultFileName: DEV_LAB_SAVE_FILE_NAME,
+      slotId: DEV_LAB_SAVE_SLOT
+    });
+    await assert.rejects(adapter.selectSaveFile(), (error) => error.code === "INVALID_SAVE_EXTENSION");
+    await assert.rejects(adapter.selectLoadFile(), (error) => error.code === "INVALID_SAVE_EXTENSION");
+    for (const options of [saveOptions, loadOptions]) {
+      assert.equal(options.excludeAcceptAllOption, true);
+      assert.deepEqual(options.types[0].accept[DEV_LAB_SAVE_MIME_TYPE], [DEV_LAB_SAVE_FILE_EXTENSION]);
+    }
+  } finally {
+    if (originalWindow === undefined) delete globalThis.window;
+    else globalThis.window = originalWindow;
+  }
+});
