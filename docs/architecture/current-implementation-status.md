@@ -3,9 +3,10 @@
 **Audit date:** 2026-11-16  
 **Repository:** `Veyn44/NEW-GAME-CASS`  
 **Working branch:** `work`  
-**Audited work HEAD:** `90cf0b6f67155358089f1c007e06a78767746564`  
+**Latest verified source/test checkpoint:** `35bab1be841e3471be1bb721a7dd0ed5dfe06343`  
+**Documentation follow-up:** `b50bf3f14aedf29fb42aa76271fe17df4b868f54`  
 **Audited main HEAD:** `458ecc52d4267b6b31fb3d59559374533c49fa64`  
-**Documentation reconciliation commits:** `bdbf56312f3e5e24ccd5f7da83b4d519a991a928`, `2d52d21bbbe183b7199c6b1d85153f14c6326bb4`
+**Documentation reconciliation commits:** `bdbf56312f3e5e24ccd5f7da83b4d519a991a928`, `2d52d21bbbe183b7199c6b1d85153f14c6326bb4`, `b50bf3f14aedf29fb42aa76271fe17df4b868f54`
 
 This is the current status index for the implementation described by the Phase 3 plans and architecture reviews. Where older sections of those documents still describe pre-implementation gaps or old test counts, this dated status record supersedes those historical statements. Source code and current tests remain authoritative.
 
@@ -13,7 +14,7 @@ This is the current status index for the implementation described by the Phase 3
 
 - All work described here is on `work`.
 - `main` remains at `458ecc52d4267b6b31fb3d59559374533c49fa64` and is not part of this work.
-- The latest audited `work` HEAD is a documentation-only follow-up to the lifecycle implementation.
+- The latest verified source/test checkpoint is `35bab1be841e3471be1bb721a7dd0ed5dfe06343`; subsequent commits in this audit are documentation-only or narrowly scoped regression-test/source corrections recorded below.
 - No merge or pull request is authorized by this status record.
 
 ## 2. Phase 3 implementation summary
@@ -91,43 +92,34 @@ The existing infrastructure is a foundation only. The outstanding gameplay/domai
 
 ## 6. CI evidence and what it proves
 
-### Latest relevant runtime/code CI
+### Latest verified source/test checkpoint
 
-- **Commit:** `41c319d5c9ff2ee8626027009d5c24cec364bdb7` — “Guard world lifecycle transitions at simulation boundaries”.
-- **Workflow run:** [43832633971](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43832633971)
-- **Result:** success.
-- **Core tests:** 230/230.
-- **Host/Unit tests:** 260/260.
+- **Commit:** `35bab1be841e3471be1bb721a7dd0ed5dfe06343`.
+- **Core/host workflow:** [43890217044](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43890217044) — success.
+- **Core tests:** 233/233.
+- **Host/Unit tests:** 293/293.
 - **Browser entry-point syntax checks:** passed.
+- **Development preview deployment:** [43890217123](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43890217123) — success.
+- **GitHub Pages build/deployment:** [43890216956](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43890216956) — success.
 
-This is the latest confirmed CI evidence for the multi-world runtime code. The workflow job confirms both the full test command and browser entry-point syntax check completed successfully.
+The checkpoint includes the Campaign session lifecycle, Applied-ledger host integration, persistence rollback fail-stop, spatial read-only mutation guards, World Registry lifecycle guard, non-grid Entity Registry placement guard, save-target rollback and serialized file operations.
 
-### Later documentation CI
+The following commit `b50bf3f14aedf29fb42aa76271fe17df4b868f54` updates documentation only; its workflows are being checked separately. The code/test checkpoint above remains the latest verified runtime/test state.
 
-- **Commit:** `fbef12498d8c17eefe50795ef90fe89b816bf3b1`.
-- **Workflow run:** [43832893800](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43832893800).
-- **Result:** success.
-- This run is a later documentation-only commit and must not be misrepresented as a newer runtime test result.
+CI and syntax checks do not prove all browser interactions, real IndexedDB strict durability, cross-tab behavior, crash/reopen recovery or performance.
 
-### Current audited HEAD
+## 7. Manual acceptance — partially exercised, not complete
 
-- `90cf0b6f67155358089f1c007e06a78767746564` is later than those runs and contains documentation-only changes.
-- No separate CI run for this exact HEAD was confirmed during the audit. The subsequent documentation-only reconciliation commits listed above also have no associated workflow run confirmed at the time of this update.
-
-CI and syntax checks do not prove actual browser UI behavior, Pages deployment correctness, IndexedDB durability in target browsers, crash/reopen recovery or performance.
-
-## 7. Manual acceptance — still pending
-
-The checklist at [phase-3-manual-acceptance-checklist.md](phase-3-manual-acceptance-checklist.md) remains **prepared, not executed**. Do not check off items based on automated tests alone.
+The user has confirmed that established Cassandra behavior on `work` remains as it did before Phase 3 and that redundant test buttons were removed. This is a limited manual regression check, not full Phase 3 acceptance. The checklist at [phase-3-manual-acceptance-checklist.md](phase-3-manual-acceptance-checklist.md) records the remaining work.
 
 Outstanding categories include:
 
-- Actual Dev Lab/Cassandra browser interaction, layout, startup and teardown.
-- Main/Temporary World behavior through the deployed browser entry points.
-- Real-browser IndexedDB strict-durability, cross-tab CAS and interrupted promotion recovery.
+- Dev Lab spatial inspection/test workflows and full browser interaction/layout/startup/teardown.
+- Main/Temporary World behavior through deployed browser entry points.
+- Real-browser IndexedDB strict durability, cross-tab CAS and interrupted promotion recovery.
 - Representative 128×128 and 256×256 performance measurements.
-- Pages direct-entry, refresh/deep-link, asset and console verification.
-- Environment regression can only be meaningfully checked once the authoritative environment simulation host/module and its baseline are identified. No claim is made that it was tested in this branch.
+- Pages direct-entry, refresh/deep-link, assets and browser-console verification.
+- Environment regression in its authoritative host against an identified baseline. No environment simulation source was changed in this branch, and no regression pass is claimed.
 
 ## 8. Superseded planning material
 
@@ -137,23 +129,23 @@ Outstanding categories include:
 
 ## 9. Next engineering decision
 
-After this documentation reconciliation, select one bounded remaining Slice 7 domain task for joint design and approval. Do not begin inventory, health, equipment, resource, crew/shuttle, disposition, End Expedition or Abandon Expedition rules without an explicit domain contract and acceptance criteria.
+The immediate objective is to complete the pre-merge audit of `work` against `main`, resolve only demonstrated merge blockers, and verify the exact final source/test checkpoint. Do not start new gameplay features or Phase 4 work during this audit. No merge or pull request is authorized without the user's explicit approval.
 
-No runtime implementation, environment simulation change, Pages configuration change or merge to `main` is authorized by this documentation status update.
+After the audit is accepted and `work` is merged, Phase 4 will be planned jointly. Its agreed goal is to prepare the existing Cassandra/Dev Lab implementation for direct browser testing of what already exists — entry points, host composition, test workflows, diagnostics, and persistence interactions — not to invent new gameplay rules.
 
 ## 2026-11-16 follow-up — Applied Ledger verifier runtime path
 
 - `createCassandraRuntimeHost({ isPackageApplied })` now forwards the authoritative verifier through the shared host to `createCassandraRuntime` and Cassandra World Session.
 - Added an end-to-end host regression covering a real Cassandra runtime, a registered Main/Temporary World pair, return to Main, exact package ID/digest verification, and preservation of the Temporary World when the ledger rejects disposal.
 - This closes the missing callback-forwarding path only. It does **not** constitute production Campaign Persistence integration: the application shell still has no approved campaign identity/storage lifecycle, and production domain handlers remain open.
-- Latest code/test commit: `e009565cc9f762c7158357664436c99ec123e9f8`. CI for this exact commit is not yet confirmed.
+- This runtime path is included in the later verified source/test checkpoint `35bab1be841e3471be1bb721a7dd0ed5dfe06343`; see CI run [43890217044](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43890217044).
 - No environment simulation changes; `main` remains unchanged.
 
 ### World Runtime rollback checkpoint precision
 
 - Runtime-only World Runtime checkpoints now preserve the internal disposal target as well as status, participation, pause reasons and local clocks. The ordinary World Runtime state API and persisted save schema remain unchanged.
 - Added regression coverage for restoring a world captured during `Disposing` and successfully completing its original unload transition after restore.
-- Test commit: `15e5ed8f3eb4f5806b0f2a405e14c4e691582500`; CI remains unconfirmed.
+- Test commit: `15e5ed8f3eb4f5806b0f2a405e14c4e691582500`; included in the later verified CI checkpoint [43890217044](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43890217044).
 
 
 ## 2026-11-16 follow-up — Application-owned Campaign session lifecycle
@@ -164,7 +156,7 @@ No runtime implementation, environment simulation change, Pages configuration ch
 - The controller's Applied-ledger verifier checks the exact package ID, digest and `applied` status; without an active Campaign it returns false.
 - Cassandra Application Shell owns this controller and injects the verifier into Runtime Host. The `.cass` workspace adapter and its save flow remain separate and unchanged.
 - `application-entry.js` exports `cassandraApplication` so Pages/manual testing can access `campaignSessionApi`. This is a development/test seam, not a finished game UI; no separate Cassandra game or Campaign selection UI exists yet.
-- Focused lifecycle tests were added in `tests/unit/cassandra-campaign-session-controller.test.js`. CI for these commits is not confirmed; tests must not be described as passing.
+- Focused lifecycle tests were added in `tests/unit/cassandra-campaign-session-controller.test.js` and are included in the later successful Host test suite [43890217044](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43890217044).
 - The Change Package Coordinator remains uninstantiated until authoritative campaign aggregate models and approved domain handlers/manifest reconciliation exist.
 - Real-browser IndexedDB strict-durability and crash/reopen acceptance remain pending. No Engine or environment simulation changes; `main` remains unchanged.
 
@@ -172,4 +164,20 @@ No runtime implementation, environment simulation change, Pages configuration ch
 ### Campaign verifier host regression
 
 - Added an end-to-end runtime-host test proving that no active Campaign means Temporary World disposal is rejected, while an explicitly created Campaign with the exact Applied ledger entry allows disposal.
-- Test commit: `8ec757cb8881c2ddcd3b40bde398ba3075fb7874`. CI for this exact commit is not confirmed; the test must not be reported as passing.
+- Test commit: `8ec757cb8881c2ddcd3b40bde398ba3075fb7874`; the regression is included in the later successful Host test suite [43890217044](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43890217044).
+
+
+## 2026-11-16 pre-merge audit — verified corrections
+
+The following narrowly scoped corrections were made on `work` after source review exposed invariant gaps:
+
+- Persistence now faults and invokes its fatal-integrity callback when a restore rollback itself fails. A regression proves the runtime cannot continue saving from a partially restored state.
+- Spatial Composition now enforces the read-only movement-policy guard for content removal and prepared restore commit/rollback.
+- World Registry close/unregister now consult the World Runtime lifecycle guard. A world cannot be closed while its runtime is Ready/Loading/Disposing, nor can registry lifecycle mutation occur during an active simulation round.
+- Entity Registry store/remove/reactivate operations now reject one-sided lifecycle changes while a World Context placement remains. Non-grid `WorldContext.storeEntity()` uses the internal coordinated lifecycle capability.
+- File persistence now restores the previous file target after failed import/load/Save As and serializes save/load/import operations so a concurrent import cannot replace the data source of an active restore.
+- Stale test fixtures were updated to provide the required input controller and to inject cleanup failures through the supported Temporary World cleanup hook.
+
+All these corrections are included in the verified source/test checkpoint `35bab1be841e3471be1bb721a7dd0ed5dfe06343` and its successful CI run [43890217044](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43890217044). The development preview and GitHub Pages deployment for that checkpoint also succeeded.
+
+Remaining merge gates are full manual/browser acceptance, real-browser IndexedDB durability and interruption tests, performance measurements, and identifying the authoritative environment simulation host/baseline. No environment simulation source was changed. `main` remains untouched.
