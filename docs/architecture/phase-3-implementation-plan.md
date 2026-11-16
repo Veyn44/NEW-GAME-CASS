@@ -1,13 +1,14 @@
 # Phase 3 Physical World — Implementation Plan
 
-> **Current status supersession (2026-11-16):** Use [current-implementation-status.md](current-implementation-status.md) for the live slice status and verified CI evidence. Status paragraphs, test counts and “current gap” statements below are retained as implementation history and must not override that index.
+> **Post-merge status (2026-11-16):** Phase 3 implementation history has been merged into `main` through PR #7 (`0a879ed0ef955110b069b9e89bb420ead4f58737`). Use [current-implementation-status.md](current-implementation-status.md) for live implementation status and verified CI evidence. The older status paragraphs, test counts, source paths and “current gap” statements below are historical snapshots; do not treat them as the current repository state.
 
-**Status:** Slices 1–6 are implemented on `work`; initial Dev Lab spatial test workflows, Cassandra grid/Unit movement, Main/Temporary World session and the first Change Package protocol foundation are implemented. Production campaign persistence, domain integration and final acceptance remain in progress. Automated tests may run during implementation; user-led acceptance testing remains deferred until Phase 3 is complete. The latest confirmed GitHub Actions run `43764452167` passed 205/205 Core tests and 249/249 host tests.  
-**Branch:** `work`  
+**Status:** Phase 3 infrastructure and integration work has been merged into `main`. Slices 1–6 are implemented; Slice 7 contains Cassandra integration foundations but not the complete Campaign/expedition domain workflow; Slice 8 has automated Dev Lab spatial workflow coverage; final manual/browser acceptance remains scoped and partially deferred. The exact merge-commit Core/Host CI run [43940567950](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43940567950) passed. See [current-implementation-status.md](current-implementation-status.md) for the authoritative status.  
+**Integrated branch:** `main`  
+**Merge commit:** `0a879ed0ef955110b069b9e89bb420ead4f58737`  
 **Source audit:** 2026-11-15  
 **Scope:** Implementation sequencing for reusable Engine grid/spatial capabilities and their Cassandra/Dev Lab integration
 
-This plan translates the current Phase 3 design material into an implementation sequence. The user explicitly authorized implementation to begin on `work`. That authorization is being applied slice by slice: a completed, tested slice does not automatically authorize dependent or unrelated changes, and it does not authorize a merge to `main`.
+This plan records the implementation sequence that led to the merged Phase 3 result. It is now primarily an implementation-history and contract reference. New work must follow the current roadmap and implementation-status index; the completed merge does not authorize unrelated gameplay changes.
 
 Several topics in Steps 7–9 remain open. Isolated Engine capabilities may proceed where their own contracts are settled; Cassandra integration and persistence remain gated by their outstanding design and source-audit requirements.
 
