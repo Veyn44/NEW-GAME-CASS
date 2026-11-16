@@ -4,6 +4,7 @@ import { GameClock } from "./game-clock.js";
 import { SimulationScheduler } from "./simulation-scheduler.js";
 import { EntityRegistry } from "./entity-registry.js";
 import { WorldRegistry } from "./world-registry.js";
+import { WorldRuntimeManager } from "./world-runtime-manager.js";
 import { WorldContext } from "./world-context.js";
 import { SpatialComposition } from "../spatial/spatial-composition.js";
 import { PlacementCoordinator } from "../spatial/placement-coordinator.js";
@@ -17,6 +18,7 @@ const SERVICE = Object.freeze({
   clock: "core.game-clock",
   entities: "core.entity-registry",
   worlds: "core.world-registry",
+  worldRuntime: "core.world-runtime",
   worldContext: "core.world-context",
   spatialComposition: "core.spatial-composition",
   placementCoordinator: "core.placement-coordinator",
@@ -118,6 +120,14 @@ export function createCoreAssembly({
       provides: [SERVICE.worlds],
       initialize() {
         return { [SERVICE.worlds]: new WorldRegistry() };
+      }
+    },
+    {
+      id: "core.world-runtime",
+      provides: [SERVICE.worldRuntime],
+      requires: [SERVICE.worlds],
+      initialize(context) {
+        return { [SERVICE.worldRuntime]: new WorldRuntimeManager({ worldRegistry: required(context, SERVICE.worlds) }) };
       }
     },
     {
@@ -223,11 +233,12 @@ export function createCoreAssembly({
     {
       id: "core.persistence",
       provides: [SERVICE.persistence],
-      requires: [SERVICE.logger, SERVICE.entities, SERVICE.worlds, SERVICE.worldContext, SERVICE.placementCoordinator, SERVICE.scheduler, SERVICE.events],
+      requires: [SERVICE.logger, SERVICE.entities, SERVICE.worlds, SERVICE.worldRuntime, SERVICE.worldContext, SERVICE.placementCoordinator, SERVICE.scheduler, SERVICE.events],
       initialize(context) {
         const logger = required(context, SERVICE.logger);
         const entities = required(context, SERVICE.entities);
         const worlds = required(context, SERVICE.worlds);
+        const worldRuntime = required(context, SERVICE.worldRuntime);
         const worldContext = required(context, SERVICE.worldContext);
         const placementCoordinator = required(context, SERVICE.placementCoordinator);
         const scheduler = required(context, SERVICE.scheduler);
@@ -278,6 +289,7 @@ export function createCoreAssembly({
         });
         persistence.registerParticipant(entities.createPersistenceParticipant());
         persistence.registerParticipant(worlds.createPersistenceParticipant());
+        persistence.registerParticipant(worldRuntime.createPersistenceParticipant());
         persistence.registerParticipant(placementCoordinator.createPersistenceParticipant());
         return { [SERVICE.persistence]: persistence };
       }
