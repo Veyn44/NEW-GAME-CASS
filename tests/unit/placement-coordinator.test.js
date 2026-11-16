@@ -136,6 +136,7 @@ test("rollback integrity failure faults coordinator and signals the host", () =>
   const realSpatial = new SpatialComposition({ worldRegistry: worlds });
   const brokenWorldContext = {
     requireSpatialCoordination: realWorldContext.requireSpatialCoordination.bind(realWorldContext),
+    setMutationGuard: realWorldContext.setMutationGuard.bind(realWorldContext),
     getPlacement: realWorldContext.getPlacement.bind(realWorldContext),
     prepareCoordinatedPlacementChange(...args) {
       const tx = realWorldContext.prepareCoordinatedPlacementChange(...args);
