@@ -105,6 +105,22 @@ export function runWorldRuntimeManagerTests() {
     equal(runtime.getState("world:beta").simulatedSeconds, 0);
   });
 
+  check("lifecycle teardown is rejected while a world simulation round is active", () => {
+    const worlds = new WorldRegistry();
+    worlds.registerWorld({ worldId: "world:alpha", type: "test.world", dimensions: { width: 8, height: 8 } });
+    const runtime = new WorldRuntimeManager({ worldRegistry: worlds });
+    runtime.beginLoading("world:alpha");
+    runtime.markReady("world:alpha");
+    runtime.setSimulationEnabled("world:alpha", true);
+    const participants = runtime.getParticipants();
+    runtime.beginSimulationRound(participants);
+    throwsCode(() => runtime.beginDisposal("world:alpha"), "WORLD_STEP_ACTIVE");
+    runtime.endSimulationRound();
+    runtime.beginDisposal("world:alpha");
+    runtime.finishDisposal("world:alpha");
+    equal(runtime.getState("world:alpha").status, "Disposed");
+  });
+
   check("stale and duplicate participant snapshots are rejected before any time is committed", () => {
     const { runtime } = setup();
     ready(runtime, "world:alpha");
@@ -115,6 +131,21 @@ export function runWorldRuntimeManagerTests() {
     runtime.commitStep([participants[0]], 6);
     throwsCode(() => runtime.commitStep(participants, 6), "STALE_PARTICIPANT_SNAPSHOT");
     equal(runtime.getState("world:beta").simulatedSeconds, 0);
+  });
+
+  check("unload returns a runtime to Unloaded while disposal produces Disposed", () => {
+    const { runtime } = setup();
+    ready(runtime, "world:alpha");
+    runtime.setSimulationEnabled("world:alpha", true);
+    runtime.beginUnload("world:alpha");
+    equal(runtime.getParticipants().length, 0);
+    runtime.finishUnload("world:alpha");
+    equal(runtime.getState("world:alpha").status, "Unloaded");
+    runtime.beginLoading("world:alpha");
+    runtime.markReady("world:alpha");
+    runtime.beginDisposal("world:alpha");
+    runtime.finishDisposal("world:alpha");
+    equal(runtime.getState("world:alpha").status, "Disposed");
   });
 
   check("unloading disables participation and disposed worlds can be loaded again", () => {

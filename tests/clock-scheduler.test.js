@@ -230,6 +230,24 @@ export function runClockSchedulerTests() {
     equal(calls.length, 0);
   });
 
+  test("world disposal attempted from a task faults before the world can be torn down mid-step", () => {
+    const clock = createClock();
+    const worlds = new WorldRegistry();
+    worlds.registerWorld({ worldId: "world:alpha", type: "test.world", dimensions: { width: 8, height: 8 } });
+    const runtime = new WorldRuntimeManager({ worldRegistry: worlds });
+    runtime.beginLoading("world:alpha");
+    runtime.markReady("world:alpha");
+    runtime.setSimulationEnabled("world:alpha", true);
+    const scheduler = new SimulationScheduler({
+      clock, worldRuntime: runtime, systemOrder: ["dispose"],
+      tasks: [{ systemId: "dispose", scope: "world", update() { runtime.beginDisposal("world:alpha"); } }]
+    });
+    expectCode(() => scheduler.advance(0.05), "SIMULATION_STEP_FAILED");
+    equal(runtime.getState("world:alpha").status, "Ready");
+    equal(runtime.getState("world:alpha").simulationEnabled, true);
+    assert(scheduler.snapshot.faulted);
+  });
+
   test("world time is not committed when a world-scoped task faults", () => {
     const clock = createClock();
     const worlds = new WorldRegistry();

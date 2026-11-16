@@ -282,7 +282,12 @@ export class SimulationScheduler {
       timeSeconds: this.#clock.totalSeconds + this.#fixedStepSeconds
     });
 
+    let worldRoundStarted = false;
     try {
+      if (participants) {
+        this.#worldRuntime.beginSimulationRound(participants);
+        worldRoundStarted = true;
+      }
       for (const task of this.#tasks) {
         if (task.scope === "global") {
           if (nextTick % task.everyTicks !== 0) continue;
@@ -319,6 +324,8 @@ export class SimulationScheduler {
         cause: error,
         tick: nextTick
       });
+    } finally {
+      if (worldRoundStarted) this.#worldRuntime.endSimulationRound();
     }
   }
 

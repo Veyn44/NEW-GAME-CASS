@@ -57,6 +57,7 @@ function createRecord(worldId, saved = null) {
   return {
     worldId,
     status: "Unloaded",
+    disposalTarget: null,
     simulationEnabled: false,
     pauseReasons: new Set(),
     simulatedSeconds: saved?.simulatedSeconds ?? 0,
@@ -72,6 +73,7 @@ function createRecord(worldId, saved = null) {
 export class WorldRuntimeManager {
   #worlds;
   #records = new Map();
+  #simulationRoundActive = false;
 
   constructor({ worldRegistry } = {}) {
     if (!worldRegistry || typeof worldRegistry.get !== "function" || typeof worldRegistry.list !== "function") {
@@ -81,6 +83,7 @@ export class WorldRuntimeManager {
   }
 
   beginLoading(worldId) {
+    this.#assertLifecycleBoundary();
     const record = this.#requireRecord(worldId);
     if (record.status !== "Unloaded" && record.status !== "Disposed") {
       throw this.#transitionError(record, "Loading");
@@ -92,6 +95,7 @@ export class WorldRuntimeManager {
   }
 
   markReady(worldId) {
+    this.#assertLifecycleBoundary();
     const record = this.#requireRecord(worldId);
     if (record.status !== "Loading") throw this.#transitionError(record, "Ready");
     record.status = "Ready";
@@ -99,6 +103,7 @@ export class WorldRuntimeManager {
   }
 
   failLoading(worldId) {
+    this.#assertLifecycleBoundary();
     const record = this.#requireRecord(worldId);
     if (record.status !== "Loading") throw this.#transitionError(record, "Unloaded");
     record.status = "Unloaded";
@@ -107,24 +112,79 @@ export class WorldRuntimeManager {
     return this.getState(worldId);
   }
 
+  beginUnload(worldId) {
+    this.#assertLifecycleBoundary();
+    const record = this.#requireRecord(worldId);
+    if (record.status !== "Ready") throw this.#transitionError(record, "Disposing for unload");
+    record.status = "Disposing";
+    record.disposalTarget = "Unloaded";
+    record.simulationEnabled = false;
+    record.pauseReasons.clear();
+    return this.getState(worldId);
+  }
+
+  finishUnload(worldId) {
+    this.#assertLifecycleBoundary();
+    const record = this.#requireRecord(worldId);
+    if (record.status !== "Disposing" || record.disposalTarget !== "Unloaded") {
+      throw this.#transitionError(record, "Unloaded");
+    }
+    record.status = "Unloaded";
+    record.disposalTarget = null;
+    return this.getState(worldId);
+  }
+
   beginDisposal(worldId) {
+    this.#assertLifecycleBoundary();
     const record = this.#requireRecord(worldId);
     if (record.status !== "Ready" && record.status !== "Loading" && record.status !== "Unloaded") {
       throw this.#transitionError(record, "Disposing");
     }
     record.status = "Disposing";
+    record.disposalTarget = "Disposed";
     record.simulationEnabled = false;
     record.pauseReasons.clear();
     return this.getState(worldId);
   }
 
   finishDisposal(worldId) {
+    this.#assertLifecycleBoundary();
     const record = this.#requireRecord(worldId);
-    if (record.status !== "Disposing") throw this.#transitionError(record, "Disposed");
+    if (record.status !== "Disposing" || record.disposalTarget !== "Disposed") throw this.#transitionError(record, "Disposed");
     record.status = "Disposed";
+    record.disposalTarget = null;
     record.simulationEnabled = false;
     record.pauseReasons.clear();
     return this.getState(worldId);
+  }
+
+  beginSimulationRound(participants) {
+    if (this.#simulationRoundActive) {
+      throw new WorldRuntimeError("SIMULATION_ROUND_ACTIVE", "A World Runtime simulation round is already active.");
+    }
+    if (!Array.isArray(participants)) {
+      throw new WorldRuntimeError("INVALID_PARTICIPANTS", "Simulation participants must be an array.");
+    }
+    const seen = new Set();
+    for (const participant of participants) {
+      const worldId = assertWorldId(participant?.worldId);
+      const record = this.#records.get(worldId);
+      if (!record || seen.has(worldId)
+        || participant.completedSteps !== record.completedSteps
+        || participant.simulatedSeconds !== record.simulatedSeconds
+        || participant.nextStep !== record.completedSteps + 1) {
+        throw new WorldRuntimeError("STALE_PARTICIPANT_SNAPSHOT", `World "${worldId}" participant snapshot is stale or duplicated.`, { worldId });
+      }
+      seen.add(worldId);
+    }
+    this.#simulationRoundActive = true;
+    return true;
+  }
+
+  endSimulationRound() {
+    if (!this.#simulationRoundActive) return false;
+    this.#simulationRoundActive = false;
+    return true;
   }
 
   setSimulationEnabled(worldId, enabled) {
@@ -371,6 +431,13 @@ export class WorldRuntimeManager {
       simulatedSeconds: record.simulatedSeconds,
       completedSteps: record.completedSteps
     });
+  }
+
+  #assertLifecycleBoundary() {
+    if (this.#simulationRoundActive) {
+      throw new WorldRuntimeError("WORLD_STEP_ACTIVE",
+        "World lifecycle transitions cannot run during a simulation round.");
+    }
   }
 
   #transitionError(record, target) {
