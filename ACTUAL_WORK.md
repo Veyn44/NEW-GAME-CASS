@@ -21,10 +21,11 @@ Engine must not import Dev Lab or Cassandra. The standalone Dev Lab must not req
 
 ## 1.1 Current pre-merge audit checkpoint
 
-- Latest verified source/test checkpoint: `35bab1be841e3471be1bb721a7dd0ed5dfe06343`.
-- Core/host CI: [43890217044](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43890217044) — 233/233 Core tests, 293/293 Host tests, browser syntax checks passed.
-- Development preview: [43890217123](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43890217123) — success.
-- GitHub Pages build/deployment: [43890216956](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43890216956) — success.
+- Latest verified source/test checkpoint: `99fe57c824aa4e40d575ec0206e5b2adc2dd77eb`.
+- Core/host CI: [43892955121](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43892955121) — 233/233 Core tests, 294/294 Host tests, browser syntax checks passed.
+- Development preview: [43892955199](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43892955199) — success.
+- GitHub Pages build/deployment: [43892954608](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43892954608) — success.
+- The checkpoint includes a regression for retiring a scoped Temporary World Unit after its placement has already been removed.
 - Narrow fixes on `work`: Persistence restore rollback now faults/stops the runtime if rollback fails; Spatial Composition read-only movement-policy guards cover removals and restore transactions; World Registry lifecycle operations respect World Runtime state and active simulation rounds; Entity Registry lifecycle changes cannot bypass non-grid World Context placements; failed save selection is rolled back and file operations are serialized to prevent import races.
 - Test fixtures were corrected to provide the required Runtime Host input controller and inject cleanup failures through the supported Temporary World cleanup hook.
 - User-confirmed manual regression: established Cassandra behavior remains as before Phase 3 and redundant test buttons were removed. This does not complete the full browser acceptance checklist.
