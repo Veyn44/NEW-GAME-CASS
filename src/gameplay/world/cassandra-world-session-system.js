@@ -433,7 +433,9 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
     },
     prepareRestore(snapshot) {
       const next = parseSnapshot(snapshot);
-      const legacyTimeRestore = worldRuntime.prepareLegacyTimeRestore(next.worldTimes);
+      const legacyTimeRestore = worldRuntime.prepareLegacyTimeRestore(
+        [...next.worldTimes].map(([worldId, seconds]) => ({ worldId, seconds }))
+      );
       const previous = { mainWorldId, temporaryWorldId };
       let committed = false;
       return Object.freeze({
