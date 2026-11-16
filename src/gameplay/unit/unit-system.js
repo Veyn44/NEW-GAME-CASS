@@ -86,6 +86,7 @@ export function createUnitSystem({ definitionLookup, movementPolicy = () => true
   let placementCoordinator;
   let spatialComposition;
   let spatialMovement;
+  let events;
   let persistence;
   let unregisterPersistence = null;
 
@@ -204,6 +205,14 @@ export function createUnitSystem({ definitionLookup, movementPolicy = () => true
         entities.remove(id);
       }
       units.delete(id);
+      events.publish({
+        type: "game.unit.removed",
+        source: "game.unit",
+        payload: {
+          entityId: id,
+          worldId: placement?.type === "world" ? placement.worldId : null
+        }
+      });
       return true;
     }
   });
@@ -293,6 +302,7 @@ export function createUnitSystem({ definitionLookup, movementPolicy = () => true
       "core.placement-coordinator",
       "core.spatial-composition",
       "core.spatial-movement",
+      "core.event-bus",
       "core.persistence"
     ],
     initialize(context) {
@@ -302,6 +312,7 @@ export function createUnitSystem({ definitionLookup, movementPolicy = () => true
       placementCoordinator = context.getService("core.placement-coordinator");
       spatialComposition = context.getService("core.spatial-composition");
       spatialMovement = context.getService("core.spatial-movement");
+      events = context.getService("core.event-bus");
       persistence = context.getService("core.persistence");
       unregisterPersistence = persistence.registerParticipant(persistenceParticipant);
       return { "game.unit-api": api };
@@ -309,6 +320,7 @@ export function createUnitSystem({ definitionLookup, movementPolicy = () => true
     destroy() {
       unregisterPersistence?.();
       unregisterPersistence = null;
+      events = null;
       units = new Map();
     }
   });
