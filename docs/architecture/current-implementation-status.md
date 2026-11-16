@@ -154,3 +154,16 @@ No runtime implementation, environment simulation change, Pages configuration ch
 - Runtime-only World Runtime checkpoints now preserve the internal disposal target as well as status, participation, pause reasons and local clocks. The ordinary World Runtime state API and persisted save schema remain unchanged.
 - Added regression coverage for restoring a world captured during `Disposing` and successfully completing its original unload transition after restore.
 - Test commit: `15e5ed8f3eb4f5806b0f2a405e14c4e691582500`; CI remains unconfirmed.
+
+
+## 2026-11-16 follow-up — Application-owned Campaign session lifecycle
+
+- `cassandra/application/cassandra-campaign-session-controller.js` now owns explicit Campaign create/open/close lifecycle and a separate `IndexedDbCampaignSaveAdapter` instance.
+- Campaign identity is supplied by the caller; there is no generated/default campaign ID and no implicit switch while another Campaign is open.
+- Creation requires an explicit initial Major State / Change Buffer / Applied Ledger snapshot, writes it with revision-0 compare-and-swap, and verifies the reopened durable revision. Opening only accepts an existing durable campaign record.
+- The controller's Applied-ledger verifier checks the exact package ID, digest and `applied` status; without an active Campaign it returns false.
+- Cassandra Application Shell owns this controller and injects the verifier into Runtime Host. The `.cass` workspace adapter and its save flow remain separate and unchanged.
+- `application-entry.js` exports `cassandraApplication` so Pages/manual testing can access `campaignSessionApi`. This is a development/test seam, not a finished game UI; no separate Cassandra game or Campaign selection UI exists yet.
+- Focused lifecycle tests were added in `tests/unit/cassandra-campaign-session-controller.test.js`. CI for these commits is not confirmed; tests must not be described as passing.
+- The Change Package Coordinator remains uninstantiated until authoritative campaign aggregate models and approved domain handlers/manifest reconciliation exist.
+- Real-browser IndexedDB strict-durability and crash/reopen acceptance remain pending. No Engine or environment simulation changes; `main` remains unchanged.
