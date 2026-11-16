@@ -135,7 +135,7 @@ export class LocalFileSaveAdapter {
     }
     const handle = await picker.call(globalThis.window, {
       suggestedName: this.#defaultFileName,
-      types: pickerTypes(this),
+      types: pickerTypes({ fileDescription: this.#fileDescription, mimeType: this.#mimeType, fileExtension: this.#fileExtension }),
       excludeAcceptAllOption: true
     });
     if (!handle) return null;
@@ -155,7 +155,7 @@ export class LocalFileSaveAdapter {
     }
     const [handle] = await picker.call(globalThis.window, {
       multiple: false,
-      types: pickerTypes(this),
+      types: pickerTypes({ fileDescription: this.#fileDescription, mimeType: this.#mimeType, fileExtension: this.#fileExtension }),
       excludeAcceptAllOption: true
     });
     if (!handle) return null;
