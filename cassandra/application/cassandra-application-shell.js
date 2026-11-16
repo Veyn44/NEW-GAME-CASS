@@ -401,6 +401,7 @@ export async function startCassandraApplication() {
         saveAdapter: state.saveAdapter,
         fileInput,
         onRestore() {
+          state.worldSessionApi.resumeAfterRestore();
           refreshWorldMarkers();
           clearSelection();
           const session = state.worldSessionApi.getState();

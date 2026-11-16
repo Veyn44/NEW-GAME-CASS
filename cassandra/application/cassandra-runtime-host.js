@@ -32,7 +32,6 @@ export function createCassandraRuntime({
     simulationTasks: [{
       systemId: "game.colony-control",
       update({ deltaSeconds, tick, context }) {
-        const worldSession = context.getService("game.world-session-api");
         gameplayController ??= createCassandraDevLabGameplayController({
           unitApi: context.getService("game.unit-api"),
           colonyControlApi: context.getService("game.colony-control-api"),
@@ -44,7 +43,6 @@ export function createCassandraRuntime({
         } else {
           updateFreeCamera?.(deltaSeconds);
         }
-        worldSession.advance(deltaSeconds, tick);
       }
     }]
   });

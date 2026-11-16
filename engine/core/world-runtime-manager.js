@@ -221,6 +221,67 @@ export class WorldRuntimeManager {
     return updates;
   }
 
+  prepareLegacyTimeRestore(entries) {
+    if (!Array.isArray(entries)) {
+      throw new WorldRuntimeError("INVALID_LEGACY_WORLD_TIMES", "Legacy world times must be an array.");
+    }
+    const parsed = new Map();
+    for (const [index, entry] of entries.entries()) {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+        throw new WorldRuntimeError("INVALID_LEGACY_WORLD_TIMES", `Legacy world time at index ${index} must be an object.`);
+      }
+      const worldId = assertWorldId(entry.worldId);
+      if (parsed.has(worldId) || !Number.isFinite(entry.seconds) || entry.seconds < 0) {
+        throw new WorldRuntimeError("INVALID_LEGACY_WORLD_TIMES", `Legacy world time for "${worldId}" is invalid or duplicated.`, { worldId });
+      }
+      parsed.set(worldId, entry.seconds);
+    }
+    const previous = new Map();
+    let committed = false;
+    return Object.freeze({
+      commit: () => {
+        const updates = [];
+        for (const [worldId, seconds] of parsed) {
+          const record = this.#requireRecord(worldId);
+          previous.set(worldId, record.simulatedSeconds);
+          updates.push({ record, seconds });
+        }
+        for (const update of updates) update.record.simulatedSeconds = update.seconds;
+        committed = true;
+      },
+      rollback: () => {
+        if (!committed) return false;
+        for (const [worldId, seconds] of previous) {
+          const record = this.#records.get(worldId);
+          if (record) record.simulatedSeconds = seconds;
+        }
+        committed = false;
+        return true;
+      }
+    });
+  }
+
+  prepareRestoreMissing() {
+    const previous = this.#records;
+    let committed = false;
+    return Object.freeze({
+      commit: () => {
+        const next = new Map();
+        for (const world of this.#worlds.list()) {
+          if (world.status !== "closed") next.set(world.worldId, createRecord(world.worldId));
+        }
+        this.#records = next;
+        committed = true;
+      },
+      rollback: () => {
+        if (!committed) return false;
+        this.#records = previous;
+        committed = false;
+        return true;
+      }
+    });
+  }
+
   createPersistenceParticipant({ id = "core.world-runtime", order = -85 } = {}) {
     if (typeof id !== "string" || !/^[a-z][a-z0-9.-]*$/.test(id) || !Number.isSafeInteger(order)) {
       throw new WorldRuntimeError("INVALID_PARTICIPANT_CONFIG", "World runtime persistence participant ID/order is invalid.", { id, order });
@@ -228,9 +289,10 @@ export class WorldRuntimeManager {
     return Object.freeze({
       id,
       schemaVersion: SNAPSHOT_VERSION,
-      required: true,
+      required: false,
       order,
       captureSnapshot: () => this.captureSnapshot(),
+      prepareRestoreMissing: () => this.prepareRestoreMissing(),
       validateSnapshot: (snapshot) => {
         try { parseSnapshot(snapshot); return true; }
         catch { return false; }

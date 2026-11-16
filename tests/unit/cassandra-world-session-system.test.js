@@ -14,6 +14,8 @@ import {
 async function setup({ isPackageApplied = async () => true, definitionLookup = getDefinition } = {}) {
   const runtime = createGameRuntime({
     saveAdapter: new MemorySaveAdapter(),
+    fixedStepSeconds: 1,
+    maxStepsPerFrame: 120,
     hostSystems: [
       createUnitSystem({ definitionLookup }),
       createCassandraWorldSessionSystem({ isPackageApplied })
@@ -121,17 +123,17 @@ test("Cassandra World local time does not commit when a later task faults the si
 test("Cassandra Main World local time pauses while Temporary World is active", async () => {
   const state = await setup();
   try {
-    state.session.advance(12);
+    state.runtime.advance(12);
     assert.equal(state.session.getWorldTime("cassandra-main-128"), 12);
 
     state.session.beginTemporaryWorld({ worldId: "encounter:one", width: 64, height: 64 });
     assert.equal(state.worlds.activeWorldId, "encounter:one");
-    state.session.advance(30);
+    state.runtime.advance(30);
     assert.equal(state.session.getWorldTime("cassandra-main-128"), 12);
     assert.equal(state.session.getWorldTime("encounter:one"), 30);
 
     state.session.returnToMainWorld();
-    state.session.advance(5);
+    state.runtime.advance(5);
     assert.equal(state.session.getWorldTime("cassandra-main-128"), 17);
     assert.equal(state.session.getWorldTime("encounter:one"), 30);
   } finally {
@@ -340,10 +342,10 @@ test("Temporary World disposal fails closed if its registry descriptor was remov
 test("Cassandra can change selected Main World when no Temporary World is pending", async () => {
   const state = await setup();
   try {
-    state.session.advance(3);
+    state.runtime.advance(3);
     state.session.setMainWorldWorld("cassandra-main-256");
     assert.equal(state.worlds.activeWorldId, "cassandra-main-256");
-    state.session.advance(4);
+    state.runtime.advance(4);
     assert.equal(state.session.getWorldTime("cassandra-main-128"), 3);
     assert.equal(state.session.getWorldTime("cassandra-main-256"), 4);
   } finally {
@@ -354,14 +356,14 @@ test("Cassandra can change selected Main World when no Temporary World is pendin
 test("Cassandra world session state restores with World Registry selection and local clocks", async () => {
   const state = await setup();
   try {
-    state.session.advance(7);
+    state.runtime.advance(7);
     state.session.beginTemporaryWorld({ worldId: "encounter:save-test", width: 96, height: 96 });
-    state.session.advance(11);
+    state.runtime.advance(11);
     const persistence = state.context.getService("core.persistence");
     await persistence.save("world-session", { stateId: "world-session-state" });
 
     state.session.returnToMainWorld();
-    state.session.advance(100);
+    state.runtime.advance(100);
     assert.equal(state.worlds.activeWorldId, "cassandra-main-128");
 
     await persistence.load("world-session", { stateId: "world-session-state" });

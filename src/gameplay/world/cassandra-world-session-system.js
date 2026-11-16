@@ -63,7 +63,6 @@ function parseSnapshot(snapshot) {
 export function createCassandraWorldSessionSystem({ isPackageApplied = null } = {}) {
   let worlds;
   let persistence;
-  let scheduler;
   let worldRuntime;
   let entities;
   let worldContext;
@@ -71,19 +70,10 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
   let placements;
   let unitApi;
   const temporaryWorldCleanupHandlers = new Set();
-  let pendingStep = null;
   let mainWorldId = null;
   let temporaryWorldId = null;
-  let worldTimes = new Map();
   let unregisterPersistence = null;
   let temporaryDisposalInProgress = false;
-
-  function commitPendingStepIfSuccessful() {
-    if (!pendingStep || scheduler.snapshot.tick < pendingStep.tick) return false;
-    worldTimes.set(pendingStep.worldId, (worldTimes.get(pendingStep.worldId) ?? 0) + pendingStep.deltaSeconds);
-    pendingStep = null;
-    return true;
-  }
 
   function requireGridWorld(worldId, label) {
     const world = worlds.get(assertWorldId(worldId));
@@ -111,7 +101,6 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
 
   const api = Object.freeze({
     registerMainWorld(worldId) {
-      commitPendingStepIfSuccessful();
       const id = assertWorldId(worldId, "Main World ID");
       requireGridWorld(id, "Main World");
       if (mainWorldId !== null && mainWorldId !== id) {
@@ -121,14 +110,12 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
         worldRuntime.setSimulationEnabled(mainWorldId, false);
       }
       mainWorldId = id;
-      if (!worldTimes.has(id)) worldTimes.set(id, 0);
       setWorldParticipation(id, true);
       if (worlds.activeWorldId !== id) worlds.activateWorld(id);
       return api.getState();
     },
 
     setMainWorldWorld(worldId) {
-      commitPendingStepIfSuccessful();
       const id = assertWorldId(worldId, "Main World ID");
       requireGridWorld(id, "Main World");
       if (temporaryWorldId !== null) {
@@ -138,14 +125,12 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
         worldRuntime.setSimulationEnabled(mainWorldId, false);
       }
       mainWorldId = id;
-      if (!worldTimes.has(id)) worldTimes.set(id, 0);
       setWorldParticipation(id, true);
       worlds.activateWorld(id);
       return api.getState();
     },
 
     beginTemporaryWorld({ worldId, width = 128, height = 128 } = {}) {
-      commitPendingStepIfSuccessful();
       if (mainWorldId === null) {
         throw new CassandraWorldSessionError("MAIN_WORLD_NOT_REGISTERED", "Register the Main World before starting a Temporary World.");
       }
@@ -172,7 +157,6 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
         metadata: { role: "temporary" }
       });
       temporaryWorldId = id;
-      worldTimes.set(id, 0);
       setWorldParticipation(mainWorldId, false);
       ensureWorldReady(id);
       worldRuntime.setSimulationEnabled(id, true);
@@ -185,7 +169,6 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
         throw new CassandraWorldSessionError("TEMPORARY_DISPOSAL_IN_PROGRESS",
           "Cannot re-enter a Temporary World while its disposal is in progress.");
       }
-      commitPendingStepIfSuccessful();
       if (temporaryWorldId === null) {
         throw new CassandraWorldSessionError("NO_TEMPORARY_WORLD", "There is no Temporary World to enter.");
       }
@@ -197,7 +180,6 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
     },
 
     returnToMainWorld() {
-      commitPendingStepIfSuccessful();
       if (mainWorldId === null) {
         throw new CassandraWorldSessionError("MAIN_WORLD_NOT_REGISTERED", "No Main World is registered.");
       }
@@ -233,8 +215,7 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
       }
       temporaryDisposalInProgress = true;
       try {
-        commitPendingStepIfSuccessful();
-        if (temporaryWorldId === null) {
+          if (temporaryWorldId === null) {
           throw new CassandraWorldSessionError("NO_TEMPORARY_WORLD", "There is no Temporary World to complete.");
         }
         if (mainWorldId === null || worlds.activeWorldId !== mainWorldId) {
@@ -384,54 +365,43 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
         // Prepared commits are deliberately tiny, synchronous state swaps.
         for (const commit of cleanupCommits) commit();
         temporaryWorldId = null;
-        worldTimes.delete(id);
-        pendingStep = null;
         return api.getState();
       } finally {
         temporaryDisposalInProgress = false;
       }
     },
 
-    advance(deltaSeconds, tick = null) {
-      commitPendingStepIfSuccessful();
-      if (!Number.isFinite(deltaSeconds) || deltaSeconds < 0) {
-        throw new CassandraWorldSessionError("INVALID_TIME_DELTA", "World time delta must be a finite non-negative number.", { deltaSeconds });
-      }
-      const activeWorldId = worlds.activeWorldId;
-      if (!activeWorldId || (activeWorldId !== mainWorldId && activeWorldId !== temporaryWorldId)) return false;
-      if (tick !== null) {
-        if (!Number.isSafeInteger(tick) || tick <= 0 || tick <= scheduler.snapshot.tick) {
-          throw new CassandraWorldSessionError("INVALID_SIMULATION_TICK", "Scheduled world time requires a future positive simulation tick.", { tick });
+    getWorldTime(worldId) {
+      const id = assertWorldId(worldId);
+      try { return worldRuntime.getState(id).simulatedSeconds; }
+      catch (error) {
+        if (error?.code === "UNKNOWN_WORLD" || error?.code === "WORLD_CLOSED") {
+          throw new CassandraWorldSessionError("UNKNOWN_WORLD_CLOCK", `World "${id}" has no Cassandra local clock.`, { worldId: id });
         }
-        if (pendingStep?.tick === tick) {
-          throw new CassandraWorldSessionError("DUPLICATE_SIMULATION_TICK", "World local time was scheduled twice for the same simulation tick.", { tick });
-        }
-        pendingStep = Object.freeze({ tick, worldId: activeWorldId, deltaSeconds });
-      } else {
-        worldTimes.set(activeWorldId, (worldTimes.get(activeWorldId) ?? 0) + deltaSeconds);
+        throw error;
       }
-      return true;
     },
 
-    getWorldTime(worldId) {
-      commitPendingStepIfSuccessful();
-      const id = assertWorldId(worldId);
-      if (!worldTimes.has(id)) {
-        throw new CassandraWorldSessionError("UNKNOWN_WORLD_CLOCK", `World "${id}" has no Cassandra local clock.`, { worldId: id });
+    resumeAfterRestore() {
+      if (mainWorldId === null) return api.getState();
+      const activeWorldId = worlds.activeWorldId;
+      ensureWorldReady(mainWorldId);
+      if (temporaryWorldId !== null) ensureWorldReady(temporaryWorldId);
+      worldRuntime.setSimulationEnabled(mainWorldId, activeWorldId === mainWorldId);
+      if (temporaryWorldId !== null) {
+        worldRuntime.setSimulationEnabled(temporaryWorldId, activeWorldId === temporaryWorldId);
       }
-      return worldTimes.get(id);
+      return api.getState();
     },
 
     getState() {
-      commitPendingStepIfSuccessful();
       return Object.freeze({
         mainWorldId,
         temporaryWorldId,
         activeWorldId: worlds.activeWorldId,
         inTemporaryWorld: temporaryWorldId !== null && worlds.activeWorldId === temporaryWorldId,
-        worldTimes: Object.freeze([...worldTimes.entries()]
-          .sort(([a], [b]) => a.localeCompare(b))
-          .map(([worldId, seconds]) => Object.freeze({ worldId, seconds })))
+        worldTimes: Object.freeze(worldRuntime.list()
+          .map((world) => Object.freeze({ worldId: world.worldId, seconds: world.simulatedSeconds })))
       });
     }
   });
@@ -442,7 +412,6 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
     required: true,
     order: 20,
     captureSnapshot() {
-      commitPendingStepIfSuccessful();
       if (mainWorldId === null) {
         throw new CassandraWorldSessionError("MAIN_WORLD_NOT_REGISTERED", "Cannot save a world session without a Main World.");
       }
@@ -452,9 +421,10 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
         mainWorldId,
         temporaryWorldId,
         activeWorldId: worlds.activeWorldId,
-        worldTimes: Object.freeze([...worldTimes.entries()]
-          .sort(([a], [b]) => a.localeCompare(b))
-          .map(([worldId, seconds]) => Object.freeze({ worldId, seconds })))
+        // Compatibility mirror for saves written before core.world-runtime existed.
+        // The Engine runtime service is authoritative for all current simulation.
+        worldTimes: Object.freeze(worldRuntime.list()
+          .map((world) => Object.freeze({ worldId: world.worldId, seconds: world.simulatedSeconds })))
       });
     },
     validateSnapshot(snapshot) {
@@ -463,12 +433,8 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
     },
     prepareRestore(snapshot) {
       const next = parseSnapshot(snapshot);
-      const previous = {
-        mainWorldId,
-        temporaryWorldId,
-        worldTimes,
-        pendingStep
-      };
+      const legacyTimeRestore = worldRuntime.prepareLegacyTimeRestore(next.worldTimes);
+      const previous = { mainWorldId, temporaryWorldId };
       let committed = false;
       return Object.freeze({
         commit() {
@@ -487,16 +453,20 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
           }
           mainWorldId = next.mainWorldId;
           temporaryWorldId = next.temporaryWorldId;
-          worldTimes = new Map(next.worldTimes);
-          pendingStep = null;
-          committed = true;
+          try {
+            legacyTimeRestore.commit();
+            committed = true;
+          } catch (error) {
+            mainWorldId = previous.mainWorldId;
+            temporaryWorldId = previous.temporaryWorldId;
+            throw error;
+          }
         },
         rollback() {
           if (!committed) return false;
+          legacyTimeRestore.rollback();
           mainWorldId = previous.mainWorldId;
           temporaryWorldId = previous.temporaryWorldId;
-          worldTimes = previous.worldTimes;
-          pendingStep = previous.pendingStep;
           committed = false;
           return true;
         }
@@ -511,7 +481,6 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
       "core.world-registry",
       "core.world-runtime",
       "core.persistence",
-      "core.scheduler",
       "core.entity-registry",
       "core.world-context",
       "core.spatial-composition",
@@ -522,7 +491,6 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
       worlds = context.getService("core.world-registry");
       worldRuntime = context.getService("core.world-runtime");
       persistence = context.getService("core.persistence");
-      scheduler = context.getService("core.scheduler");
       entities = context.getService("core.entity-registry");
       worldContext = context.getService("core.world-context");
       spatial = context.getService("core.spatial-composition");
@@ -532,13 +500,10 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
       return { "game.world-session-api": api };
     },
     destroy() {
-      commitPendingStepIfSuccessful();
       unregisterPersistence?.();
       unregisterPersistence = null;
       mainWorldId = null;
       temporaryWorldId = null;
-      worldTimes = new Map();
-      pendingStep = null;
       temporaryWorldCleanupHandlers.clear();
     }
   });

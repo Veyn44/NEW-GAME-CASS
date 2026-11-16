@@ -172,6 +172,9 @@ export class Persistence {
     if (participant.migrateSnapshot != null && typeof participant.migrateSnapshot !== "function") {
       throw new PersistenceError("INVALID_PARTICIPANT", `Participant "${id}" migrateSnapshot must be a function.`);
     }
+    if (participant.prepareRestoreMissing != null && typeof participant.prepareRestoreMissing !== "function") {
+      throw new PersistenceError("INVALID_PARTICIPANT", `Participant "${id}" prepareRestoreMissing must be a function.`);
+    }
     const entry = Object.freeze({
       id,
       schemaVersion: participant.schemaVersion,
@@ -180,6 +183,7 @@ export class Persistence {
       captureSnapshot: participant.captureSnapshot.bind(participant),
       validateSnapshot: participant.validateSnapshot == null ? null : participant.validateSnapshot.bind(participant),
       migrateSnapshot: participant.migrateSnapshot == null ? null : participant.migrateSnapshot.bind(participant),
+      prepareRestoreMissing: participant.prepareRestoreMissing == null ? null : participant.prepareRestoreMissing.bind(participant),
       prepareRestore: participant.prepareRestore.bind(participant)
     });
     this.#participants.set(id, entry);
@@ -271,6 +275,17 @@ export class Persistence {
         for (const participant of ordered) {
           if (!Object.hasOwn(saveData.snapshots, participant.id)) {
             if (participant.required) throw new PersistenceError("MISSING_REQUIRED_SNAPSHOT", `Save is missing required participant "${participant.id}".`, { participantId: participant.id });
+            if (participant.prepareRestoreMissing) {
+              const transaction = await participant.prepareRestoreMissing(Object.freeze({
+                metadata: normalizedMetadata,
+                schemaVersion: participant.schemaVersion,
+                missingSnapshot: true
+              }));
+              if (!transaction || typeof transaction.commit !== "function" || typeof transaction.rollback !== "function") {
+                throw new PersistenceError("INVALID_RESTORE_TRANSACTION", `Participant "${participant.id}" must return commit() and rollback() functions from prepareRestoreMissing().`, { participantId: participant.id });
+              }
+              prepared.push({ participantId: participant.id, transaction });
+            }
             continue;
           }
           let snapshot = saveData.snapshots[participant.id];
