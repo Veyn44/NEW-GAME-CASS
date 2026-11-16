@@ -963,3 +963,41 @@ The proposal includes required invariants, pre-implementation acceptance scenari
 - The first Pages deployment after correcting the preview workflow completed successfully from `work`. The deployment for the later save-isolation HEAD was queued behind the preceding Pages run at the time of this record.
 - No real-browser manual acceptance has been performed by the assistant; the user should still verify both standalone Dev Lab and Cassandra in the deployed preview.
 - `main` remains unchanged at `458ecc52d4267b6b31fb3d59559374533c49fa64`. No merge or PR was created.
+
+
+## 2026-11-16 — Lifecycle, spatial policy, clock and definition integrity
+
+### Unit lifecycle and Colony Control
+
+- UnitSystem now publishes the typed `game.unit.removed` lifecycle event only after a Unit has been successfully removed from its placement and identity registries.
+- ColonyControlSystem subscribes to that event and immediately clears a removed Colony Leader, including the Draft state.
+- Added defensive leader reconciliation before updates and persistence snapshots.
+- Added regression coverage for leader removal followed by save/restore, non-leader removal, and bulk Unit removal during Temporary World disposal.
+
+### Placement and movement policy boundaries
+
+- PlacementCoordinator rejects a world-coordinate target into a grid-backed world unless the caller supplies an explicit grid anchor and footprint.
+- WorldContext now accepts an internal mutation guard installed by PlacementCoordinator. Direct placement, transfer, storage, removal and restore operations are blocked while a movement policy is being evaluated.
+- Prepared WorldContext restore/coordinated-placement transactions also check the guard at commit and rollback time, preventing a transaction prepared earlier from being committed inside a policy callback.
+- Added regression coverage for direct WorldContext mutation attempts during policy evaluation.
+
+### World clock restore precedence
+
+- WorldRuntimeManager now records whether the current Persistence restore included its authoritative `core.world-runtime` snapshot or used the missing-snapshot fallback.
+- The legacy `game.world-session.worldTimes` compatibility mirror is applied only when the authoritative runtime snapshot is absent.
+- When both are present, the Engine runtime snapshot wins. Legacy clock migration remains active for old saves missing `core.world-runtime`.
+- Added regression coverage for stale mirrored times and retained the existing legacy-only migration test.
+
+### Definition registry data ownership
+
+- DefinitionRegistry now recursively clones supported plain JSON data before freezing canonical definitions. Nested input objects are detached; registering a definition no longer freezes or shares mutable nested objects from the caller.
+- Cycles, sparse arrays, accessors, symbol properties and non-plain nested objects are rejected before a batch can be partially registered.
+- DefinitionPackageLoader now normalizes a new package once, while preserving normalized comparison for idempotent reloads.
+
+### Verification
+
+- Implementation HEAD: `b50cc1b0eca3be499ba1aa34a1c08b45127fbe05`.
+- GitHub Actions: Core **230/230 passed**, host/unit **273/273 passed**, browser entry-point syntax checks passed.
+- Development preview deployment workflow completed successfully from `work`; the GitHub Pages build/deployment status was still processing at the time of this record.
+- No environment simulation rules were changed.
+- `main` remains untouched; no merge or PR was created.
