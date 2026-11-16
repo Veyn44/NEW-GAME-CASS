@@ -78,7 +78,7 @@ The Engine/application boundary restructuring was completed and merged into `mai
 - The current Engine capability baseline and remaining ownership gaps are summarized in [Engine / Cassandra / Dev Lab — Capability and Ownership Review](docs/architecture/engine-game-devlab-capability-map.md). That review is a working map, not an approval to implement every listed proposal.
 - Cassandra and Dev Lab are separate applications and are not intended to exchange save files. Their persistence adapters, formats/envelopes and slot/state identities must be isolated. Cross-application save compatibility is not a product requirement.
 
-The post-merge `work` branch is the active working baseline for subsequent documentation and design work. Historical Phase 2 records above remain valid for the earlier milestone and should not be read as the current repository status.
+At the time of the PR #6 restructuring record, immediately after that merge and before PR #7, the post-merge `work` branch was the working baseline for subsequent work. This is a historical snapshot, not the current branch state. PR #7 later integrated that work into `main`; future work should branch from the then-current `main`.
 
 
 ## 2026-11-16 — Phase 3 integration merged into main
@@ -98,4 +98,4 @@ The Engine grid/spatial foundation (Slices 1–6) is implemented and merged. Cas
 
 Dev Lab spatial inspection and controlled test workflows use the shared Engine services and have automated host coverage. The user's manual acceptance applies to the currently exposed Pages-hosted Cassandra workflow and its `.cass` save/load path; it does not imply that standalone Dev Lab, every spatial diagnostic, Main/Temporary World edge case, environment regression or performance benchmark has been accepted.
 
-No environment simulation source was changed as part of this Phase 3 integration. Phase 4 is the next planning phase and focuses on browser readiness and direct acceptance of existing functionality, not on inventing gameplay systems.
+No environment simulation source was changed as part of this Phase 3 integration. No post-Phase-3 implementation roadmap has been agreed. Future work will be selected jointly; browser readiness and direct acceptance of existing functionality remain possible discussion topics, not an approved next phase.
