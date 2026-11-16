@@ -63,8 +63,8 @@ Engine owns generic snapshot/restore contracts. Cassandra and Dev Lab own separa
 
 Do not interpret “Slice 7 foundations implemented” as “Cassandra expedition gameplay is complete”. Do not invent missing campaign or environment rules to close a checklist.
 
-### Phase 4 — Dev Lab as the Engine workspace
-**Partially delivered through Slice 8.** Shared Engine spatial inspection/test integration exists. Full application-separation and browser acceptance still need review against the removal tests and actual Pages entry points.
+### Phase 4 — Direct testing readiness for Cassandra and Dev Lab
+**Not started; plan only after the pre-merge audit and merge.** The agreed goal is to prepare the existing Cassandra and Dev Lab implementations for direct browser testing of what already exists. Scope should focus on reliable entry points, host composition, accessible test workflows, diagnostics, and save/load interaction. It is not a gameplay feature phase and must not invent campaign, inventory, health, equipment, resource, crew, disposition or expedition rules. Define the exact Phase 4 slices together after the merge.
 
 ### Phase 5 — Cassandra as an independent game host
 **Not complete.** The current branch contains a Cassandra application/runtime prototype and infrastructure integrations, not the complete campaign/gameplay experience. Continue only through jointly designed, bounded gameplay slices.
@@ -77,7 +77,9 @@ Do not interpret “Slice 7 foundations implemented” as “Cassandra expeditio
 
 ## Immediate next step
 
-The documentation reconciliation is complete on `work` (commits `bdbf563` and `2d52d21`). The next engineering task should be selected from the explicitly open Slice 7 work, with its domain contract and acceptance criteria agreed before implementation. Do not start campaign inventory, health, equipment, resources, disposition, End Expedition or Abandon Expedition rules by assumption.
+The current task is a pre-merge audit of `work` against `main`. Continue only with source-backed merge blockers and small, testable corrections; do not expand features or begin Phase 4 during this audit. The latest verified source/test checkpoint is `35bab1be841e3471be1bb721a7dd0ed5dfe06343` with 233/233 Core tests, 293/293 Host tests, browser syntax checks, development preview deployment and GitHub Pages deployment all successful.
+
+When the audit has only minor/accepted gaps remaining, present the merge-readiness report and wait for the user's explicit approval. After the merge, plan Phase 4 together around direct browser testing of the existing Cassandra/Dev Lab implementation.
 
 The full current status, verified CI evidence and outstanding manual gates are maintained in [Current implementation status](docs/architecture/current-implementation-status.md).
 
@@ -99,10 +101,10 @@ The ownership decision is agreed:
 3. It injects the active session's exact Applied-ledger verifier into Runtime Host.
 4. Engine remains unaware of Campaigns; the existing `.cass` workspace adapter remains separate.
 
-The lifecycle controller now supports explicit create/open/load/close and is exposed from the Pages test entry point as `cassandraApplication.campaignSessionApi`. No default Campaign ID is generated. Campaign creation requires a caller-supplied initial snapshot; opening requires an existing durable record. The controller does not instantiate the Change Package Coordinator because authoritative aggregate models and approved typed operation/manifest handlers are still missing. A runtime-host regression also verifies that Temporary World disposal stays blocked without an active Campaign and becomes eligible only when the exact package ID/digest is present in that Campaign's Applied ledger; CI for the test is still unconfirmed.
+The lifecycle controller now supports explicit create/open/load/close and is exposed from the Pages test entry point as `cassandraApplication.campaignSessionApi`. No default Campaign ID is generated. Campaign creation requires a caller-supplied initial snapshot; opening requires an existing durable record. The controller does not instantiate the Change Package Coordinator because authoritative aggregate models and approved typed operation/manifest handlers are still missing. A runtime-host regression also verifies that Temporary World disposal stays blocked without an active Campaign and becomes eligible only when the exact package ID/digest is present in that Campaign's Applied ledger; it is included in successful Host CI run [43890217044](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43890217044).
 
 **Important product boundary:** the current Pages entry point is still a development/test host. A separate, complete Cassandra game and player-facing Campaign selection UI do not exist yet. Do not describe this lifecycle seam as a finished game integration.
 
 ### Next engineering slice
 
-The next work should define the smallest authoritative Campaign aggregate and its first typed Change Package operation together, including validation and manifest reconciliation. Do not pick inventory, health, equipment, resources, crew/shuttle, disposition, End Expedition or Abandon Expedition rules by assumption. First agree on the aggregate's ownership and invariants, then implement one vertical slice with tests.
+No additional Campaign gameplay slice is authorized as the immediate next step. Complete the pre-merge audit first. After merge, Phase 4 planning will focus on making the current implementation directly testable in the browser; any later Campaign aggregate or typed Change Package work still requires a separate domain contract and acceptance criteria.
