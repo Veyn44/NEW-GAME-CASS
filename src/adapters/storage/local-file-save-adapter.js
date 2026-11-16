@@ -1,13 +1,19 @@
-const FILE_FORMAT = "cassandra.save";
 const FILE_FORMAT_VERSION = 1;
-const DEFAULT_FILE_NAME = "save.cass";
-const SLOT_ID = "dev-lab-workspace";
 
-function makeEnvelope(saveData) {
-  return { format: FILE_FORMAT, fileFormatVersion: FILE_FORMAT_VERSION, data: saveData };
+export const CASSANDRA_SAVE_FORMAT = "cassandra.save";
+export const DEV_LAB_SAVE_FORMAT = "cassandra.dev-lab.save";
+export const CASSANDRA_SAVE_SLOT = "cassandra-main-world";
+export const DEV_LAB_SAVE_SLOT = "dev-lab-workspace";
+export const CASSANDRA_SAVE_FILE_NAME = "save.cass";
+export const DEV_LAB_SAVE_FILE_NAME = "workspace.dlcass";
+export const CASSANDRA_SAVE_MIME_TYPE = "application/vnd.cassandra.save+json";
+export const DEV_LAB_SAVE_MIME_TYPE = "application/vnd.cassandra.dev-lab-save+json";
+
+function makeEnvelope(saveData, format) {
+  return { format, fileFormatVersion: FILE_FORMAT_VERSION, data: saveData };
 }
 
-function parseEnvelope(text) {
+function parseEnvelope(text, format) {
   let envelope;
   try { envelope = JSON.parse(text); }
   catch (cause) {
@@ -17,17 +23,17 @@ function parseEnvelope(text) {
     throw error;
   }
   if (!envelope || typeof envelope !== "object" || Array.isArray(envelope)
-    || envelope.format !== FILE_FORMAT || envelope.fileFormatVersion !== FILE_FORMAT_VERSION
+    || envelope.format !== format || envelope.fileFormatVersion !== FILE_FORMAT_VERSION
     || !envelope.data || typeof envelope.data !== "object" || Array.isArray(envelope.data)) {
-    const error = new Error("The selected file is not a supported Cassandra save file.");
+    const error = new Error("The selected file is not a supported save file for this application.");
     error.code = "INCOMPATIBLE_SAVE_FILE";
     throw error;
   }
   return envelope.data;
 }
 
-function downloadSave(text, fileName) {
-  const blob = new Blob([text], { type: "application/vnd.cassandra.save+json" });
+function downloadSave(text, fileName, mimeType) {
+  const blob = new Blob([text], { type: mimeType });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
@@ -36,8 +42,8 @@ function downloadSave(text, fileName) {
   URL.revokeObjectURL(url);
 }
 
-function pickerTypes() {
-  return [{ description: "Cassandra save", accept: { "application/vnd.cassandra.save+json": [".cass"] } }];
+function pickerTypes({ fileDescription, mimeType, fileExtension }) {
+  return [{ description: fileDescription, accept: { [mimeType]: [fileExtension] } }];
 }
 
 export class LocalFileSaveAdapter {
@@ -45,10 +51,49 @@ export class LocalFileSaveAdapter {
   #fileName = null;
   #download;
   #importedData = null;
+  #format;
+  #fileExtension;
+  #mimeType;
+  #fileDescription;
+  #defaultFileName;
+  #slotId;
 
-  constructor({ download = downloadSave } = {}) {
+  constructor({
+    download = downloadSave,
+    format = CASSANDRA_SAVE_FORMAT,
+    fileExtension = ".cass",
+    mimeType = CASSANDRA_SAVE_MIME_TYPE,
+    fileDescription = "Cassandra save",
+    defaultFileName = CASSANDRA_SAVE_FILE_NAME,
+    slotId = CASSANDRA_SAVE_SLOT
+  } = {}) {
     if (typeof download !== "function") throw new TypeError("download must be a function.");
+    if (typeof format !== "string" || !/^[a-z0-9][a-z0-9.-]*$/i.test(format)) {
+      throw new TypeError("format must be a stable application save-format identifier.");
+    }
+    if (typeof fileExtension !== "string" || !/^\.[a-z0-9]+$/i.test(fileExtension)) {
+      throw new TypeError("fileExtension must be a simple file extension.");
+    }
+    if (typeof mimeType !== "string" || !/^[a-z0-9.+-]+\/[a-z0-9.+-]+$/i.test(mimeType)) {
+      throw new TypeError("mimeType must be a valid MIME type.");
+    }
+    if (typeof fileDescription !== "string" || !fileDescription.trim()) {
+      throw new TypeError("fileDescription must be a non-empty string.");
+    }
+    if (typeof defaultFileName !== "string" || !defaultFileName.toLowerCase().endsWith(fileExtension.toLowerCase())) {
+      throw new TypeError("defaultFileName must use the configured file extension.");
+    }
+    if (typeof slotId !== "string" || !slotId.trim()) {
+      throw new TypeError("slotId must be a non-empty string.");
+    }
+
     this.#download = download;
+    this.#format = format;
+    this.#fileExtension = fileExtension;
+    this.#mimeType = mimeType;
+    this.#fileDescription = fileDescription;
+    this.#defaultFileName = defaultFileName;
+    this.#slotId = slotId;
   }
 
   static get supportsFileAccess() {
@@ -64,9 +109,17 @@ export class LocalFileSaveAdapter {
     this.#importedData = null;
   }
 
+  #isValidFileName(fileName) {
+    if (typeof fileName !== "string" || !fileName.toLowerCase().endsWith(this.#fileExtension.toLowerCase())) {
+      return false;
+    }
+    const baseName = fileName.slice(0, -this.#fileExtension.length);
+    return /^[a-zA-Z0-9._ -]+$/.test(baseName);
+  }
+
   setDownloadFileName(fileName) {
-    if (typeof fileName !== "string" || !/^[a-zA-Z0-9._ -]+\.cass$/i.test(fileName)) {
-      throw new TypeError("Save file name must be a simple .cass filename.");
+    if (!this.#isValidFileName(fileName)) {
+      throw new TypeError(`Save file name must be a simple ${this.#fileExtension} filename.`);
     }
     this.#fileName = fileName;
     this.#fileHandle = null;
@@ -81,13 +134,13 @@ export class LocalFileSaveAdapter {
       throw error;
     }
     const handle = await picker.call(globalThis.window, {
-      suggestedName: DEFAULT_FILE_NAME,
-      types: pickerTypes(),
+      suggestedName: this.#defaultFileName,
+      types: pickerTypes(this),
       excludeAcceptAllOption: true
     });
     if (!handle) return null;
     this.#fileHandle = handle;
-    this.#fileName = handle.name ?? DEFAULT_FILE_NAME;
+    this.#fileName = handle.name ?? this.#defaultFileName;
     this.#importedData = null;
     await this.#ensurePermission("readwrite");
     return this.#fileName;
@@ -102,27 +155,30 @@ export class LocalFileSaveAdapter {
     }
     const [handle] = await picker.call(globalThis.window, {
       multiple: false,
-      types: pickerTypes(),
+      types: pickerTypes(this),
       excludeAcceptAllOption: true
     });
     if (!handle) return null;
     this.#fileHandle = handle;
-    this.#fileName = handle.name ?? DEFAULT_FILE_NAME;
+    this.#fileName = handle.name ?? this.#defaultFileName;
     this.#importedData = null;
     await this.#ensurePermission("read");
     return this.#fileName;
   }
 
   async importFile(file) {
-    if (!file || typeof file.text !== "function") throw new TypeError("A readable .cass file is required.");
-    if (file.name && !file.name.toLowerCase().endsWith(".cass")) {
-      const error = new Error("Choose a Cassandra .cass save file.");
+    if (!file || typeof file.text !== "function") {
+      throw new TypeError(`A readable ${this.#fileExtension} file is required.`);
+    }
+    if (file.name && !file.name.toLowerCase().endsWith(this.#fileExtension.toLowerCase())) {
+      const error = new Error(`Choose a ${this.#fileExtension} save file.`);
       error.code = "INVALID_SAVE_EXTENSION";
       throw error;
     }
-    this.#importedData = parseEnvelope(await file.text());
+    const importedData = parseEnvelope(await file.text(), this.#format);
+    this.#importedData = importedData;
     this.#fileHandle = null;
-    this.#fileName = file.name || DEFAULT_FILE_NAME;
+    this.#fileName = file.name || this.#defaultFileName;
     return Object.freeze({ fileName: this.#fileName, imported: true });
   }
 
@@ -131,20 +187,20 @@ export class LocalFileSaveAdapter {
     if (this.#fileHandle) {
       await this.#ensurePermission("read");
       const file = await this.#fileHandle.getFile();
-      return parseEnvelope(await file.text());
+      return parseEnvelope(await file.text(), this.#format);
     }
     if (this.#importedData) return this.#importedData;
-    const error = new Error("Choose a Cassandra .cass file before loading.");
+    const error = new Error(`Choose a ${this.#fileExtension} file before loading.`);
     error.code = "SAVE_SOURCE_NOT_SELECTED";
     throw error;
   }
 
   async writeAtomic(slotId, saveData) {
     this.#assertSlot(slotId);
-    const text = JSON.stringify(makeEnvelope(saveData), null, 2);
+    const text = JSON.stringify(makeEnvelope(saveData, this.#format), null, 2);
     if (!this.#fileHandle) {
-      const fileName = this.#fileName || DEFAULT_FILE_NAME;
-      this.#download(text, fileName);
+      const fileName = this.#fileName || this.#defaultFileName;
+      this.#download(text, fileName, this.#mimeType);
       this.#fileName = fileName;
       this.#importedData = saveData;
       return true;
@@ -178,13 +234,10 @@ export class LocalFileSaveAdapter {
   }
 
   #assertSlot(slotId) {
-    if (slotId !== SLOT_ID) {
-      const error = new Error(`Local workspace adapter does not support slot "${slotId}".`);
+    if (slotId !== this.#slotId) {
+      const error = new Error(`Local save adapter does not support slot "${slotId}".`);
       error.code = "UNSUPPORTED_SAVE_SLOT";
       throw error;
     }
   }
 }
-
-export const DEV_LAB_SAVE_SLOT = SLOT_ID;
-export const CASSANDRA_SAVE_FILE_NAME = DEFAULT_FILE_NAME;
