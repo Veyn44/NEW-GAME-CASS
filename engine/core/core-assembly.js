@@ -251,6 +251,7 @@ export function createCoreAssembly({
           applicationVersion,
           formatVersion,
           logger,
+          onFatalIntegrityFault: () => clock.pause("core.persistence-integrity-fault"),
           runAtSafeBoundary: async (operation) => {
             if (runtimeDestroying) {
               const error = new Error("Persistence operation rejected because Core Assembly is shutting down.");
