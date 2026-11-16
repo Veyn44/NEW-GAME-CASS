@@ -66,6 +66,7 @@ test("standalone Dev Lab entry and page do not load Cassandra application code",
   assert.ok(entry.includes("await startDevLab()"));
   assert.equal(entry.toLowerCase().includes("cassandra/"), false);
   assert.ok(html.includes("standalone-entry.js"));
+  assert.ok(html.includes('accept=".dlcass,application/vnd.cassandra.dev-lab-save+json"'));
   assert.ok(html.includes('data-view="dev-lab"'));
   assert.equal(html.includes("application-entry.js"), false);
   assert.equal(html.toLowerCase().includes("cassandra/"), false);
@@ -139,10 +140,21 @@ test("Dev Lab shell delegates viewport and workspace persistence to owned servic
   assert.equal(viewport.includes('document.querySelector("#world-canvas")'), false);
   assert.ok(persistence.includes("export function createFilePersistenceController"));
   assert.ok(persistence.includes("persistenceApi.save(saveSlot"));
-  assert.ok(shell.includes('stateId: "cassandra-dev-lab-workspace"'));
-  assert.ok(shell.includes('saveSlot: "dev-lab-workspace"'));
-  assert.ok(shell.includes('fileExtension: ".cass"'));
-  assert.ok(shell.includes('defaultFileName: "save.cass"'));
+  assert.ok(shell.includes("DEV_LAB_SAVE_STATE_ID"));
+  assert.ok(shell.includes("DEV_LAB_SAVE_SLOT"));
+  assert.ok(shell.includes("DEV_LAB_SAVE_FORMAT"));
+  assert.ok(shell.includes("DEV_LAB_SAVE_FILE_EXTENSION"));
+  assert.ok(shell.includes("DEV_LAB_SAVE_FILE_NAME"));
+  assert.ok(shell.includes("DEV_LAB_SAVE_MIME_TYPE"));
+  assert.ok(shell.includes("Name this Dev Lab workspace:"));
+  assert.ok(shell.includes("workspace.dlcass"));
+
+  const cassandraShell = await read("../../cassandra/application/cassandra-application-shell.js");
+  assert.ok(cassandraShell.includes("CASSANDRA_SAVE_SLOT"));
+  assert.ok(cassandraShell.includes("CASSANDRA_SAVE_STATE_ID"));
+  assert.ok(cassandraShell.includes("CASSANDRA_SAVE_FILE_EXTENSION"));
+  assert.ok(cassandraShell.includes("CASSANDRA_SAVE_FILE_NAME"));
+  assert.ok(cassandraShell.includes("cassandra-main-world"));
 });
 
 
