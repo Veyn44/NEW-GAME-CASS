@@ -52,11 +52,12 @@ These checks belong to the future Campaign implementation/acceptance phase. Thei
 
 These checks remain outstanding for the relevant integration/performance release; no environment behavior or performance result is claimed by the current Engine CI.
 
-## Pre-merge release gate
+## Post-merge acceptance and remaining gates
 
-- [ ] Core and host automated tests pass on the exact final `work` HEAD.
-- [x] User has manually confirmed the currently exposed Pages-hosted Cassandra workflow and `.cass` save/load path.
-- [ ] The source/integration audit and implementation status match the final code.
-- [ ] Remaining deferred checks are explicitly kept out of the current merge scope and scheduled for the feature/entry-point phase they actually validate.
-- [ ] The user reviews the final pre-merge report and explicitly approves any merge.
-- [ ] No merge to `main` occurs without that explicit approval.
+- [x] Phase 3 implementation history merged into `main` through PR #7 (`0a879ed0ef955110b069b9e89bb420ead4f58737`).
+- [x] Exact merge-commit Core/Host CI passed: [43940567950](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43940567950).
+- [x] User confirmed the currently exposed Pages-hosted Cassandra workflow and `.cass` save/load path.
+- [ ] Complete the remaining browser acceptance items above in the application/feature scope to which they belong.
+- [ ] Plan Phase 4 browser-readiness work jointly; do not treat this checklist as authorization to invent new gameplay rules.
+
+A successful merge and CI run do not convert deferred manual/browser checks into passed items. Keep each remaining check open until it is actually performed and recorded.
