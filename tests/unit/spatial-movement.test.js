@@ -256,3 +256,49 @@ test("async policy keeps the mover reentrancy guard until settlement", async () 
   assert.equal(nested.code, "REENTRANT_MOVEMENT");
   assert.deepEqual(occupancy(s, "pawn:mover").anchor, { x: 1, y: 1 });
 });
+
+
+test("policy evaluation cannot mutate WorldContext through direct APIs or prepared restore transactions", () => {
+  const s = setup();
+  const preparedRestore = s.worldContext.prepareRestore(s.worldContext.captureSnapshot());
+  place(s, "pawn:mover", { x: 1, y: 1 });
+
+  register(s, "pawn:new");
+  register(s, "pawn:plain");
+  s.worldContext.placeEntity("pawn:plain", "plain", { x: 1, y: 1 });
+
+  const scoped = s.entities.registerScoped({ scopeId: "policy-test", localId: "store-active", kind: "item" });
+  s.worldContext.placeEntity(scoped.id, "plain", { x: 2, y: 2 });
+  const stored = s.entities.registerScoped({ scopeId: "policy-test", localId: "store-stored", kind: "item" });
+  s.entities.store(stored.id);
+
+  const originalPlainPlacement = s.worldContext.getPlacement("pawn:plain");
+  const originalScopedPlacement = s.worldContext.getPlacement(scoped.id);
+  const attempts = [
+    () => s.worldContext.placeEntity("pawn:new", "plain", { x: 3, y: 3 }),
+    () => s.worldContext.moveEntity("pawn:plain", { type: "world", worldId: "plain", position: { x: 4, y: 4 } }),
+    () => s.worldContext.removePlacement("pawn:plain"),
+    () => s.worldContext.storeEntity(scoped.id, "store:policy"),
+    () => s.worldContext.placeInStore(stored.id, "store:policy"),
+    () => s.worldContext.prepareRestore(s.worldContext.captureSnapshot()),
+    () => preparedRestore.commit()
+  ];
+
+  for (const [index, mutate] of attempts.entries()) {
+    const result = s.movement.moveEntity(
+      "pawn:mover",
+      { worldId: "grid-a", anchor: { x: 2 + index, y: 2 } },
+      () => { mutate(); return true; }
+    );
+    assert.equal(result.status, "policy-error", `mutation attempt ${index}`);
+    assert.equal(result.code, "POLICY_EVALUATION_FAILED", `mutation attempt ${index}`);
+  }
+
+  assert.equal(s.worldContext.getPlacement("pawn:new"), null);
+  assert.equal(s.worldContext.getPlacement("pawn:plain"), originalPlainPlacement);
+  assert.equal(s.worldContext.getPlacement(scoped.id), originalScopedPlacement);
+  assert.equal(s.entities.get(scoped.id).status, "active");
+  assert.equal(s.entities.get(stored.id).status, "stored");
+  assert.equal(s.worldContext.getPlacement(stored.id), null);
+  assert.deepEqual(occupancy(s, "pawn:mover").anchor, { x: 1, y: 1 });
+});
