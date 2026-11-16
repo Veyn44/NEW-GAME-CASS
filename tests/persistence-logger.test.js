@@ -218,6 +218,72 @@ export async function runPersistenceLoggerTests() {
     equal(calls.join(","), "commit-a,commit-b,rollback-b,rollback-a", "Rollback order");
   });
 
+  await test("Persistence faults and stops the runtime when restore rollback fails", async () => {
+    const adapter = new MemorySaveAdapter();
+    let savedA = 1;
+    let savedB = 2;
+    const writer = new Persistence({ adapter, runAtSafeBoundary: (operation) => operation() });
+    writer.registerParticipant({
+      id: "core.a", schemaVersion: 1, order: 10,
+      captureSnapshot: () => ({ value: savedA }),
+      prepareRestore: () => ({ commit() {}, rollback() {} })
+    });
+    writer.registerParticipant({
+      id: "core.b", schemaVersion: 1, order: 20,
+      captureSnapshot: () => ({ value: savedB }),
+      prepareRestore: () => ({ commit() {}, rollback() {} })
+    });
+    await writer.save("rollback-fault", { stateId: "rollback-fault" });
+
+    let liveA = 10;
+    let liveB = 20;
+    const fatalFaults = [];
+    const reader = new Persistence({
+      adapter,
+      runAtSafeBoundary: (operation) => operation(),
+      onFatalIntegrityFault: (fault) => fatalFaults.push(fault)
+    });
+    reader.registerParticipant({
+      id: "core.a", schemaVersion: 1, order: 10,
+      captureSnapshot: () => ({ value: liveA }),
+      prepareRestore(snapshot) {
+        const previous = liveA;
+        return {
+          commit() { liveA = snapshot.value; },
+          rollback() { liveA = previous; }
+        };
+      }
+    });
+    reader.registerParticipant({
+      id: "core.b", schemaVersion: 1, order: 20,
+      captureSnapshot: () => ({ value: liveB }),
+      prepareRestore(snapshot) {
+        return {
+          commit() {
+            liveB = snapshot.value;
+            throw new Error("injected participant commit failure");
+          },
+          rollback() { throw new Error("injected participant rollback failure"); }
+        };
+      }
+    });
+
+    const error = await expectCode(
+      () => reader.load("rollback-fault"),
+      "RESTORE_ROLLBACK_FAILED"
+    );
+    equal(liveA, 10, "Earlier participant should still be restored");
+    equal(liveB, 2, "Failing participant demonstrates the unrecovered partial state");
+    equal(reader.isFaulted, true, "Persistence must be faulted after rollback failure");
+    equal(fatalFaults.length, 1, "Fatal integrity callback must run exactly once");
+    equal(fatalFaults[0].rollbackFailures[0].participantId, "core.b", "Fatal callback must identify the failed participant");
+    equal(error.details.rollbackFailures[0].participantId, "core.b", "Thrown error must identify the failed participant");
+    await expectCode(
+      () => reader.save("must-not-save", { stateId: "rollback-fault" }),
+      "PERSISTENCE_FAULTED"
+    );
+  });
+
   await test("Persistence normalizes legacy campaign metadata to generic state metadata", async () => {
     const adapter = new MemorySaveAdapter();
     await adapter.writeAtomic("legacy-state", {
