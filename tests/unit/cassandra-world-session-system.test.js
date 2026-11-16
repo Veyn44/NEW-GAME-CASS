@@ -12,8 +12,9 @@ import {
 } from "../../src/gameplay/world/cassandra-world-session-system.js";
 
 async function setup({ isPackageApplied = async () => true, definitionLookup = getDefinition } = {}) {
+  const saveAdapter = new MemorySaveAdapter();
   const runtime = createGameRuntime({
-    saveAdapter: new MemorySaveAdapter(),
+    saveAdapter,
     fixedStepSeconds: 1,
     maxStepsPerFrame: 120,
     hostSystems: [
@@ -39,7 +40,7 @@ async function setup({ isPackageApplied = async () => true, definitionLookup = g
   });
   const session = context.getService("game.world-session-api");
   session.registerMainWorld("cassandra-main-128");
-  return { runtime, context, worlds, session };
+  return { runtime, context, worlds, session, saveAdapter };
 }
 
 test("Cassandra runtime advances only the active World's local clock per simulation step", async () => {
@@ -342,6 +343,28 @@ test("Cassandra can change selected Main World when no Temporary World is pendin
     state.runtime.advance(4);
     assert.equal(state.session.getWorldTime("cassandra-main-128"), 3);
     assert.equal(state.session.getWorldTime("cassandra-main-256"), 4);
+  } finally {
+    await state.runtime.destroy();
+  }
+});
+
+test("Cassandra migrates legacy session-local clocks when an older save has no Engine runtime snapshot", async () => {
+  const state = await setup();
+  try {
+    state.runtime.advance(7);
+    await state.context.getService("core.persistence").save("legacy-cassandra-clock", { stateId: "legacy-cassandra" });
+    const legacySave = await state.saveAdapter.read("legacy-cassandra-clock");
+    delete legacySave.snapshots["core.world-runtime"];
+    delete legacySave.schemas["core.world-runtime"];
+    await state.saveAdapter.writeAtomic("legacy-cassandra-clock", legacySave);
+
+    state.runtime.advance(5);
+    await state.context.getService("core.persistence").load("legacy-cassandra-clock", { stateId: "legacy-cassandra" });
+    assert.equal(state.session.getWorldTime("cassandra-main-128"), 7);
+    assert.equal(state.context.getService("core.world-runtime").getState("cassandra-main-128").status, "Unloaded");
+    state.session.resumeAfterRestore();
+    assert.equal(state.context.getService("core.world-runtime").getState("cassandra-main-128").status, "Ready");
+    assert.equal(state.context.getService("core.world-runtime").getState("cassandra-main-128").simulationEnabled, true);
   } finally {
     await state.runtime.destroy();
   }

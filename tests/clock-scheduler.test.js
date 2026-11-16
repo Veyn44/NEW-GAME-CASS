@@ -156,6 +156,35 @@ export function runClockSchedulerTests() {
     equal(clock.totalSeconds, 6);
   });
 
+  test("participant changes during a task apply only to the next simulation round", () => {
+    const clock = createClock();
+    const worlds = new WorldRegistry();
+    for (const worldId of ["world:alpha", "world:beta"]) {
+      worlds.registerWorld({ worldId, type: "test.world", dimensions: { width: 8, height: 8 } });
+    }
+    const runtime = new WorldRuntimeManager({ worldRegistry: worlds });
+    for (const worldId of ["world:alpha", "world:beta"]) {
+      runtime.beginLoading(worldId);
+      runtime.markReady(worldId);
+      runtime.setSimulationEnabled(worldId, true);
+    }
+    const calls = [];
+    const scheduler = new SimulationScheduler({
+      clock, worldRuntime: runtime, systemOrder: ["switch", "world"],
+      tasks: [
+        { systemId: "switch", update: () => runtime.setSimulationEnabled("world:beta", false) },
+        { systemId: "world", scope: "world", update: ({ world }) => calls.push(world.worldId) }
+      ]
+    });
+    scheduler.advance(0.05);
+    equal(calls.join(","), "world:alpha,world:beta");
+    equal(runtime.getState("world:alpha").simulatedSeconds, 6);
+    equal(runtime.getState("world:beta").simulatedSeconds, 6);
+    scheduler.advance(0.05);
+    equal(calls.join(","), "world:alpha,world:beta,world:alpha");
+    equal(runtime.getState("world:beta").simulatedSeconds, 6);
+  });
+
   test("world task frequency follows each world's local completed-step counter", () => {
     const clock = createClock();
     const worlds = new WorldRegistry();
