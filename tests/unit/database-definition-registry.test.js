@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   registerDefinition, getDefinition, listDefinitions, listDefinitionIndex,
-  loadDefinitionDetail, getCategories, clearDefinitionsForTests
+  loadDefinitionDetail, getCategories, registerDefinitions, clearDefinitionsForTests
 } from "../../engine/database/definition-registry.js";
 
 test("registers canonical definitions and exposes a lightweight navigation index", async () => {
@@ -39,5 +39,56 @@ test("rejects invalid and duplicate definitions while accepting consumer-defined
   assert.throws(() => registerDefinition({ id: "bad.kind", name: "Bad", category: "Pawn", spawnableAs: [""] }), TypeError);
   registerDefinition({ id: "wall.steel", name: "Steel Wall", category: "Structure" });
   assert.throws(() => registerDefinition({ id: "wall.steel", name: "Duplicate", category: "Structure" }), /already registered/);
+  clearDefinitionsForTests();
+});
+
+
+test("definition normalization detaches nested input data before deeply freezing it", () => {
+  clearDefinitionsForTests();
+  const nestedSource = { value: 1 };
+  const frozenShallowSource = Object.freeze({ nested: nestedSource });
+  const sourceAttributes = {
+    mutable: { value: 2 },
+    settings: frozenShallowSource
+  };
+
+  const definition = registerDefinition({
+    id: "pawn.detached",
+    name: "Detached",
+    category: "Pawn",
+    attributes: sourceAttributes
+  });
+
+  assert.equal(Object.isFrozen(sourceAttributes), false);
+  assert.equal(Object.isFrozen(sourceAttributes.mutable), false);
+  sourceAttributes.mutable.value = 99;
+  nestedSource.value = 88;
+
+  assert.equal(definition.attributes.mutable.value, 2);
+  assert.equal(definition.attributes.settings.nested.value, 1);
+  assert.equal(Object.isFrozen(definition.attributes), true);
+  assert.equal(Object.isFrozen(definition.attributes.mutable), true);
+  assert.equal(Object.isFrozen(definition.attributes.settings), true);
+  assert.equal(Object.isFrozen(definition.attributes.settings.nested), true);
+  clearDefinitionsForTests();
+});
+
+test("definition batches reject cyclic or accessor-backed nested data without partial registration", () => {
+  clearDefinitionsForTests();
+  const circular = {};
+  circular.self = circular;
+  const valid = { id: "pawn.valid", name: "Valid", category: "Pawn" };
+  const invalid = { id: "pawn.invalid", name: "Invalid", category: "Pawn", attributes: { circular } };
+
+  assert.throws(() => registerDefinitions([valid, invalid]), /circular references/);
+  assert.equal(getDefinition("pawn.valid"), null);
+  assert.equal(getDefinition("pawn.invalid"), null);
+
+  const accessorAttributes = {};
+  Object.defineProperty(accessorAttributes, "value", { enumerable: true, get() { return 1; } });
+  assert.throws(() => registerDefinition({
+    id: "pawn.accessor", name: "Accessor", category: "Pawn", attributes: accessorAttributes
+  }), /accessor or hidden property/);
+  assert.equal(getDefinition("pawn.accessor"), null);
   clearDefinitionsForTests();
 });
