@@ -4,11 +4,11 @@ Last updated: 2026-11-16
 Repository: `Veyn44/NEW-GAME-CASS`  
 Integrated baseline: `main` at `0a879ed0ef955110b069b9e89bb420ead4f58737`
 
-> This is the live work log and handoff document. It records what we are doing now, what has actually been inspected, proposed ownership, and the next safe action. It does not replace `NEXT_STEPS.md`; that file is the long-range roadmap.
+> This file contains a dated work log and handoff record. Older sections are historical snapshots of what was believed or planned at that time; they are not authoritative current instructions. For confirmed project direction and the current open decision, see `NEXT_STEPS.md` and `docs/architecture/current-implementation-status.md`.
 
 ## 1. Current objective
 
-The pre-merge audit is complete and the development history has been integrated into `main` through PR #7. The current task is documentation reconciliation after the merge, followed by joint planning for Phase 4 browser-readiness work. Do not add gameplay features or change the tested environment simulation as part of documentation cleanup.
+The pre-merge audit is complete and the development history has been integrated into `main` through PR #7. The current task is documentation reconciliation after the merge. No next implementation phase or gameplay scope has been agreed. Do not add gameplay features or change the tested environment simulation as part of documentation cleanup.
 
 Cassandra is the primary project. The reusable Engine is developed from Cassandra's concrete needs while retaining application-neutral contracts. Dev Lab remains a development/verification tool that exercises the real runtime and is not a dependency of the shipped game.
 
@@ -1152,4 +1152,4 @@ Latest code/test commit: `9a62f056a58d180d1cfcca56742252be9fa3fb8d`. CI verifica
 - PR #4 was closed without merging. Its only changed file was `NEXT_STEPS.md`; its Cassandra-first product direction is consolidated into the canonical roadmap.
 - The two pre-merge backup branches and the owner's local verified bundle/mirror are retained. No backup is to be deleted during documentation cleanup.
 - Documentation updates are being made on `docs/post-merge-documentation-2026-11-16`, not directly on `main`. The documentation PR must be reviewed and explicitly approved before merge.
-- Phase 4 is the next planning focus: direct browser readiness for existing Cassandra and Dev Lab behavior. It is not authorization for new gameplay rules.
+- No post-Phase-3 implementation phase has been selected. Possible future directions are only broad discussion topics until they are jointly defined; this work log does not authorize new gameplay rules.
