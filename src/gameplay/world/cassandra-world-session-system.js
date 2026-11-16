@@ -369,7 +369,7 @@ export function createCassandraWorldSessionSystem({ isPackageApplied = null } = 
           }
           if (worlds.has(id)) {
             const runtimeState = worldRuntime.getState(id);
-            if (runtimeState.status === "Ready" || runtimeState.status === "Loading") {
+            if (runtimeState.status === "Ready" || runtimeState.status === "Loading" || runtimeState.status === "Unloaded") {
               worldRuntime.beginDisposal(id);
               worldRuntime.finishDisposal(id);
             } else if (runtimeState.status !== "Disposed") {
