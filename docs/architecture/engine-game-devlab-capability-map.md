@@ -1,11 +1,11 @@
 # Engine / Cassandra / Dev Lab — Capability and Ownership Review
 
-> **Implementation status note (2026-11-16):** This document remains the conceptual ownership/gap map. Its pre-implementation “Current gap” descriptions are historical and have been superseded where implementation exists. Use [current-implementation-status.md](current-implementation-status.md) for the live implementation state; “Candidate” and “Open” ownership decisions remain non-binding unless separately approved.
+> **Post-merge implementation status (2026-11-16):** This document remains the conceptual ownership/gap map. Its pre-implementation “Current gap” descriptions are historical and have been superseded where implementation exists. Phase 3 was merged into `main` through PR #7; use [current-implementation-status.md](current-implementation-status.md) for live implementation and CI status. “Candidate” and “Open” ownership decisions remain non-binding unless separately approved.
 
 > **Purpose:** Consolidate the current Engine implementation, Cassandra's agreed and proposed gameplay needs, and Dev Lab's development-tool requirements into one ownership and capability map.
 >
 > **Status:** Review document — not an implementation approval.
-> **Branch:** work
+> **Integrated branch:** `main`
 > **Date:** 2026-11-15
 > **Inputs:** Current source audit, `engine/core/README.md`, `docs/architecture/application-boundaries.md`, `NEXT_STEPS.md`, `CASSANDRA_VISION.md`, and `docs/architecture/phase-3-brainstorm.md`.
 >
@@ -15,7 +15,7 @@
 
 ## 1. The three products and their relationship
 
-The repository contains three distinct responsibilities:
+Cassandra is the primary product; the reusable Engine is developed from Cassandra's concrete needs while remaining application-neutral. The repository contains three distinct responsibilities:
 
 1. **Engine** — reusable runtime and technology. It must work without Cassandra and without Dev Lab. It owns generic mechanisms and contracts, not game rules or development UI.
 2. **Dev Lab** — an Engine development environment. It creates, edits, inspects, diagnoses and tests Engine worlds and data. It may expose tools that the shipped game never needs.
