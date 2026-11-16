@@ -1,7 +1,9 @@
 # Cassandra Temporary World Result & Change Package Contract — Working Proposal
 
-**Status:** Protocol direction and technical defaults approved for implementation on `work`; authoritative campaign storage adapter and full gameplay operation registry remain implementation gates  
-**Branch:** `work`  
+> **Post-merge status (2026-11-16):** The protocol foundations and candidate IndexedDB compare-and-swap adapter described here are included in `main` through PR #7. This is not a complete campaign implementation: authoritative aggregate models, production typed domain handlers, full expedition workflow and real-browser durability/recovery acceptance remain open. See [current-implementation-status.md](current-implementation-status.md).
+
+**Status:** Change Package / Change Buffer infrastructure foundations implemented and merged; authoritative Campaign domain model and full gameplay operation registry remain open.  
+**Integrated branch:** `main`  
 **Scope:** Cassandra-owned protocol for resolving a Temporary World encounter and applying its results to persistent campaign/Main World state  
 **Related Engine contracts:** World Lifecycle, Grid Geometry, Spatial Composition, Spatial Placement Integration
 
