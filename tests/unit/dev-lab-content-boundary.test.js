@@ -132,8 +132,6 @@ test("Dev Lab shell delegates viewport and workspace persistence to owned servic
   assert.ok(shell.includes("createWorldViewport"));
   assert.ok(shell.includes("createFilePersistenceController"));
   assert.equal(shell.includes('from "../presentation/dev-world-preview.js"'), false);
-  assert.equal(shell.includes("DEV_LAB_SAVE_SLOT"), false);
-  assert.equal(shell.includes("async function persistWorkspace"), false);
   assert.ok(viewport.includes("export function createWorldViewport"));
   assert.ok(viewport.includes("setWorldMarkers"));
   assert.ok(viewport.includes("resetCameraToWorld"));
@@ -147,14 +145,25 @@ test("Dev Lab shell delegates viewport and workspace persistence to owned servic
   assert.ok(shell.includes("DEV_LAB_SAVE_FILE_NAME"));
   assert.ok(shell.includes("DEV_LAB_SAVE_MIME_TYPE"));
   assert.ok(shell.includes("Name this Dev Lab workspace:"));
-  assert.ok(shell.includes("workspace.dlcass"));
+  assert.equal(shell.includes("async function persistWorkspace"), false);
 
   const cassandraShell = await read("../../cassandra/application/cassandra-application-shell.js");
   assert.ok(cassandraShell.includes("CASSANDRA_SAVE_SLOT"));
   assert.ok(cassandraShell.includes("CASSANDRA_SAVE_STATE_ID"));
   assert.ok(cassandraShell.includes("CASSANDRA_SAVE_FILE_EXTENSION"));
   assert.ok(cassandraShell.includes("CASSANDRA_SAVE_FILE_NAME"));
-  assert.ok(cassandraShell.includes("cassandra-main-world"));
+
+  const saveAdapter = await read("../../src/adapters/storage/local-file-save-adapter.js");
+  for (const identity of [
+    'CASSANDRA_SAVE_FORMAT = "cassandra.save"',
+    'DEV_LAB_SAVE_FORMAT = "cassandra.dev-lab.save"',
+    'CASSANDRA_SAVE_SLOT = "cassandra-main-world"',
+    'DEV_LAB_SAVE_SLOT = "dev-lab-workspace"',
+    'CASSANDRA_SAVE_STATE_ID = "cassandra-main-world"',
+    'DEV_LAB_SAVE_STATE_ID = "cassandra-dev-lab-workspace"',
+    'CASSANDRA_SAVE_FILE_EXTENSION = ".cass"',
+    'DEV_LAB_SAVE_FILE_EXTENSION = ".dlcass"'
+  ]) assert.ok(saveAdapter.includes(identity), `Missing save identity: ${identity}`);
 });
 
 
