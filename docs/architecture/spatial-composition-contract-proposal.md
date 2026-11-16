@@ -1,8 +1,10 @@
 # Spatial Composition and Occupancy Contract — Working Proposal
 
-**Status:** Working contract; conceptual direction agreed, technical defaults proposed  
+> **Post-merge status (2026-11-16):** The initial Spatial Composition and occupancy baseline described here is implemented and merged into `main` through PR #7. See [current-implementation-status.md](current-implementation-status.md) for verified slice status and remaining acceptance limits.
+
+**Status:** Initial Spatial Composition contract implemented and merged; refinements remain requirement-driven.  
 **Scope:** Generic Engine spatial composition, cell-associated contents, entity occupancy and multi-cell footprints  
-**Branch:** `work`  
+**Integrated branch:** `main`  
 **Source audit:** 2026-11-15
 
 This document defines the next spatial layer above optional grid geometry. It separates entity identity, spatial placement, cell-associated data, occupancy indexes, and host/game rules. The intent is to provide a concrete implementation target without turning Engine into a game-specific tile system.
