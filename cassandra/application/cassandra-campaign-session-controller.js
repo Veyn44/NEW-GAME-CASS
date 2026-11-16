@@ -172,6 +172,10 @@ export function createCassandraCampaignSessionController({
   }
 
   async function isPackageApplied(packageId, digest) {
+    if (typeof packageId !== "string" || !CAMPAIGN_ID.test(packageId)
+      || typeof digest !== "string" || !/^[a-f0-9]{64}$/.test(digest)) {
+      fail("INVALID_APPLIED_LEDGER_QUERY", "Applied-ledger verification requires a stable package ID and exact SHA-256 digest.");
+    }
     if (!active) return false;
     const current = active;
     const loaded = await current.adapter.loadCampaignSnapshot();
