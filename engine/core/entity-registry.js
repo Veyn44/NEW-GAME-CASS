@@ -260,7 +260,7 @@ export class EntityRegistry {
   }
 
   prepareCoordinatedLifecycleChange(id, operation, authority) {
-    if (authority !== PLACEMENT_AUTHORITY) throw new EntityRegistryError("PLACEMENT_AUTHORITY_REQUIRED", "Only PlacementCoordinator may prepare lifecycle changes.");
+    if (authority !== PLACEMENT_AUTHORITY) throw new EntityRegistryError("PLACEMENT_AUTHORITY_REQUIRED", "Only Engine placement services may prepare lifecycle changes.");
     const current = this.#require(id); let next;
     if (operation === "store") {
       if (current.status !== "active" || current.scope !== "scoped") throw new EntityRegistryError("ENTITY_NOT_STORABLE", "Only active scoped entities can be stored.", { id });
@@ -282,6 +282,7 @@ export class EntityRegistry {
   /** Marks a stored identity as active again; world placement is handled elsewhere. */
   activateStored(id) {
     const current = this.#require(id);
+    if (this.#spatialOccupancyGuard?.(id)) throw new EntityRegistryError("GRID_COORDINATOR_REQUIRED", "An entity with grid occupancy must be reactivated through PlacementCoordinator.", { id });
     if (this.#placementGuard?.(id)) throw new EntityRegistryError("PLACEMENT_COORDINATOR_REQUIRED", "An entity with a storage placement must be reactivated through its placement owner.", { id });
     if (current.status !== "stored") {
       throw new EntityRegistryError("ENTITY_NOT_STORED", `Entity "${id}" is not stored.`, { id, status: current.status });
