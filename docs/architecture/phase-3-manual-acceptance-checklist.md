@@ -58,6 +58,6 @@ These checks remain outstanding for the relevant integration/performance release
 - [x] Exact merge-commit Core/Host CI passed: [43940567950](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43940567950).
 - [x] User confirmed the currently exposed Pages-hosted Cassandra workflow and `.cass` save/load path.
 - [ ] Complete the remaining browser acceptance items above in the application/feature scope to which they belong.
-- [ ] Plan Phase 4 browser-readiness work jointly; do not treat this checklist as authorization to invent new gameplay rules.
+- [ ] Decide together whether browser-readiness work should be part of a future phase; this checklist does not select or authorize that phase or any new gameplay rules.
 
 A successful merge and CI run do not convert deferred manual/browser checks into passed items. Keep each remaining check open until it is actually performed and recorded.
