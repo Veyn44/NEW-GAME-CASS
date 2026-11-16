@@ -6,6 +6,7 @@ import { runLifecycleBootstrapTests } from "./lifecycle-bootstrap.test.js";
 import { runPersistenceLoggerTests } from "./persistence-logger.test.js";
 import { runWorldRegistryTests } from "./world-registry.test.js";
 import { runWorldContextTests } from "./world-context.test.js";
+import { runWorldRuntimeManagerTests } from "./world-runtime-manager.test.js";
 import { runCoreIntegrationTests } from "./core-integration.test.js";
 
 const suites = [
@@ -17,6 +18,7 @@ const suites = [
   ["Persistence + Logger", runPersistenceLoggerTests],
   ["World Registry", runWorldRegistryTests],
   ["World Context", runWorldContextTests],
+  ["World Runtime Manager", runWorldRuntimeManagerTests],
   ["Core Integration", runCoreIntegrationTests]
 ];
 let passed = 0;

@@ -1,0 +1,308 @@
+const WORLD_ID_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9:._-]{0,159}$/;
+const PAUSE_REASON_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9:._-]{0,99}$/;
+const SNAPSHOT_VERSION = 1;
+
+export class WorldRuntimeError extends Error {
+  constructor(code, message, details = {}) {
+    super(message);
+    this.name = "WorldRuntimeError";
+    this.code = code;
+    this.details = Object.freeze({ ...details });
+  }
+}
+
+function assertWorldId(value) {
+  if (typeof value !== "string" || !WORLD_ID_PATTERN.test(value)) {
+    throw new WorldRuntimeError("INVALID_WORLD_ID", "World ID must be a stable identifier.", { worldId: value });
+  }
+  return value;
+}
+
+function assertPauseReason(value) {
+  if (typeof value !== "string" || !PAUSE_REASON_PATTERN.test(value)) {
+    throw new WorldRuntimeError("INVALID_PAUSE_REASON", "Pause reason must be a stable non-empty identifier.", { reason: value });
+  }
+  return value;
+}
+
+function parseSnapshot(snapshot) {
+  if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)
+    || snapshot.version !== SNAPSHOT_VERSION || !Array.isArray(snapshot.worlds)) {
+    throw new WorldRuntimeError("INVALID_SNAPSHOT", "World runtime snapshot has an unsupported version or shape.");
+  }
+  const worlds = new Map();
+  for (const [index, entry] of snapshot.worlds.entries()) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      throw new WorldRuntimeError("INVALID_SNAPSHOT", `World runtime entry at index ${index} must be an object.`);
+    }
+    const worldId = assertWorldId(entry.worldId);
+    if (worlds.has(worldId)
+      || !Number.isFinite(entry.simulatedSeconds) || entry.simulatedSeconds < 0
+      || !Number.isSafeInteger(entry.completedSteps) || entry.completedSteps < 0) {
+      throw new WorldRuntimeError("INVALID_SNAPSHOT", `World runtime data for "${worldId}" is invalid or duplicated.`, { worldId });
+    }
+    worlds.set(worldId, Object.freeze({
+      simulatedSeconds: entry.simulatedSeconds,
+      completedSteps: entry.completedSteps
+    }));
+  }
+  return worlds;
+}
+
+function compareWorldIds(a, b) {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+function createRecord(worldId, saved = null) {
+  return {
+    worldId,
+    status: "Unloaded",
+    simulationEnabled: false,
+    pauseReasons: new Set(),
+    simulatedSeconds: saved?.simulatedSeconds ?? 0,
+    completedSteps: saved?.completedSteps ?? 0
+  };
+}
+
+/**
+ * Owns runtime residency, simulation participation and local simulation time
+ * for registered worlds. WorldRegistry continues to own world identity and
+ * the singular active-world selection.
+ */
+export class WorldRuntimeManager {
+  #worlds;
+  #records = new Map();
+
+  constructor({ worldRegistry } = {}) {
+    if (!worldRegistry || typeof worldRegistry.get !== "function" || typeof worldRegistry.list !== "function") {
+      throw new WorldRuntimeError("INVALID_WORLD_REGISTRY", "WorldRuntimeManager requires a compatible WorldRegistry.");
+    }
+    this.#worlds = worldRegistry;
+  }
+
+  beginLoading(worldId) {
+    const record = this.#requireRecord(worldId);
+    if (record.status !== "Unloaded" && record.status !== "Disposed") {
+      throw this.#transitionError(record, "Loading");
+    }
+    record.status = "Loading";
+    record.simulationEnabled = false;
+    record.pauseReasons.clear();
+    return this.getState(worldId);
+  }
+
+  markReady(worldId) {
+    const record = this.#requireRecord(worldId);
+    if (record.status !== "Loading") throw this.#transitionError(record, "Ready");
+    record.status = "Ready";
+    return this.getState(worldId);
+  }
+
+  failLoading(worldId) {
+    const record = this.#requireRecord(worldId);
+    if (record.status !== "Loading") throw this.#transitionError(record, "Unloaded");
+    record.status = "Unloaded";
+    record.simulationEnabled = false;
+    record.pauseReasons.clear();
+    return this.getState(worldId);
+  }
+
+  beginDisposal(worldId) {
+    const record = this.#requireRecord(worldId);
+    if (record.status !== "Ready" && record.status !== "Loading") {
+      throw this.#transitionError(record, "Disposing");
+    }
+    record.status = "Disposing";
+    record.simulationEnabled = false;
+    record.pauseReasons.clear();
+    return this.getState(worldId);
+  }
+
+  finishDisposal(worldId) {
+    const record = this.#requireRecord(worldId);
+    if (record.status !== "Disposing") throw this.#transitionError(record, "Disposed");
+    record.status = "Disposed";
+    record.simulationEnabled = false;
+    record.pauseReasons.clear();
+    return this.getState(worldId);
+  }
+
+  setSimulationEnabled(worldId, enabled) {
+    if (typeof enabled !== "boolean") {
+      throw new WorldRuntimeError("INVALID_PARTICIPATION", "Simulation participation must be a boolean.", { worldId, enabled });
+    }
+    const record = this.#requireRecord(worldId);
+    if (enabled && record.status !== "Ready") {
+      throw new WorldRuntimeError("WORLD_NOT_READY", `World "${worldId}" must be Ready before simulation can be enabled.`, { worldId, status: record.status });
+    }
+    record.simulationEnabled = enabled;
+    return this.getState(worldId);
+  }
+
+  pause(worldId, reason) {
+    const record = this.#requireRecord(worldId);
+    record.pauseReasons.add(assertPauseReason(reason));
+    return this.getState(worldId);
+  }
+
+  resume(worldId, reason) {
+    const record = this.#requireRecord(worldId);
+    record.pauseReasons.delete(assertPauseReason(reason));
+    return this.getState(worldId);
+  }
+
+  getState(worldId) {
+    const record = this.#requireRecord(worldId);
+    return this.#snapshotRecord(record);
+  }
+
+  list() {
+    this.#synchronizeRegisteredWorlds();
+    return Object.freeze([...this.#records.values()]
+      .sort((a, b) => compareWorldIds(a.worldId, b.worldId))
+      .map((record) => this.#snapshotRecord(record)));
+  }
+
+  getParticipants() {
+    this.#synchronizeRegisteredWorlds();
+    return Object.freeze([...this.#records.values()]
+      .filter((record) => record.status === "Ready" && record.simulationEnabled && record.pauseReasons.size === 0)
+      .sort((a, b) => compareWorldIds(a.worldId, b.worldId))
+      .map((record) => Object.freeze({
+        worldId: record.worldId,
+        completedSteps: record.completedSteps,
+        nextStep: record.completedSteps + 1,
+        simulatedSeconds: record.simulatedSeconds
+      })));
+  }
+
+  commitStep(participants, deltaSeconds) {
+    if (!Array.isArray(participants)) {
+      throw new WorldRuntimeError("INVALID_PARTICIPANTS", "Simulation participants must be an array.");
+    }
+    if (!Number.isFinite(deltaSeconds) || deltaSeconds <= 0) {
+      throw new WorldRuntimeError("INVALID_SIMULATION_DELTA", "Simulation delta must be a positive finite number.", { deltaSeconds });
+    }
+    const updates = [];
+    const seen = new Set();
+    for (const participant of participants) {
+      const worldId = assertWorldId(participant?.worldId);
+      const record = this.#records.get(worldId);
+      if (!record || seen.has(worldId)
+        || participant.completedSteps !== record.completedSteps
+        || participant.simulatedSeconds !== record.simulatedSeconds
+        || participant.nextStep !== record.completedSteps + 1) {
+        throw new WorldRuntimeError("STALE_PARTICIPANT_SNAPSHOT", `World "${worldId}" participant snapshot is stale or duplicated.`, { worldId });
+      }
+      const simulatedSeconds = record.simulatedSeconds + deltaSeconds;
+      const completedSteps = record.completedSteps + 1;
+      if (!Number.isFinite(simulatedSeconds) || !Number.isSafeInteger(completedSteps)) {
+        throw new WorldRuntimeError("SIMULATION_TIME_OVERFLOW", `World "${worldId}" local simulation counters overflowed.`, { worldId });
+      }
+      seen.add(worldId);
+      updates.push({ record, simulatedSeconds, completedSteps });
+    }
+    // All values are validated before any record is changed. These assignments
+    // are synchronous and invoke no host callbacks.
+    for (const update of updates) {
+      update.record.simulatedSeconds = update.simulatedSeconds;
+      update.record.completedSteps = update.completedSteps;
+    }
+    return updates.length;
+  }
+
+  createPersistenceParticipant({ id = "core.world-runtime", order = -85 } = {}) {
+    if (typeof id !== "string" || !/^[a-z][a-z0-9.-]*$/.test(id) || !Number.isSafeInteger(order)) {
+      throw new WorldRuntimeError("INVALID_PARTICIPANT_CONFIG", "World runtime persistence participant ID/order is invalid.", { id, order });
+    }
+    return Object.freeze({
+      id,
+      schemaVersion: SNAPSHOT_VERSION,
+      required: true,
+      order,
+      captureSnapshot: () => this.captureSnapshot(),
+      validateSnapshot: (snapshot) => {
+        try { parseSnapshot(snapshot); return true; }
+        catch { return false; }
+      },
+      prepareRestore: (snapshot) => this.prepareRestore(snapshot)
+    });
+  }
+
+  captureSnapshot() {
+    this.#synchronizeRegisteredWorlds();
+    const worlds = [...this.#records.values()]
+      .sort((a, b) => compareWorldIds(a.worldId, b.worldId))
+      .map((record) => Object.freeze({
+        worldId: record.worldId,
+        simulatedSeconds: record.simulatedSeconds,
+        completedSteps: record.completedSteps
+      }));
+    return Object.freeze({ version: SNAPSHOT_VERSION, worlds: Object.freeze(worlds) });
+  }
+
+  prepareRestore(snapshot) {
+    const parsed = parseSnapshot(snapshot);
+    const previous = this.#records;
+    let committed = false;
+    return Object.freeze({
+      commit: () => {
+        const registered = this.#worlds.list().filter((world) => world.status !== "closed");
+        const registeredIds = new Set(registered.map((world) => world.worldId));
+        if (parsed.size !== registeredIds.size
+          || [...parsed.keys()].some((worldId) => !registeredIds.has(worldId))) {
+          throw new WorldRuntimeError("WORLD_RUNTIME_REGISTRY_MISMATCH", "World runtime snapshot does not match the restored World Registry.");
+        }
+        const next = new Map();
+        for (const world of registered) next.set(world.worldId, createRecord(world.worldId, parsed.get(world.worldId)));
+        this.#records = next;
+        committed = true;
+      },
+      rollback: () => {
+        if (!committed) return false;
+        this.#records = previous;
+        committed = false;
+        return true;
+      }
+    });
+  }
+
+  #synchronizeRegisteredWorlds() {
+    for (const world of this.#worlds.list()) {
+      if (world.status === "closed") {
+        this.#records.delete(world.worldId);
+      } else if (!this.#records.has(world.worldId)) {
+        this.#records.set(world.worldId, createRecord(world.worldId));
+      }
+    }
+    for (const worldId of this.#records.keys()) {
+      if (!this.#worlds.has(worldId)) this.#records.delete(worldId);
+    }
+  }
+
+  #requireRecord(worldId) {
+    const id = assertWorldId(worldId);
+    const world = this.#worlds.get(id);
+    if (!world) throw new WorldRuntimeError("UNKNOWN_WORLD", `World "${id}" is not registered.`, { worldId: id });
+    if (world.status === "closed") throw new WorldRuntimeError("WORLD_CLOSED", `World "${id}" is closed.`, { worldId: id });
+    if (!this.#records.has(id)) this.#records.set(id, createRecord(id));
+    return this.#records.get(id);
+  }
+
+  #snapshotRecord(record) {
+    return Object.freeze({
+      worldId: record.worldId,
+      status: record.status,
+      simulationEnabled: record.simulationEnabled,
+      pauseReasons: Object.freeze([...record.pauseReasons].sort(compareWorldIds)),
+      simulatedSeconds: record.simulatedSeconds,
+      completedSteps: record.completedSteps
+    });
+  }
+
+  #transitionError(record, target) {
+    return new WorldRuntimeError("INVALID_WORLD_TRANSITION",
+      `World "${record.worldId}" cannot transition from ${record.status} to ${target}.`,
+      { worldId: record.worldId, current: record.status, requested: target });
+  }
+}
