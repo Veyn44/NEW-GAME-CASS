@@ -241,7 +241,7 @@ After each coherent step: run relevant tests, then full suite; inspect imports; 
 
 ## 8. Current status
 
-- [x] New long-range roadmap committed in `NEXT_STEPS.md`.
+- [x] A roadmap draft was committed in `NEXT_STEPS.md` at this historical point; it was later reframed as project status and open directions, not an approved future-phase plan.
 - [x] User confirmed Control Modes belong to Engine as a general mechanism; Cassandra defines actions and transition rules.
 - [x] User confirmed Engine Entity is generic and Unit belongs to Cassandra.
 - [x] User confirmed database mechanism belongs to Engine and game data to Cassandra.
