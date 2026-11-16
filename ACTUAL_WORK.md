@@ -1,32 +1,44 @@
 # ACTUAL WORK — Engine / Dev Lab / Cassandra restructuring
 
-Last updated: 2026-11-14  
+Last updated: 2026-11-16  
 Repository: `Veyn44/NEW-GAME-CASS`  
-Working baseline inspected: `main` at `494307b19494b1212d6f431764107dc524c6ede1` (roadmap documentation commit)
+Working baseline inspected: `main` at `458ecc52d4267b6b31fb3d59559374533c49fa64`
 
 > This is the live work log and handoff document. It records what we are doing now, what has actually been inspected, proposed ownership, and the next safe action. It does not replace `NEXT_STEPS.md`; that file is the long-range roadmap.
 
 ## 1. Current objective
 
-Restructure the existing project into three areas in one repository:
+Complete the pre-merge audit of `work` against `main` and make only source-backed corrections required for a safe merge. Do not add gameplay features, begin Phase 4, or change `main`. When the audit has only minor/accepted gaps remaining, present a merge-readiness report and wait for explicit approval.
 
-- **Engine** — reusable technology, independent of both applications.
-- **Dev Lab** — the Engine's development workspace, using the same Engine runtime systems as the game.
-- **Cassandra** — the actual game, with its own gameplay rules, content and UI, depending on Engine.
+After the merge, Phase 4 will be planned together. Its agreed goal is to prepare the existing Cassandra/Dev Lab implementation for direct browser testing of what already exists — reliable entry points, host composition, test workflows, diagnostics and persistence interactions — not to invent new gameplay rules.
 
-Dependency direction:
+The repository's established dependency direction remains:
 
 `Dev Lab → Engine`  
 `Cassandra → Engine`
 
-Engine must not import Dev Lab or Cassandra. Dev Lab must not be required to run Cassandra. Cassandra must not be required to run Dev Lab.
+Engine must not import Dev Lab or Cassandra. The standalone Dev Lab must not require Cassandra, and Cassandra must not require the standalone Dev Lab shell.
+
+## 1.1 Current pre-merge audit checkpoint
+
+- Latest verified source/test checkpoint: `35bab1be841e3471be1bb721a7dd0ed5dfe06343`.
+- Core/host CI: [43890217044](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43890217044) — 233/233 Core tests, 293/293 Host tests, browser syntax checks passed.
+- Development preview: [43890217123](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43890217123) — success.
+- GitHub Pages build/deployment: [43890216956](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43890216956) — success.
+- Narrow fixes on `work`: Persistence restore rollback now faults/stops the runtime if rollback fails; Spatial Composition read-only movement-policy guards cover removals and restore transactions; World Registry lifecycle operations respect World Runtime state and active simulation rounds; Entity Registry lifecycle changes cannot bypass non-grid World Context placements; failed save selection is rolled back and file operations are serialized to prevent import races.
+- Test fixtures were corrected to provide the required Runtime Host input controller and inject cleanup failures through the supported Temporary World cleanup hook.
+- User-confirmed manual regression: established Cassandra behavior remains as before Phase 3 and redundant test buttons were removed. This does not complete the full browser acceptance checklist.
+- Remaining gates: real-browser Dev Lab/Main/Temporary World workflows, strict IndexedDB durability/cross-tab/interruption behavior, performance measurements, and identification of the authoritative environment simulation host/baseline.
+- No environment simulation source was changed. `main` remains untouched; no PR or merge has been created.
+
+> Historical entries below record the state at the time they were written. Where they say CI was unconfirmed or list earlier test counts, the verified checkpoint above and [Current implementation status](docs/architecture/current-implementation-status.md) supersede those statements.
 
 ## 2. Safety / recovery position
 
 - The user confirms that the Phase 2 work was merged into `main` and that the merged state is archived in the separate archive repository.
 - The archived repository was previously verified to have the same tree as active `main` at that time. This is an additional recovery reference, not a substitute for checking the current active `main` SHA before a risky operation.
-- Current `main` before this work log: `494307b19494b1212d6f431764107dc524c6ede1`.
-- No source files have been moved or behavior changed in this work step.
+- Current `main` before this work log: `458ecc52d4267b6b31fb3d59559374533c49fa64`.
+- Historical note: no source files were moved in the original restructuring step; the later pre-merge audit corrections are listed in §1.1.
 - User manually deleted the two merged maintenance branches:
   - `maintenance/active-world-viewport-cleanup-2026-11-13`
   - `maintenance/safe-cleanup-2026-11-13`
