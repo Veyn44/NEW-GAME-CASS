@@ -75,3 +75,35 @@ test("Cassandra runtime host owns startup, frame lifecycle, pause and teardown",
   assert.deepEqual(cancelledFrames, [pendingFrame]);
   assert.equal(frameCallbacks.size, 0);
 });
+
+test("Cassandra runtime host forwards the authoritative Applied ledger verifier", async () => {
+  const verifier = async (packageId, digest) =>
+    packageId === "package:verified" && digest === "a".repeat(64);
+  let receivedOptions = null;
+  const host = createCassandraRuntimeHost({
+    isPackageApplied: verifier,
+    createRuntime(options) {
+      receivedOptions = options;
+      return {
+        async start() { return {}; },
+        advance() {},
+        async destroy() {}
+      };
+    },
+    resolveRuntimeServices() {
+      return {
+        clock: {
+          paused: false,
+          pause() {},
+          resume() {}
+        }
+      };
+    },
+    requestFrame() { return 1; },
+    cancelFrame() {}
+  });
+
+  await host.start();
+  assert.equal(receivedOptions.isPackageApplied, verifier);
+  await host.stop();
+});
