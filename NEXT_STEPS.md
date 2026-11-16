@@ -90,10 +90,19 @@ The full current status, verified CI evidence and outstanding manual gates are m
 - Cassandra's environment simulation is not to be modified without a concrete dependency and separate approval. The current branch audit did not locate an authoritative environment simulation module to integrate.
 - No merge to `main` without explicit user approval after the user has reviewed the browser/Pages result.
 
-## Immediate next step — Campaign runtime ownership decision
+## Campaign application lifecycle — current state
 
-The Applied Ledger verifier is now correctly injectable through the Cassandra Runtime Host, and the end-to-end regression is committed on `work` (`e009565`). This is an integration seam, not production campaign storage.
+The ownership decision is agreed:
 
-Before the application can instantiate the Change Package coordinator, the next bounded design decision is to establish who owns the active campaign identity and the lifecycle of its separate IndexedDB campaign adapter (create/select/open/close/recovery). Do not choose a campaign ID, add a default campaign, or bind the adapter to the existing `.cass` save adapter by assumption.
+1. Cassandra Application Shell owns active Campaign selection and Campaign ID.
+2. It creates one separate IndexedDB adapter per explicitly selected Campaign.
+3. It injects the active session's exact Applied-ledger verifier into Runtime Host.
+4. Engine remains unaware of Campaigns; the existing `.cass` workspace adapter remains separate.
 
-Once that ownership contract is agreed, connect the already-built coordinator's `isApplied(packageId, digest)` method to the injected verifier and register only domain operation handlers that have approved authoritative aggregate models. Inventory/resource/equipment/health/crew/shuttle and return-disposition behavior remain out of scope until their contracts are explicit.
+The lifecycle controller now supports explicit create/open/load/close and is exposed from the Pages test entry point as `cassandraApplication.campaignSessionApi`. No default Campaign ID is generated. Campaign creation requires a caller-supplied initial snapshot; opening requires an existing durable record. The controller does not instantiate the Change Package Coordinator because authoritative aggregate models and approved typed operation/manifest handlers are still missing.
+
+**Important product boundary:** the current Pages entry point is still a development/test host. A separate, complete Cassandra game and player-facing Campaign selection UI do not exist yet. Do not describe this lifecycle seam as a finished game integration.
+
+### Next engineering slice
+
+The next work should define the smallest authoritative Campaign aggregate and its first typed Change Package operation together, including validation and manifest reconciliation. Do not pick inventory, health, equipment, resources, crew/shuttle, disposition, End Expedition or Abandon Expedition rules by assumption. First agree on the aggregate's ownership and invariants, then implement one vertical slice with tests.
