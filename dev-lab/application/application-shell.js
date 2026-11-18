@@ -96,6 +96,7 @@ function beginWorldPlacement(definition) {
         viewport.setWorldPlacement(null);
         refreshWorldMarkers();
         inspectGameplayEntity(unit.id);
+        simulationStatus.textContent = `SPAWNED · ${definition.name} · (${x}, ${y})`;
         return true;
       } catch (error) {
         simulationStatus.textContent = `PLACEMENT REJECTED · ${error.message}`;
@@ -478,7 +479,6 @@ function createDevLabRuntimeHost({
         simulationStatus.textContent = nextSimulationStatus;
       }
     });
-    state.gameplayApi = services.gameplayApi ?? null;
     state.gameplayUi = services.gameplayUi ?? null;
     viewport.setWorldMarkers([]);
     clearSelection();
