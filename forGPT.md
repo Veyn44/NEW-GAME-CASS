@@ -26,7 +26,7 @@
 - V audited tree nebyly nalezeny combat, inventory/item gameplay systémy, map/encounter generator ani mission/scenario system.
 - Cassandra Campaign/expedition má lifecycle/projection foundations, nikoliv hotový player-facing campaign gameplay.
 - Aktuální main CI po merge #8: Core/Host i Pages workflows úspěšné na merge commitu 267336e9e2ef28730a9a3a247b7ebe1e38a933e7; CI není důkaz kompletní browser/gameplay acceptance.
-- Kandidát na první viditelný výřez: propojit skutečnou definici jednotky → map placement → vizuální asset → pohyb → .cass save/load. Nejdřív společně vybrat, zda první test hostovat v Cassandra workspace nebo rozšířit Dev Lab composition; žádná implementace zatím nezačala.
+- První výřez Phase 4 je sjednocení Dev Labu: původní schválený workspace UI z `game.html` je zdroj pravdy; samostatný Dev Lab má běžet bez Cassandra runtime/DB, používat vlastní DB definic a `.dlcass`. Nejprve odstranit nevyžádané Spatial Inspector / spatial test UI a kód, potom přenést schválené UI a napojit definice z Dev Lab DB na Engine entity/spatial služby. Starý Dev Lab workspace z `game.html` odstranit až po ověření samostatné varianty. Cassandra `game.html` má návrat na `index.html`.
 
 ## Pevné pracovní zásady
 - Neimplementovat další etapu ani zásadní směr bez společné dohody.
@@ -40,7 +40,9 @@
 - main obsahuje merge Phase 3 (#7) a dokumentační konsolidaci (#8).
 - Pracovní větev phase4 vychází z aktuálního main; neprovádět merge bez souhlasu.
 - První implementační krok: rozdělení Pages launcheru a vstupů aplikací. game.html je Cassandra aplikace (původní index); dev-lab.html je standalone Engine Dev Lab. Root index nabízí výběr obou.
-- Cassandra stránka má odkaz do samostatného dev-lab.html; její legacy workspace UI zůstává v shellu, ale není cílem samostatného Dev Labu.
+- Cassandra `game.html` má návratový odkaz do Pages launcheru. Starý schválený Dev Lab workspace v `game.html` je výchozí UI reference; při dokončení samostatného Dev Labu se z herní aplikace odstraní, ne pouze skryje.
+- Uživatel výslovně odmítl nevyžádané Dev Lab funkce (Spatial Inspector, Spawn Test Entity, Move Selected, Remove Test, Test Footprint a jejich obsluhu). Odstranit je z UI i implementace, nikoli skrýt. Engine Spatial API zůstává v Engine.
+- Samostatný Dev Lab má zachovat schválené původní UI/HUD a práci se skutečnými definicemi načtenými z vlastní DB. Nepřidávat funkce bez konkrétní společně potvrzené potřeby.
 - Ověření po Pages deploy: game.html → Save As/export .cass; dev-lab.html → Save As/export .dlcass; potvrdit, že Dev Lab běží bez Cassandra DB/runtime. Samotné oddělení URL ani koncovka souboru samy o sobě nedokazují úplnou nezávislost runtime.
 - Core/Host CI na phase4 po změnách úspěšné. Pages preview workflow je záměrně ponechán na větvi work; pokus o deploy z phase4 skončil před spuštěním runneru (žádné kroky/job logy), takže Pages smoke test z této větve zatím nelze potvrdit. Neprovádět změny GitHub Pages environment nastavení bez domluvy.
 
