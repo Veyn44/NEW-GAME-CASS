@@ -42,7 +42,7 @@
 - První implementační krok: rozdělení Pages launcheru a vstupů aplikací. game.html je Cassandra aplikace (původní index); dev-lab.html je standalone Engine Dev Lab. Root index nabízí výběr obou.
 - Cassandra stránka má odkaz do samostatného dev-lab.html; její legacy workspace UI zůstává v shellu, ale není cílem samostatného Dev Labu.
 - Ověření po Pages deploy: game.html → Save As/export .cass; dev-lab.html → Save As/export .dlcass; potvrdit, že Dev Lab běží bez Cassandra DB/runtime. Samotné oddělení URL ani koncovka souboru samy o sobě nedokazují úplnou nezávislost runtime.
-- Nové launcher/game entry point změny čekají na CI a manuální Pages smoke test.
+- Core/Host CI na phase4 po změnách úspěšné. Pages preview workflow je záměrně ponechán na větvi work; pokus o deploy z phase4 skončil před spuštěním runneru (žádné kroky/job logy), takže Pages smoke test z této větve zatím nelze potvrdit. Neprovádět změny GitHub Pages environment nastavení bez domluvy.
 
 ## Údržba tohoto souboru
 - Po každé větší dokončené části práce aktualizovat tento soubor: zapsat pouze nové trvalé poznatky, rozhodnutí, důležité změny stavu a otevřené návaznosti.
