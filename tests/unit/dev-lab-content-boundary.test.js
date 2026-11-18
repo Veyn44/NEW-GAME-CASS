@@ -418,3 +418,20 @@ test("Dev Lab content adapter creates and retires a placed definition instance",
   assert.equal(controller.removeUnit(instance.id), true);
   assert.equal(controller.listUnits().length, 0);
 });
+
+test("standalone Dev Lab restores Cassandra Pawn control systems without campaign runtime", async () => {
+  const runtime = await read("../../dev-lab/application/create-dev-lab-runtime.js");
+  const shell = await read("../../dev-lab/application/application-shell.js");
+  const html = await read("../../dev-lab.html");
+  assert.ok(runtime.includes("createInputSystem"));
+  assert.ok(runtime.includes("createUnitSystem"));
+  assert.ok(runtime.includes("createColonyControlSystem"));
+  assert.ok(runtime.includes("createCassandraDevLabGameplayController"));
+  assert.ok(runtime.includes("gameplayController.update(deltaSeconds)"));
+  assert.ok(shell.includes("createCassandraDevLabUnitInspectorUi"));
+  assert.ok(shell.includes('event.code === "KeyF"') || shell.includes("handleKeyDown(event)"));
+  assert.ok(html.includes('data-application-gameplay-ui'));
+  assert.ok(html.includes("dev-lab-unit-inspector-ui.css"));
+  assert.equal(runtime.includes("createCassandraWorldSessionSystem"), false);
+  assert.equal(runtime.includes("createCassandraExpeditionProjectionSystem"), false);
+});
