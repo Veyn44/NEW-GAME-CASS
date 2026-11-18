@@ -7,8 +7,8 @@
 - Závislosti: Dev Lab → Engine, Cassandra → Engine. Engine nikdy nezávisí na aplikacích.
 - Dev Lab smí mít přípravné/diagnostické funkce, které ve hře nebudou; herní mechaniky ale musí používat skutečné sdílené Engine systémy.
 - Dev Lab může připravovat mise, spawnovat entity, testovat a ukládat scénáře. Cassandra je musí umět spustit.
-- Formáty: Cassandra .cass, samostatný Dev Lab .dlcass; obě aplikace sdílejí Engine, nikoli herní DB/runtime.
-- GitHub Pages má mít jeden launcher (index.html) a samostatné vstupy game.html a dev-lab.html; Dev Lab musí fungovat bez Cassandra shellu a DB.
+- Formáty: Cassandra .cass, samostatný Dev Lab .dlcass; aplikace sdílejí Engine a Dev Lab načítá Cassandra content definitions + potřebné Unit/Colony gameplay systémy, nikoli campaign/expedition runtime.
+- GitHub Pages má jeden launcher (index.html) a samostatné vstupy game.html a dev-lab.html; cílem je jediný Dev Lab workspace v dev-lab.html.
 
 ## Phase 4 — aktuální záměr
 - Otevřená, experimentální fáze: budovat základní herní mechaniky a současně jimi rozvíjet/ověřovat Engine.
@@ -22,11 +22,11 @@
 - Připravené základy: grid worlds 64/128/256, spatial occupancy/footprints/queries, entity registry, placement coordinator, unit create/move/remove/persistence, WASD přímé ovládání Johnyho, definition registry/package loader/catalog, camera/zoom/selection, .cass save/load.
 - Cassandra má jedinou skutečnou content definici pawn.johny; artwork je null. Cassandra umí jednotku vybrat z katalogu, umístit na mapu a zobrazit jako marker; pohyb a ukládání jsou implementované.
 - Renderer: sdílený Canvas 2D viewport pro grid/kameru/markery/highlight/placement preview. Placement preview umí načíst jednotlivý obrázek; obecný asset manager, entity sprite renderer, animation pipeline ani render layers nejsou implementované.
-- Dev Lab standalone používá Engine Core/spatial a umí vytvářet/měnit/inspektovat pouze dočasné spatial test entities. Default runtime neobsahuje Cassandra gameplay/content. Existují injection seams pro content loader a runtime factory, ale mission/scenario editor ani game-content integration nejsou hotové.
+- Standalone Dev Lab používá Engine Core/spatial + Cassandra Unit a Colony Control gameplay systémy; existující gameplay controller zajišťuje F = Draft, leader Johny a WASD Pawn movement, zatímco Draft off ovládá free camera. Cassandra campaign/expedition systémy se do Dev Lab runtime nepřidávají.
 - V audited tree nebyly nalezeny combat, inventory/item gameplay systémy, map/encounter generator ani mission/scenario system.
 - Cassandra Campaign/expedition má lifecycle/projection foundations, nikoliv hotový player-facing campaign gameplay.
 - Aktuální main CI po merge #8: Core/Host i Pages workflows úspěšné na merge commitu 267336e9e2ef28730a9a3a247b7ebe1e38a933e7; CI není důkaz kompletní browser/gameplay acceptance.
-- První výřez Phase 4 je sjednocení Dev Labu: původní schválený workspace UI z `game.html` je zdroj pravdy; samostatný Dev Lab má běžet bez Cassandra runtime/DB, používat vlastní DB definic a `.dlcass`. Nejprve odstranit nevyžádané Spatial Inspector / spatial test UI a kód, potom přenést schválené UI a napojit definice z Dev Lab DB na Engine entity/spatial služby. Starý Dev Lab workspace z `game.html` odstranit až po ověření samostatné varianty. Cassandra `game.html` má návrat na `index.html`.
+- První výřez Phase 4 je sjednocení Dev Labu. Zachovat původní funkční gameplay (Johny spawn, automatický leader, F/Draft, WASD Pawn control, free camera, pause, camera follow, Unit inspector/profile, .dlcass). Standalone Dev Lab načítá Cassandra content definitions a používá existující Cassandra Unit/Colony gameplay adaptéry; nevytvářet placeholder Engine entity adapter ani falešné API. Nevyžádané Spatial Inspector/test entities odstranit z UI i obsluhy, Engine Spatial API zachovat. Starý workspace v `game.html` odstranit až po ověření jediného standalone Dev Labu.
 
 ## Pevné pracovní zásady
 - Neimplementovat další etapu ani zásadní směr bez společné dohody.
@@ -42,8 +42,8 @@
 - První implementační krok: rozdělení Pages launcheru a vstupů aplikací. game.html je Cassandra aplikace (původní index); dev-lab.html je standalone Engine Dev Lab. Root index nabízí výběr obou.
 - Cassandra `game.html` má návratový odkaz do Pages launcheru. Starý schválený Dev Lab workspace v `game.html` je výchozí UI reference; při dokončení samostatného Dev Labu se z herní aplikace odstraní, ne pouze skryje.
 - Uživatel výslovně odmítl nevyžádané Dev Lab funkce (Spatial Inspector, Spawn Test Entity, Move Selected, Remove Test, Test Footprint a jejich obsluhu). Odstranit je z UI i implementace, nikoli skrýt. Engine Spatial API zůstává v Engine.
-- Samostatný Dev Lab má zachovat schválené původní UI/HUD a práci se skutečnými definicemi načtenými z vlastní DB. Nepřidávat funkce bez konkrétní společně potvrzené potřeby.
-- Ověření po Pages deploy: game.html → Save As/export .cass; dev-lab.html → Save As/export .dlcass; potvrdit, že Dev Lab běží bez Cassandra DB/runtime. Samotné oddělení URL ani koncovka souboru samy o sobě nedokazují úplnou nezávislost runtime.
+- Samostatný Dev Lab musí zachovat původní schválené UI/HUD, skutečné Cassandra definice a plnohodnotné Unit/Colony gameplay chování. `dev-lab-content-controller.js` byl placeholder a je odstraněn; spawn jde přes existující Unit API. Nepřidávat funkce bez konkrétní společně potvrzené potřeby.
+- Ověření po Pages deploy: Dev Lab → Database → Johny → Spawn; F toggles Draft; WASD moves Johny while drafted and free camera otherwise; camera follow + Unit inspector; Space/Esc; Save As/export .dlcass. Cassandra campaign/expedition runtime remains outside Dev Lab.
 - Core/Host CI na phase4 po změnách úspěšné. Pages preview workflow je záměrně ponechán na větvi work; pokus o deploy z phase4 skončil před spuštěním runneru (žádné kroky/job logy), takže Pages smoke test z této větve zatím nelze potvrdit. Neprovádět změny GitHub Pages environment nastavení bez domluvy.
 
 ## Údržba tohoto souboru
