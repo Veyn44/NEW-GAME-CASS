@@ -6,6 +6,11 @@
     <meta name="theme-color" content="#0b1220">
     <title>Dev Lab</title>
     <link rel="stylesheet" href="./dev-lab/presentation/dev-world-preview.css">
+    <style>
+      .launcher-return-row { margin: 0 0 18px; }
+      .launcher-return { color: #91b9eb; font-size: 11px; font-weight: 700; letter-spacing: .14em; text-decoration: none; }
+      .launcher-return:hover, .launcher-return:focus-visible { color: #d5e6ff; text-decoration: underline; }
+    </style>
   </head>
   <body>
     <main class="application-shell">
@@ -15,6 +20,7 @@
           <h1>DEV LAB</h1>
           <p class="brand-subtitle">A standalone world inspection and testing environment.</p>
         </header>
+        <div class="launcher-return-row"><a class="launcher-return" href="./index.html">← APPLICATION SELECTOR</a></div>
         <nav class="main-menu-list" aria-label="Dev Lab navigation">
           <button class="menu-entry menu-entry-active" type="button" data-navigate="dev-lab"><span><strong>OPEN WORKSPACE</strong><small>World preview and testing tools</small></span><b>ENTER</b></button>
           <button class="menu-entry menu-entry-available" type="button" data-navigate="database"><span><strong>DEFINITIONS</strong><small>Inspect registered Engine content</small></span><b>OPEN</b></button>
