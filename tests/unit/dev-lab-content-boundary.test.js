@@ -362,3 +362,59 @@ test("standalone Dev Lab spawns content through generic Engine placement service
   assert.equal(shell.includes("createUnitSystem"), false);
   assert.equal(shell.includes("createColonyControlSystem"), false);
 });
+
+test("Dev Lab content adapter creates and retires a placed definition instance", async () => {
+  const { createDevLabContentController } = await import("../../dev-lab/application/dev-lab-content-controller.js");
+  const entities = new Map();
+  const placements = new Map();
+  let nextId = 0;
+  const entityRegistry = {
+    registerPersistent({ kind, metadata }) {
+      const entity = Object.freeze({ id: `dev-lab-${++nextId}`, kind, metadata, status: "active" });
+      entities.set(entity.id, entity);
+      return entity;
+    },
+    list({ status, kind }) {
+      return [...entities.values()].filter((entity) => entity.status === status && entity.kind === kind);
+    },
+    get(id) { return entities.get(id) ?? null; },
+    remove(id) {
+      const entity = entities.get(id);
+      if (!entity) return false;
+      entities.set(id, Object.freeze({ ...entity, status: "removed" }));
+      return true;
+    }
+  };
+  const worldContext = {
+    getPlacement(id) { return placements.get(id) ?? null; }
+  };
+  const placementCoordinator = {
+    placeEntity(id, target) {
+      if ([...placements.values()].some((item) => item.worldId === target.worldId
+        && item.position.x === target.anchor.x + 0.5 && item.position.y === target.anchor.y + 0.5)) {
+        throw new Error("Cell occupied");
+      }
+      placements.set(id, Object.freeze({
+        type: "world", worldId: target.worldId,
+        position: Object.freeze({ x: target.anchor.x + 0.5, y: target.anchor.y + 0.5 })
+      }));
+    },
+    removeEntity(id) { placements.delete(id); entityRegistry.remove(id); }
+  };
+  const worldRegistry = { get: (id) => id === "dev-lab-world-64"
+    ? { status: "ready", dimensions: { width: 64, height: 64 } } : null };
+  const johny = { id: "pawn.johny", name: "Johny", spawnableAs: ["unit"] };
+  const controller = createDevLabContentController({
+    entityRegistry, worldContext, placementCoordinator, worldRegistry,
+    definitionLookup: (id) => id === johny.id ? johny : null
+  });
+  assert.equal(controller.canPlaceDefinition(johny), true);
+  const instance = controller.createUnit({
+    definitionId: johny.id, worldId: "dev-lab-world-64", position: { x: 4, y: 7 }
+  });
+  assert.equal(instance.definitionId, "pawn.johny");
+  assert.deepEqual(instance.position, { x: 4.5, y: 7.5 });
+  assert.equal(controller.listUnits().length, 1);
+  assert.equal(controller.removeUnit(instance.id), true);
+  assert.equal(controller.listUnits().length, 0);
+});
