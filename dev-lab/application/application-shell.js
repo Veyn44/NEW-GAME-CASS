@@ -412,10 +412,7 @@ function resolveDevLabRuntimeServices(context) {
     inputApi: context.getService("engine.input-api"),
     colonyControlApi: context.getService("game.colony-control-api"),
     persistenceApi: context.getService("core.persistence"),
-    clock: context.getService("core.game-clock"),
-    unitApi: null,
-    inputApi: null,
-    colonyControlApi: null
+    clock: context.getService("core.game-clock")
   };
 }
 
