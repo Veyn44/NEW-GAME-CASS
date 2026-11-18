@@ -64,7 +64,9 @@ test("standalone Dev Lab entry and page do not load Cassandra application code",
   const html = await read("../../dev-lab.html");
   assert.ok(entry.includes('from "./application-shell.js"'));
   assert.ok(entry.includes("await startDevLab()"));
-  assert.equal(entry.toLowerCase().includes("cassandra/"), false);
+  assert.ok(entry.includes("../../cassandra/database/load-cassandra-database.js"));
+  assert.equal(entry.includes("cassandra-application-shell"), false);
+  assert.equal(entry.includes("cassandra-runtime-host"), false);
   assert.ok(html.includes("standalone-entry.js"));
   assert.ok(html.includes('accept=".dlcass,application/vnd.cassandra.dev-lab-save+json"'));
   assert.ok(html.includes('data-view="dev-lab"'));
