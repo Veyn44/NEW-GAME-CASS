@@ -301,10 +301,11 @@ test("shared presentation and application controllers do not depend on either ap
 });
 
 
-test("spatial inspection and test controls belong only to standalone Dev Lab", async () => {
+test("unrequested spatial inspector and test-entity controls are absent from both application UIs", async () => {
   const cassandraHtml = await read("../../index.html");
   const devLabHtml = await read("../../dev-lab.html");
-  const requiredIds = [
+  const devLabShell = await read("../../dev-lab/application/application-shell.js");
+  const forbiddenIds = [
     "spatial-cell-label", "spatial-cell-data", "test-entity-footprint",
     "create-spatial-test-entity", "move-spatial-test-entity", "remove-spatial-test-entity",
     "spatial-test-status", "spatial-neighbors-four", "spatial-neighbors-eight",
@@ -313,10 +314,29 @@ test("spatial inspection and test controls belong only to standalone Dev Lab", a
     "spatial-region-max-x", "spatial-region-max-y", "spatial-region-categories",
     "spatial-region-layers", "spatial-region-kinds", "spatial-region-query"
   ];
-  for (const id of requiredIds) {
-    assert.ok(devLabHtml.includes(`id="${id}"`), `Standalone Dev Lab must provide #${id}`);
-    assert.equal(cassandraHtml.includes(`id="${id}"`), false, `Cassandra must not expose Dev Lab control #${id}`);
+  for (const id of forbiddenIds) {
+    assert.equal(devLabHtml.includes(`id="${id}"`), false, `Dev Lab must not expose #${id}`);
+    assert.equal(cassandraHtml.includes(`id="${id}"`), false, `Cassandra must not expose #${id}`);
   }
-  assert.ok(devLabHtml.includes('id="spatial-inspector"'));
-  assert.equal(cassandraHtml.includes('id="spatial-inspector"'), false);
+  assert.equal(devLabHtml.includes('id="spatial-inspector"'), false);
+  for (const forbidden of [
+    "SpatialTestController", "spatial-inspector.js", "spatial-test-controller.js",
+    "createSpatialTestEntity", "inspectSpatialCell", "updateSpatialTestControls",
+    "querySelectedSpatial", "querySpatialMovementHistory", "setSpatialHighlights"
+  ]) assert.equal(devLabShell.includes(forbidden), false, `Dev Lab shell must not include ${forbidden}`);
+});
+
+test("standalone Dev Lab registers the existing Cassandra content package without Cassandra gameplay runtime", async () => {
+  const entry = await read("../../dev-lab/application/standalone-entry.js");
+  const content = await read("../../cassandra/database/load-cassandra-database.js");
+  const johny = await read("../../cassandra/database/definitions/pawns/johny.json");
+  const shell = await read("../../dev-lab/application/application-shell.js");
+  assert.ok(entry.includes("loadCassandraDatabase"));
+  assert.ok(entry.includes("loadContentPackage: loadCassandraDatabase"));
+  assert.ok(content.includes('id: "cassandra.base-content"'));
+  assert.ok(johny.includes('"id": "pawn.johny"'));
+  assert.ok(johny.includes('"name": "Johny"'));
+  assert.equal(shell.includes("/cassandra/"), false);
+  assert.equal(shell.includes("createUnitSystem"), false);
+  assert.equal(shell.includes("createColonyControlSystem"), false);
 });
