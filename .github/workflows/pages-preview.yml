@@ -2,7 +2,7 @@ name: Deploy development preview
 
 on:
   push:
-    branches: [work, phase4]
+    branches: [work]
 
 permissions:
   contents: read
@@ -20,7 +20,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout preview branch
+      - name: Checkout work branch
         uses: actions/checkout@v4
       - name: Configure Pages
         uses: actions/configure-pages@v5
