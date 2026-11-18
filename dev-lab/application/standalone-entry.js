@@ -1,5 +1,6 @@
+import { loadCassandraDatabase } from "../../cassandra/database/load-cassandra-database.js";
 import { startDevLab } from "./application-shell.js";
 
-// Standalone Dev Lab uses only its own host shell and the generic Engine runtime.
-// No Cassandra content package, gameplay systems, or application shell is loaded.
-await startDevLab();
+// Register the existing Cassandra-owned definitions as content only.
+// The standalone Dev Lab still starts its own generic Engine runtime.
+await startDevLab({ loadContentPackage: loadCassandraDatabase });
