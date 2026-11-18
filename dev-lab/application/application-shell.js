@@ -9,6 +9,7 @@ import { createDevLabWorkspaceSessionController } from "./workspace-session-cont
 import { getDefinition, listDefinitionIndex, getCategories, loadDefinitionDetail } from "../../engine/database/definition-registry.js";
 import { createViewportInputController } from "../../shared/input/viewport-input-controller.js";
 import { createApplicationRuntimeHost } from "../../shared/application/runtime-host.js";
+import { createDevLabContentController } from "./dev-lab-content-controller.js";
 
 const views = [...document.querySelectorAll("[data-view]")];
 const databaseView = document.querySelector('[data-view="database"]');
@@ -198,7 +199,7 @@ function clearSelection() {
 }
 
 function inspectGameplayEntity(entityId) {
-  const unit = state.gameplayUi?.inspectUnit(entityId) ?? null;
+  const unit = state.gameplayApi?.getUnit(entityId) ?? state.gameplayUi?.inspectUnit(entityId) ?? null;
   viewport.setSelectedWorldMarker(unit?.id ?? null);
   return unit;
 }
@@ -403,6 +404,9 @@ workspaceFileInput.addEventListener("change", async () => {
 function resolveDevLabRuntimeServices(context) {
   return {
     worldRegistry: context.getService("core.world-registry"),
+    entityRegistry: context.getService("core.entity-registry"),
+    worldContext: context.getService("core.world-context"),
+    placementCoordinator: context.getService("core.placement-coordinator"),
     persistenceApi: context.getService("core.persistence"),
     clock: context.getService("core.game-clock"),
     unitApi: null,
@@ -447,6 +451,13 @@ function createDevLabRuntimeHost({
     worlds.activateWorld(`dev-lab-world-${Number(worldSizeSelect.value)}`);
     state.worldRegistry = worlds;
     state.persistenceApi = services.persistenceApi;
+    state.gameplayApi = createDevLabContentController({
+      entityRegistry: services.entityRegistry,
+      worldContext: services.worldContext,
+      placementCoordinator: services.placementCoordinator,
+      worldRegistry: worlds,
+      definitionLookup: getDefinition
+    });
     state.workspacePersistence = createFilePersistenceController({
       persistenceApi: services.persistenceApi,
       saveSlot: DEV_LAB_SAVE_SLOT,
