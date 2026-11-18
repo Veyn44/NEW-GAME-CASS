@@ -54,12 +54,18 @@
       <section class="app-view settings-view" data-view="settings" hidden>
         <header class="section-header"><div><p class="eyebrow">DEV LAB / CONTROLS</p><h1>Controls</h1><p class="dev-note">Informational reference · bindings are not editable yet</p></div><button id="settings-back" type="button" class="secondary-button">← BACK</button></header>
         <div class="controls-reference">
-          <section class="controls-group"><h2>VIEWPORT</h2>
-            <div class="control-reference-row"><span>Move camera</span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></div>
+          <section class="controls-group"><h2>GAMEPLAY</h2>
+            <div class="control-reference-row"><span>Move Pawn / Free camera</span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></div>
+            <div class="control-reference-row"><span>Toggle Draft / Pawn control</span><kbd>F</kbd></div>
+            <div class="control-reference-row"><span>Pause / Resume</span><kbd>SPACE</kbd></div>
+            <div class="control-reference-row"><span>Pause menu / Close overlay</span><kbd>ESC</kbd></div>
+          </section>
+          <section class="controls-group"><h2>CAMERA & INTERFACE</h2>
             <div class="control-reference-row"><span>Zoom</span><kbd>MOUSE WHEEL</kbd></div>
             <div class="control-reference-row"><span>Pan camera</span><kbd>MIDDLE MOUSE DRAG</kbd></div>
-            <div class="control-reference-row"><span>Inspect object (when supported)</span><kbd>LEFT CLICK</kbd></div>
+            <div class="control-reference-row"><span>Inspect / Select object (paused)</span><kbd>LEFT CLICK</kbd></div>
           </section>
+          <p class="dev-note">WASD moves the Pawn at its movement speed while Draft is active. With Draft off, WASD moves the free camera.</p>
           <section class="controls-group"><h2>INTERFACE</h2>
             <div class="control-reference-row"><span>Pause / Resume simulation</span><kbd>SPACE</kbd></div>
             <div class="control-reference-row"><span>Pause menu / Close overlay</span><kbd>ESC</kbd></div>
@@ -79,7 +85,7 @@
           <button id="reset-lab" type="button">Reset Lab</button>
           <button id="open-viewport-database" type="button">DATABASE</button>
           <input id="workspace-file-input" type="file" accept=".dlcass,application/vnd.cassandra.dev-lab-save+json" hidden>
-          <span class="dev-note">WASD: camera · Wheel: zoom · Middle drag: pan</span>
+          <span class="dev-note">WASD: Pawn / camera · F: Draft · Wheel: zoom · Middle drag: pan</span>
         </section>
         <section class="viewport-panel" aria-label="World viewport" data-paused="true" data-input-mode="paused">
           <canvas id="world-canvas" tabindex="0" aria-label="World viewport. Press Space to pause or resume.">Your browser does not support canvas.</canvas>
