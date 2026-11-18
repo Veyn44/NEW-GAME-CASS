@@ -63,7 +63,7 @@ test("standalone Dev Lab entry and page do not load Cassandra application code",
   const entry = await read("../../dev-lab/application/standalone-entry.js");
   const html = await read("../../dev-lab.html");
   assert.ok(entry.includes('from "./application-shell.js"'));
-  assert.ok(entry.includes("await startDevLab()"));
+  assert.ok(entry.includes("await startDevLab({ loadContentPackage: loadCassandraDatabase })"));
   assert.ok(entry.includes("../../cassandra/database/load-cassandra-database.js"));
   assert.equal(entry.includes("cassandra-application-shell"), false);
   assert.equal(entry.includes("cassandra-runtime-host"), false);
