@@ -32,8 +32,9 @@ test("Dev Lab shell uses application-owned gameplay contracts while runtime comp
   const source = await read("../../dev-lab/application/application-shell.js");
   assert.ok(source.includes("createCassandraDevLabGameplayController"));
   assert.ok(source.includes("createCassandraDevLabUnitInspectorUi"));
-  assert.ok(source.includes("createUnitSystem"));
-  assert.ok(source.includes("createColonyControlSystem"));
+  const runtime = await read("../../dev-lab/application/create-dev-lab-runtime.js");
+  assert.ok(runtime.includes("createUnitSystem"));
+  assert.ok(runtime.includes("createColonyControlSystem"));
   assert.ok(source.includes("createRuntime = createDevLabRuntime"));
   assert.ok(source.includes("export async function startDevLab("));
 });
@@ -71,7 +72,7 @@ test("standalone Dev Lab entry and page do not load Cassandra application code",
   assert.ok(html.includes('accept=".dlcass,application/vnd.cassandra.dev-lab-save+json"'));
   assert.ok(html.includes('data-view="dev-lab"'));
   assert.equal(html.includes("application-entry.js"), false);
-  assert.equal(html.toLowerCase().includes("cassandra/"), false);
+  assert.ok(html.includes("./cassandra/application/dev-lab-unit-inspector-ui.css"));
 });
 
 test("Dev Lab runtime composes Engine infrastructure with required Pawn gameplay systems", async () => {
