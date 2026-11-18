@@ -353,6 +353,8 @@ test("standalone Dev Lab spawns content through generic Engine placement service
   assert.ok(controller.includes('definition?.spawnableAs?.includes("unit")'));
   assert.ok(shell.includes("createDevLabContentController"));
   assert.ok(shell.includes('context.getService("core.placement-coordinator")'));
+  assert.ok(shell.includes("state.gameplayApi = createDevLabContentController"));
+  assert.equal(shell.includes("state.gameplayApi = services.gameplayApi"), false);
   assert.ok(html.includes('<h1>Database</h1>'));
   assert.ok(html.includes('>SPAWN</button>'));
   assert.ok(html.includes('<strong>DATABASE</strong>'));
