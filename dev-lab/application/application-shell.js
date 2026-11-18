@@ -54,7 +54,8 @@ const definitionCatalog = createDefinitionCatalogController({
   getCategories,
   loadDefinitionDetail,
   canSelectDefinition: (definition) => Boolean(state.gameplayApi?.canPlaceDefinition(definition)),
-  onSelectDefinition: beginWorldPlacement
+  onSelectDefinition: beginWorldPlacement,
+  allowBrowseSelection: true
 });
 const inputController = createViewportInputController();
 const heldMovementKeys = new Set();
@@ -72,6 +73,7 @@ const state = {
 };
 
 function beginWorldPlacement(definition) {
+  if (document.body.dataset.currentView !== "dev-lab") navigation.showView("dev-lab");
   if (!state.paused || !state.gameplayApi?.canPlaceDefinition(definition)
     || !state.worldRegistry) return;
   navigation.closeViewportDatabase();
