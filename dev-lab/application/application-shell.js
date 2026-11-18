@@ -9,7 +9,8 @@ import { createDevLabWorkspaceSessionController } from "./workspace-session-cont
 import { getDefinition, listDefinitionIndex, getCategories, loadDefinitionDetail } from "../../engine/database/definition-registry.js";
 import { createViewportInputController } from "../../shared/input/viewport-input-controller.js";
 import { createApplicationRuntimeHost } from "../../shared/application/runtime-host.js";
-import { createDevLabContentController } from "./dev-lab-content-controller.js";
+import { createCassandraDevLabGameplayController } from "../../cassandra/application/dev-lab-gameplay-controller.js";
+import { createCassandraDevLabUnitInspectorUi } from "../../cassandra/application/dev-lab-unit-inspector-ui.js";
 
 const views = [...document.querySelectorAll("[data-view]")];
 const databaseView = document.querySelector('[data-view="database"]');
@@ -407,9 +408,9 @@ workspaceFileInput.addEventListener("change", async () => {
 function resolveDevLabRuntimeServices(context) {
   return {
     worldRegistry: context.getService("core.world-registry"),
-    entityRegistry: context.getService("core.entity-registry"),
-    worldContext: context.getService("core.world-context"),
-    placementCoordinator: context.getService("core.placement-coordinator"),
+    unitApi: context.getService("game.unit-api"),
+    inputApi: context.getService("engine.input-api"),
+    colonyControlApi: context.getService("game.colony-control-api"),
     persistenceApi: context.getService("core.persistence"),
     clock: context.getService("core.game-clock"),
     unitApi: null,
@@ -454,12 +455,10 @@ function createDevLabRuntimeHost({
     worlds.activateWorld(`dev-lab-world-${Number(worldSizeSelect.value)}`);
     state.worldRegistry = worlds;
     state.persistenceApi = services.persistenceApi;
-    state.gameplayApi = createDevLabContentController({
-      entityRegistry: services.entityRegistry,
-      worldContext: services.worldContext,
-      placementCoordinator: services.placementCoordinator,
-      worldRegistry: worlds,
-      definitionLookup: getDefinition
+    state.gameplayApi = createCassandraDevLabGameplayController({
+      unitApi: services.unitApi,
+      colonyControlApi: services.colonyControlApi,
+      worldRegistry: worlds
     });
     state.workspacePersistence = createFilePersistenceController({
       persistenceApi: services.persistenceApi,
@@ -481,7 +480,10 @@ function createDevLabRuntimeHost({
         simulationStatus.textContent = nextSimulationStatus;
       }
     });
-    state.gameplayUi = services.gameplayUi ?? null;
+    state.gameplayUi = createCassandraDevLabUnitInspectorUi({
+      root: document.querySelector("[data-application-gameplay-ui]"),
+      gameplayApi: state.gameplayApi
+    });
     viewport.setWorldMarkers([]);
     clearSelection();
     state.clock = services.clock;
