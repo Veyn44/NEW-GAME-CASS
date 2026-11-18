@@ -7,7 +7,8 @@
 - Závislosti: Dev Lab → Engine, Cassandra → Engine. Engine nikdy nezávisí na aplikacích.
 - Dev Lab smí mít přípravné/diagnostické funkce, které ve hře nebudou; herní mechaniky ale musí používat skutečné sdílené Engine systémy.
 - Dev Lab může připravovat mise, spawnovat entity, testovat a ukládat scénáře. Cassandra je musí umět spustit.
-- Formáty: Cassandra .cass, Dev Lab .dlcass; Pages zatím potřebuje pouze .cass.
+- Formáty: Cassandra .cass, samostatný Dev Lab .dlcass; obě aplikace sdílejí Engine, nikoli herní DB/runtime.
+- GitHub Pages má mít jeden launcher (index.html) a samostatné vstupy game.html a dev-lab.html; Dev Lab musí fungovat bez Cassandra shellu a DB.
 
 ## Phase 4 — aktuální záměr
 - Otevřená, experimentální fáze: budovat základní herní mechaniky a současně jimi rozvíjet/ověřovat Engine.
@@ -37,8 +38,11 @@
 
 ## Stav větví
 - main obsahuje merge Phase 3 (#7) a dokumentační konsolidaci (#8).
-- Pracovní větev phase4 byla založena z aktuálního main; obsahuje whattodo.md a tento kompaktní kontext.
-- Implementace Phase 4 zatím nezačala.
+- Pracovní větev phase4 vychází z aktuálního main; neprovádět merge bez souhlasu.
+- První implementační krok: rozdělení Pages launcheru a vstupů aplikací. game.html je Cassandra aplikace (původní index); dev-lab.html je standalone Engine Dev Lab. Root index nabízí výběr obou.
+- Cassandra stránka má odkaz do samostatného dev-lab.html; její legacy workspace UI zůstává v shellu, ale není cílem samostatného Dev Labu.
+- Ověření po Pages deploy: game.html → Save As/export .cass; dev-lab.html → Save As/export .dlcass; potvrdit, že Dev Lab běží bez Cassandra DB/runtime. Samotné oddělení URL ani koncovka souboru samy o sobě nedokazují úplnou nezávislost runtime.
+- Nové launcher/game entry point změny čekají na CI a manuální Pages smoke test.
 
 ## Údržba tohoto souboru
 - Po každé větší dokončené části práce aktualizovat tento soubor: zapsat pouze nové trvalé poznatky, rozhodnutí, důležité změny stavu a otevřené návaznosti.
