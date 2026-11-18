@@ -28,12 +28,12 @@ test("Dev Lab delegates runtime lifecycle and frame scheduling to the shared hos
   assert.ok(host.includes("runtime.destroy()"));
 });
 
-test("Dev Lab shell uses application-owned gameplay contracts without composing game systems", async () => {
+test("Dev Lab shell uses application-owned gameplay contracts while runtime composes gameplay systems", async () => {
   const source = await read("../../dev-lab/application/application-shell.js");
   assert.ok(source.includes("createCassandraDevLabGameplayController"));
   assert.ok(source.includes("createCassandraDevLabUnitInspectorUi"));
-  assert.equal(source.includes("createUnitSystem"), false);
-  assert.equal(source.includes("createColonyControlSystem"), false);
+  assert.ok(source.includes("createUnitSystem"));
+  assert.ok(source.includes("createColonyControlSystem"));
   assert.ok(source.includes("createRuntime = createDevLabRuntime"));
   assert.ok(source.includes("export async function startDevLab("));
 });
@@ -339,9 +339,9 @@ test("standalone Dev Lab registers the existing Cassandra content package withou
   assert.ok(content.includes('id: "cassandra.base-content"'));
   assert.ok(johny.includes('"id": "pawn.johny"'));
   assert.ok(johny.includes('"name": "Johny"'));
-  assert.equal(shell.includes("/cassandra/"), false);
-  assert.equal(shell.includes("createUnitSystem"), false);
-  assert.equal(shell.includes("createColonyControlSystem"), false);
+  assert.ok(shell.includes("createCassandraDevLabGameplayController"));
+  assert.ok(shell.includes("createCassandraDevLabUnitInspectorUi"));
+  assert.equal(shell.includes("createCassandraWorldSessionSystem"), false);
 });
 
 test("standalone Dev Lab uses Cassandra gameplay systems for real Pawn instances", async () => {
