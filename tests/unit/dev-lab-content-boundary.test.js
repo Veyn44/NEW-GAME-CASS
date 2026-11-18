@@ -342,3 +342,20 @@ test("standalone Dev Lab registers the existing Cassandra content package withou
   assert.equal(shell.includes("createUnitSystem"), false);
   assert.equal(shell.includes("createColonyControlSystem"), false);
 });
+
+test("standalone Dev Lab spawns content through generic Engine placement services", async () => {
+  const controller = await read("../../dev-lab/application/dev-lab-content-controller.js");
+  const shell = await read("../../dev-lab/application/application-shell.js");
+  const html = await read("../../dev-lab.html");
+  assert.ok(controller.includes('kind: "dev-lab.content-instance"'));
+  assert.ok(controller.includes("placementCoordinator.placeEntity"));
+  assert.ok(controller.includes("placementCoordinator.removeEntity"));
+  assert.ok(controller.includes('definition?.spawnableAs?.includes("unit")'));
+  assert.ok(shell.includes("createDevLabContentController"));
+  assert.ok(shell.includes('context.getService("core.placement-coordinator")'));
+  assert.ok(html.includes('<h1>Database</h1>'));
+  assert.ok(html.includes('>SPAWN</button>'));
+  assert.ok(html.includes('<strong>DATABASE</strong>'));
+  assert.equal(shell.includes("createUnitSystem"), false);
+  assert.equal(shell.includes("createColonyControlSystem"), false);
+});
