@@ -81,6 +81,11 @@ export function createActionMappingController({ bindings = DEFAULT_BINDINGS } = 
     return currentBindings;
   }
 
+  function clearHeld() {
+    heldCodes.clear();
+    heldActions.clear();
+  }
+
   function reset() {
     currentBindings = normalizeBindings(DEFAULT_BINDINGS);
     heldCodes.clear();
@@ -97,7 +102,8 @@ export function createActionMappingController({ bindings = DEFAULT_BINDINGS } = 
     getBindings: () => currentBindings,
     setBinding,
     replaceBindings,
-    reset
+    reset,
+    clearHeld
   });
 }
 
