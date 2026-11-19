@@ -20,6 +20,7 @@ export function createCassandraRuntime({
   updateFreeCamera
 } = {}) {
   let gameplayController = null;
+  let pawnRuntimeApi = null;
   return createGameRuntime({
     saveAdapter,
     fixedStepSeconds: 1 / 60,
@@ -28,13 +29,14 @@ export function createCassandraRuntime({
       createInputSystem({ inputController, actionController }),
       createUnitSystem({ definitionLookup: getDefinition }),
       createPawnRuntimeSystem({ definitionLookup: getDefinition }),
-      createColonyControlSystem(),
+      createColonyControlSystem({ getMovementSpeed: (entityId) => pawnRuntimeApi?.getPawn(entityId)?.profile?.movement?.movementSpeed ?? null }),
       createCassandraWorldSessionSystem({ isPackageApplied }),
       createCassandraExpeditionProjectionSystem()
     ],
     simulationTasks: [{
       systemId: "game.colony-control",
       update({ deltaSeconds, tick, context }) {
+        pawnRuntimeApi ??= context.getService("cassandra.pawn-runtime-api");
         gameplayController ??= createCassandraDevLabGameplayController({
           unitApi: context.getService("game.unit-api"),
           pawnRuntimeApi: context.getService("cassandra.pawn-runtime-api"),
