@@ -44,12 +44,12 @@ class FakeElement {
 }
 
 const definitions = [
-  { id: "pawn.johny", name: "Johny", category: "PERSONNEL", description: "Crew member" },
+  { id: "pawn.johny", name: "Johny", category: "PERSONNEL", description: "Crew member", spawnableAs: ["unit"] },
   { id: "enemy.raider", name: "Raider", category: "HOSTILE", description: "Hostile unit" },
   { id: "wall.aluminium", name: "Aluminium Wall", category: "STRUCTURE", description: "Ship wall" }
 ];
 
-function createHarness({ loadDetail, canSelect = () => false, onSelect = () => {} } = {}) {
+function createHarness({ loadDetail, canSelect = (definition) => Boolean(definition.spawnableAs?.length), onSelect = () => {}, allowBrowseSelection = false } = {}) {
   const elements = {
     list: new FakeElement(),
     search: new FakeElement(),
@@ -66,7 +66,8 @@ function createHarness({ loadDetail, canSelect = () => false, onSelect = () => {
     getCategories: () => ["HOSTILE", "PERSONNEL", "STRUCTURE"],
     loadDefinitionDetail: loadDetail ?? (async (id) => definitions.find((item) => item.id === id) ?? null),
     canSelectDefinition: canSelect,
-    onSelectDefinition: onSelect
+    onSelectDefinition: onSelect,
+    allowBrowseSelection
   });
   return { controller, elements, detailCalls };
 }
@@ -89,23 +90,23 @@ test("catalog renders registered definitions and filters by search and category"
   assert.equal(elements.list.children[0].children[0].textContent, "Raider");
 });
 
-test("catalog loads and renders details, and enables selection only in viewport mode", async () => {
+test("Dev Lab can spawn explicitly spawnable definitions from the database and keeps informational entries read-only", async () => {
   let selected = null;
   const { controller, elements } = createHarness({
-    canSelect: (definition) => definition.id === "pawn.johny",
+    allowBrowseSelection: true,
     onSelect: (definition) => { selected = definition; }
   });
   controller.open("browse");
   await elements.list.children[0].click();
   assert.equal(controller.getSelectedDefinitionId(), "pawn.johny");
   assert.equal(elements.inspector.children[0].children[1].textContent, "Johny");
-  assert.equal(elements.selectButton.hidden, true);
-
-  controller.open("viewport");
-  await elements.list.children[0].click();
   assert.equal(elements.selectButton.hidden, false);
   assert.equal(elements.selectButton.disabled, false);
   await elements.selectButton.click();
+  assert.equal(selected.id, "pawn.johny");
+
+  await elements.list.children[1].click();
+  assert.equal(elements.selectButton.hidden, true);
   assert.equal(selected.id, "pawn.johny");
 });
 
