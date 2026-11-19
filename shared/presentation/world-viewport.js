@@ -191,6 +191,19 @@ function visibleDimensions() {
   return getVisibleDimensions(state.zoom, aspectRatio);
 }
 
+function getVisibleWorldBounds() {
+  clampCamera();
+  const view = visibleDimensions();
+  const left = state.cameraX - view.columns / 2;
+  const top = state.cameraY - view.rows / 2;
+  return Object.freeze({
+    minX: Math.max(0, Math.floor(left)),
+    minY: Math.max(0, Math.floor(top)),
+    maxX: Math.min(state.worldSize, Math.ceil(left + view.columns)),
+    maxY: Math.min(state.worldSize, Math.ceil(top + view.rows))
+  });
+}
+
 function clampCamera() {
   const position = clampCameraPosition(
     { x: state.cameraX, y: state.cameraY },
@@ -522,6 +535,7 @@ resizeCanvas();
     setWorldMarkers,
     setSpatialHighlights,
     setIllumination,
+    getVisibleWorldBounds,
     getState() {
       return Object.freeze({
         worldSize: state.worldSize,
