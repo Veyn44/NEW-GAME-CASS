@@ -7,6 +7,7 @@ import { createFilePersistenceController } from "../../shared/application/file-p
 import { createDefinitionCatalogController } from "../../shared/application/definition-catalog-controller.js";
 import { createViewNavigationController } from "../../shared/application/view-navigation-controller.js";
 import { createPauseMenuController } from "../../shared/application/pause-menu-controller.js";
+import { createNewGameFlowController } from "./new-game-flow-controller.js";
 import { getDefinition, listDefinitionIndex, getCategories, loadDefinitionDetail } from "../../engine/database/definition-registry.js";
 import { createCassandraCampaignSessionController } from "./cassandra-campaign-session-controller.js";
 
@@ -197,6 +198,16 @@ const navigation = createViewNavigationController({
   },
   scrollToTop: () => window.scrollTo(0, 0),
   dispatchResize: () => window.dispatchEvent(new Event("resize"))
+});
+
+const newGameFlowController = createNewGameFlowController({
+  navigation,
+  elements: {
+    openButton: document.querySelector("[data-new-game-open]"),
+    nextButton: document.querySelector("[data-new-game-next]"),
+    optionsBackButton: document.querySelector("[data-new-game-options-back]"),
+    characterBackButton: document.querySelector("[data-character-back]")
+  }
 });
 
 let pauseMenuController;
@@ -448,5 +459,5 @@ export async function startCassandraApplication() {
     simulationStatus.textContent = `CASSANDRA STARTUP FAILED · ${error.message}`;
   }
   navigation.showView("menu");
-  return Object.freeze({ campaignSessionApi, runtimeHost });
+  return Object.freeze({ campaignSessionApi, runtimeHost, newGameFlowController });
 }
