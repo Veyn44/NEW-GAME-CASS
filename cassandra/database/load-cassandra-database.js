@@ -6,6 +6,9 @@ import engineeringAttribute from "./definitions/attributes/engineering.json" wit
 import medicineAttribute from "./definitions/attributes/medicine.json" with { type: "json" };
 import researchAttribute from "./definitions/attributes/research.json" with { type: "json" };
 import johnyDefinition from "./definitions/pawns/johny.json" with { type: "json" };
+import testFlashlightOperator from "./definitions/pawns/test-flashlight-operator.json" with { type: "json" };
+import testTorchCarrier from "./definitions/pawns/test-torch-carrier.json" with { type: "json" };
+import testObserver from "./definitions/pawns/test-observer.json" with { type: "json" };
 import { loadDefinitionPackage } from "../../engine/database/definition-package-loader.js";
 
 const CASSANDRA_DEFINITIONS = Object.freeze([
@@ -16,7 +19,10 @@ const CASSANDRA_DEFINITIONS = Object.freeze([
   engineeringAttribute,
   medicineAttribute,
   researchAttribute,
-  johnyDefinition
+  johnyDefinition,
+  testFlashlightOperator,
+  testTorchCarrier,
+  testObserver
 ]);
 
 /** Loads Cassandra-owned base stats, families, attributes and entity definitions. */
