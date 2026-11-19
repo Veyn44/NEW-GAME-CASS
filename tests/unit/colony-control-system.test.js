@@ -89,7 +89,7 @@ test("Draft supports all four cardinal directions", async () => {
 
     for (const [key, expected] of cases) {
       state.units.moveUnit(state.leader.id, { x: 20, y: 20 });
-      state.inputController.keyDown(key);
+      state.actionController.keyDown(key);
       const moved = state.control.update(0.25);
       assert.deepEqual(moved.position, expected, key);
       state.actionController.keyUp(key);
@@ -107,8 +107,8 @@ test("Draft handles overlapping WASD combinations and independent key release", 
     state.control.setDrafted(true);
     state.inputController.resume();
 
-    state.inputController.keyDown("KeyW");
-    state.inputController.keyDown("KeyA");
+    state.actionController.keyDown("KeyW");
+    state.actionController.keyDown("KeyA");
     let moved = state.control.update(0.25);
     assert.ok(Math.abs(moved.position.x - (20.5 - Math.SQRT1_2)) < 1e-9);
     assert.ok(Math.abs(moved.position.y - (20.5 - Math.SQRT1_2)) < 1e-9);
@@ -118,7 +118,7 @@ test("Draft handles overlapping WASD combinations and independent key release", 
     assert.ok(Math.abs(moved.position.x - (19.5 - Math.SQRT1_2)) < 1e-9);
     assert.ok(Math.abs(moved.position.y - (20.5 - Math.SQRT1_2)) < 1e-9);
 
-    state.inputController.keyDown("KeyD");
+    state.actionController.keyDown("KeyD");
     moved = state.control.update(0.25);
     assert.equal(moved, null);
     const finalPosition = state.units.getUnit(state.leader.id).position;
@@ -135,8 +135,8 @@ test("Diagonal Draft movement is normalized and an inactive Draft does not move"
   try {
     state.control.setLeader(state.leader.id);
     state.inputController.resume();
-    state.inputController.keyDown("KeyW");
-    state.inputController.keyDown("KeyD");
+    state.actionController.keyDown("KeyW");
+    state.actionController.keyDown("KeyD");
 
     assert.equal(state.control.update(0.5), null);
     assert.deepEqual(state.units.getUnit(state.leader.id).position, { x: 20.5, y: 20.5 });
@@ -183,7 +183,7 @@ test("Draft automatically disengages while its leader belongs to an inactive wor
     state.control.setLeader(state.leader.id);
     state.control.setDrafted(true);
     state.inputController.resume();
-    state.inputController.keyDown("KeyD");
+    state.actionController.keyDown("KeyD");
 
     worlds.activateWorld("colony-test-world-secondary");
     assert.equal(state.control.update(0.25), null);
