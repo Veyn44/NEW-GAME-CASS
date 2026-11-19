@@ -2,7 +2,8 @@ import { loadCassandraDatabase } from "../database/load-cassandra-database.js";
 import { createCassandraRuntimeHost } from "./cassandra-runtime-host.js";
 import { createWorldViewport } from "../../shared/presentation/world-viewport.js";
 import { createViewportInputController } from "../../shared/input/viewport-input-controller.js";
-import { createActionMappingController, DEFAULT_ACTION_BINDINGS } from "../../engine/input/action-mapping-controller.js";
+import { createActionMappingController } from "../../engine/input/action-mapping-controller.js";
+import { DEFAULT_CASSANDRA_ACTION_BINDINGS } from "../input/default-action-bindings.js";
 import { LocalFileSaveAdapter, CASSANDRA_SAVE_SLOT, CASSANDRA_SAVE_STATE_ID, CASSANDRA_SAVE_FILE_EXTENSION, CASSANDRA_SAVE_FILE_NAME } from "../../src/adapters/storage/local-file-save-adapter.js";
 import { createFilePersistenceController } from "../../shared/application/file-persistence-controller.js";
 import { createDefinitionCatalogController } from "../../shared/application/definition-catalog-controller.js";
@@ -38,12 +39,12 @@ const ACTION_BINDINGS_STORAGE_KEY = "cassandra.controls.bindings.v1";
 function loadActionBindings() {
   try {
     const saved = localStorage.getItem(ACTION_BINDINGS_STORAGE_KEY);
-    return saved ? JSON.parse(saved) : DEFAULT_ACTION_BINDINGS;
-  } catch { return DEFAULT_ACTION_BINDINGS; }
+    return saved ? JSON.parse(saved) : DEFAULT_CASSANDRA_ACTION_BINDINGS;
+  } catch { return DEFAULT_CASSANDRA_ACTION_BINDINGS; }
 }
 let actionController;
 try { actionController = createActionMappingController({ bindings: loadActionBindings() }); }
-catch { actionController = createActionMappingController(); }
+catch { actionController = createActionMappingController({ bindings: DEFAULT_CASSANDRA_ACTION_BINDINGS }); }
 function saveActionBindings() {
   try { localStorage.setItem(ACTION_BINDINGS_STORAGE_KEY, JSON.stringify(actionController.getBindings())); }
   catch { simulationStatus.textContent = "CONTROLS COULD NOT BE SAVED IN THIS BROWSER"; }
