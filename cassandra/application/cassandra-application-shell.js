@@ -286,7 +286,6 @@ function isInteractiveTarget(target) {
 }
 
 window.addEventListener("keydown", (event) => {
-  if (document.body.dataset.currentView !== "dev-lab") return;
   if (capturingAction) {
     if (event.code === "Escape") { capturingAction = null; renderControls(); }
     else if (!event.repeat && !event.ctrlKey && !event.altKey && !event.metaKey) {
@@ -296,6 +295,7 @@ window.addEventListener("keydown", (event) => {
     event.preventDefault();
     return;
   }
+  if (document.body.dataset.currentView !== "dev-lab") return;
   if (event.code === "Escape" && !event.repeat) {
     event.preventDefault();
     if (state.placementActive) { cancelPlacement(); return; }
