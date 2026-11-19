@@ -120,20 +120,28 @@
       </section>
 
       <section class="app-view settings-view" data-view="settings" hidden>
-        <header class="section-header"><div><p class="eyebrow">CASSANDRA / CONFIGURATION</p><h1>Settings</h1><p class="dev-note">Informational controls reference · key bindings are not editable yet</p></div><button id="settings-back" type="button" class="secondary-button">← BACK</button></header>
+        <header class="section-header"><div><p class="eyebrow">CASSANDRA / CONFIGURATION</p><h1>Controls</h1><p class="dev-note">Choose the keys that trigger each game action.</p></div><button id="settings-back" type="button" class="secondary-button">← BACK</button></header>
         <div class="controls-reference">
+          <section class="controls-group"><h2>MOVEMENT</h2>
+            <div class="control-reference-row"><span>Move north</span><button type="button" data-bind-action="moveNorth"></button></div>
+            <div class="control-reference-row"><span>Move south</span><button type="button" data-bind-action="moveSouth"></button></div>
+            <div class="control-reference-row"><span>Move west</span><button type="button" data-bind-action="moveWest"></button></div>
+            <div class="control-reference-row"><span>Move east</span><button type="button" data-bind-action="moveEast"></button></div>
+          </section>
           <section class="controls-group"><h2>GAMEPLAY</h2>
-            <div class="control-reference-row"><span>Move Colony Leader / Free camera</span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></div>
-            <div class="control-reference-row"><span>Toggle Draft</span><kbd>F</kbd></div>
-            <div class="control-reference-row"><span>Pause / Resume</span><kbd>SPACE</kbd></div>
-            <div class="control-reference-row"><span>Pause Menu / Close current overlay</span><kbd>ESC</kbd></div>
+            <div class="control-reference-row"><span>Toggle Pawn control</span><button type="button" data-bind-action="toggleDraft"></button></div>
+            <div class="control-reference-row"><span>Pause / Resume</span><button type="button" data-bind-action="pause"></button></div>
+            <div class="control-reference-row"><span>Dodge roll (planned)</span><button type="button" data-bind-action="dodge"></button></div>
+            <div class="control-reference-row"><span>Crouch (planned)</span><button type="button" data-bind-action="crouch"></button></div>
           </section>
           <section class="controls-group"><h2>CAMERA & INTERFACE</h2>
             <div class="control-reference-row"><span>Zoom</span><kbd>MOUSE WHEEL</kbd></div>
             <div class="control-reference-row"><span>Pan camera</span><kbd>MIDDLE MOUSE DRAG</kbd></div>
             <div class="control-reference-row"><span>Inspect / Select object (paused)</span><kbd>LEFT CLICK</kbd></div>
+            <div class="control-reference-row"><span>Close overlay / Cancel</span><kbd>ESC</kbd></div>
           </section>
-          <p class="dev-note">WASD moves the Pawn at its own movement speed while Draft is active. With Draft off, WASD smoothly moves the camera at a faster fixed speed.</p>
+          <button id="controls-reset" type="button" class="secondary-button">RESTORE DEFAULT CONTROLS</button>
+          <p class="dev-note">Click a key assignment and press a new key. Bindings are saved in this browser. Dodge and crouch are reserved actions; their gameplay is not implemented yet.</p>
         </div>
       </section>
 
