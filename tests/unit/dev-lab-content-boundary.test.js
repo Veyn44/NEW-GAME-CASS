@@ -97,7 +97,8 @@ test("Dev Lab shell receives the original Cassandra gameplay adapter contract", 
 test("Cassandra gameplay adapter owns Draft binding and Pawn-specific placement policy", async () => {
   const source = await read("../../cassandra/application/dev-lab-gameplay-controller.js");
   assert.ok(source.includes("KeyF"));
-  assert.ok(source.includes("pawn.johny"));
+  assert.ok(source.includes("pawnRuntimeApi.getPawn(selectedUnitId)"));
+  assert.ok(source.includes("setLeader(selectedUnitId)"));
   assert.ok(source.includes("toggleDraft"));
 });
 
@@ -371,7 +372,7 @@ test("standalone Dev Lab restores Cassandra Pawn control systems without campaig
   assert.ok(runtime.includes("createCassandraDevLabGameplayController"));
   assert.ok(runtime.includes("gameplayController.update(deltaSeconds)"));
   assert.ok(shell.includes("createCassandraDevLabUnitInspectorUi"));
-  assert.ok(shell.includes('event.code === "KeyF"') || shell.includes("handleKeyDown(event)"));
+  assert.ok(shell.includes("handleKeyDown(event, selectedUnitId)"));
   assert.ok(html.includes('data-application-gameplay-ui'));
   assert.ok(html.includes("dev-lab-unit-inspector-ui.css"));
   assert.equal(runtime.includes("createCassandraWorldSessionSystem"), false);
