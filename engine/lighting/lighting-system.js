@@ -98,14 +98,36 @@ function normalizeLight(raw) {
 function lineCells(from, to) {
   const cells = [];
   let x = from.x, y = from.y;
-  const dx = Math.abs(to.x - from.x), sx = from.x < to.x ? 1 : -1;
-  const dy = -Math.abs(to.y - from.y), sy = from.y < to.y ? 1 : -1;
-  let error = dx + dy;
+  const dx = to.x - from.x, dy = to.y - from.y;
+  const stepX = Math.sign(dx), stepY = Math.sign(dy);
+  const deltaX = dx === 0 ? Infinity : 1 / Math.abs(dx);
+  const deltaY = dy === 0 ? Infinity : 1 / Math.abs(dy);
+  let maxX = dx === 0 ? Infinity : 0.5 * deltaX;
+  let maxY = dy === 0 ? Infinity : 0.5 * deltaY;
+  const push = (cell) => {
+    if (cell.x !== to.x || cell.y !== to.y) cells.push(Object.freeze(cell));
+  };
+
   while (x !== to.x || y !== to.y) {
-    const twice = 2 * error;
-    if (twice >= dy) { error += dy; x += sx; }
-    if (twice <= dx) { error += dx; y += sy; }
-    cells.push(Object.freeze({ x, y }));
+    if (Math.abs(maxX - maxY) < 1e-12) {
+      // A ray crossing an exact grid corner touches both side cells.
+      // Include both so opaque corner-touching cells cannot leak light.
+      push({ x: x + stepX, y });
+      push({ x, y: y + stepY });
+      x += stepX;
+      y += stepY;
+      maxX += deltaX;
+      maxY += deltaY;
+      push({ x, y });
+    } else if (maxX < maxY) {
+      x += stepX;
+      maxX += deltaX;
+      push({ x, y });
+    } else {
+      y += stepY;
+      maxY += deltaY;
+      push({ x, y });
+    }
   }
   return cells;
 }
