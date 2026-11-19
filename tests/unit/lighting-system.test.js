@@ -49,6 +49,16 @@ test("opaque intermediate cells block illumination behind them but remain illumi
   assert.ok(cells.some((entry) => entry.cell.x === 11 && entry.cell.y === 10));
 });
 
+test("diagonal rays cannot leak through opaque cells touching a grid corner", () => {
+  const lighting = new LightingSystem({
+    worldRegistry: createWorldRegistry(),
+    occlusionQuery: ({ cell }) => cell.x === 11 && cell.y === 10
+  });
+  lighting.addLight(point({ innerRadius: 0 }));
+  const { cells } = lighting.calculateIllumination({ worldId: "main" });
+  assert.equal(cells.some((entry) => entry.cell.x === 11 && entry.cell.y === 11), false);
+});
+
 test("light registry is isolated by world and supports update, disable and removal", () => {
   const lighting = new LightingSystem({ worldRegistry: createWorldRegistry() });
   lighting.addLight(point());
