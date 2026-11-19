@@ -54,7 +54,11 @@ test("light registry is isolated by world and supports update, disable and remov
   lighting.addLight(point());
   lighting.addLight(point({ id: "other", worldId: "encounter" }));
   assert.deepEqual(lighting.listLights({ worldId: "main" }).map((light) => light.id), ["torch"]);
-  assert.equal(lighting.calculateIllumination({ worldId: "encounter" }).cells.length, 0);
+  const encounterCells = lighting.calculateIllumination({ worldId: "encounter" }).cells;
+  assert.ok(encounterCells.length > 0);
+  assert.ok(encounterCells.every((entry) => entry.contributions.every((item) => item.lightId === "other")));
+  const mainCells = lighting.calculateIllumination({ worldId: "main" }).cells;
+  assert.ok(mainCells.every((entry) => entry.contributions.every((item) => item.lightId === "torch")));
   lighting.updateLight("torch", { enabled: false });
   assert.equal(lighting.calculateIllumination({ worldId: "main" }).cells.length, 0);
   lighting.updateLight("torch", { enabled: true, position: { x: 8.5, y: 8.5 } });
@@ -70,7 +74,7 @@ test("light definitions reject invalid values and unsupported falloff models", (
   expectCode(() => lighting.addLight(point({ color: { r: 256, g: 0, b: 0 } })), "INVALID_COLOR");
   expectCode(() => lighting.addLight(point({ type: "area" })), "UNSUPPORTED_LIGHT_TYPE");
   expectCode(() => lighting.addLight(point({ worldId: "missing" })), "UNKNOWN_WORLD");
-  expectCode(() => lighting.addLight(point({ falloff: "linear" })), "INVALID_LIGHT");
+  expectCode(() => lighting.addLight(point({ falloff: "linear" })), "UNSUPPORTED_FALLOFF");
 });
 
 test("light snapshots are detached and immutable", () => {
