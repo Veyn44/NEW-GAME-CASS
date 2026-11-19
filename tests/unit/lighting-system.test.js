@@ -138,3 +138,26 @@ test("spot definitions validate direction and cone angles", () => {
   expectCode(() => lighting.addLight(point({ type: "spot", direction: 0, innerAngle: 0, outerAngle: 0 })), "INVALID_LIGHT");
   expectCode(() => lighting.addLight(point({ type: "spot", direction: NaN, innerAngle: 0, outerAngle: 1 })), "INVALID_LIGHT");
 });
+
+
+test("ambient lights illuminate every cell uniformly without position, radius or shadows", () => {
+  const lighting = new LightingSystem({ worldRegistry: createWorldRegistry(), occlusionQuery: () => true });
+  lighting.addLight({
+    id: "ambient-night", worldId: "main", type: "ambient",
+    intensity: 0.2, color: { r: 90, g: 110, b: 150 }, enabled: true
+  });
+  const result = lighting.calculateIllumination({
+    worldId: "main", bounds: { minX: 2, minY: 3, maxX: 5, maxY: 7 }
+  });
+  assert.equal(result.cells.length, 12);
+  assert.ok(result.cells.every((entry) => entry.intensity === 0.2));
+  assert.ok(result.cells.every((entry) => entry.contributions[0].shadowStrength === 0));
+  assert.equal(result.cells[0].contributions[0].lightId, "ambient-night");
+});
+
+test("ambient lights validate intensity and remain isolated by world", () => {
+  const lighting = new LightingSystem({ worldRegistry: createWorldRegistry() });
+  expectCode(() => lighting.addLight({ id: "bad-ambient", worldId: "main", type: "ambient", intensity: -1 }), "INVALID_LIGHT");
+  lighting.addLight({ id: "ambient-main", worldId: "main", type: "ambient", intensity: 0.1 });
+  assert.equal(lighting.calculateIllumination({ worldId: "encounter" }).cells.length, 0);
+});
