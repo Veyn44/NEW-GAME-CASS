@@ -2,6 +2,7 @@ import { createGameRuntime } from "../../engine/runtime/create-game-runtime.js";
 import { createInputSystem } from "../../engine/input/input-system.js";
 import { getDefinition } from "../../engine/database/definition-registry.js";
 import { createUnitSystem } from "../../src/gameplay/unit/unit-system.js";
+import { createPawnRuntimeSystem } from "../../cassandra/gameplay/pawn/pawn-runtime-system.js";
 import { createColonyControlSystem } from "../../src/gameplay/colony/colony-control-system.js";
 import { createCassandraDevLabGameplayController } from "../../cassandra/application/dev-lab-gameplay-controller.js";
 
@@ -18,6 +19,7 @@ export function createDevLabRuntime({
   updateFreeCamera
 } = {}) {
   let gameplayController = null;
+  let pawnRuntimeApi = null;
   return createGameRuntime({
     saveAdapter,
     fixedStepSeconds: 1 / 60,
@@ -25,7 +27,8 @@ export function createDevLabRuntime({
     hostSystems: [
       createInputSystem({ inputController }),
       createUnitSystem({ definitionLookup: getDefinition }),
-      createColonyControlSystem(),
+      createPawnRuntimeSystem({ definitionLookup: getDefinition }),
+      createColonyControlSystem({ getMovementSpeed: (entityId) => pawnRuntimeApi?.getPawn(entityId)?.profile?.movement?.movementSpeed ?? null }),
       {
         id: "dev-lab.world",
         requires: ["core.world-registry", "core.world-runtime"],
@@ -47,8 +50,10 @@ export function createDevLabRuntime({
     simulationTasks: [{
       systemId: "dev-lab.free-camera",
       update({ deltaSeconds, context }) {
+        pawnRuntimeApi ??= context.getService("cassandra.pawn-runtime-api");
         gameplayController ??= createCassandraDevLabGameplayController({
           unitApi: context.getService("game.unit-api"),
+          pawnRuntimeApi,
           colonyControlApi: context.getService("game.colony-control-api"),
           worldRegistry: context.getService("core.world-registry")
         });
