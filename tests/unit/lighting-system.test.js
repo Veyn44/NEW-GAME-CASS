@@ -117,7 +117,7 @@ test("spot lights illuminate inside their cone, soften the cone edge and exclude
   assert.ok(cell(15, 10)?.intensity > 0);
   assert.equal(cell(5, 10), undefined);
   assert.equal(cell(10, 15), undefined);
-  assert.ok(cell(15, 12)?.intensity > 0);
+  assert.ok(cell(15, 13)?.intensity > 0);
   assert.ok(cell(15, 12).intensity < cell(15, 10).intensity);
 });
 
