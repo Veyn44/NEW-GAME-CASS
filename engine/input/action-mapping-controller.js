@@ -1,14 +1,3 @@
-const DEFAULT_BINDINGS = Object.freeze({
-  moveNorth: Object.freeze(["KeyW"]),
-  moveSouth: Object.freeze(["KeyS"]),
-  moveWest: Object.freeze(["KeyA"]),
-  moveEast: Object.freeze(["KeyD"]),
-  toggleDraft: Object.freeze(["KeyF"]),
-  pause: Object.freeze(["Space"]),
-  dodge: Object.freeze(["ShiftLeft"]),
-  crouch: Object.freeze(["ControlLeft"])
-});
-
 function normalizeBindings(bindings) {
   if (!bindings || typeof bindings !== "object" || Array.isArray(bindings)) {
     throw new TypeError("Action bindings must be an object.");
@@ -34,8 +23,9 @@ function normalizeBindings(bindings) {
 }
 
 /** Maps physical keyboard codes to game actions without assigning gameplay meaning to keys. */
-export function createActionMappingController({ bindings = DEFAULT_BINDINGS } = {}) {
-  let currentBindings = normalizeBindings(bindings);
+export function createActionMappingController({ bindings = {} } = {}) {
+  const initialBindings = normalizeBindings(bindings);
+  let currentBindings = initialBindings;
   const heldCodes = new Set();
   const heldActions = new Set();
 
@@ -87,7 +77,7 @@ export function createActionMappingController({ bindings = DEFAULT_BINDINGS } = 
   }
 
   function reset() {
-    currentBindings = normalizeBindings(DEFAULT_BINDINGS);
+    currentBindings = initialBindings;
     heldCodes.clear();
     heldActions.clear();
     return currentBindings;
@@ -107,4 +97,3 @@ export function createActionMappingController({ bindings = DEFAULT_BINDINGS } = 
   });
 }
 
-export { DEFAULT_BINDINGS as DEFAULT_ACTION_BINDINGS };
