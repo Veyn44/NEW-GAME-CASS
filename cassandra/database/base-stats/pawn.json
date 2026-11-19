@@ -22,7 +22,8 @@
       "movementNoise": 8
     },
     "physical": {
-      "carryCapacity": null
+      "carryCapacity": 50,
+      "carryCapacityUnit": "kg"
     }
   },
   "artwork": null,
