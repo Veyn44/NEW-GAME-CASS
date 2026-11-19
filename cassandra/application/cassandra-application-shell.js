@@ -41,7 +41,9 @@ function loadActionBindings() {
     return saved ? JSON.parse(saved) : DEFAULT_ACTION_BINDINGS;
   } catch { return DEFAULT_ACTION_BINDINGS; }
 }
-const actionController = createActionMappingController({ bindings: loadActionBindings() });
+let actionController;
+try { actionController = createActionMappingController({ bindings: loadActionBindings() }); }
+catch { actionController = createActionMappingController(); }
 function saveActionBindings() {
   try { localStorage.setItem(ACTION_BINDINGS_STORAGE_KEY, JSON.stringify(actionController.getBindings())); }
   catch { simulationStatus.textContent = "CONTROLS COULD NOT BE SAVED IN THIS BROWSER"; }
@@ -213,6 +215,7 @@ const navigation = createViewNavigationController({
       state.paused = true;
     }
     inputController.clearForFocusLoss();
+    actionController.clearHeld();
     if (state.clock && !state.clock.hasPauseReason?.("player")) state.clock.pause("player");
     updateSimulationUi();
   },
@@ -334,6 +337,7 @@ canvas.addEventListener("pointermove", (event) => {
 });
 
 function handleFocusLoss() {
+  actionController.clearHeld();
   if (!state.paused && state.clock) {
     inputController.pause();
     state.clock.pause("player");
@@ -471,6 +475,7 @@ export async function startCassandraApplication() {
       simulationStatus.textContent = `SIMULATION ERROR · ${error.message}`;
       inputController.pause();
       inputController.clearForFocusLoss();
+      actionController.clearHeld();
     }
   });
   try {
