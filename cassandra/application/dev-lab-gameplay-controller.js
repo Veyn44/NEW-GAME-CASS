@@ -32,11 +32,24 @@ export function createCassandraDevLabGameplayController({
     }
   }
 
-  function handleKeyDown(event, selectedUnitId = null) {
-    if (event?.code !== "KeyF" || event.repeat) return null;
-    if (!getControlState().drafted && selectedUnitId && pawnRuntimeApi.getPawn(selectedUnitId)) {
-      colonyControlApi.setLeader(selectedUnitId);
+  function setControlledEntity(entityId) {
+    if (entityId === null || entityId === "") {
+      colonyControlApi.setDrafted(false);
+      colonyControlApi.setLeader(null);
+      return getControlState();
     }
+    const pawn = pawnRuntimeApi.getPawn(entityId);
+    const unit = pawn ? unitApi.getUnit(entityId) : null;
+    if (!pawn || !unit?.placement || unit.placement.type !== "world"
+      || unit.placement.worldId !== worldRegistry.activeWorldId) {
+      throw new Error("Controlled entity must be a spawned Pawn in the active world.");
+    }
+    colonyControlApi.setLeader(entityId);
+    return getControlState();
+  }
+
+  function handleKeyDown(event) {
+    if (event?.code !== "KeyF" || event.repeat) return null;
     const controlState = colonyControlApi.toggleDraft();
     const leader = controlState.leaderId ? unitApi.getUnit(controlState.leaderId) : null;
     return Object.freeze({ controlState, leader });
@@ -78,8 +91,9 @@ export function createCassandraDevLabGameplayController({
       return unitApi.removeUnit(id);
     },
     setLeader(id) {
-      return colonyControlApi.setLeader(id);
+      return setControlledEntity(id);
     },
+    setControlledEntity,
     setDrafted(value) {
       return colonyControlApi.setDrafted(value);
     },
