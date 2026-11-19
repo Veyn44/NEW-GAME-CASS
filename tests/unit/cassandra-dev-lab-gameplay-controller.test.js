@@ -23,8 +23,11 @@ function setup({ failPawnInitialization = false } = {}) {
   const pawnRuntimeApi = {
     initializePawn(id) {
       if (failPawnInitialization) throw new Error("invalid pawn profile");
-      initializedPawns.add(id);
-      return { entityId: id };
+      if (units.get(id)?.definitionId?.startsWith("pawn.")) {
+        initializedPawns.add(id);
+        return { entityId: id };
+      }
+      return null;
     },
     getPawn(id) { return initializedPawns.has(id) ? { entityId: id } : null; },
     listPawns() { return [...initializedPawns].map((id) => ({ entityId: id })); }
