@@ -241,9 +241,16 @@ function refreshLighting() {
     } : null
   );
 
-  const result = state.lightingApi.calculateIllumination({ worldId });
+  const bounds = viewport.getVisibleWorldBounds();
+  if (bounds.minX >= bounds.maxX || bounds.minY >= bounds.maxY) {
+    viewport.setIllumination([]);
+    return;
+  }
+  const result = state.lightingApi.calculateIllumination({ worldId, bounds });
   viewport.setIllumination(result.cells);
 }
+
+viewport.setVisibleBoundsChangeHandler(refreshLighting);
 
 function refreshWorldMarkers() {
   const units = state.gameplayApi?.listUnits() ?? [];
