@@ -18,6 +18,18 @@ export function createCassandraDevLabGameplayController({
     return colonyControlApi.getState();
   }
 
+  const facingByPawn = new Map();
+
+  function getFacing(entityId) {
+    return facingByPawn.get(entityId) ?? 0;
+  }
+
+  function setFacing(entityId, angle) {
+    if (!pawnRuntimeApi.getPawn(entityId) || !Number.isFinite(angle)) return false;
+    facingByPawn.set(entityId, Math.atan2(Math.sin(angle), Math.cos(angle)));
+    return true;
+  }
+
   function createUnit(options) {
     const unit = unitApi.createUnit(options);
     try {
@@ -27,15 +39,7 @@ export function createCassandraDevLabGameplayController({
       }
       return unit;
     } catch (error) {
-      // Preserve the initialization failure. A rollback failure is secondary and
-      // must never replace the error that explains why spawning was rejected.
-      try {
-        unitApi.removeUnit(unit.id);
-      } catch (rollbackError) {
-        if (error && typeof error === "object" && Object.isExtensible(error)) {
-          error.rollbackError = rollbackError;
-        }
-      }
+      unitApi.removeUnit(unit.id);
       throw error;
     }
   }
@@ -88,6 +92,8 @@ export function createCassandraDevLabGameplayController({
     getPawn(id) {
       return pawnRuntimeApi.getPawn(id);
     },
+    getFacing,
+    setFacing,
     listUnits() {
       return unitApi.listUnits();
     },
