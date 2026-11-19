@@ -32,7 +32,7 @@
 - Schváleno: světla jsou runtime-only (varianta A); Cassandra obnovuje zdroje z vlastních herních definic. Engine je nepřidává do Persistence.
 - Jediný model útlumu: kvadratický. `innerRadius` drží blízkou oblast jasnou, mezi ním a `radius` platí `(1-t)^2`, na vnějším radius je intenzita nulová. Pro baterku je orientační počáteční innerRadius 8 polí; nejde o pevnou konstantu enginu.
 - Implementováno v `engine/lighting/lighting-system.js`: world-scoped point lights, validace, add/update/remove/list/get a výpočet osvětlení s host `occlusionQuery`; Core Assembly publikuje `core.lighting`.
-- První grid occlusion je synchronní supercover line trace přes host callback; kontroluje oba sousední buňky při průchodu rohem, aby světlo neprotékalo diagonální spárou. Engine neinterpretuje kategorie jako wall/door. Aktuálně pouze `point`; Spot/Area/Ambient, Canvas a Dev Lab inspector nejsou hotové.
+- První grid occlusion je synchronní supercover line trace přes host callback; kontroluje oba sousední buňky při průchodu rohem, aby světlo neprotékalo diagonální spárou. Engine neinterpretuje kategorie jako wall/door. Aktuálně `point` + `spot`; Spot používá `direction`, `innerAngle`, `outerAngle` v radiánech a hladký okraj kuželu, radiální útlum zůstává kvadratický. Area/Ambient, Canvas a Dev Lab inspector nejsou hotové.
 - Testy v `tests/unit/lighting-system.test.js`; nutno ověřit CI po posledním commitu a dále zlepšit/testovat chování paprsků u diagonálních rohů. Veškerá práce pouze na `phase4`, `main` beze změn.
 
 ## Pevné pracovní zásady
