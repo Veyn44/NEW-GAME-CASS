@@ -30,6 +30,8 @@ const worldSizeSelect = document.querySelector("#world-size");
 const gridVisible = document.querySelector("#grid-visible");
 const resetLabButton = document.querySelector("#reset-lab");
 const controlledEntitySelect = document.querySelector("#controlled-entity");
+const ambientLightToggle = document.querySelector("#ambient-light-enabled");
+const testFlashlightToggle = document.querySelector("#test-flashlight-enabled");
 const saveWorkspaceButton = document.querySelector("#pause-save");
 const saveWorkspaceAsButton = document.querySelector("#pause-save-as");
 const loadWorkspaceButton = document.querySelector("#pause-load");
@@ -69,6 +71,7 @@ const state = {
   gameplayApi: null,
   clock: null,
   worldRegistry: null,
+  lightingApi: null,
   persistenceApi: null,
   saveAdapter: null,
   workspacePersistence: null,
@@ -187,6 +190,37 @@ pauseMenuController = createPauseMenuController({
   },
   onVisibilityChange: updateSimulationUi
 });
+function refreshLighting() {
+  if (!state.lightingApi || !state.worldRegistry) return;
+  const worldId = state.worldRegistry.activeWorldId;
+  const existing = state.lightingApi.listLights({ worldId });
+  for (const light of existing) {
+    if (light.id === "dev-lab:ambient-test" || light.id === "dev-lab:flashlight-test") {
+      state.lightingApi.removeLight(light.id);
+    }
+  }
+  if (ambientLightToggle?.checked) {
+    state.lightingApi.addLight({
+      id: "dev-lab:ambient-test", worldId, type: "ambient",
+      intensity: 0.18, color: { r: 112, g: 132, b: 166 }, enabled: true
+    });
+  }
+  if (testFlashlightToggle?.checked) {
+    const leaderId = state.gameplayApi?.getControlState()?.leaderId;
+    const pawn = leaderId ? state.gameplayApi.getUnit(leaderId) : null;
+    const position = pawn?.position;
+    if (position) state.lightingApi.addLight({
+      id: "dev-lab:flashlight-test", worldId, type: "spot",
+      position: { x: position.x, y: position.y },
+      direction: 0, innerAngle: Math.PI / 5, outerAngle: Math.PI / 2,
+      intensity: 1.4, color: { r: 255, g: 222, b: 160 },
+      innerRadius: 5, radius: 18, castsShadows: true
+    });
+  }
+  const result = state.lightingApi.calculateIllumination({ worldId });
+  viewport.setIllumination(result.cells);
+}
+
 function refreshWorldMarkers() {
   const units = state.gameplayApi?.listUnits() ?? [];
   const activeWorldId = state.worldRegistry?.activeWorldId;
@@ -200,6 +234,7 @@ function refreshWorldMarkers() {
       label: getDefinition(unit.definitionId)?.name ?? unit.definitionId
     }));
   viewport.setWorldMarkers(unitMarkers);
+  refreshLighting();
 }
 
 function refreshControlledEntityOptions() {
@@ -377,6 +412,7 @@ window.addEventListener("keydown", (event) => {
       }
     } else {
       clearSelection();
+      refreshLighting();
     }
     refreshControlledEntityOptions();
     updateSimulationUi();
@@ -436,6 +472,8 @@ resetLabButton.addEventListener("click", () => {
   refreshWorldMarkers();
   refreshControlledEntityOptions();
 });
+ambientLightToggle.addEventListener("change", refreshLighting);
+testFlashlightToggle.addEventListener("change", refreshLighting);
 controlledEntitySelect.addEventListener("change", () => {
   try {
     const controlState = state.gameplayApi?.setControlledEntity(controlledEntitySelect.value || null);
@@ -443,6 +481,7 @@ controlledEntitySelect.addEventListener("change", () => {
       inspectGameplayEntity(controlState.leaderId);
       const unit = state.gameplayApi.getUnit(controlState.leaderId);
       if (unit) viewport.setCameraFollowTarget(unit.id, unit.position);
+      refreshLighting();
     } else {
       clearSelection();
     }
@@ -465,6 +504,8 @@ workspaceFileInput.addEventListener("change", async () => {
 function resolveDevLabRuntimeServices(context) {
   return {
     worldRegistry: context.getService("core.world-registry"),
+    lightingApi: context.getService("core.lighting"),
+    lightingApi: context.getService("core.lighting"),
     unitApi: context.getService("game.unit-api"),
     inputApi: context.getService("engine.input-api"),
     colonyControlApi: context.getService("game.colony-control-api"),
@@ -510,6 +551,7 @@ function createDevLabRuntimeHost({
     }
     worlds.activateWorld(`dev-lab-world-${Number(worldSizeSelect.value)}`);
     state.worldRegistry = worlds;
+    state.lightingApi = services.lightingApi;
     state.persistenceApi = services.persistenceApi;
     state.gameplayApi = createCassandraDevLabGameplayController({
       unitApi: services.unitApi,
@@ -545,6 +587,7 @@ function createDevLabRuntimeHost({
     viewport.setWorldMarkers([]);
     clearSelection();
     refreshControlledEntityOptions();
+    refreshLighting();
     state.clock = services.clock;
     state.clock.pause("player");
     state.paused = true;
