@@ -4,32 +4,62 @@ import { clearDefinitionsForTests, getDefinition } from "../../engine/database/d
 import { loadCassandraDatabase } from "../../cassandra/database/load-cassandra-database.js";
 import { clearDefinitionPackagesForTests } from "../../engine/database/definition-package-loader.js";
 
-test("Johny is loaded from a version-controlled canonical human definition", () => {
+test("Cassandra loads the Pawn family, five primary attributes and Johny", () => {
   clearDefinitionsForTests();
   clearDefinitionPackagesForTests();
 
   const definitions = loadCassandraDatabase();
+  const family = getDefinition("family.pawn");
   const johny = getDefinition("pawn.johny");
 
-  assert.equal(definitions.length, 1);
+  assert.equal(definitions.length, 7);
+  assert.equal(family.category, "Families");
+  assert.deepEqual(family.attributes.attributeIds, [
+    "attribute.combat",
+    "attribute.farming",
+    "attribute.engineering",
+    "attribute.medicine",
+    "attribute.research"
+  ]);
+  assert.equal(family.attributes.progression.startingLevel, 1);
+  assert.equal(family.attributes.progression.xpCurve, "quadratic");
+  assert.equal(family.attributes.progression.xpBase, 10);
+  assert.equal(family.attributes.progression.pointsPerLevel, 1);
+  assert.equal(family.attributes.subAttributes.unlockAt, 10);
+  assert.deepEqual(family.attributes.subAttributes.definitions, []);
+
+  for (const id of family.attributes.attributeIds) {
+    const attribute = getDefinition(id);
+    assert.ok(attribute, `Expected ${id} to be registered.`);
+    assert.equal(attribute.category, "Attributes");
+    assert.equal(attribute.attributes.defaultValue, 0);
+    assert.equal(attribute.attributes.minimumValue, 0);
+    assert.equal(attribute.attributes.subAttributes.unlockAt, 10);
+    assert.deepEqual(attribute.attributes.subAttributes.definitions, []);
+    assert.ok(Object.isFrozen(attribute));
+  }
+
   assert.equal(johny.schemaVersion, 1);
   assert.equal(johny.id, "pawn.johny");
   assert.equal(johny.name, "Johny");
   assert.equal(johny.entityType, "human");
+  assert.equal(johny.familyId, "family.pawn");
   assert.equal(johny.attributes.species, "Human");
   assert.equal(johny.attributes.age, 32);
   assert.equal(johny.attributes.role, null);
   assert.deepEqual(johny.spawnableAs, ["unit"]);
   assert.ok(Object.isFrozen(johny));
   assert.ok(Object.isFrozen(johny.attributes));
+  assert.ok(Object.isFrozen(family));
 });
 
-test("canonical definition loading is idempotent", () => {
+test("Cassandra definition loading is idempotent", () => {
   clearDefinitionsForTests();
   clearDefinitionPackagesForTests();
 
   loadCassandraDatabase();
   loadCassandraDatabase();
 
-  assert.equal(getDefinition("pawn.johny").attributes.age, 32);
+  assert.equal(getDefinition("pawn.johny").familyId, "family.pawn");
+  assert.equal(getDefinition("family.pawn").attributes.attributeIds.length, 5);
 });
