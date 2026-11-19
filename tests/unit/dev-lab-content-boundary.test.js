@@ -383,6 +383,16 @@ test("standalone Dev Lab restores Cassandra Pawn control systems without campaig
 });
 
 
+test("Dev Lab lighting refresh safely handles absent gameplay services and updates bounded lights in place", async () => {
+  const shell = await read("../../dev-lab/application/application-shell.js");
+  assert.ok(shell.includes("const gameplayApi = state.gameplayApi"));
+  assert.ok(shell.includes('typeof gameplayApi?.getUnit === "function"'));
+  assert.ok(shell.includes("lightingApi.updateLight(flashlightId"));
+  assert.ok(shell.includes("viewport.getVisibleWorldBounds()"));
+  assert.ok(shell.includes("calculateIllumination({ worldId, bounds })"));
+  assert.equal(shell.includes("leaderId ? state.gameplayApi.getUnit(leaderId) : null"), false);
+});
+
 test("Dev Lab maps the world pointer to drafted Pawn facing and the flashlight direction", async () => {
   const shell = await read("../../dev-lab/application/application-shell.js");
   const viewport = await read("../../shared/presentation/world-viewport.js");
