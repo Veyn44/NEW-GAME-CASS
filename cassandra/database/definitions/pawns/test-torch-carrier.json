@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "pawn.test.torch-carrier",
+  "name": "Test Pawn — Torch Carrier",
+  "category": "Test Pawns",
+  "description": "Development-only Pawn fixture for validating Cassandra lighting and visibility scenarios. Lighting test fixture.",
+  "entityType": "human",
+  "familyId": "family.pawn",
+  "attributes": {
+    "species": "Human",
+    "age": 25,
+    "role": "Lighting test fixture",
+    "origin": "Test fixture",
+    "testFixture": true,
+    "testEquipment": "torch"
+  },
+  "artwork": null,
+  "spawnableAs": [
+    "unit"
+  ]
+}
