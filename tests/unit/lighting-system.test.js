@@ -103,3 +103,38 @@ test("bounds are validated and use half-open grid coordinates", () => {
   assert.equal(lighting.calculateIllumination({ worldId: "main", bounds: { minX: 10, minY: 10, maxX: 12, maxY: 12 } }).cells.length, 4);
   expectCode(() => lighting.calculateIllumination({ worldId: "main", bounds: { minX: 0, minY: 0, maxX: 25, maxY: 2 } }), "INVALID_BOUNDS");
 });
+
+
+test("spot lights illuminate inside their cone, soften the cone edge and exclude cells behind them", () => {
+  const lighting = new LightingSystem({ worldRegistry: createWorldRegistry() });
+  lighting.addLight(point({
+    id: "flashlight", type: "spot", position: { x: 10.5, y: 10.5 },
+    direction: 0, innerAngle: Math.PI / 4, outerAngle: Math.PI / 2,
+    radius: 10, innerRadius: 0
+  }));
+  const { cells } = lighting.calculateIllumination({ worldId: "main" });
+  const cell = (x, y) => cells.find((entry) => entry.cell.x === x && entry.cell.y === y);
+  assert.ok(cell(15, 10)?.intensity > 0);
+  assert.equal(cell(5, 10), undefined);
+  assert.equal(cell(10, 15), undefined);
+  assert.ok(cell(15, 12)?.intensity > 0);
+  assert.ok(cell(15, 12).intensity < cell(15, 10).intensity);
+});
+
+test("spot light direction rotates through the public update API", () => {
+  const lighting = new LightingSystem({ worldRegistry: createWorldRegistry() });
+  lighting.addLight(point({ type: "spot", direction: 0, innerAngle: Math.PI / 3, outerAngle: Math.PI / 2, radius: 9, innerRadius: 0 }));
+  const east = lighting.calculateIllumination({ worldId: "main" }).cells;
+  assert.ok(east.some((entry) => entry.cell.x > 14 && Math.abs(entry.cell.y - 10) <= 1));
+  lighting.updateLight("torch", { direction: Math.PI / 2 });
+  const north = lighting.calculateIllumination({ worldId: "main" }).cells;
+  assert.ok(north.some((entry) => entry.cell.y > 14 && Math.abs(entry.cell.x - 10) <= 1));
+  assert.equal(north.some((entry) => entry.cell.x > 14 && Math.abs(entry.cell.y - 10) <= 1), false);
+});
+
+test("spot definitions validate direction and cone angles", () => {
+  const lighting = new LightingSystem({ worldRegistry: createWorldRegistry() });
+  expectCode(() => lighting.addLight(point({ type: "spot", direction: 0, innerAngle: 2, outerAngle: 1 })), "INVALID_CONE_ANGLES");
+  expectCode(() => lighting.addLight(point({ type: "spot", direction: 0, innerAngle: 0, outerAngle: 0 })), "INVALID_LIGHT");
+  expectCode(() => lighting.addLight(point({ type: "spot", direction: NaN, innerAngle: 0, outerAngle: 1 })), "INVALID_LIGHT");
+});
