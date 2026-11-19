@@ -333,13 +333,6 @@ function render() {
     context.arc(markerX, markerY, cellWidth * UNIT_MARKER_RADIUS_TILES, 0, Math.PI * 2);
     context.fill();
     context.stroke();
-    const facing = Number.isFinite(marker.facing) ? marker.facing : 0;
-    const eyeX = markerX + Math.cos(facing) * cellWidth * UNIT_MARKER_RADIUS_TILES * 0.72;
-    const eyeY = markerY + Math.sin(facing) * cellHeight * UNIT_MARKER_RADIUS_TILES * 0.72;
-    context.beginPath();
-    context.fillStyle = "#071018";
-    context.arc(eyeX, eyeY, Math.max(1.8, cellWidth * 0.075), 0, Math.PI * 2);
-    context.fill();
     if (marker.id === selectedMarkerId) {
       context.beginPath();
       context.strokeStyle = "rgba(243, 201, 105, 0.8)";
