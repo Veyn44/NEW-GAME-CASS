@@ -166,7 +166,7 @@ export function createDefinitionCatalogController({
       "Definition schema": definition.schemaVersion,
       "Entity type": definition.entityType ?? "—",
       Category: definition.category,
-      "Available for": definition.spawnableAs
+      "Spawn capability": definition.spawnableAs?.length ? definition.spawnableAs.join(", ") : "Informational only"
     });
     inspector.append(metadata);
     return definition;
