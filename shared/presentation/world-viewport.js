@@ -434,7 +434,6 @@ sizeSelect.addEventListener("change", () => {
   state.cameraX = state.worldSize / 2;
   state.cameraY = state.worldSize / 2;
   render();
-  notifyVisibleBoundsChanged();
 });
 
 gridToggle.addEventListener("change", () => {
