@@ -264,6 +264,7 @@ function refreshWorldMarkers() {
       x: unit.position?.x ?? unit.placement.position.x,
       y: unit.position?.y ?? unit.placement.position.y,
       label: getDefinition(unit.definitionId)?.name ?? unit.definitionId,
+      facing: state.gameplayApi?.getFacing(unit.id) ?? 0
     }));
   viewport.setWorldMarkers(unitMarkers);
 }
