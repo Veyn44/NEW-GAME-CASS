@@ -2,10 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createInputSystem } from "../../engine/input/input-system.js";
 import { createViewportInputController } from "../../shared/input/viewport-input-controller.js";
+import { createActionMappingController } from "../../engine/input/action-mapping-controller.js";
 
 test("Engine input system exposes the injected controller through a read-only service", () => {
   const controller = createViewportInputController();
-  const system = createInputSystem({ inputController: controller });
+  const actionController = createActionMappingController();
+  const system = createInputSystem({ inputController: controller, actionController });
   const services = system.initialize();
   const api = services["engine.input-api"];
 
@@ -17,6 +19,8 @@ test("Engine input system exposes the injected controller through a read-only se
   controller.keyDown("KeyW");
   assert.deepEqual(api.getState().keys, ["KeyW"]);
   assert.deepEqual(api.consumeFrameInput().keys, ["KeyW"]);
+  assert.equal(api.getActions().moveNorth, true);
+  assert.deepEqual(api.getActionBindings().moveNorth, ["KeyW"]);
 });
 
 test("Engine input system rejects a missing or invalid controller", () => {
