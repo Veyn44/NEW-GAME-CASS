@@ -307,8 +307,9 @@ window.addEventListener("keydown", (event) => {
   }
   if (isTextEntryTarget(event.target) || pauseMenuController.isOpen()) return;
   if (isInteractiveTarget(event.target)) return;
+  const mappedKey = Object.values(actionController.getBindings()).some((codes) => codes.includes(event.code));
   const activated = actionController.keyDown(event.code);
-  if (activated.length) event.preventDefault();
+  if (mappedKey) event.preventDefault();
   if (activated.includes("pause")) { toggleSimulationPause(); return; }
   if (activated.includes("toggleDraft")) {
     const controlState = state.gameplayApi?.toggleDraft();
