@@ -2,7 +2,9 @@
 
 > **Document status:** 2026-11-16, post-merge. This document records confirmed project direction, completed milestones and current constraints. It is not an approved roadmap or a commitment to a sequence of future phases. `main` is the integrated baseline; future work should start from the then-current `main` on a dedicated branch and PR. Source code and tests remain authoritative; exact implementation status and CI evidence are summarized in [Current implementation status](docs/architecture/current-implementation-status.md).
 
-**Product direction:** Cassandra is the primary project. The reusable Engine is developed from concrete Cassandra needs, while remaining technically independent of Cassandra-specific rules, content and presentation. Dev Lab is a development/verification tool that exercises the real shared runtime; it must not become a shipped-game dependency or a parallel implementation.
+**Current product concept:** Cassandra's creative direction is now captured in [GAME_CONCEPT.md](GAME_CONCEPT.md). It describes a colony-sim/RPG/action game on a long-established human colony planet, where a rescue cruiser crashes after responding to a distress signal. The player survives, reaches a mostly prepared underground shelter, and explores a large network of human facilities and wreckage infested by an unknown biological organism. This is a concept baseline, not a claim that these gameplay systems have been implemented.
+
+The reusable Engine is developed from concrete Cassandra needs while remaining technically independent of Cassandra-specific rules, content and presentation. Dev Lab is a development/verification tool that exercises the real shared runtime; it must not become a shipped-game dependency or a parallel implementation.
 
 ## Project shape — agreed direction
 
@@ -56,13 +58,13 @@ The phase labels above describe completed historical work and its current implem
 
 ## Possible future directions (not approved)
 
-The next body of work has not been selected. Possible areas to explore include improving direct browser verification of the current applications, defining Cassandra's game and campaign experience in more detail, and extending reusable Engine capabilities when concrete Cassandra needs justify them. These are only broad discussion topics, not prioritized tasks, accepted scope, or a delivery sequence. The next phase and its requirements will be defined together when we are ready to plan it.
+The game concept is now defined at a high level, but no post-Phase-3 implementation phase, feature sequence or acceptance criteria have been approved. Possible next activities include breaking the concept into a playable vertical slice, deciding the first-base and opening-mission scope, evaluating which existing Engine capabilities support the concept, and identifying missing reusable capabilities. These are discussion candidates, not a delivery commitment.
 
 ## Current handoff
 
 The pre-merge audit is complete and `work` was merged into `main` through PR #7. The merge commit is `0a879ed0ef955110b069b9e89bb420ead4f58737`. The exact merge-commit Core/Host workflow [43940567950](https://github.com/Veyn44/NEW-GAME-CASS/actions/runs/43940567950) completed successfully.
 
-The current task is documentation reconciliation in PR #8, on the dedicated documentation branch. Once the documentation is reviewed and merged with the user's explicit approval, we will decide together what Cassandra needs next. No post-Phase-3 implementation phase, slice sequence or immediate gameplay task has been agreed.
+The documentation reconciliation was merged through PR #8. The current game concept is recorded in [GAME_CONCEPT.md](GAME_CONCEPT.md). Continue design collaboratively and define a small, testable gameplay scope before implementation. No post-Phase-3 implementation phase, slice sequence or immediate gameplay task has been approved.
 
 The full implementation status, verified CI evidence and outstanding manual gates are maintained in [Current implementation status](docs/architecture/current-implementation-status.md).
 
