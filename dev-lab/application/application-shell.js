@@ -221,26 +221,24 @@ function refreshLighting() {
   }
 
   const gameplayApi = state.gameplayApi;
-  const controlState = gameplayApi?.getControlState?.();
-  const leaderId = controlState?.leaderId;
-  const pawn = leaderId && typeof gameplayApi?.getUnit === "function"
-    ? gameplayApi.getUnit(leaderId)
+  // The selected Pawn dropdown is the source of truth. Colony Leader is a
+  // separate campaign concept and must never drive Dev Lab control/presentation.
+  const selectedPawnId = controlledEntitySelect?.value || null;
+  const pawn = selectedPawnId && typeof gameplayApi?.getUnit === "function"
+    ? gameplayApi.getUnit(selectedPawnId)
     : null;
   const position = pawn?.position;
   if (testFlashlightToggle?.checked && position) {
     const definition = {
       id: flashlightId, worldId, type: "spot",
       position: { x: position.x, y: position.y },
-      direction: typeof gameplayApi?.getFacing === "function" ? gameplayApi.getFacing(leaderId) : 0,
+      direction: 0,
       innerAngle: Math.PI / 5, outerAngle: Math.PI / 2,
       intensity: 1.4, color: { r: 255, g: 222, b: 160 },
       innerRadius: 5, radius: 18, castsShadows: true
     };
     if (flashlight) {
-      lightingApi.updateLight(flashlightId, {
-        position: definition.position,
-        direction: definition.direction
-      });
+      lightingApi.updateLight(flashlightId, { position: definition.position });
     } else {
       lightingApi.addLight(definition);
     }
@@ -255,25 +253,6 @@ function refreshLighting() {
   viewport.setIllumination(result.cells);
 }
 
-let lastFacingAngle = null;
-viewport.setWorldPointerMoveHandler((pointerPosition) => {
-  const gameplayApi = state.gameplayApi;
-  const control = gameplayApi?.getControlState?.();
-  if (!control?.drafted || !control.leaderId) return;
-  const pawn = gameplayApi.getUnit(control.leaderId);
-  if (!pawn?.position) return;
-  const dx = pointerPosition.x - pawn.position.x;
-  const dy = pointerPosition.y - pawn.position.y;
-  if (Math.hypot(dx, dy) < 0.05) return;
-  const angle = Math.atan2(dy, dx);
-  const previous = gameplayApi.getFacing(control.leaderId);
-  const difference = Math.abs(Math.atan2(Math.sin(angle - previous), Math.cos(angle - previous)));
-  if (difference < 0.035) return;
-  gameplayApi.setFacing(control.leaderId, angle);
-  refreshWorldMarkers();
-  if (testFlashlightToggle?.checked) refreshLighting();
-});
-
 function refreshWorldMarkers() {
   const units = state.gameplayApi?.listUnits() ?? [];
   const activeWorldId = state.worldRegistry?.activeWorldId;
@@ -285,7 +264,6 @@ function refreshWorldMarkers() {
       x: unit.position?.x ?? unit.placement.position.x,
       y: unit.position?.y ?? unit.placement.position.y,
       label: getDefinition(unit.definitionId)?.name ?? unit.definitionId,
-      facing: state.gameplayApi?.getFacing(unit.id) ?? 0
     }));
   viewport.setWorldMarkers(unitMarkers);
 }
