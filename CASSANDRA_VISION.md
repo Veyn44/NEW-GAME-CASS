@@ -1,70 +1,36 @@
-# Cassandra — Game Vision and Design Notes
+# Cassandra — Game Vision Index
 
-> This is an inspiration and design-memory document for the Cassandra game. It is not the specification of the universal engine, and ideas below are not automatically approved for implementation. The user keeps much of Cassandra's full vision in their head; this file intentionally preserves only useful anchors from earlier discussions.
+> **Current concept baseline:** [GAME_CONCEPT.md](GAME_CONCEPT.md)  
+> Updated: 2026-11-19
 
-## Overall direction
+Cassandra's current game direction is defined in **GAME_CONCEPT.md**. That document is the authoritative creative baseline for the current premise, planet, biological threat, opening mission, first base, planetary POIs, expedition types, colony progression and open design questions.
 
-Cassandra is envisioned as a 2D game with a strong colony-simulation foundation and room for top-down shooter/action elements. The intention is not to lock the game into one narrow genre. Colony management, direct control, exploration and action may coexist where the design calls for them.
+This file remains as a short index for older design notes and prototype decisions. Older ideas in this file are not automatically current game requirements.
 
-The engine being built through Cassandra should remain more general than this particular game. Cassandra's rules and content belong to its game layer, not to generic engine infrastructure.
+## Current product direction
 
-## World and play structure ideas
+Cassandra is a colony simulation with RPG progression, top-down real-time action, direct control of one primary Pawn, autonomous colony inhabitants, exploration, expeditions and restoration of human infrastructure.
 
-- A persistent home/base world represents the continuing colony state.
-- Temporary worlds may support activities such as expeditions or encounters. Earlier design direction allowed at most one active temporary world at a time, with the persistent world retaining its state while inactive. The detailed gameplay lifecycle remains future work.
-- The first gameplay test world used a 128 × 128 tile extent. This was a test configuration, not a final base-world size or a universal engine limit.
-- Earlier ideas include an asteroid/base setting, exploration beyond the home world and distinct environments for different activities. Their final content and rules remain open.
+The current setting is a long-established human colony on a harsh planet. A rescue cruiser sent in response to a distress signal crashes there. The player survives, reaches a mostly prepared underground human shelter and begins rebuilding while exploring the planet's extensive human-built facilities and wreckage infested by an unknown biological organism.
 
-## Units, Pawns and player control
+See [GAME_CONCEPT.md](GAME_CONCEPT.md) for the full concept and for the distinction between agreed direction, provisional mechanics and open questions.
 
-Earlier Cassandra design work established useful vocabulary:
+## Engine and application boundary
 
-- **Entity** is the generic identity/lifecycle concept supplied by Core.
-- **Unit** is a Cassandra gameplay instance backed by a Core Entity.
-- **Pawn** is a Unit that belongs in some way to player control. It does not necessarily mean continuous direct manual control.
-- Colony leadership, Pawn membership and direct Draft are separate concepts. The colony can have a leader reference, while Draft identifies the Unit currently receiving direct player input.
+The universal Engine remains technically separate from Cassandra-specific rules and content. Cassandra owns its game rules, entities, resources, generation, campaign state, UI and presentation. Dev Lab remains a development and verification environment, not a shipped-game dependency.
 
-The first implemented slice used Johny as the initial controllable Unit and Colony Leader. Future biological beings, robots, stationary devices and other intelligent entities are design possibilities, not a finalized Unit schema.
+## Earlier prototype and presentation notes
 
-## Application and development experience
+The following notes describe earlier prototype decisions and may be retained where useful, but they do not override the current game concept:
 
-Ideas recorded during early Cassandra design include:
+- Earlier Cassandra presentation used a dark navy / blue-toned foundation, turquoise accent, light text and a dark burgundy-purple accent (#812044). This is a historical visual direction, not a final art-direction lock.
+- The world viewport was treated as the primary spatial surface, with floating UI overlays.
+- Earlier camera behavior used middle-mouse drag for panning and wheel zoom. In free-camera mode zoom anchored around the pointer; a future camera-follow mode was expected to anchor around its target.
+- Earlier camera overscan allowed up to 20 world tiles beyond each boundary as a framing margin, not as additional playable world.
+- Earlier vocabulary distinguished generic Core Entity, Cassandra Unit and player-related Pawn concepts. Exact game-domain terminology and schemas may evolve with the actual gameplay.
 
-- A main application shell with separate modes such as New Game and Dev Lab.
-- A full-screen world viewport, with interface panels layered above it rather than reducing the world canvas.
-- A shared Database/catalog for browsing and inspecting canonical game definitions, with the possibility of categories such as Pawns, enemies, structures, materials, weapons and ammunition as those game systems exist.
-- Dev Lab as a development environment that hosts the same underlying gameplay systems intended for the actual game. Its diagnostic UI, test content and developer controls should not leak into the player-facing game.
-- The option of making Dev Lab available to players in a future build was previously considered, but no player-access or permission model was committed.
+## Historical design material
 
-## Presentation and controls
-
-Earlier accepted Cassandra presentation decisions included:
-
-- A dark navy / blue-toned visual foundation, turquoise accent, light text and a dark burgundy-purple accent (`#812044`).
-- Color tokens remain static; glow, emission and animation are explicit behaviors of individual elements rather than automatic consequences of color.
-- The world viewport remains the primary spatial surface, with floating UI overlays.
-- Middle mouse drag pans the camera; the wheel zooms. In free-camera mode zoom anchors around the pointer; a future camera-follow mode should anchor around its target.
-- Camera overscan was allowed up to 20 world tiles beyond each boundary as a framing margin, not as additional playable world.
-
-These notes preserve the direction and reasoning behind the early prototype. They do not require every future game or engine host to use Cassandra's visual style, controls or world model.
-
-## Earlier candidate gameplay foundations
-
-A previous Phase 3 working direction proposed a broad Unit foundation. These ideas are retained as candidates for later Cassandra design, not as a frozen feature list or an instruction to implement them all:
-
-- Mobile and stationary Units, including biological beings, robots and other intelligent entities.
-- Optional traits and capabilities, so Units do not all need the same attributes or behavior.
-- Attributes and statistics, with their final model determined by actual gameplay needs.
-- Perception as a way for Units/systems to obtain relevant world information; this does not itself imply AI or autonomous decision-making.
-- Inventory and equipment foundations where they make sense for a Unit.
-- Interactions, actions and player control for eligible Units.
-- Dev Lab scenarios for creating, inspecting and testing these capabilities.
-
-The old Phase 3 proposal explicitly deferred AI/autonomous behavior and did not commit to a complete combat, colony automation, jobs, crafting/economy, galaxy/navigation or world-generation implementation. Revisit the scope after the universal-engine direction and the upcoming audit have been reviewed.
-
-## Design status rule
-
-Treat this document as a source of remembered ideas, not as a binding implementation contract. Before turning an idea into work:
-1. Confirm that it still fits the current Cassandra vision.
-2. Decide whether it is game-specific or a genuinely reusable engine capability.
-3. Record the decision in the active development plan before implementation.
+- [Project History](PROJECT_HISTORY.md) records completed work and decisions.
+- [Phase 3 brainstorm](docs/architecture/phase-3-brainstorm.md) is an archived Engine/gameplay design record. Its old gameplay setting and expedition examples are historical; its technical discussion remains useful as historical context.
+- [Current implementation status](docs/architecture/current-implementation-status.md) describes what the code actually implements. The game concept must not be mistaken for implemented functionality.
