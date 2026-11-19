@@ -8,15 +8,15 @@ export function createInputSystem({ inputController, actionController } = {}) {
     || typeof inputController.consumeFrameInput !== "function") {
     throw new TypeError("Input system requires a controller with getState() and consumeFrameInput().");
   }
-  if (!actionController || typeof actionController.getState !== "function") {
-    throw new TypeError("Input system requires an action mapping controller.");
+  if (actionController && typeof actionController.getState !== "function") {
+    throw new TypeError("Action mapping controller must expose getState().");
   }
 
   const api = Object.freeze({
     getState: () => inputController.getState(),
     consumeFrameInput: () => inputController.consumeFrameInput(),
-    getActions: () => actionController.getState(),
-    getActionBindings: () => actionController.getBindings()
+    getActions: () => actionController?.getState() ?? Object.freeze({}),
+    getActionBindings: () => actionController?.getBindings() ?? Object.freeze({})
   });
 
   return Object.freeze({
