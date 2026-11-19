@@ -20,6 +20,7 @@ export function createDevLabRuntime({
 } = {}) {
   let gameplayController = null;
   let pawnRuntimeApi = null;
+  let runtimeContext = null;
   return createGameRuntime({
     saveAdapter,
     fixedStepSeconds: 1 / 60,
@@ -45,18 +46,30 @@ export function createDevLabRuntime({
           worldRuntime.setSimulationEnabled("world:dev-lab", true);
         }
       },
-      { id: "dev-lab.free-camera" }
+      {
+        id: "dev-lab.free-camera",
+        requires: ["game.unit-api", "cassandra.pawn-runtime-api", "game.colony-control-api", "core.world-registry"],
+        initialize(context) {
+          runtimeContext = context;
+          pawnRuntimeApi = context.getService("cassandra.pawn-runtime-api");
+          gameplayController = createCassandraDevLabGameplayController({
+            unitApi: context.getService("game.unit-api"),
+            pawnRuntimeApi,
+            colonyControlApi: context.getService("game.colony-control-api"),
+            worldRegistry: context.getService("core.world-registry")
+          });
+        },
+        destroy() {
+          gameplayController = null;
+          pawnRuntimeApi = null;
+          runtimeContext = null;
+        }
+      }
     ],
     simulationTasks: [{
       systemId: "dev-lab.free-camera",
-      update({ deltaSeconds, context }) {
-        pawnRuntimeApi ??= context.getService("cassandra.pawn-runtime-api");
-        gameplayController ??= createCassandraDevLabGameplayController({
-          unitApi: context.getService("game.unit-api"),
-          pawnRuntimeApi,
-          colonyControlApi: context.getService("game.colony-control-api"),
-          worldRegistry: context.getService("core.world-registry")
-        });
+      update({ deltaSeconds }) {
+        if (!runtimeContext || !gameplayController) return;
         if (gameplayController.getControlState().drafted) {
           const moved = gameplayController.update(deltaSeconds);
           if (moved) onUnitMoved?.(moved);
