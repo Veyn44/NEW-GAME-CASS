@@ -496,6 +496,7 @@ document.addEventListener("visibilitychange", () => {
 worldSizeSelect.addEventListener("change", () => {
   workspaceSession.changeWorld();
   refreshWorldMarkers();
+  refreshLighting();
 });
 resetLabButton.addEventListener("click", () => {
   workspaceSession.reset();
