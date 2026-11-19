@@ -9,6 +9,7 @@ import { WorldContext } from "./world-context.js";
 import { SpatialComposition } from "../spatial/spatial-composition.js";
 import { PlacementCoordinator } from "../spatial/placement-coordinator.js";
 import { SpatialMovement } from "../spatial/spatial-movement.js";
+import { LightingSystem } from "../lighting/lighting-system.js";
 import { Persistence } from "./persistence.js";
 import { SystemBootstrap } from "./system-bootstrap.js";
 
@@ -23,6 +24,7 @@ const SERVICE = Object.freeze({
   spatialComposition: "core.spatial-composition",
   placementCoordinator: "core.placement-coordinator",
   spatialMovement: "core.spatial-movement",
+  lighting: "core.lighting",
   scheduler: "core.scheduler",
   persistence: "core.persistence"
 });
@@ -49,7 +51,8 @@ export function createCoreAssembly({
   maxStepsPerFrame = 120,
   hostSystems = [],
   simulationTasks = [],
-  eventSources = []
+  eventSources = [],
+  lightingOcclusionQuery = null
 } = {}) {
   if (!saveAdapter || typeof saveAdapter.read !== "function" || typeof saveAdapter.writeAtomic !== "function") {
     throw new TypeError("Core Assembly requires an explicit saveAdapter implementing read() and writeAtomic().");
@@ -170,6 +173,17 @@ export function createCoreAssembly({
           worldRegistry: required(context, SERVICE.worlds),
           spatialComposition: required(context, SERVICE.spatialComposition),
           placementCoordinator: required(context, SERVICE.placementCoordinator)
+        }) };
+      }
+    },
+    {
+      id: "core.lighting",
+      provides: [SERVICE.lighting],
+      requires: [SERVICE.worlds],
+      initialize(context) {
+        return { [SERVICE.lighting]: new LightingSystem({
+          worldRegistry: required(context, SERVICE.worlds),
+          occlusionQuery: lightingOcclusionQuery
         }) };
       }
     },
