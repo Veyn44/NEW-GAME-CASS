@@ -8,8 +8,10 @@ import { createUnitSystem } from "../../src/gameplay/unit/unit-system.js";
 import { createInputSystem } from "../../engine/input/input-system.js";
 import { createColonyControlSystem } from "../../src/gameplay/colony/colony-control-system.js";
 import { createViewportInputController } from "../../shared/input/viewport-input-controller.js";
+import { createActionMappingController } from "../../engine/input/action-mapping-controller.js";
+import { DEFAULT_CASSANDRA_ACTION_BINDINGS } from "../../cassandra/input/default-action-bindings.js";
 
-async function setup() {
+async function setup({ movementSpeed = 4, withActionMapping = true } = {}) {
   clearDefinitionsForTests();
   registerDefinition({
     id: "pawn.johny",
@@ -19,13 +21,16 @@ async function setup() {
     attributes: {}
   });
   const inputController = createViewportInputController();
+  const actionController = createActionMappingController({ bindings: DEFAULT_CASSANDRA_ACTION_BINDINGS });
   const runtime = createGameRuntime({
     saveAdapter: new MemorySaveAdapter(),
     fixedStepSeconds: 1 / 60,
     hostSystems: [
-      createInputSystem({ inputController }),
+      createInputSystem(withActionMapping
+        ? { inputController, actionController }
+        : { inputController }),
       createUnitSystem({ definitionLookup: getDefinition }),
-      createColonyControlSystem()
+      createColonyControlSystem({ getMovementSpeed: () => movementSpeed })
     ]
   });
   const context = await runtime.start();
@@ -45,16 +50,28 @@ async function setup() {
     worldId: "colony-test-world",
     position: { x: 20, y: 20 }
   });
-  return { runtime, context, inputController, units, control, leader };
+  return { runtime, context, inputController, actionController, units, control, leader };
 }
 
-test("Draft targets the Colony Leader by stable Unit ID and moves at four tiles per second", async () => {
+test("Draft safely ignores missing action mappings instead of generating non-finite coordinates", async () => {
+  const state = await setup({ withActionMapping: false });
+  try {
+    state.control.setLeader(state.leader.id);
+    state.control.setDrafted(true);
+    assert.equal(state.control.update(1 / 60), null);
+    assert.deepEqual(state.units.getUnit(state.leader.id).position, { x: 20.5, y: 20.5 });
+  } finally {
+    await state.runtime.destroy();
+    clearDefinitionsForTests();
+  }
+});
+
+test("Draft uses the Pawn profile movement speed and targets the Colony Leader by stable Unit ID", async () => {
   const state = await setup();
   try {
     state.control.setLeader(state.leader.id);
     state.control.setDrafted(true);
-    state.inputController.resume();
-    state.inputController.keyDown("KeyD");
+    state.actionController.keyDown("KeyD");
 
     const result = state.control.update(0.25);
     assert.equal(result.entityId, state.leader.id);
@@ -83,10 +100,10 @@ test("Draft supports all four cardinal directions", async () => {
 
     for (const [key, expected] of cases) {
       state.units.moveUnit(state.leader.id, { x: 20, y: 20 });
-      state.inputController.keyDown(key);
+      state.actionController.keyDown(key);
       const moved = state.control.update(0.25);
       assert.deepEqual(moved.position, expected, key);
-      state.inputController.keyUp(key);
+      state.actionController.keyUp(key);
     }
   } finally {
     await state.runtime.destroy();
@@ -101,18 +118,18 @@ test("Draft handles overlapping WASD combinations and independent key release", 
     state.control.setDrafted(true);
     state.inputController.resume();
 
-    state.inputController.keyDown("KeyW");
-    state.inputController.keyDown("KeyA");
+    state.actionController.keyDown("KeyW");
+    state.actionController.keyDown("KeyA");
     let moved = state.control.update(0.25);
     assert.ok(Math.abs(moved.position.x - (20.5 - Math.SQRT1_2)) < 1e-9);
     assert.ok(Math.abs(moved.position.y - (20.5 - Math.SQRT1_2)) < 1e-9);
 
-    state.inputController.keyUp("KeyW");
+    state.actionController.keyUp("KeyW");
     moved = state.control.update(0.25);
     assert.ok(Math.abs(moved.position.x - (19.5 - Math.SQRT1_2)) < 1e-9);
     assert.ok(Math.abs(moved.position.y - (20.5 - Math.SQRT1_2)) < 1e-9);
 
-    state.inputController.keyDown("KeyD");
+    state.actionController.keyDown("KeyD");
     moved = state.control.update(0.25);
     assert.equal(moved, null);
     const finalPosition = state.units.getUnit(state.leader.id).position;
@@ -129,8 +146,8 @@ test("Diagonal Draft movement is normalized and an inactive Draft does not move"
   try {
     state.control.setLeader(state.leader.id);
     state.inputController.resume();
-    state.inputController.keyDown("KeyW");
-    state.inputController.keyDown("KeyD");
+    state.actionController.keyDown("KeyW");
+    state.actionController.keyDown("KeyD");
 
     assert.equal(state.control.update(0.5), null);
     assert.deepEqual(state.units.getUnit(state.leader.id).position, { x: 20.5, y: 20.5 });
@@ -177,7 +194,7 @@ test("Draft automatically disengages while its leader belongs to an inactive wor
     state.control.setLeader(state.leader.id);
     state.control.setDrafted(true);
     state.inputController.resume();
-    state.inputController.keyDown("KeyD");
+    state.actionController.keyDown("KeyD");
 
     worlds.activateWorld("colony-test-world-secondary");
     assert.equal(state.control.update(0.25), null);
@@ -241,6 +258,20 @@ test("Removing a non-leader Unit does not clear or disengage the Colony Leader",
     assert.equal(state.units.removeUnit(other.id), true);
     assert.deepEqual(state.control.getState(), { leaderId: state.leader.id, drafted: true });
     assert.ok(state.units.getUnit(state.leader.id));
+  } finally {
+    await state.runtime.destroy();
+    clearDefinitionsForTests();
+  }
+});
+
+test("Colony Leader movement speed follows the supplied Pawn profile value", async () => {
+  const state = await setup({ movementSpeed: 6 });
+  try {
+    state.control.setLeader(state.leader.id);
+    state.control.setDrafted(true);
+    state.actionController.keyDown("KeyD");
+    const moved = state.control.update(0.25);
+    assert.deepEqual(moved.position, { x: 22, y: 20.5 });
   } finally {
     await state.runtime.destroy();
     clearDefinitionsForTests();

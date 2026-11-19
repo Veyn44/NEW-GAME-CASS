@@ -42,6 +42,7 @@ export function createApplicationRuntimeHost({
   let startPromise = null;
   let stopPromise = null;
   let paused = true;
+  let simulationFaulted = false;
 
   function syncPauseState(force = false) {
     if (!clock) return paused;
@@ -68,10 +69,11 @@ export function createApplicationRuntimeHost({
         Math.max(0, (timestamp - lastFrameTime) / 1000)
       );
       try {
-        if (shouldAdvance({ paused, services, clock })) runtime.advance(deltaSeconds);
+        if (!simulationFaulted && shouldAdvance({ paused, services, clock })) runtime.advance(deltaSeconds);
         onFrame(deltaSeconds, { paused, services, clock });
         syncPauseState();
       } catch (error) {
+        simulationFaulted = true;
         clock.pause("simulation-fault");
         syncPauseState();
         onError(error, services);

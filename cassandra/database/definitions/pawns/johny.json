@@ -5,6 +5,7 @@
   "category": "Pawns",
   "description": "A human test Pawn used as the temporary Phase 2 Colony Leader and direct-control protagonist. This is a development assignment, not final character lore.",
   "entityType": "human",
+  "familyId": "family.pawn",
   "attributes": {
     "species": "Human",
     "age": 32,

@@ -112,6 +112,20 @@ test("shared runtime host pauses and reports synchronous simulation failures", a
   await h.host.stop();
 });
 
+test("shared runtime host preserves the first simulation fault instead of retrying a faulted scheduler", async () => {
+  let attempts = 0;
+  const h = createHarness({ advance() { attempts += 1; throw new Error("original simulation failure"); } });
+  await h.host.start();
+  await h.tick(0);
+  await h.tick(16);
+  await h.tick(32);
+
+  assert.equal(attempts, 1);
+  assert.equal(h.errors.length, 1);
+  assert.match(h.errors[0].message, /original simulation failure/);
+  await h.host.stop();
+});
+
 test("shared runtime host cancels its pending frame when stopped", async () => {
   const h = createHarness();
   await h.host.start();

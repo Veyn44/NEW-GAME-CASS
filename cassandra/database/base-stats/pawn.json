@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "base-stats.pawn",
+  "name": "Pawn Base Stats",
+  "category": "BaseStats",
+  "description": "Shared baseline physical, perception, endurance and noise parameters for standard Cassandra Pawns.",
+  "attributes": {
+    "movement": {
+      "movementSpeed": 4,
+      "dodgeDistance": 4
+    },
+    "perception": {
+      "visionRange": 8,
+      "visionAngle": 120,
+      "soundDetectionRange": 8
+    },
+    "endurance": {
+      "maxHealth": 100,
+      "maxStamina": 10
+    },
+    "noise": {
+      "movementNoise": 8
+    },
+    "physical": {
+      "carryCapacity": 50,
+      "carryCapacityUnit": "kg"
+    }
+  },
+  "artwork": null,
+  "spawnableAs": []
+}

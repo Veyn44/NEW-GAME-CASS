@@ -6,6 +6,12 @@
     <meta name="theme-color" content="#0b1220">
     <title>Dev Lab</title>
     <link rel="stylesheet" href="./dev-lab/presentation/dev-world-preview.css">
+    <link rel="stylesheet" href="./cassandra/application/dev-lab-unit-inspector-ui.css">
+    <style>
+      .launcher-return-row { margin: 0 0 18px; }
+      .launcher-return { color: #91b9eb; font-size: 11px; font-weight: 700; letter-spacing: .14em; text-decoration: none; }
+      .launcher-return:hover, .launcher-return:focus-visible { color: #d5e6ff; text-decoration: underline; }
+    </style>
   </head>
   <body>
     <main class="application-shell">
@@ -15,9 +21,10 @@
           <h1>DEV LAB</h1>
           <p class="brand-subtitle">A standalone world inspection and testing environment.</p>
         </header>
+        <div class="launcher-return-row"><a class="launcher-return" href="./index.html">← APPLICATION SELECTOR</a></div>
         <nav class="main-menu-list" aria-label="Dev Lab navigation">
           <button class="menu-entry menu-entry-active" type="button" data-navigate="dev-lab"><span><strong>OPEN WORKSPACE</strong><small>World preview and testing tools</small></span><b>ENTER</b></button>
-          <button class="menu-entry menu-entry-available" type="button" data-navigate="database"><span><strong>DEFINITIONS</strong><small>Inspect registered Engine content</small></span><b>OPEN</b></button>
+          <button class="menu-entry menu-entry-available" type="button" data-navigate="database"><span><strong>DATABASE</strong><small>Inspect registered Engine content</small></span><b>OPEN</b></button>
           <button class="menu-entry menu-entry-available" type="button" data-navigate="settings"><span><strong>CONTROLS</strong><small>Viewport and keyboard reference</small></span><b>OPEN</b></button>
         </nav>
         <footer class="app-footer"><span>ENGINE / DEV LAB</span><span>STANDALONE TOOL</span></footer>
@@ -25,8 +32,8 @@
 
       <section class="app-view database-view" data-view="database" data-mode="browse" hidden>
         <header class="section-header">
-          <div><p class="eyebrow" id="database-mode-label">ENGINE / CONTENT CATALOG</p><h1>Definitions</h1><p class="dev-note">Read-only catalog of content registered with the Engine</p></div>
-          <div class="database-header-actions"><button id="database-select-definition" class="database-select-button" type="button" hidden disabled>SELECT</button><button type="button" class="secondary-button" data-back-menu>← Main menu</button></div>
+          <div><p class="eyebrow" id="database-mode-label">ENGINE / DATABASE</p><h1>Database</h1><p class="dev-note">Registered content definitions · select a spawnable entry to place it in the world</p></div>
+          <div class="database-header-actions"><button id="database-select-definition" class="database-select-button" type="button" hidden disabled>SPAWN</button><button type="button" class="secondary-button" data-back-menu>← Main menu</button></div>
         </header>
         <div class="database-toolbar">
           <label class="database-search">Search definitions<input id="database-search" type="search" placeholder="Pawn, enemy, wall, material…"></label>
@@ -42,18 +49,24 @@
             <div id="database-inspector" class="database-inspector"><div class="database-inspector-state">Select an entry to inspect its complete definition.</div></div>
           </section>
         </div>
-        <footer class="database-footer"><p class="database-footnote">Browse mode is read-only. The catalog contains only content packages registered by the host application.</p></footer>
+        <footer class="database-footer"><p class="database-footnote">Select a spawnable definition to place it in the active world. Informational entries remain available for inspection only.</p></footer>
       </section>
 
       <section class="app-view settings-view" data-view="settings" hidden>
         <header class="section-header"><div><p class="eyebrow">DEV LAB / CONTROLS</p><h1>Controls</h1><p class="dev-note">Informational reference · bindings are not editable yet</p></div><button id="settings-back" type="button" class="secondary-button">← BACK</button></header>
         <div class="controls-reference">
-          <section class="controls-group"><h2>VIEWPORT</h2>
-            <div class="control-reference-row"><span>Move camera</span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></div>
+          <section class="controls-group"><h2>GAMEPLAY</h2>
+            <div class="control-reference-row"><span>Move Pawn / Free camera</span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></div>
+            <div class="control-reference-row"><span>Toggle Draft / Pawn control</span><kbd>F</kbd></div>
+            <div class="control-reference-row"><span>Pause / Resume</span><kbd>SPACE</kbd></div>
+            <div class="control-reference-row"><span>Pause menu / Close overlay</span><kbd>ESC</kbd></div>
+          </section>
+          <section class="controls-group"><h2>CAMERA & INTERFACE</h2>
             <div class="control-reference-row"><span>Zoom</span><kbd>MOUSE WHEEL</kbd></div>
             <div class="control-reference-row"><span>Pan camera</span><kbd>MIDDLE MOUSE DRAG</kbd></div>
-            <div class="control-reference-row"><span>Inspect object (when supported)</span><kbd>LEFT CLICK</kbd></div>
+            <div class="control-reference-row"><span>Inspect / Select object (paused)</span><kbd>LEFT CLICK</kbd></div>
           </section>
+          <p class="dev-note">WASD moves the Pawn at its movement speed while Draft is active. With Draft off, WASD moves the free camera.</p>
           <section class="controls-group"><h2>INTERFACE</h2>
             <div class="control-reference-row"><span>Pause / Resume simulation</span><kbd>SPACE</kbd></div>
             <div class="control-reference-row"><span>Pause menu / Close overlay</span><kbd>ESC</kbd></div>
@@ -71,41 +84,17 @@
           <label class="toggle-control" for="grid-visible"><input id="grid-visible" type="checkbox" checked><span>Show grid</span></label>
           <span class="control zoom-readout">Zoom <output id="zoom-value">100%</output></span>
           <button id="reset-lab" type="button">Reset Lab</button>
-          <button id="open-viewport-database" type="button">DEFINITIONS</button>
-          <label class="control spatial-test-footprint"><span>Test footprint</span><select id="test-entity-footprint"><option value="single">1 × 1</option><option value="square-2">2 × 2</option></select></label>
-          <button id="create-spatial-test-entity" type="button" disabled>SPAWN TEST ENTITY</button>
-          <button id="move-spatial-test-entity" type="button" disabled>MOVE SELECTED</button>
-          <button id="remove-spatial-test-entity" type="button" disabled>REMOVE TEST</button>
-          <span id="spatial-test-status" class="dev-note" aria-live="polite">Spatial test tools loading…</span>
+          <button id="open-viewport-database" type="button">DATABASE</button>
+          <label class="toggle-control" for="ambient-light-enabled"><input id="ambient-light-enabled" type="checkbox"><span>Ambient</span></label>
+          <label class="toggle-control" for="test-flashlight-enabled"><input id="test-flashlight-enabled" type="checkbox"><span>Test flashlight</span></label>
+          <label class="control controlled-entity-control"><span>Controlled entity</span><select id="controlled-entity" disabled><option value="">No Pawn selected</option></select></label>
           <input id="workspace-file-input" type="file" accept=".dlcass,application/vnd.cassandra.dev-lab-save+json" hidden>
-          <span class="dev-note">WASD: camera · Wheel: zoom · Middle drag: pan</span>
+          <span class="dev-note">WASD: Pawn / camera · F: Draft · Wheel: zoom · Middle drag: pan</span>
         </section>
         <section class="viewport-panel" aria-label="World viewport" data-paused="true" data-input-mode="paused">
           <canvas id="world-canvas" tabindex="0" aria-label="World viewport. Press Space to pause or resume.">Your browser does not support canvas.</canvas>
           <div class="viewport-crosshair" aria-hidden="true"></div>
-          <aside id="spatial-inspector" class="spatial-inspector" aria-label="Engine spatial inspector">
-            <strong>ENGINE / SPATIAL INSPECTOR</strong>
-            <span id="spatial-cell-label">Select a cell</span>
-            <div class="spatial-inspector-actions">
-              <button id="spatial-neighbors-four" type="button" disabled>4-WAY</button>
-              <button id="spatial-neighbors-eight" type="button" disabled>8-WAY</button>
-              <button id="spatial-radius-manhattan" type="button" disabled>MANHATTAN 2</button>
-              <button id="spatial-radius-chebyshev" type="button" disabled>CHEBYSHEV 2</button>
-              <button id="spatial-footprint" type="button" disabled>FOOTPRINT</button>
-              <button id="spatial-movement-history" type="button" disabled>MOVEMENT HISTORY</button>
-            </div>
-            <div class="spatial-region-controls">
-              <label>MIN X<input id="spatial-region-min-x" type="number" min="0" value="0"></label>
-              <label>MIN Y<input id="spatial-region-min-y" type="number" min="0" value="0"></label>
-              <label>MAX X EXCL.<input id="spatial-region-max-x" type="number" min="1" value="1"></label>
-              <label>MAX Y EXCL.<input id="spatial-region-max-y" type="number" min="1" value="1"></label>
-              <label class="spatial-region-wide">Categories<input id="spatial-region-categories" type="text" placeholder="terrain, structure"></label>
-              <label class="spatial-region-wide">Layers<input id="spatial-region-layers" type="text" placeholder="ground, built"></label>
-              <label class="spatial-region-wide">Entity kinds<input id="spatial-region-kinds" type="text" placeholder="unit, structure"></label>
-              <button id="spatial-region-query" class="spatial-region-wide" type="button">QUERY REGION</button>
-            </div>
-            <pre id="spatial-cell-data">Click a grid cell while paused to inspect its contents and entity occupancy.</pre>
-          </aside>
+          <div class="cassandra-gameplay-ui" data-application-gameplay-ui></div>
           <aside id="pause-menu" class="pause-menu" aria-label="Pause menu" hidden>
             <p class="eyebrow">DEV LAB / PAUSED</p><h2>Workspace Menu</h2>
             <button id="pause-resume" type="button" class="primary-action">RESUME</button>

@@ -2,11 +2,14 @@ import { loadCassandraDatabase } from "../database/load-cassandra-database.js";
 import { createCassandraRuntimeHost } from "./cassandra-runtime-host.js";
 import { createWorldViewport } from "../../shared/presentation/world-viewport.js";
 import { createViewportInputController } from "../../shared/input/viewport-input-controller.js";
+import { createActionMappingController } from "../../engine/input/action-mapping-controller.js";
+import { DEFAULT_CASSANDRA_ACTION_BINDINGS } from "../input/default-action-bindings.js";
 import { LocalFileSaveAdapter, CASSANDRA_SAVE_SLOT, CASSANDRA_SAVE_STATE_ID, CASSANDRA_SAVE_FILE_EXTENSION, CASSANDRA_SAVE_FILE_NAME } from "../../src/adapters/storage/local-file-save-adapter.js";
 import { createFilePersistenceController } from "../../shared/application/file-persistence-controller.js";
 import { createDefinitionCatalogController } from "../../shared/application/definition-catalog-controller.js";
 import { createViewNavigationController } from "../../shared/application/view-navigation-controller.js";
 import { createPauseMenuController } from "../../shared/application/pause-menu-controller.js";
+import { createNewGameFlowController } from "./new-game-flow-controller.js";
 import { getDefinition, listDefinitionIndex, getCategories, loadDefinitionDetail } from "../../engine/database/definition-registry.js";
 import { createCassandraCampaignSessionController } from "./cassandra-campaign-session-controller.js";
 
@@ -32,7 +35,34 @@ const fileInput = document.querySelector("#workspace-file-input");
 const saveStatus = document.querySelector("#workspace-save-status");
 const pauseMenu = document.querySelector("#pause-menu");
 const inputController = createViewportInputController();
-const heldMovementKeys = new Set();
+const ACTION_BINDINGS_STORAGE_KEY = "cassandra.controls.bindings.v1";
+function loadActionBindings() {
+  try {
+    const saved = localStorage.getItem(ACTION_BINDINGS_STORAGE_KEY);
+    return saved ? { ...DEFAULT_CASSANDRA_ACTION_BINDINGS, ...JSON.parse(saved) } : DEFAULT_CASSANDRA_ACTION_BINDINGS;
+  } catch { return DEFAULT_CASSANDRA_ACTION_BINDINGS; }
+}
+let actionController;
+try { actionController = createActionMappingController({ bindings: loadActionBindings() }); }
+catch { actionController = createActionMappingController({ bindings: DEFAULT_CASSANDRA_ACTION_BINDINGS }); }
+function saveActionBindings() {
+  try { localStorage.setItem(ACTION_BINDINGS_STORAGE_KEY, JSON.stringify(actionController.getBindings())); }
+  catch { simulationStatus.textContent = "CONTROLS COULD NOT BE SAVED IN THIS BROWSER"; }
+}
+const actionLabels = { moveNorth: "Move north", moveSouth: "Move south", moveWest: "Move west", moveEast: "Move east", toggleDraft: "Toggle Pawn control", pause: "Pause / Resume", dodge: "Dodge roll", crouch: "Crouch" };
+let capturingAction = null;
+function renderControls() {
+  for (const button of document.querySelectorAll("[data-bind-action]")) {
+    const action = button.dataset.bindAction;
+    button.textContent = capturingAction === action ? "PRESS A KEY…" : (actionController.getBindings()[action] ?? []).map((code) => code.replace(/^Key/, "").replace(/^ShiftLeft$/, "LEFT SHIFT").replace(/^ControlLeft$/, "LEFT CTRL").replace(/^Space$/, "SPACE")).join(" / ");
+    button.setAttribute("aria-label", `Change ${actionLabels[action]} binding`);
+  }
+}
+function captureBinding(action) {
+  capturingAction = action;
+  renderControls();
+  simulationStatus.textContent = `PRESS A KEY FOR ${(actionLabels[action] ?? action).toUpperCase()} · ESC TO CANCEL`;
+}
 const viewport = createWorldViewport({
   canvas,
   sizeSelect: worldSizeSelect,
@@ -86,8 +116,8 @@ function updateSimulationUi() {
   state.gameplayUi?.setPaused(state.paused);
   const controlLabel = state.gameplayApi?.getDraftStatusLabel() ?? "FREE CAMERA";
   simulationStatus.textContent = state.paused
-    ? `PAUSED · ${controlLabel} · Space to resume`
-    : `RUNNING · ${controlLabel} · Space to pause`;
+    ? `PAUSED · ${controlLabel}`
+    : `RUNNING · ${controlLabel}`;
   simulationStatus.dataset.state = state.paused ? "paused" : "running";
   viewportPanel.dataset.paused = String(state.paused);
   viewportPanel.dataset.inputMode = state.paused ? "paused" : "running";
@@ -186,6 +216,7 @@ const navigation = createViewNavigationController({
       state.paused = true;
     }
     inputController.clearForFocusLoss();
+    actionController.clearHeld();
     if (state.clock && !state.clock.hasPauseReason?.("player")) state.clock.pause("player");
     updateSimulationUi();
   },
@@ -197,6 +228,16 @@ const navigation = createViewNavigationController({
   },
   scrollToTop: () => window.scrollTo(0, 0),
   dispatchResize: () => window.dispatchEvent(new Event("resize"))
+});
+
+const newGameFlowController = createNewGameFlowController({
+  navigation,
+  elements: {
+    openButton: document.querySelector("[data-new-game-open]"),
+    nextButton: document.querySelector("[data-new-game-next]"),
+    optionsBackButton: document.querySelector("[data-new-game-options-back]"),
+    characterBackButton: document.querySelector("[data-character-back]")
+  }
 });
 
 let pauseMenuController;
@@ -211,7 +252,6 @@ pauseMenuController = createPauseMenuController({
   navigation,
   canOpen: () => document.body.dataset.currentView === "dev-lab",
   onOpen() {
-    heldMovementKeys.clear();
     inputController.suspendForOverlay();
     state.gameplayUi?.closeProfile();
   },
@@ -229,8 +269,9 @@ function toggleSimulationPause() {
 }
 
 function applyFreeCameraInput(deltaSeconds) {
-  const x = Number(heldMovementKeys.has("KeyD")) - Number(heldMovementKeys.has("KeyA"));
-  const y = Number(heldMovementKeys.has("KeyS")) - Number(heldMovementKeys.has("KeyW"));
+  const actions = actionController.getState();
+  const x = Number(actions.moveEast) - Number(actions.moveWest);
+  const y = Number(actions.moveSouth) - Number(actions.moveNorth);
   if (!x && !y) return;
   const length = Math.hypot(x, y);
   viewport.moveCameraBy((x / length) * 30 * deltaSeconds, (y / length) * 30 * deltaSeconds);
@@ -246,6 +287,15 @@ function isInteractiveTarget(target) {
 }
 
 window.addEventListener("keydown", (event) => {
+  if (capturingAction) {
+    if (event.code === "Escape") { capturingAction = null; renderControls(); }
+    else if (!event.repeat && !event.ctrlKey && !event.altKey && !event.metaKey) {
+      try { actionController.setBinding(capturingAction, [event.code]); saveActionBindings(); capturingAction = null; renderControls(); }
+      catch (error) { simulationStatus.textContent = error.message; }
+    }
+    event.preventDefault();
+    return;
+  }
   if (document.body.dataset.currentView !== "dev-lab") return;
   if (event.code === "Escape" && !event.repeat) {
     event.preventDefault();
@@ -257,39 +307,25 @@ window.addEventListener("keydown", (event) => {
     return;
   }
   if (isTextEntryTarget(event.target) || pauseMenuController.isOpen()) return;
-  if (/^Key[WASD]$/.test(event.code)) {
-    heldMovementKeys.add(event.code);
-    inputController.keyDown(event.code);
-    event.preventDefault();
-    if (state.paused) return;
-  }
   if (isInteractiveTarget(event.target)) return;
-  if (event.code === "Space" && !event.repeat && !event.altKey && !event.ctrlKey && !event.metaKey) {
-    event.preventDefault();
-    toggleSimulationPause();
-    return;
-  }
-  const action = state.gameplayApi?.handleKeyDown(event);
-  if (action) {
-    event.preventDefault();
-    if (action.controlState.drafted && action.controlState.leaderId) {
-      inspectGameplayEntity(action.controlState.leaderId);
-      if (action.leader?.placement?.type === "world"
-        && action.leader.placement.worldId === state.worldRegistry?.activeWorldId) {
-        viewport.setCameraFollowTarget(action.leader.id, action.leader.position);
-      }
+  const mappedKey = Object.values(actionController.getBindings()).some((codes) => codes.includes(event.code));
+  const activated = actionController.keyDown(event.code);
+  if (mappedKey) event.preventDefault();
+  if (activated.includes("pause")) { toggleSimulationPause(); return; }
+  if (activated.includes("toggleDraft")) {
+    const controlState = state.gameplayApi?.toggleDraft();
+    if (controlState?.drafted && controlState.leaderId) {
+      const leader = state.gameplayApi.getUnit(controlState.leaderId);
+      inspectGameplayEntity(controlState.leaderId);
+      if (leader?.placement?.type === "world" && leader.placement.worldId === state.worldRegistry?.activeWorldId) viewport.setCameraFollowTarget(leader.id, leader.position);
     } else clearSelection();
     updateSimulationUi();
-    return;
   }
-  if (!state.paused) {
-    inputController.keyDown(event.code);
-    if (/^(Key[A-Z]|Digit[0-9]|Arrow(Up|Down|Left|Right))$/.test(event.code)) event.preventDefault();
-  }
+  if (!state.paused) inputController.keyDown(event.code);
 });
 
 window.addEventListener("keyup", (event) => {
-  heldMovementKeys.delete(event.code);
+  actionController.keyUp(event.code);
   inputController.keyUp(event.code);
 });
 canvas.addEventListener("pointerdown", (event) => {
@@ -303,7 +339,7 @@ canvas.addEventListener("pointermove", (event) => {
 });
 
 function handleFocusLoss() {
-  heldMovementKeys.clear();
+  actionController.clearHeld();
   if (!state.paused && state.clock) {
     inputController.pause();
     state.clock.pause("player");
@@ -365,6 +401,7 @@ export async function startCassandraApplication() {
     saveAdapter: state.saveAdapter,
     isPackageApplied: (packageId, digest) => campaignSessionApi.isPackageApplied(packageId, digest),
     inputController,
+    actionController,
     onUnitMoved(moved) {
       refreshWorldMarkers();
       viewport.setCameraFollowTarget(moved.entityId, moved.position);
@@ -440,6 +477,7 @@ export async function startCassandraApplication() {
       simulationStatus.textContent = `SIMULATION ERROR · ${error.message}`;
       inputController.pause();
       inputController.clearForFocusLoss();
+      actionController.clearHeld();
     }
   });
   try {
@@ -447,6 +485,9 @@ export async function startCassandraApplication() {
   } catch (error) {
     simulationStatus.textContent = `CASSANDRA STARTUP FAILED · ${error.message}`;
   }
+  renderControls();
+  for (const button of document.querySelectorAll("[data-bind-action]")) button.addEventListener("click", () => captureBinding(button.dataset.bindAction));
+  document.querySelector("#controls-reset")?.addEventListener("click", () => { actionController.replaceBindings(DEFAULT_CASSANDRA_ACTION_BINDINGS); saveActionBindings(); renderControls(); });
   navigation.showView("menu");
-  return Object.freeze({ campaignSessionApi, runtimeHost });
+  return Object.freeze({ campaignSessionApi, runtimeHost, newGameFlowController });
 }

@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="cs">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0b1220">
+    <title>Cassandra · Game</title>
+    <link rel="stylesheet" href="./dev-lab/presentation/dev-world-preview.css">
+    <link rel="stylesheet" href="./cassandra/application/dev-lab-unit-inspector-ui.css">
+    <link rel="stylesheet" href="./cassandra/presentation/new-game-flow.css">
+  </head>
+  <body>
+    <main class="application-shell">
+      <section class="app-view main-menu" data-view="menu">
+        <header class="brand-block">
+          <p class="eyebrow">DEEP SPACE / SURVIVAL SIMULATION</p>
+          <h1>CASSANDRA</h1>
+          <p class="brand-subtitle">A world waiting to be built.</p>
+        </header>
+        <nav class="main-menu-list" aria-label="Main menu">
+          <button class="menu-entry menu-entry-available" type="button" data-new-game-open><span><strong>NEW GAME</strong><small>Start a new sandbox game</small></span><b>OPEN</b></button>
+          <a class="menu-entry menu-entry-active" href="./dev-lab.html"><span><strong>DEV LAB</strong><small>Open the standalone Engine development environment</small></span><b>OPEN</b></a>
+          <button class="menu-entry menu-entry-available" type="button" data-navigate="settings"><span><strong>SETTINGS</strong><small>Controls and application information</small></span><b>OPEN</b></button>
+          <button class="menu-entry" type="button" disabled><span><strong>SAVE / LOAD</strong><small>Saved game management</small></span><b>COMING SOON</b></button>
+          <button class="menu-entry menu-entry-available" type="button" data-navigate="database"><span><strong>DATABASE</strong><small>Inspectable game definitions and attributes</small></span><b>OPEN</b></button>
+          <button class="menu-entry" type="button" disabled><span><strong>ARCHIVE</strong><small>Records and history</small></span><b>COMING SOON</b></button>
+        </nav>
+        <footer class="app-footer"><span>CASSANDRA / GAME APPLICATION</span><span>PHASE 2 · DEVELOPMENT BUILD</span></footer>
+      </section>
+
+      <section class="app-view new-game-view" data-view="new-game-options" hidden>
+        <header class="new-game-header">
+          <div class="new-game-heading">
+            <p class="eyebrow">CASSANDRA / NEW SESSION</p>
+            <h1>New Game Options</h1>
+            <p>Prepare for deployment.</p>
+          </div>
+        </header>
+        <div class="new-game-content">
+          <section class="new-game-reserved" aria-label="Reserved space for future game options">
+            <div class="new-game-reserved-inner">
+              <strong>DEPLOYMENT CONFIGURATION</strong>
+              <span>Additional options will be available here in a future update.</span>
+            </div>
+          </section>
+        </div>
+        <footer class="new-game-actions">
+          <button class="new-game-secondary" type="button" data-new-game-options-back>BACK</button>
+          <button class="new-game-primary" type="button" data-new-game-next>NEXT</button>
+        </footer>
+      </section>
+
+      <section class="app-view new-game-view" data-view="character-selection" hidden>
+        <header class="new-game-header">
+          <div class="new-game-heading">
+            <p class="eyebrow">CASSANDRA / PERSONNEL</p>
+            <h1>Character</h1>
+            <p>Review your Pawn and its service companion.</p>
+          </div>
+        </header>
+        <div class="new-game-content">
+          <div class="character-selection-layout">
+            <div class="character-preview-column">
+              <section class="character-player-preview" aria-label="Player Pawn visual preview placeholder">
+                <span class="character-preview-label">PLAYER PAWN</span>
+                <div class="character-silhouette" aria-hidden="true"></div>
+                <span class="character-preview-caption">VISUAL CUSTOMIZATION NOT AVAILABLE YET</span>
+              </section>
+              <section class="character-companion-preview" aria-label="Separate service robot companion placeholder">
+                <div class="companion-placeholder" aria-hidden="true">SR</div>
+                <div class="companion-copy">
+                  <strong>SERVICE ROBOT</strong>
+                  <span>A separate companion entity. Its appearance and definition will be added later.</span>
+                </div>
+              </section>
+            </div>
+            <section class="character-customization" aria-labelledby="character-customization-title">
+              <p class="eyebrow">APPEARANCE</p>
+              <h2 id="character-customization-title">Character details</h2>
+              <p class="character-customization-intro">Customization is planned for a later update. These categories reserve its future layout; they are not active controls.</p>
+              <div class="character-category-list" aria-label="Planned customization categories">
+                <div class="character-category"><strong>BODY</strong><span>COMING LATER</span></div>
+                <div class="character-category"><strong>HEAD</strong><span>COMING LATER</span></div>
+                <div class="character-category"><strong>HAIR</strong><span>COMING LATER</span></div>
+                <div class="character-category"><strong>CLOTHING</strong><span>COMING LATER</span></div>
+                <div class="character-category"><strong>COLORS</strong><span>COMING LATER</span></div>
+              </div>
+              <p class="character-customization-note">The service robot is a separate game entity, not part of the Pawn's appearance settings.</p>
+            </section>
+          </div>
+        </div>
+        <footer class="new-game-actions">
+          <button class="new-game-secondary" type="button" data-character-back>BACK</button>
+          <button class="new-game-primary" type="button" disabled aria-disabled="true" title="Starting a new game is not implemented yet">START</button>
+        </footer>
+      </section>
+
+      <section class="app-view database-view" data-view="database" data-mode="browse" hidden>
+        <header class="section-header">
+          <div><p class="eyebrow" id="database-mode-label">CASSANDRA / KNOWLEDGE</p><h1>Database</h1><p class="dev-note">One catalog · contextual inspection and selection</p></div>
+          <div class="database-header-actions"><button id="database-select-definition" class="database-select-button" type="button" hidden disabled>SELECT</button><button type="button" class="secondary-button" data-back-menu>← Main menu</button></div>
+        </header>
+        <div class="database-toolbar">
+          <label class="database-search">Search definitions<input id="database-search" type="search" placeholder="Pawn, enemy, wall, material…"></label>
+          <label class="database-filter">Category<select id="database-category"><option value="all">All categories</option></select></label>
+        </div>
+        <div class="database-workspace">
+          <section class="database-index-panel" aria-label="Definition catalog">
+            <div class="database-panel-heading"><strong>CATALOG</strong><span>Registered definitions</span></div>
+            <div id="database-list" class="database-list" aria-live="polite"></div>
+          </section>
+          <section class="database-inspector-panel" aria-label="Selected definition details">
+            <div class="database-panel-heading"><strong>INSPECTOR</strong><span>Complete definition</span></div>
+            <div id="database-inspector" class="database-inspector"><div class="database-inspector-state">Select an entry to inspect its complete definition.</div></div>
+          </section>
+        </div>
+        <footer class="database-footer">
+          <p class="database-footnote">Browse mode is read-only. Canonical definitions are loaded from version-controlled content assets; runtime instances are inspected separately.</p>
+        </footer>
+      </section>
+
+      <section class="app-view settings-view" data-view="settings" hidden>
+        <header class="section-header"><div><p class="eyebrow">CASSANDRA / CONFIGURATION</p><h1>Controls</h1><p class="dev-note">Choose the keys that trigger each game action.</p></div><button id="settings-back" type="button" class="secondary-button">← BACK</button></header>
+        <div class="controls-reference">
+          <section class="controls-group"><h2>MOVEMENT</h2>
+            <div class="control-reference-row"><span>Move north</span><button type="button" data-bind-action="moveNorth"></button></div>
+            <div class="control-reference-row"><span>Move south</span><button type="button" data-bind-action="moveSouth"></button></div>
+            <div class="control-reference-row"><span>Move west</span><button type="button" data-bind-action="moveWest"></button></div>
+            <div class="control-reference-row"><span>Move east</span><button type="button" data-bind-action="moveEast"></button></div>
+          </section>
+          <section class="controls-group"><h2>GAMEPLAY</h2>
+            <div class="control-reference-row"><span>Toggle Pawn control</span><button type="button" data-bind-action="toggleDraft"></button></div>
+            <div class="control-reference-row"><span>Pause / Resume</span><button type="button" data-bind-action="pause"></button></div>
+            <div class="control-reference-row"><span>Dodge roll (planned)</span><button type="button" data-bind-action="dodge"></button></div>
+            <div class="control-reference-row"><span>Crouch (planned)</span><button type="button" data-bind-action="crouch"></button></div>
+          </section>
+          <section class="controls-group"><h2>CAMERA & INTERFACE</h2>
+            <div class="control-reference-row"><span>Zoom</span><kbd>MOUSE WHEEL</kbd></div>
+            <div class="control-reference-row"><span>Pan camera</span><kbd>MIDDLE MOUSE DRAG</kbd></div>
+            <div class="control-reference-row"><span>Inspect / Select object (paused)</span><kbd>LEFT CLICK</kbd></div>
+            <div class="control-reference-row"><span>Close overlay / Cancel</span><kbd>ESC</kbd></div>
+          </section>
+          <button id="controls-reset" type="button" class="secondary-button">RESTORE DEFAULT CONTROLS</button>
+          <p class="dev-note">Click a key assignment and press a new key. Bindings are saved in this browser. Dodge and crouch are reserved actions; their gameplay is not implemented yet.</p>
+        </div>
+      </section>
+
+      <section class="app-view dev-lab-view" data-view="dev-lab" hidden>
+        <header class="dev-header">
+          <div><p class="eyebrow">CASSANDRA / DEVELOPMENT</p><h1>Dev Lab</h1></div>
+          <div class="dev-header-actions"><span class="dev-note">Development environment · isolated from game UI</span><button type="button" class="secondary-button" data-back-menu>← Main menu</button></div>
+        </header>
+        <section class="toolbar" aria-label="World preview controls">
+          <label class="control"><span>World size</span><select id="world-size"><option value="64">64 × 64</option><option value="128" selected>128 × 128</option><option value="256">256 × 256</option></select></label>
+          <label class="toggle-control" for="grid-visible"><input id="grid-visible" type="checkbox" checked><span>Show grid</span></label>
+          <span class="control zoom-readout">Zoom <output id="zoom-value">100%</output></span>
+          <button id="reset-lab" type="button">Reset Lab</button>
+          <button id="open-viewport-database" type="button">DATABASE</button>
+          <input id="workspace-file-input" type="file" accept=".cass,application/vnd.cassandra.save+json" hidden>
+          <span class="dev-note">WASD: move Pawn / camera · Wheel: zoom · Middle drag: pan</span>
+        </section>
+        <section class="viewport-panel" aria-label="World viewport" data-paused="true" data-input-mode="paused"><canvas id="world-canvas" tabindex="0" aria-label="World viewport. Use the configured pause action to pause or resume.">Your browser does not support canvas.</canvas><div class="viewport-crosshair" aria-hidden="true"></div>
+          <aside id="pause-menu" class="pause-menu" aria-label="Pause menu" hidden>
+            <p class="eyebrow">CASSANDRA / PAUSED</p><h2>Pause Menu</h2>
+            <button id="pause-resume" type="button" class="primary-action">RESUME</button>
+            <button id="pause-save" type="button">SAVE</button>
+            <button id="pause-save-as" type="button">SAVE AS</button>
+            <button id="pause-load" type="button">LOAD</button>
+            <span id="workspace-save-status" class="workspace-save-status" aria-live="polite">NO SAVE SELECTED</span>
+            <button id="pause-settings" type="button">SETTINGS</button>
+            <button id="pause-main-menu" type="button" class="secondary-button">MAIN MENU</button>
+          </aside><div class="cassandra-gameplay-ui" data-application-gameplay-ui></div></section>
+        <footer class="status-bar"><span id="world-status">World: 128 × 128</span><span id="view-status">View: calculating…</span><span id="simulation-status" aria-live="polite">PAUSED</span><span id="pointer-status">INSPECTION CURSOR</span><span>Free camera</span></footer>
+        
+      </section>
+      <a class="launcher-return" href="./index.html">← APPLICATION SELECTOR</a>
+    </main>
+    <script type="module" src="./application-entry.js"></script>
+  </body>
+</html>

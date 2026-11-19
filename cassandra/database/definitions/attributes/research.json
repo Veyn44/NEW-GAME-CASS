@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "attribute.research",
+  "name": "Research",
+  "category": "Attributes",
+  "description": "Scientific research and analysis capability.",
+  "attributes": {
+    "defaultValue": 0,
+    "minimumValue": 0,
+    "subAttributes": {
+      "unlockAt": 10,
+      "definitions": []
+    }
+  }
+}

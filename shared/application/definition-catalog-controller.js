@@ -10,6 +10,7 @@ export function createDefinitionCatalogController({
   loadDefinitionDetail,
   canSelectDefinition = () => false,
   onSelectDefinition = () => {},
+  allowBrowseSelection = false,
   documentRef = globalThis.document
 }) {
   if (!elements?.list || !elements?.search || !elements?.category
@@ -60,7 +61,7 @@ export function createDefinitionCatalogController({
   }
 
   function updateSelectButton() {
-    const available = mode === "viewport"
+    const available = (mode === "viewport" || (allowBrowseSelection && mode === "browse"))
       && Boolean(selectedDefinition)
       && Boolean(canSelectDefinition(selectedDefinition));
     selectButton.hidden = !available;
@@ -165,7 +166,7 @@ export function createDefinitionCatalogController({
       "Definition schema": definition.schemaVersion,
       "Entity type": definition.entityType ?? "—",
       Category: definition.category,
-      "Available for": definition.spawnableAs
+      "Spawn capability": definition.spawnableAs?.length ? definition.spawnableAs.join(", ") : "Informational only"
     });
     inspector.append(metadata);
     return definition;
@@ -258,7 +259,8 @@ export function createDefinitionCatalogController({
   }
 
   function selectCurrentDefinition() {
-    if (mode !== "viewport" || !selectedDefinition || !canSelectDefinition(selectedDefinition)) return false;
+    if ((mode !== "viewport" && !(allowBrowseSelection && mode === "browse"))
+      || !selectedDefinition || !canSelectDefinition(selectedDefinition)) return false;
     onSelectDefinition(selectedDefinition);
     return true;
   }

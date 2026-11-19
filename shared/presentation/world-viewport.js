@@ -29,6 +29,7 @@ const context = canvas.getContext("2d");
 
 let worldMarkers = [];
 let spatialHighlightCells = [];
+let illuminationCells = [];
 let selectionEnabled = false;
 let onMarkerSelect = null;
 let onCellInspect = null;
@@ -36,6 +37,8 @@ let selectedMarkerId = null;
 let placementArtwork = null;
 let placementImage = null;
 let placementImageReady = false;
+let onVisibleBoundsChange = null;
+let lastNotifiedVisibleBounds = null;
 function setWorldInteraction({ paused = false, inspectionEnabled = false, onSelect = null, onInspectCell = null } = {}) {
   state.paused = Boolean(paused);
   selectionEnabled = Boolean(inspectionEnabled);
@@ -96,6 +99,7 @@ function setCameraFollowTarget(entityId, position) {
     state.cameraY = position.y;
     clampCamera();
     render();
+    notifyVisibleBoundsChanged();
   }
 }
 
@@ -109,6 +113,7 @@ function resetCameraToWorld(worldWidth = state.worldSize) {
   state.zoom = 1;
   clampCamera();
   render();
+  notifyVisibleBoundsChanged();
   return true;
 }
 
@@ -118,6 +123,7 @@ function moveCameraBy(deltaX, deltaY) {
   state.cameraY += deltaY;
   clampCamera();
   render();
+  notifyVisibleBoundsChanged();
   return true;
 }
 
@@ -132,6 +138,19 @@ function setWorldMarkers(markers) {
   if (selectedMarkerId && !worldMarkers.some((marker) => marker.id === selectedMarkerId)) {
     selectedMarkerId = null;
   }
+  render();
+}
+
+function setIllumination(cells = []) {
+  if (!Array.isArray(cells)) throw new TypeError("Illumination must be an array of cell contributions.");
+  illuminationCells = cells.filter((entry) => entry?.cell
+    && Number.isSafeInteger(entry.cell.x) && Number.isSafeInteger(entry.cell.y)
+    && Number.isFinite(entry.intensity) && entry.intensity >= 0
+  ).map((entry) => ({
+    cell: { x: entry.cell.x, y: entry.cell.y },
+    intensity: entry.intensity,
+    contributions: Array.isArray(entry.contributions) ? entry.contributions : []
+  }));
   render();
 }
 
@@ -169,12 +188,45 @@ function resizeCanvas() {
   canvas.height = Math.round(bounds.height * pixelRatio);
   context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
   render();
+  notifyVisibleBoundsChanged();
 }
 
 function visibleDimensions() {
   const bounds = canvas.getBoundingClientRect();
   const aspectRatio = bounds.width / Math.max(1, bounds.height);
   return getVisibleDimensions(state.zoom, aspectRatio);
+}
+
+function getVisibleWorldBounds() {
+  clampCamera();
+  const view = visibleDimensions();
+  const left = state.cameraX - view.columns / 2;
+  const top = state.cameraY - view.rows / 2;
+  return Object.freeze({
+    minX: Math.max(0, Math.floor(left)),
+    minY: Math.max(0, Math.floor(top)),
+    maxX: Math.min(state.worldSize, Math.ceil(left + view.columns)),
+    maxY: Math.min(state.worldSize, Math.ceil(top + view.rows))
+  });
+}
+
+function setVisibleBoundsChangeHandler(handler) {
+  if (handler !== null && typeof handler !== "function") {
+    throw new TypeError("Visible bounds change handler must be a function or null.");
+  }
+  onVisibleBoundsChange = handler;
+  lastNotifiedVisibleBounds = getVisibleWorldBounds();
+}
+
+function notifyVisibleBoundsChanged() {
+  if (!onVisibleBoundsChange) return;
+  const bounds = getVisibleWorldBounds();
+  const previous = lastNotifiedVisibleBounds;
+  if (previous
+    && previous.minX === bounds.minX && previous.minY === bounds.minY
+    && previous.maxX === bounds.maxX && previous.maxY === bounds.maxY) return;
+  lastNotifiedVisibleBounds = bounds;
+  onVisibleBoundsChange(bounds);
 }
 
 function clampCamera() {
@@ -248,6 +300,24 @@ function render() {
   context.lineWidth = 1.5;
   context.strokeRect(worldLeft, worldTop, state.worldSize * cellWidth, state.worldSize * cellHeight);
   context.globalAlpha = 1;
+
+  if (illuminationCells.length) {
+    context.save();
+    for (const entry of illuminationCells) {
+      const cellX = (entry.cell.x - left) * cellWidth;
+      const cellY = (entry.cell.y - top) * cellHeight;
+      if (cellX + cellWidth < 0 || cellX > width || cellY + cellHeight < 0 || cellY > height) continue;
+      const total = entry.contributions.reduce((sum, item) => sum + item.intensity, 0);
+      if (total <= 0) continue;
+      const red = Math.round(entry.contributions.reduce((sum, item) => sum + item.color.r * item.intensity, 0) / total);
+      const green = Math.round(entry.contributions.reduce((sum, item) => sum + item.color.g * item.intensity, 0) / total);
+      const blue = Math.round(entry.contributions.reduce((sum, item) => sum + item.color.b * item.intensity, 0) / total);
+      const alpha = Math.min(0.72, 0.12 + entry.intensity * 0.48);
+      context.fillStyle = `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+      context.fillRect(cellX, cellY, cellWidth + 0.5, cellHeight + 0.5);
+    }
+    context.restore();
+  }
 
   if (spatialHighlightCells.length) {
     context.save();
@@ -355,6 +425,7 @@ function updateZoom(value, anchor = { x: 0.5, y: 0.5 }) {
   state.cameraY = worldAnchorY - offsetY * nextView.rows;
   clampCamera();
   render();
+  notifyVisibleBoundsChanged();
 }
 
 sizeSelect.addEventListener("change", () => {
@@ -447,7 +518,10 @@ canvas.addEventListener("pointermove", (event) => {
     state.pointerY = event.clientY;
     clampCamera();
   }
-  if (state.dragging) render();
+  if (state.dragging) {
+    render();
+    notifyVisibleBoundsChanged();
+  }
 });
 canvas.addEventListener("pointerleave", () => {
   if (pointerOverlay) pointerOverlay.dataset.pointerInside = "false";
@@ -481,6 +555,7 @@ resizeCanvas();
 
   return Object.freeze({
     setWorldInteraction,
+    setVisibleBoundsChangeHandler,
     setWorldPlacement,
     cancelWorldPlacement,
     setCameraFollowTarget,
@@ -489,6 +564,8 @@ resizeCanvas();
     setSelectedWorldMarker,
     setWorldMarkers,
     setSpatialHighlights,
+    setIllumination,
+    getVisibleWorldBounds,
     getState() {
       return Object.freeze({
         worldSize: state.worldSize,

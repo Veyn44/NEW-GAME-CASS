@@ -1,11 +1,10 @@
 const SNAPSHOT_VERSION = 1;
-const MOVE_SPEED_TILES_PER_SECOND = 4;
 
 function freezeState(leaderId, drafted) {
   return Object.freeze({ leaderId, drafted: Boolean(drafted) });
 }
 
-export function createColonyControlSystem() {
+export function createColonyControlSystem({ getMovementSpeed = () => null } = {}) {
   let units;
   let input;
   let worlds;
@@ -53,17 +52,20 @@ export function createColonyControlSystem() {
         state = freezeState(state.leaderId, false);
         return null;
       }
-      const keys = new Set(input.getState().keys);
-      let x = Number(keys.has("KeyD")) - Number(keys.has("KeyA"));
-      let y = Number(keys.has("KeyS")) - Number(keys.has("KeyW"));
+      const actions = input.getActions() ?? {};
+      const movementSpeed = getMovementSpeed(leader.id);
+      if (!Number.isFinite(movementSpeed) || movementSpeed < 0) return null;
+      // Missing/unmapped actions are inactive, never numeric NaN values.
+      let x = Number(actions.moveEast === true) - Number(actions.moveWest === true);
+      let y = Number(actions.moveSouth === true) - Number(actions.moveNorth === true);
       if (x === 0 && y === 0) return null;
       const length = Math.hypot(x, y);
       x /= length;
       y /= length;
       const position = leader.position;
       const moved = units.moveUnit(leader.id, {
-        x: position.x + x * MOVE_SPEED_TILES_PER_SECOND * deltaSeconds,
-        y: position.y + y * MOVE_SPEED_TILES_PER_SECOND * deltaSeconds
+        x: position.x + x * movementSpeed * deltaSeconds,
+        y: position.y + y * movementSpeed * deltaSeconds
       });
       return Object.freeze({ entityId: leader.id, position: moved.position, placement: moved.placement });
     }
@@ -133,4 +135,3 @@ export function createColonyControlSystem() {
   });
 }
 
-export const COLONY_LEADER_MOVE_SPEED = MOVE_SPEED_TILES_PER_SECOND;

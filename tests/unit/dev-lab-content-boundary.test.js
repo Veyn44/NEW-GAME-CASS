@@ -28,12 +28,13 @@ test("Dev Lab delegates runtime lifecycle and frame scheduling to the shared hos
   assert.ok(host.includes("runtime.destroy()"));
 });
 
-test("Dev Lab shell has no Cassandra or game-system imports", async () => {
+test("Dev Lab shell uses application-owned gameplay contracts while runtime composes gameplay systems", async () => {
   const source = await read("../../dev-lab/application/application-shell.js");
-  assert.equal(source.includes("/cassandra/"), false);
-  assert.equal(source.includes("/src/gameplay/"), false);
-  assert.equal(source.includes("createUnitSystem"), false);
-  assert.equal(source.includes("createColonyControlSystem"), false);
+  assert.ok(source.includes("createCassandraDevLabGameplayController"));
+  assert.ok(source.includes("createCassandraDevLabUnitInspectorUi"));
+  const runtime = await read("../../dev-lab/application/create-dev-lab-runtime.js");
+  assert.ok(runtime.includes("createUnitSystem"));
+  assert.ok(runtime.includes("createColonyControlSystem"));
   assert.ok(source.includes("createRuntime = createDevLabRuntime"));
   assert.ok(source.includes("export async function startDevLab("));
 });
@@ -63,35 +64,41 @@ test("standalone Dev Lab entry and page do not load Cassandra application code",
   const entry = await read("../../dev-lab/application/standalone-entry.js");
   const html = await read("../../dev-lab.html");
   assert.ok(entry.includes('from "./application-shell.js"'));
-  assert.ok(entry.includes("await startDevLab()"));
-  assert.equal(entry.toLowerCase().includes("cassandra/"), false);
+  assert.ok(entry.includes("await startDevLab({ loadContentPackage: loadCassandraDatabase })"));
+  assert.ok(entry.includes("../../cassandra/database/load-cassandra-database.js"));
+  assert.equal(entry.includes("cassandra-application-shell"), false);
+  assert.equal(entry.includes("cassandra-runtime-host"), false);
   assert.ok(html.includes("standalone-entry.js"));
   assert.ok(html.includes('accept=".dlcass,application/vnd.cassandra.dev-lab-save+json"'));
   assert.ok(html.includes('data-view="dev-lab"'));
   assert.equal(html.includes("application-entry.js"), false);
-  assert.equal(html.toLowerCase().includes("cassandra/"), false);
+  assert.ok(html.includes("./cassandra/application/dev-lab-unit-inspector-ui.css"));
 });
 
-test("Dev Lab has a standalone Engine runtime without Cassandra gameplay imports", async () => {
+test("Dev Lab runtime composes Engine infrastructure with required Pawn gameplay systems", async () => {
   const source = await read("../../dev-lab/application/create-dev-lab-runtime.js");
   assert.ok(source.includes("createGameRuntime"));
   assert.ok(source.includes('systemId: "dev-lab.free-camera"'));
-  assert.equal(source.includes("/src/gameplay/"), false);
-  assert.equal(source.includes("/cassandra/"), false);
+  assert.ok(source.includes("../../src/gameplay/unit/unit-system.js"));
+  assert.ok(source.includes("../../src/gameplay/colony/colony-control-system.js"));
+  assert.ok(source.includes("../../cassandra/application/dev-lab-gameplay-controller.js"));
+  assert.equal(source.includes("createCassandraWorldSessionSystem"), false);
+  assert.equal(source.includes("createCassandraExpeditionProjectionSystem"), false);
 });
 
-test("Dev Lab shell consumes a gameplay adapter instead of Cassandra Unit/Colony APIs", async () => {
+test("Dev Lab shell receives the original Cassandra gameplay adapter contract", async () => {
   const source = await read("../../dev-lab/application/application-shell.js");
   assert.ok(source.includes("gameplayApi"));
   assert.equal(source.includes("pawn.johny"), false);
-  assert.equal(source.includes("game.unit-api"), false);
-  assert.equal(source.includes("game.colony-control-api"), false);
+  assert.ok(source.includes("game.unit-api"));
+  assert.ok(source.includes("game.colony-control-api"));
 });
 
 test("Cassandra gameplay adapter owns Draft binding and Pawn-specific placement policy", async () => {
   const source = await read("../../cassandra/application/dev-lab-gameplay-controller.js");
   assert.ok(source.includes("KeyF"));
-  assert.ok(source.includes("pawn.johny"));
+  assert.ok(source.includes("pawnRuntimeApi.getPawn(entityId)"));
+  assert.ok(source.includes("setControlledEntity"));
   assert.ok(source.includes("toggleDraft"));
 });
 
@@ -105,13 +112,11 @@ test("Cassandra runtime resolver exposes one gameplay adapter contract", async (
   assert.equal(/^\s{4}(?:unitApi|colonyControlApi|inputApi):/m.test(exposedServices), false);
 });
 
-test("Dev Lab delegates Unit inspection UI and contains no Cassandra inspector markup", async () => {
+test("Dev Lab mounts Cassandra-owned Unit inspection UI through its application contract", async () => {
   const source = await read("../../dev-lab/application/application-shell.js");
   assert.ok(source.includes("gameplayUi"));
   assert.ok(source.includes("inspectGameplayEntity"));
-  for (const forbidden of ["quickSelect", "unitProfile", "quick-select", "unit-profile", "selectedUnitId", "selectedObject"]) {
-    assert.equal(source.includes(forbidden), false);
-  }
+  assert.ok(source.includes("createCassandraDevLabUnitInspectorUi"));
   const entry = await read("../../cassandra/application/cassandra-application-shell.js");
   const runtimeHost = await read("../../cassandra/application/cassandra-runtime-host.js");
   assert.ok(runtimeHost.includes("createCassandraDevLabUnitInspectorUi"));
@@ -301,10 +306,11 @@ test("shared presentation and application controllers do not depend on either ap
 });
 
 
-test("spatial inspection and test controls belong only to standalone Dev Lab", async () => {
+test("unrequested spatial inspector and test-entity controls are absent from both application UIs", async () => {
   const cassandraHtml = await read("../../index.html");
   const devLabHtml = await read("../../dev-lab.html");
-  const requiredIds = [
+  const devLabShell = await read("../../dev-lab/application/application-shell.js");
+  const forbiddenIds = [
     "spatial-cell-label", "spatial-cell-data", "test-entity-footprint",
     "create-spatial-test-entity", "move-spatial-test-entity", "remove-spatial-test-entity",
     "spatial-test-status", "spatial-neighbors-four", "spatial-neighbors-eight",
@@ -313,10 +319,78 @@ test("spatial inspection and test controls belong only to standalone Dev Lab", a
     "spatial-region-max-x", "spatial-region-max-y", "spatial-region-categories",
     "spatial-region-layers", "spatial-region-kinds", "spatial-region-query"
   ];
-  for (const id of requiredIds) {
-    assert.ok(devLabHtml.includes(`id="${id}"`), `Standalone Dev Lab must provide #${id}`);
-    assert.equal(cassandraHtml.includes(`id="${id}"`), false, `Cassandra must not expose Dev Lab control #${id}`);
+  for (const id of forbiddenIds) {
+    assert.equal(devLabHtml.includes(`id="${id}"`), false, `Dev Lab must not expose #${id}`);
+    assert.equal(cassandraHtml.includes(`id="${id}"`), false, `Cassandra must not expose #${id}`);
   }
-  assert.ok(devLabHtml.includes('id="spatial-inspector"'));
-  assert.equal(cassandraHtml.includes('id="spatial-inspector"'), false);
+  assert.equal(devLabHtml.includes('id="spatial-inspector"'), false);
+  for (const forbidden of [
+    "SpatialTestController", "spatial-inspector.js", "spatial-test-controller.js",
+    "createSpatialTestEntity", "inspectSpatialCell", "updateSpatialTestControls",
+    "querySelectedSpatial", "querySpatialMovementHistory", "setSpatialHighlights"
+  ]) assert.equal(devLabShell.includes(forbidden), false, `Dev Lab shell must not include ${forbidden}`);
+});
+
+test("standalone Dev Lab registers the existing Cassandra content package without Cassandra gameplay runtime", async () => {
+  const entry = await read("../../dev-lab/application/standalone-entry.js");
+  const content = await read("../../cassandra/database/load-cassandra-database.js");
+  const johny = await read("../../cassandra/database/definitions/pawns/johny.json");
+  const shell = await read("../../dev-lab/application/application-shell.js");
+  assert.ok(entry.includes("loadCassandraDatabase"));
+  assert.ok(entry.includes("loadContentPackage: loadCassandraDatabase"));
+  assert.ok(content.includes('id: "cassandra.base-content"'));
+  assert.ok(johny.includes('"id": "pawn.johny"'));
+  assert.ok(johny.includes('"name": "Johny"'));
+  assert.ok(shell.includes("createCassandraDevLabGameplayController"));
+  assert.ok(shell.includes("createCassandraDevLabUnitInspectorUi"));
+  assert.equal(shell.includes("createCassandraWorldSessionSystem"), false);
+});
+
+test("standalone Dev Lab uses Cassandra gameplay systems for real Pawn instances", async () => {
+  const runtime = await read("../../dev-lab/application/create-dev-lab-runtime.js");
+  const shell = await read("../../dev-lab/application/application-shell.js");
+  const gameplay = await read("../../cassandra/application/dev-lab-gameplay-controller.js");
+  assert.ok(runtime.includes("createUnitSystem"));
+  assert.ok(runtime.includes("createColonyControlSystem"));
+  assert.ok(runtime.includes("createCassandraDevLabGameplayController"));
+  assert.ok(shell.includes("createCassandraDevLabGameplayController"));
+  assert.ok(shell.includes("createCassandraDevLabUnitInspectorUi"));
+  assert.ok(gameplay.includes('event?.code !== "KeyF"'));
+  assert.ok(gameplay.includes("colonyControlApi.toggleDraft()"));
+  assert.ok(gameplay.includes("colonyControlApi.update(deltaSeconds)"));
+  assert.equal(runtime.includes("createCassandraWorldSessionSystem"), false);
+  assert.equal(runtime.includes("createCassandraExpeditionProjectionSystem"), false);
+});
+
+test("standalone Dev Lab restores Cassandra Pawn control systems without campaign runtime", async () => {
+  const runtime = await read("../../dev-lab/application/create-dev-lab-runtime.js");
+  const shell = await read("../../dev-lab/application/application-shell.js");
+  const html = await read("../../dev-lab.html");
+  assert.ok(runtime.includes("createInputSystem"));
+  assert.ok(runtime.includes("createUnitSystem"));
+  assert.ok(runtime.includes("createColonyControlSystem"));
+  assert.ok(runtime.includes("createCassandraDevLabGameplayController"));
+  assert.ok(runtime.includes("gameplayController.update(deltaSeconds)"));
+  assert.ok(shell.includes("createCassandraDevLabUnitInspectorUi"));
+  assert.ok(shell.includes('document.querySelector("#controlled-entity")'));
+  assert.ok(shell.includes("refreshControlledEntityOptions"));
+  assert.ok(shell.includes("handleKeyDown(event)"));
+  assert.ok(html.includes('id="controlled-entity"'));
+  assert.ok(html.includes('data-application-gameplay-ui'));
+  assert.ok(html.includes("dev-lab-unit-inspector-ui.css"));
+  assert.equal(runtime.includes("createCassandraWorldSessionSystem"), false);
+  assert.equal(runtime.includes("createCassandraExpeditionProjectionSystem"), false);
+});
+
+
+test("Dev Lab keeps the restored Pawn placement path independent from pointer-facing controls", async () => {
+  const shell = await read("../../dev-lab/application/application-shell.js");
+  const viewport = await read("../../shared/presentation/world-viewport.js");
+  const gameplay = await read("../../cassandra/application/dev-lab-gameplay-controller.js");
+  assert.ok(shell.includes("state.lightingApi.calculateIllumination({ worldId })"));
+  assert.ok(shell.includes("const leaderId = state.gameplayApi?.getControlState()?.leaderId"));
+  assert.ok(shell.includes("state.gameplayApi.getUnit(leaderId)"));
+  assert.equal(shell.includes("setWorldPointerMoveHandler"), false);
+  assert.equal(viewport.includes("screenPointToWorldPosition"), false);
+  assert.equal(gameplay.includes("function setFacing(entityId, angle)"), false);
 });

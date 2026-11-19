@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "attribute.combat",
+  "name": "Combat",
+  "category": "Attributes",
+  "description": "General combat capability.",
+  "attributes": {
+    "defaultValue": 0,
+    "minimumValue": 0,
+    "subAttributes": {
+      "unlockAt": 10,
+      "definitions": []
+    }
+  }
+}

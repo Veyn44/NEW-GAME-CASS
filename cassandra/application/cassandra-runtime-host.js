@@ -5,6 +5,7 @@ import { createUnitSystem } from "../../src/gameplay/unit/unit-system.js";
 import { createColonyControlSystem } from "../../src/gameplay/colony/colony-control-system.js";
 import { createCassandraWorldSessionSystem } from "../../src/gameplay/world/cassandra-world-session-system.js";
 import { createCassandraExpeditionProjectionSystem } from "../../src/gameplay/expedition/cassandra-expedition-projection-system.js";
+import { createPawnRuntimeSystem } from "../gameplay/pawn/pawn-runtime-system.js";
 import { createCassandraDevLabGameplayController } from "./dev-lab-gameplay-controller.js";
 import { createCassandraDevLabUnitInspectorUi } from "./dev-lab-unit-inspector-ui.js";
 import { createApplicationRuntimeHost } from "../../shared/application/runtime-host.js";
@@ -13,27 +14,32 @@ import { createApplicationRuntimeHost } from "../../shared/application/runtime-h
 export function createCassandraRuntime({
   saveAdapter,
   inputController,
+  actionController,
   isPackageApplied = null,
   onUnitMoved,
   updateFreeCamera
 } = {}) {
   let gameplayController = null;
+  let pawnRuntimeApi = null;
   return createGameRuntime({
     saveAdapter,
     fixedStepSeconds: 1 / 60,
     maxStepsPerFrame: 120,
     hostSystems: [
-      createInputSystem({ inputController }),
+      createInputSystem({ inputController, actionController }),
       createUnitSystem({ definitionLookup: getDefinition }),
-      createColonyControlSystem(),
+      createPawnRuntimeSystem({ definitionLookup: getDefinition }),
+      createColonyControlSystem({ getMovementSpeed: (entityId) => pawnRuntimeApi?.getPawn(entityId)?.profile?.movement?.movementSpeed ?? null }),
       createCassandraWorldSessionSystem({ isPackageApplied }),
       createCassandraExpeditionProjectionSystem()
     ],
     simulationTasks: [{
       systemId: "game.colony-control",
       update({ deltaSeconds, tick, context }) {
+        pawnRuntimeApi ??= context.getService("cassandra.pawn-runtime-api");
         gameplayController ??= createCassandraDevLabGameplayController({
           unitApi: context.getService("game.unit-api"),
+          pawnRuntimeApi: context.getService("cassandra.pawn-runtime-api"),
           colonyControlApi: context.getService("game.colony-control-api"),
           worldRegistry: context.getService("core.world-registry")
         });
@@ -53,6 +59,7 @@ export function resolveCassandraRuntimeServices(context) {
   const worldRegistry = context.getService("core.world-registry");
   const gameplayApi = createCassandraDevLabGameplayController({
     unitApi: context.getService("game.unit-api"),
+    pawnRuntimeApi: context.getService("cassandra.pawn-runtime-api"),
     colonyControlApi: context.getService("game.colony-control-api"),
     worldRegistry
   });
@@ -66,6 +73,7 @@ export function resolveCassandraRuntimeServices(context) {
     clock: context.getService("core.game-clock"),
     worldSessionApi: context.getService("game.world-session-api"),
     expeditionProjectionApi: context.getService("game.expedition-projection-api"),
+    pawnRuntimeApi: context.getService("cassandra.pawn-runtime-api"),
     gameplayApi,
     gameplayUi
   };
@@ -80,6 +88,7 @@ export function createCassandraRuntimeHost({
   resolveRuntimeServices = resolveCassandraRuntimeServices,
   saveAdapter,
   inputController,
+  actionController,
   isPackageApplied = null,
   onUnitMoved,
   updateFreeCamera,
@@ -94,7 +103,7 @@ export function createCassandraRuntimeHost({
   return createApplicationRuntimeHost({
     createRuntime: (options) => createRuntime(options),
     resolveRuntimeServices,
-    runtimeOptions: { saveAdapter, inputController, isPackageApplied, onUnitMoved, updateFreeCamera },
+    runtimeOptions: { saveAdapter, inputController, actionController, isPackageApplied, onUnitMoved, updateFreeCamera },
     requestFrame,
     cancelFrame,
     shouldAdvance,

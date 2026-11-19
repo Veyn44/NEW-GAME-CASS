@@ -1,5 +1,3 @@
-const PAUSE_KEY = "Space";
-
 /**
  * Keeps physical input state separate from permission to apply it to gameplay.
  *
@@ -104,7 +102,7 @@ export function createViewportInputController({
   }
 
   function keyDown(code) {
-    if (code === PAUSE_KEY || (allowedKeys && !allowedKeys.has(code)) || physicalKeys.has(code)) return false;
+    if ((allowedKeys && !allowedKeys.has(code)) || physicalKeys.has(code)) return false;
     physicalKeys.add(code);
     if (paused) {
       if (inspecting) {

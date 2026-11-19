@@ -2,15 +2,16 @@
  * Cassandra's Dev Lab gameplay adapter.
  *
  * The Dev Lab shell talks to this application-owned contract rather than
- * depending on Unit and Colony Control service shapes or Cassandra bindings.
+ * depending on Unit, Pawn Runtime and Colony Control service shapes.
  */
 export function createCassandraDevLabGameplayController({
   unitApi,
+  pawnRuntimeApi,
   colonyControlApi,
   worldRegistry
 } = {}) {
-  if (!unitApi || !colonyControlApi || !worldRegistry) {
-    throw new TypeError("Cassandra gameplay controller requires Unit, Colony Control and World services.");
+  if (!unitApi || !pawnRuntimeApi || !colonyControlApi || !worldRegistry) {
+    throw new TypeError("Cassandra gameplay controller requires Unit, Pawn Runtime, Colony Control and World services.");
   }
 
   function getControlState() {
@@ -19,10 +20,40 @@ export function createCassandraDevLabGameplayController({
 
   function createUnit(options) {
     const unit = unitApi.createUnit(options);
-    if (options?.definitionId === "pawn.johny" && !getControlState().leaderId) {
-      colonyControlApi.setLeader(unit.id);
+    try {
+      const pawn = pawnRuntimeApi.initializePawn(unit.id);
+      if (pawn && !getControlState().leaderId) {
+        colonyControlApi.setLeader(unit.id);
+      }
+      return unit;
+    } catch (error) {
+      // Preserve the initialization failure. A rollback failure is secondary and
+      // must never replace the error that explains why spawning was rejected.
+      try {
+        unitApi.removeUnit(unit.id);
+      } catch (rollbackError) {
+        if (error && typeof error === "object" && Object.isExtensible(error)) {
+          error.rollbackError = rollbackError;
+        }
+      }
+      throw error;
     }
-    return unit;
+  }
+
+  function setControlledEntity(entityId) {
+    if (entityId === null || entityId === "") {
+      colonyControlApi.setDrafted(false);
+      colonyControlApi.setLeader(null);
+      return getControlState();
+    }
+    const pawn = pawnRuntimeApi.getPawn(entityId);
+    const unit = pawn ? unitApi.getUnit(entityId) : null;
+    if (!pawn || !unit?.placement || unit.placement.type !== "world"
+      || unit.placement.worldId !== worldRegistry.activeWorldId) {
+      throw new Error("Controlled entity must be a spawned Pawn in the active world.");
+    }
+    colonyControlApi.setLeader(entityId);
+    return getControlState();
   }
 
   function handleKeyDown(event) {
@@ -54,16 +85,23 @@ export function createCassandraDevLabGameplayController({
     getUnit(id) {
       return unitApi.getUnit(id);
     },
+    getPawn(id) {
+      return pawnRuntimeApi.getPawn(id);
+    },
     listUnits() {
       return unitApi.listUnits();
+    },
+    listPawns() {
+      return pawnRuntimeApi.listPawns();
     },
     createUnit,
     removeUnit(id) {
       return unitApi.removeUnit(id);
     },
     setLeader(id) {
-      return colonyControlApi.setLeader(id);
+      return setControlledEntity(id);
     },
+    setControlledEntity,
     setDrafted(value) {
       return colonyControlApi.setDrafted(value);
     },

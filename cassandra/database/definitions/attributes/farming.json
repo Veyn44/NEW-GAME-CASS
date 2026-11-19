@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "attribute.farming",
+  "name": "Farming",
+  "category": "Attributes",
+  "description": "Agriculture, cultivation and food production capability.",
+  "attributes": {
+    "defaultValue": 0,
+    "minimumValue": 0,
+    "subAttributes": {
+      "unlockAt": 10,
+      "definitions": []
+    }
+  }
+}

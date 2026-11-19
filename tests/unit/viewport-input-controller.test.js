@@ -130,3 +130,10 @@ test("a paused left click enters inspection and discards held gameplay input", (
   input.resume();
   assert.deepEqual(input.getState().keys, []);
 });
+
+test("physical input controller does not reserve Space for pause semantics", () => {
+  const input = createViewportInputController();
+  input.resume();
+  assert.equal(input.keyDown("Space"), true);
+  assert.deepEqual(input.getState().keys, ["Space"]);
+});
