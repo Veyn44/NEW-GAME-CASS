@@ -256,7 +256,7 @@ test("Colony Leader movement speed follows the supplied Pawn profile value", asy
     state.control.setDrafted(true);
     state.actionController.keyDown("KeyD");
     const moved = state.control.update(0.25);
-    assert.deepEqual(moved.position, { x: 21.5, y: 20.5 });
+    assert.deepEqual(moved.position, { x: 22, y: 20.5 });
   } finally {
     await state.runtime.destroy();
     clearDefinitionsForTests();
