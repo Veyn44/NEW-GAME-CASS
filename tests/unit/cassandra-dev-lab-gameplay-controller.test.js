@@ -42,7 +42,7 @@ function setup({ failPawnInitialization = false } = {}) {
   return { controller, units, initializedPawns, getState, get updates() { return updates; }, get leaderId() { return leaderId; } };
 }
 
-test("placing Johny initializes Pawn runtime and assigns Colony Leader only when none exists", () => {
+test("placing any Pawn initializes Pawn runtime and assigns Colony Leader only when none exists", () => {
   const state = setup();
   const first = state.controller.createUnit({ definitionId: "pawn.johny", worldId: "test-world", position: { x: 1, y: 2 } });
   assert.equal(state.leaderId, first.id);
@@ -96,4 +96,16 @@ test("only definitions explicitly marked as world Units can be spawned from the 
   assert.equal(state.controller.canPlaceDefinition({ id: "pawn.johny", spawnableAs: ["unit"] }), true);
   assert.equal(state.controller.canPlaceDefinition({ id: "attribute.medicine", spawnableAs: [] }), false);
   assert.equal(state.controller.canPlaceDefinition({ id: "attribute.medicine" }), false);
+});
+
+
+test("F drafts a selected Pawn definition instead of being restricted to Johny", () => {
+  const state = setup();
+  const johny = state.controller.createUnit({ definitionId: "pawn.johny", worldId: "test-world", position: { x: 1, y: 2 } });
+  const observer = state.controller.createUnit({ definitionId: "pawn.test.observer", worldId: "test-world", position: { x: 4, y: 5 } });
+  const action = state.controller.handleKeyDown({ code: "KeyF", repeat: false }, observer.id);
+  assert.equal(action.controlState.leaderId, observer.id);
+  assert.equal(action.controlState.drafted, true);
+  assert.equal(action.leader.id, observer.id);
+  assert.notEqual(action.leader.id, johny.id);
 });
