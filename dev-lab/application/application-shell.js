@@ -190,33 +190,57 @@ pauseMenuController = createPauseMenuController({
   },
   onVisibilityChange: updateSimulationUi
 });
+function syncTestLight(lightId, worldId, definition) {
+  let existing = state.lightingApi.getLight(lightId);
+
+  if (!definition) {
+    if (existing) state.lightingApi.removeLight(lightId);
+    return;
+  }
+
+  // Light IDs are global. If the active world changed, the old registration
+  // must be replaced because updateLight deliberately cannot change worldId.
+  if (existing && existing.worldId !== worldId) {
+    state.lightingApi.removeLight(lightId);
+    existing = null;
+  }
+
+  if (existing) {
+    state.lightingApi.updateLight(lightId, definition);
+  } else {
+    state.lightingApi.addLight({ id: lightId, worldId, ...definition });
+  }
+}
+
 function refreshLighting() {
   if (!state.lightingApi || !state.worldRegistry) return;
   const worldId = state.worldRegistry.activeWorldId;
-  const existing = state.lightingApi.listLights({ worldId });
-  for (const light of existing) {
-    if (light.id === "dev-lab:ambient-test" || light.id === "dev-lab:flashlight-test") {
-      state.lightingApi.removeLight(light.id);
-    }
-  }
-  if (ambientLightToggle?.checked) {
-    state.lightingApi.addLight({
-      id: "dev-lab:ambient-test", worldId, type: "ambient",
-      intensity: 0.18, color: { r: 112, g: 132, b: 166 }, enabled: true
-    });
-  }
-  if (testFlashlightToggle?.checked) {
-    const leaderId = state.gameplayApi?.getControlState()?.leaderId;
-    const pawn = leaderId ? state.gameplayApi.getUnit(leaderId) : null;
-    const position = pawn?.position;
-    if (position) state.lightingApi.addLight({
-      id: "dev-lab:flashlight-test", worldId, type: "spot",
+
+  syncTestLight("dev-lab:ambient-test", worldId, ambientLightToggle?.checked ? {
+    type: "ambient",
+    intensity: 0.18,
+    color: { r: 112, g: 132, b: 166 },
+    enabled: true
+  } : null);
+
+  const leaderId = state.gameplayApi?.getControlState()?.leaderId;
+  const pawn = leaderId ? state.gameplayApi.getUnit(leaderId) : null;
+  const position = pawn?.position;
+  syncTestLight("dev-lab:flashlight-test", worldId,
+    testFlashlightToggle?.checked && position ? {
+      type: "spot",
       position: { x: position.x, y: position.y },
-      direction: 0, innerAngle: Math.PI / 5, outerAngle: Math.PI / 2,
-      intensity: 1.4, color: { r: 255, g: 222, b: 160 },
-      innerRadius: 5, radius: 18, castsShadows: true
-    });
-  }
+      direction: 0,
+      innerAngle: Math.PI / 5,
+      outerAngle: Math.PI / 2,
+      intensity: 1.4,
+      color: { r: 255, g: 222, b: 160 },
+      innerRadius: 5,
+      radius: 18,
+      castsShadows: true
+    } : null
+  );
+
   const result = state.lightingApi.calculateIllumination({ worldId });
   viewport.setIllumination(result.cells);
 }
