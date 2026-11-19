@@ -39,7 +39,7 @@ const ACTION_BINDINGS_STORAGE_KEY = "cassandra.controls.bindings.v1";
 function loadActionBindings() {
   try {
     const saved = localStorage.getItem(ACTION_BINDINGS_STORAGE_KEY);
-    return saved ? JSON.parse(saved) : DEFAULT_CASSANDRA_ACTION_BINDINGS;
+    return saved ? { ...DEFAULT_CASSANDRA_ACTION_BINDINGS, ...JSON.parse(saved) } : DEFAULT_CASSANDRA_ACTION_BINDINGS;
   } catch { return DEFAULT_CASSANDRA_ACTION_BINDINGS; }
 }
 let actionController;
@@ -487,7 +487,7 @@ export async function startCassandraApplication() {
   }
   renderControls();
   for (const button of document.querySelectorAll("[data-bind-action]")) button.addEventListener("click", () => captureBinding(button.dataset.bindAction));
-  document.querySelector("#controls-reset")?.addEventListener("click", () => { actionController.reset(); saveActionBindings(); renderControls(); });
+  document.querySelector("#controls-reset")?.addEventListener("click", () => { actionController.replaceBindings(DEFAULT_CASSANDRA_ACTION_BINDINGS); saveActionBindings(); renderControls(); });
   navigation.showView("menu");
   return Object.freeze({ campaignSessionApi, runtimeHost, newGameFlowController });
 }
