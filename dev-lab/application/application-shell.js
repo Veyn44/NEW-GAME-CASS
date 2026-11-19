@@ -191,65 +191,33 @@ pauseMenuController = createPauseMenuController({
   onVisibilityChange: updateSimulationUi
 });
 function refreshLighting() {
-  const lightingApi = state.lightingApi;
-  const worldRegistry = state.worldRegistry;
-  if (!lightingApi || !worldRegistry) return;
-
-  const worldId = worldRegistry.activeWorldId;
-  const ambientId = "dev-lab:ambient-test";
-  const flashlightId = "dev-lab:flashlight-test";
-  let ambient = lightingApi.getLight(ambientId);
-  let flashlight = lightingApi.getLight(flashlightId);
-
-  // A light belongs to one world. Recreate test lights after a world switch.
-  if (ambient && ambient.worldId !== worldId) {
-    lightingApi.removeLight(ambientId);
-    ambient = null;
+  if (!state.lightingApi || !state.worldRegistry) return;
+  const worldId = state.worldRegistry.activeWorldId;
+  const existing = state.lightingApi.listLights({ worldId });
+  for (const light of existing) {
+    if (light.id === "dev-lab:ambient-test" || light.id === "dev-lab:flashlight-test") {
+      state.lightingApi.removeLight(light.id);
+    }
   }
-  if (flashlight && flashlight.worldId !== worldId) {
-    lightingApi.removeLight(flashlightId);
-    flashlight = null;
-  }
-
-  if (ambientLightToggle?.checked && !ambient) {
-    lightingApi.addLight({
-      id: ambientId, worldId, type: "ambient",
+  if (ambientLightToggle?.checked) {
+    state.lightingApi.addLight({
+      id: "dev-lab:ambient-test", worldId, type: "ambient",
       intensity: 0.18, color: { r: 112, g: 132, b: 166 }, enabled: true
     });
-  } else if (!ambientLightToggle?.checked && ambient) {
-    lightingApi.removeLight(ambientId);
   }
-
-  const gameplayApi = state.gameplayApi;
-  // The selected Pawn dropdown is the source of truth. Colony Leader is a
-  // separate campaign concept and must never drive Dev Lab control/presentation.
-  const selectedPawnId = controlledEntitySelect?.value || null;
-  const pawn = selectedPawnId && typeof gameplayApi?.getUnit === "function"
-    ? gameplayApi.getUnit(selectedPawnId)
-    : null;
-  const position = pawn?.position;
-  if (testFlashlightToggle?.checked && position) {
-    const definition = {
-      id: flashlightId, worldId, type: "spot",
+  if (testFlashlightToggle?.checked) {
+    const leaderId = state.gameplayApi?.getControlState()?.leaderId;
+    const pawn = leaderId ? state.gameplayApi.getUnit(leaderId) : null;
+    const position = pawn?.position;
+    if (position) state.lightingApi.addLight({
+      id: "dev-lab:flashlight-test", worldId, type: "spot",
       position: { x: position.x, y: position.y },
-      direction: 0,
-      innerAngle: Math.PI / 5, outerAngle: Math.PI / 2,
+      direction: 0, innerAngle: Math.PI / 5, outerAngle: Math.PI / 2,
       intensity: 1.4, color: { r: 255, g: 222, b: 160 },
       innerRadius: 5, radius: 18, castsShadows: true
-    };
-    if (flashlight) {
-      lightingApi.updateLight(flashlightId, { position: definition.position });
-    } else {
-      lightingApi.addLight(definition);
-    }
-  } else if (flashlight) {
-    lightingApi.removeLight(flashlightId);
+    });
   }
-
-  const bounds = typeof viewport.getVisibleWorldBounds === "function"
-    ? viewport.getVisibleWorldBounds()
-    : null;
-  const result = lightingApi.calculateIllumination({ worldId, bounds });
+  const result = state.lightingApi.calculateIllumination({ worldId });
   viewport.setIllumination(result.cells);
 }
 
@@ -263,7 +231,7 @@ function refreshWorldMarkers() {
       id: unit.id,
       x: unit.position?.x ?? unit.placement.position.x,
       y: unit.position?.y ?? unit.placement.position.y,
-      label: getDefinition(unit.definitionId)?.name ?? unit.definitionId,
+      label: getDefinition(unit.definitionId)?.name ?? unit.definitionId
     }));
   viewport.setWorldMarkers(unitMarkers);
 }
