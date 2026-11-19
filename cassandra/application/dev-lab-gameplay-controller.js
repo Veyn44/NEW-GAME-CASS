@@ -18,6 +18,18 @@ export function createCassandraDevLabGameplayController({
     return colonyControlApi.getState();
   }
 
+  const facingByPawn = new Map();
+
+  function getFacing(entityId) {
+    return facingByPawn.get(entityId) ?? 0;
+  }
+
+  function setFacing(entityId, angle) {
+    if (!pawnRuntimeApi.getPawn(entityId) || !Number.isFinite(angle)) return false;
+    facingByPawn.set(entityId, Math.atan2(Math.sin(angle), Math.cos(angle)));
+    return true;
+  }
+
   function createUnit(options) {
     const unit = unitApi.createUnit(options);
     try {
@@ -80,6 +92,8 @@ export function createCassandraDevLabGameplayController({
     getPawn(id) {
       return pawnRuntimeApi.getPawn(id);
     },
+    getFacing,
+    setFacing,
     listUnits() {
       return unitApi.listUnits();
     },
