@@ -330,7 +330,8 @@ window.addEventListener("keydown", (event) => {
     toggleSimulationPause();
     return;
   }
-  const gameplayAction = state.gameplayApi?.handleKeyDown(event);
+  const selectedUnitId = state.gameplayUi?.getSelectedUnitId?.() ?? null;
+  const gameplayAction = state.gameplayApi?.handleKeyDown(event, selectedUnitId);
   if (gameplayAction) {
     event.preventDefault();
     const { controlState, leader } = gameplayAction;
