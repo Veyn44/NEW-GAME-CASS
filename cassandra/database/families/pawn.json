@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "family.pawn",
+  "name": "Pawn",
+  "category": "Families",
+  "description": "Shared data contract for Cassandra Pawn characters.",
+  "attributes": {
+    "progression": {
+      "startingLevel": 1,
+      "xpCurve": "quadratic",
+      "xpBase": 10,
+      "pointsPerLevel": 1
+    },
+    "attributeIds": [
+      "attribute.combat",
+      "attribute.farming",
+      "attribute.engineering",
+      "attribute.medicine",
+      "attribute.research"
+    ],
+    "subAttributes": {
+      "unlockAt": 10,
+      "definitions": []
+    }
+  }
+}
