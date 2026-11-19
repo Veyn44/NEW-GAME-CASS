@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "attribute.engineering",
+  "name": "Engineering",
+  "category": "Attributes",
+  "description": "Construction, repair, manufacturing and technical capability.",
+  "attributes": {
+    "defaultValue": 0,
+    "minimumValue": 0,
+    "subAttributes": {
+      "unlockAt": 10,
+      "definitions": []
+    }
+  }
+}
