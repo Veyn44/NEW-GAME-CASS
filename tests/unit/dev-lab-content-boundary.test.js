@@ -383,15 +383,14 @@ test("standalone Dev Lab restores Cassandra Pawn control systems without campaig
 });
 
 
-test("Dev Lab maps the world pointer to drafted Pawn facing and the flashlight direction", async () => {
+test("Dev Lab keeps the restored Pawn placement path independent from pointer-facing controls", async () => {
   const shell = await read("../../dev-lab/application/application-shell.js");
   const viewport = await read("../../shared/presentation/world-viewport.js");
   const gameplay = await read("../../cassandra/application/dev-lab-gameplay-controller.js");
-  assert.ok(shell.includes("setWorldPointerMoveHandler"));
-  assert.ok(shell.includes("Math.atan2(dy, dx)"));
-  assert.ok(shell.includes("getFacing(leaderId)"));
-  assert.ok(shell.includes("facing: state.gameplayApi?.getFacing(unit.id)"));
-  assert.ok(viewport.includes("screenPointToWorldPosition"));
-  assert.ok(viewport.includes('context.fillStyle = "#071018"'));
-  assert.ok(gameplay.includes("function setFacing(entityId, angle)"));
+  assert.ok(shell.includes("state.lightingApi.calculateIllumination({ worldId })"));
+  assert.ok(shell.includes("const leaderId = state.gameplayApi?.getControlState()?.leaderId"));
+  assert.ok(shell.includes("state.gameplayApi.getUnit(leaderId)"));
+  assert.equal(shell.includes("setWorldPointerMoveHandler"), false);
+  assert.equal(viewport.includes("screenPointToWorldPosition"), false);
+  assert.equal(gameplay.includes("function setFacing(entityId, angle)"), false);
 });
