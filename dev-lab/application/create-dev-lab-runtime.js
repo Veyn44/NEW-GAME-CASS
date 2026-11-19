@@ -15,6 +15,7 @@ import { createCassandraDevLabGameplayController } from "../../cassandra/applica
 export function createDevLabRuntime({
   saveAdapter,
   inputController,
+  actionController,
   onUnitMoved,
   updateFreeCamera
 } = {}) {
@@ -26,7 +27,7 @@ export function createDevLabRuntime({
     fixedStepSeconds: 1 / 60,
     maxStepsPerFrame: 120,
     hostSystems: [
-      createInputSystem({ inputController }),
+      createInputSystem({ inputController, actionController }),
       createUnitSystem({ definitionLookup: getDefinition }),
       createPawnRuntimeSystem({ definitionLookup: getDefinition }),
       createColonyControlSystem({ getMovementSpeed: (entityId) => pawnRuntimeApi?.getPawn(entityId)?.profile?.movement?.movementSpeed ?? null }),
