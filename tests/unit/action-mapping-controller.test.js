@@ -13,7 +13,7 @@ test("physical keys activate named actions without exposing key semantics", () =
 });
 
 test("pause and draft are mapped actions and can be rebound independently", () => {
-  const input = createActionMappingController();
+  const input = createActionMappingController({ bindings: DEFAULT_CASSANDRA_ACTION_BINDINGS });
   assert.deepEqual(input.keyDown("Space"), ["pause"]);
   input.keyUp("Space");
   input.setBinding("pause", ["KeyP"]);
@@ -22,7 +22,7 @@ test("pause and draft are mapped actions and can be rebound independently", () =
 });
 
 test("held actions remain active until their physical key is released", () => {
-  const input = createActionMappingController();
+  const input = createActionMappingController({ bindings: DEFAULT_CASSANDRA_ACTION_BINDINGS });
   input.keyDown("KeyW");
   input.keyDown("KeyD");
   assert.deepEqual(input.getState(), {
@@ -35,14 +35,14 @@ test("held actions remain active until their physical key is released", () => {
 });
 
 test("binding conflicts are rejected without changing the current configuration", () => {
-  const input = createActionMappingController();
+  const input = createActionMappingController({ bindings: DEFAULT_CASSANDRA_ACTION_BINDINGS });
   const before = input.getBindings();
   assert.throws(() => input.setBinding("pause", ["KeyW"]), /conflict/i);
   assert.deepEqual(input.getBindings(), before);
 });
 
 test("reset restores the default mapping", () => {
-  const input = createActionMappingController();
+  const input = createActionMappingController({ bindings: DEFAULT_CASSANDRA_ACTION_BINDINGS });
   input.setBinding("pause", ["KeyP"]);
   input.reset();
   assert.deepEqual(input.getBindings().pause, ["Space"]);
