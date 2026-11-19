@@ -27,7 +27,6 @@ async function setup({ movementSpeed = 4 } = {}) {
     fixedStepSeconds: 1 / 60,
     hostSystems: [
       createInputSystem({ inputController, actionController }),
-      pawnRuntimeStub,
       createUnitSystem({ definitionLookup: getDefinition }),
       createColonyControlSystem({ getMovementSpeed: () => movementSpeed })
     ]
