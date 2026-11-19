@@ -60,7 +60,7 @@ function normalizeLight(raw) {
     throw new LightingError("UNSUPPORTED_FALLOFF", "The lighting runtime uses quadratic attenuation only.", { falloff: raw.falloff });
   }
   if (!LIGHT_TYPES.has(raw.type)) {
-    throw new LightingError("UNSUPPORTED_LIGHT_TYPE", "The initial lighting runtime supports point lights only.", { type: raw.type });
+    throw new LightingError("UNSUPPORTED_LIGHT_TYPE", "The lighting runtime supports point, spot and ambient lights.", { type: raw.type });
   }
   const isAmbient = raw.type === "ambient";
   if (!isAmbient && (!raw.position || !Number.isFinite(raw.position.x) || !Number.isFinite(raw.position.y))) {
