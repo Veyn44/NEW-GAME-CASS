@@ -17,6 +17,7 @@ test("Engine input system exposes the injected controller through a read-only se
 
   controller.resume();
   controller.keyDown("KeyW");
+  actionController.keyDown("KeyW");
   assert.deepEqual(api.getState().keys, ["KeyW"]);
   assert.deepEqual(api.consumeFrameInput().keys, ["KeyW"]);
   assert.equal(api.getActions().moveNorth, true);
