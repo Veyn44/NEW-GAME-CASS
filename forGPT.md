@@ -61,3 +61,5 @@
 
 - Dev Lab controlled Pawn selector: toolbar dropdown lists only spawned Pawns in active world. Selection sets Colony Leader and cancels Draft; F toggles Draft for that exact Pawn. Non-Pawn/out-of-world IDs are rejected.
 - Runtime host preserves the first simulation exception: after a fixed-step fault it pauses advancement instead of repeatedly calling an already-faulted scheduler and masking the original cause. New regression test added. Root cause of current Draft-time scheduler fault still needs reproduction with original error exposed.
+
+- Lighting progress: Engine supports point + spot + global ambient. Ambient is uniform per world/bounds, no position/radius/shadows. Shared viewport renders per-cell colored illumination. Dev Lab has Ambient and Test flashlight toggles; test spot attaches to current controlled Pawn and follows its movement. Runtime-only lights, not persisted. Canvas renderer is deliberately outside Engine Core.
