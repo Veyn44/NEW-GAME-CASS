@@ -14,6 +14,7 @@ import { createApplicationRuntimeHost } from "../../shared/application/runtime-h
 export function createCassandraRuntime({
   saveAdapter,
   inputController,
+  actionController,
   isPackageApplied = null,
   onUnitMoved,
   updateFreeCamera
@@ -24,7 +25,7 @@ export function createCassandraRuntime({
     fixedStepSeconds: 1 / 60,
     maxStepsPerFrame: 120,
     hostSystems: [
-      createInputSystem({ inputController }),
+      createInputSystem({ inputController, actionController }),
       createUnitSystem({ definitionLookup: getDefinition }),
       createPawnRuntimeSystem({ definitionLookup: getDefinition }),
       createColonyControlSystem(),
@@ -85,6 +86,7 @@ export function createCassandraRuntimeHost({
   resolveRuntimeServices = resolveCassandraRuntimeServices,
   saveAdapter,
   inputController,
+  actionController,
   isPackageApplied = null,
   onUnitMoved,
   updateFreeCamera,
@@ -99,7 +101,7 @@ export function createCassandraRuntimeHost({
   return createApplicationRuntimeHost({
     createRuntime: (options) => createRuntime(options),
     resolveRuntimeServices,
-    runtimeOptions: { saveAdapter, inputController, isPackageApplied, onUnitMoved, updateFreeCamera },
+    runtimeOptions: { saveAdapter, inputController, actionController, isPackageApplied, onUnitMoved, updateFreeCamera },
     requestFrame,
     cancelFrame,
     shouldAdvance,
