@@ -8,6 +8,7 @@ import { createUnitSystem } from "../../src/gameplay/unit/unit-system.js";
 import { createInputSystem } from "../../engine/input/input-system.js";
 import { createColonyControlSystem } from "../../src/gameplay/colony/colony-control-system.js";
 import { createViewportInputController } from "../../shared/input/viewport-input-controller.js";
+import { createActionMappingController } from "../../engine/input/action-mapping-controller.js";
 
 async function setup() {
   clearDefinitionsForTests();
@@ -19,11 +20,17 @@ async function setup() {
     attributes: {}
   });
   const inputController = createViewportInputController();
+  const actionController = createActionMappingController();
+  const pawnRuntimeStub = Object.freeze({
+    id: "test.pawn-runtime", provides: ["cassandra.pawn-runtime-api"],
+    initialize() { return { "cassandra.pawn-runtime-api": Object.freeze({ getPawn: () => Object.freeze({ profile: Object.freeze({ movement: Object.freeze({ movementSpeed: 4 }) }) }) }) }; }
+  });
   const runtime = createGameRuntime({
     saveAdapter: new MemorySaveAdapter(),
     fixedStepSeconds: 1 / 60,
     hostSystems: [
-      createInputSystem({ inputController }),
+      createInputSystem({ inputController, actionController }),
+      pawnRuntimeStub,
       createUnitSystem({ definitionLookup: getDefinition }),
       createColonyControlSystem()
     ]
@@ -45,16 +52,15 @@ async function setup() {
     worldId: "colony-test-world",
     position: { x: 20, y: 20 }
   });
-  return { runtime, context, inputController, units, control, leader };
+  return { runtime, context, inputController, actionController, units, control, leader };
 }
 
-test("Draft targets the Colony Leader by stable Unit ID and moves at four tiles per second", async () => {
+test("Draft uses the Pawn profile movement speed and targets the Colony Leader by stable Unit ID", async () => {
   const state = await setup();
   try {
     state.control.setLeader(state.leader.id);
     state.control.setDrafted(true);
-    state.inputController.resume();
-    state.inputController.keyDown("KeyD");
+    state.actionController.keyDown("KeyD");
 
     const result = state.control.update(0.25);
     assert.equal(result.entityId, state.leader.id);
@@ -86,7 +92,7 @@ test("Draft supports all four cardinal directions", async () => {
       state.inputController.keyDown(key);
       const moved = state.control.update(0.25);
       assert.deepEqual(moved.position, expected, key);
-      state.inputController.keyUp(key);
+      state.actionController.keyUp(key);
     }
   } finally {
     await state.runtime.destroy();
