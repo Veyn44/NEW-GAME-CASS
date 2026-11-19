@@ -59,4 +59,5 @@
 - Při každém zápisu celý dokument znovu zkomprimovat: slučovat opakování, odstraňovat zastaralé informace a ponechat jen kontext potřebný pro další práci.
 - Nikdy nepřekročit 100 řádků; cílit výrazně níže. Nezapisovat průběžný šum ani kompletní historii commitů.
 
-- Dev Lab scheduler fix: `dev-lab.free-camera` captures runtime services in its host-system `initialize`; scheduler task receives only tick timing. Draft is no longer Johny-only: first Pawn becomes fallback Colony Leader, and pressing F while a Pawn is selected assigns/drafts that Pawn. Pawn `visionRange`/`visionAngle` are data only; no vision/FoW calculation or rendering exists yet.
+- Dev Lab controlled Pawn selector: toolbar dropdown lists only spawned Pawns in active world. Selection sets Colony Leader and cancels Draft; F toggles Draft for that exact Pawn. Non-Pawn/out-of-world IDs are rejected.
+- Runtime host preserves the first simulation exception: after a fixed-step fault it pauses advancement instead of repeatedly calling an already-faulted scheduler and masking the original cause. New regression test added. Root cause of current Draft-time scheduler fault still needs reproduction with original error exposed.
