@@ -132,7 +132,7 @@ Keep the API small and data-oriented. Candidate surface:
 - `calculateIllumination({ worldId, bounds })`
 - `invalidateRegion({ worldId, bounds, reason })`
 
-The implementation is registered as `core.lighting` through Core Assembly. It exposes `addLight`, `updateLight`, `removeLight`, `getLight`, `listLights` and `calculateIllumination`. Reads return immutable detached data. `occlusionQuery` is supplied by the host and must be synchronous.
+The initial implementation is registered as `core.lighting` through Core Assembly. It exposes `addLight`, `updateLight`, `removeLight`, `getLight`, `listLights` and `calculateIllumination`. Reads return immutable detached data. `occlusionQuery` is supplied by the host and must be synchronous.
 
 Light instances are world-scoped. A light in one world must never affect another world, including temporary encounter worlds. Moving a light, changing an occluder, changing its configuration or changing world geometry invalidates only the affected calculation region where practical.
 
