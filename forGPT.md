@@ -31,8 +31,8 @@
 ## Lighting — první implementační výřez (2026-11-19)
 - Schváleno: světla jsou runtime-only (varianta A); Cassandra obnovuje zdroje z vlastních herních definic. Engine je nepřidává do Persistence.
 - Jediný model útlumu: kvadratický. `innerRadius` drží blízkou oblast jasnou, mezi ním a `radius` platí `(1-t)^2`, na vnějším radius je intenzita nulová. Pro baterku je orientační počáteční innerRadius 8 polí; nejde o pevnou konstantu enginu.
-- Implementováno v `engine/lighting/lighting-system.js`: world-scoped point lights, validace, add/update/remove/list/get a výpočet osvětlení s host `occlusionQuery`; Core Assembly publikuje `core.lighting`.
-- První grid occlusion je synchronní supercover line trace přes host callback; kontroluje oba sousední buňky při průchodu rohem, aby světlo neprotékalo diagonální spárou. Engine neinterpretuje kategorie jako wall/door. Aktuálně `point` + `spot`; Spot používá `direction`, `innerAngle`, `outerAngle` v radiánech a hladký okraj kuželu, radiální útlum zůstává kvadratický. Area/Ambient, Canvas a Dev Lab inspector nejsou hotové.
+- Implementováno v `engine/lighting/lighting-system.js`: world-scoped point/spot/ambient lights, validace, add/update/remove/list/get a výpočet osvětlení s host `occlusionQuery`; Core Assembly publikuje `core.lighting`.
+- První grid occlusion je synchronní supercover line trace přes host callback; kontroluje oba sousední buňky při průchodu rohem, aby světlo neprotékalo diagonální spárou. Engine neinterpretuje kategorie jako wall/door. Aktuálně `point` + `spot`; Spot používá `direction`, `innerAngle`, `outerAngle` v radiánech a hladký okraj kuželu, radiální útlum zůstává kvadratický. Area a Dev Lab Light Inspector nejsou hotové.
 - Cassandra DB obsahuje tři vývojové Pawn fixtures `pawn.test.flashlight-operator`, `pawn.test.torch-carrier`, `pawn.test.observer`; všechny jsou `spawnableAs: ["unit"]`, sdílí validní `family.pawn` profil a jsou výslovně označené `attributes.testFixture`. Nejsou to zatím runtime lampy ani překážky.
 - Testy v `tests/unit/lighting-system.test.js`; nutno ověřit CI po posledním commitu a dále zlepšit/testovat chování paprsků u diagonálních rohů. Veškerá práce pouze na `phase4`, `main` beze změn.
 
@@ -63,3 +63,6 @@
 - Runtime host preserves the first simulation exception: after a fixed-step fault it pauses advancement instead of repeatedly calling an already-faulted scheduler and masking the original cause. New regression test added. Root cause of current Draft-time scheduler fault still needs reproduction with original error exposed.
 
 - Lighting progress: Engine supports point + spot + global ambient. Ambient is uniform per world/bounds, no position/radius/shadows. Shared viewport renders per-cell colored illumination. Dev Lab has Ambient and Test flashlight toggles; test spot attaches to current controlled Pawn and follows its movement. Runtime-only lights, not persisted. Canvas renderer is deliberately outside Engine Core.
+
+- Shared Canvas viewport vykresluje barevné cell illumination; Dev Lab má Ambient + Test flashlight toggles. Osvětlení počítá pouze viditelné bounds, flashlight se aktualizuje in-place; ověřeno CI 334/334 před poslední změnou.
+- Drafted Pawn nyní sleduje world-space kurzor; Cassandra Dev Lab controller drží per-Pawn facing (normalizovaný úhel), Canvas marker vykresluje malé tmavé oko a test flashlight přebírá stejný směr. Facing je zatím runtime-only a není součástí save snapshotu.
