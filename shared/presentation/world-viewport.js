@@ -29,6 +29,7 @@ const context = canvas.getContext("2d");
 
 let worldMarkers = [];
 let spatialHighlightCells = [];
+let illuminationCells = [];
 let selectionEnabled = false;
 let onMarkerSelect = null;
 let onCellInspect = null;
@@ -132,6 +133,19 @@ function setWorldMarkers(markers) {
   if (selectedMarkerId && !worldMarkers.some((marker) => marker.id === selectedMarkerId)) {
     selectedMarkerId = null;
   }
+  render();
+}
+
+function setIllumination(cells = []) {
+  if (!Array.isArray(cells)) throw new TypeError("Illumination must be an array of cell contributions.");
+  illuminationCells = cells.filter((entry) => entry?.cell
+    && Number.isSafeInteger(entry.cell.x) && Number.isSafeInteger(entry.cell.y)
+    && Number.isFinite(entry.intensity) && entry.intensity >= 0
+  ).map((entry) => ({
+    cell: { x: entry.cell.x, y: entry.cell.y },
+    intensity: entry.intensity,
+    contributions: Array.isArray(entry.contributions) ? entry.contributions : []
+  }));
   render();
 }
 
@@ -248,6 +262,24 @@ function render() {
   context.lineWidth = 1.5;
   context.strokeRect(worldLeft, worldTop, state.worldSize * cellWidth, state.worldSize * cellHeight);
   context.globalAlpha = 1;
+
+  if (illuminationCells.length) {
+    context.save();
+    for (const entry of illuminationCells) {
+      const cellX = (entry.cell.x - left) * cellWidth;
+      const cellY = (entry.cell.y - top) * cellHeight;
+      if (cellX + cellWidth < 0 || cellX > width || cellY + cellHeight < 0 || cellY > height) continue;
+      const total = entry.contributions.reduce((sum, item) => sum + item.intensity, 0);
+      if (total <= 0) continue;
+      const red = Math.round(entry.contributions.reduce((sum, item) => sum + item.color.r * item.intensity, 0) / total);
+      const green = Math.round(entry.contributions.reduce((sum, item) => sum + item.color.g * item.intensity, 0) / total);
+      const blue = Math.round(entry.contributions.reduce((sum, item) => sum + item.color.b * item.intensity, 0) / total);
+      const alpha = Math.min(0.72, 0.12 + entry.intensity * 0.48);
+      context.fillStyle = `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+      context.fillRect(cellX, cellY, cellWidth + 0.5, cellHeight + 0.5);
+    }
+    context.restore();
+  }
 
   if (spatialHighlightCells.length) {
     context.save();
@@ -489,6 +521,7 @@ resizeCanvas();
     setSelectedWorldMarker,
     setWorldMarkers,
     setSpatialHighlights,
+    setIllumination,
     getState() {
       return Object.freeze({
         worldSize: state.worldSize,
