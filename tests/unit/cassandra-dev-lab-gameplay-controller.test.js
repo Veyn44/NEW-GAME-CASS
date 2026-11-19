@@ -3,12 +3,13 @@ import assert from "node:assert/strict";
 
 import { createCassandraDevLabGameplayController } from "../../cassandra/application/dev-lab-gameplay-controller.js";
 
-function setup() {
+function setup({ failPawnInitialization = false } = {}) {
   let drafted = false;
   let leaderId = null;
   let nextId = 0;
   let updates = 0;
   const units = new Map();
+  const initializedPawns = new Set();
   const unitApi = {
     createUnit(options) {
       const unit = { id: `unit-${++nextId}`, definitionId: options.definitionId, placement: { type: "world", worldId: options.worldId, position: options.position } };
@@ -19,6 +20,15 @@ function setup() {
     listUnits() { return [...units.values()]; },
     removeUnit(id) { return units.delete(id); }
   };
+  const pawnRuntimeApi = {
+    initializePawn(id) {
+      if (failPawnInitialization) throw new Error("invalid pawn profile");
+      initializedPawns.add(id);
+      return { entityId: id };
+    },
+    getPawn(id) { return initializedPawns.has(id) ? { entityId: id } : null; },
+    listPawns() { return [...initializedPawns].map((id) => ({ entityId: id })); }
+  };
   const colonyControlApi = {
     getState() { return { drafted, leaderId }; },
     setLeader(id) { leaderId = id; return getState(); },
@@ -28,19 +38,32 @@ function setup() {
   };
   function getState() { return { drafted, leaderId }; }
   const worldRegistry = { activeWorldId: "test-world" };
-  const controller = createCassandraDevLabGameplayController({ unitApi, colonyControlApi, worldRegistry });
-  return { controller, units, getState, get updates() { return updates; }, get leaderId() { return leaderId; } };
+  const controller = createCassandraDevLabGameplayController({ unitApi, pawnRuntimeApi, colonyControlApi, worldRegistry });
+  return { controller, units, initializedPawns, getState, get updates() { return updates; }, get leaderId() { return leaderId; } };
 }
 
-test("placing Johny assigns the Colony Leader only when no leader exists", () => {
+test("placing Johny initializes Pawn runtime and assigns Colony Leader only when none exists", () => {
   const state = setup();
   const first = state.controller.createUnit({ definitionId: "pawn.johny", worldId: "test-world", position: { x: 1, y: 2 } });
   assert.equal(state.leaderId, first.id);
+  assert.ok(state.initializedPawns.has(first.id));
 
   const second = state.controller.createUnit({ definitionId: "pawn.johny", worldId: "test-world", position: { x: 2, y: 3 } });
   assert.equal(state.leaderId, first.id);
   assert.equal(state.controller.listUnits().length, 2);
   assert.equal(second.definitionId, "pawn.johny");
+  assert.deepEqual(state.controller.listPawns().map((pawn) => pawn.entityId).sort(), [first.id, second.id].sort());
+});
+
+test("failed Pawn profile initialization removes the just-created Unit", () => {
+  const state = setup({ failPawnInitialization: true });
+  assert.throws(() => state.controller.createUnit({
+    definitionId: "pawn.johny",
+    worldId: "test-world",
+    position: { x: 1, y: 2 }
+  }), /invalid pawn profile/);
+  assert.equal(state.controller.listUnits().length, 0);
+  assert.equal(state.leaderId, null);
 });
 
 test("F toggles Draft through the Cassandra adapter and ignores key repeat", () => {
