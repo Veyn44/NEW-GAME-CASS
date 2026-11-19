@@ -411,6 +411,7 @@ function resolveDevLabRuntimeServices(context) {
     unitApi: context.getService("game.unit-api"),
     inputApi: context.getService("engine.input-api"),
     colonyControlApi: context.getService("game.colony-control-api"),
+    pawnRuntimeApi: context.getService("cassandra.pawn-runtime-api"),
     persistenceApi: context.getService("core.persistence"),
     clock: context.getService("core.game-clock")
   };
@@ -454,6 +455,7 @@ function createDevLabRuntimeHost({
     state.persistenceApi = services.persistenceApi;
     state.gameplayApi = createCassandraDevLabGameplayController({
       unitApi: services.unitApi,
+      pawnRuntimeApi: services.pawnRuntimeApi,
       colonyControlApi: services.colonyControlApi,
       worldRegistry: worlds
     });
