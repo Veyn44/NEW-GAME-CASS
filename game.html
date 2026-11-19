@@ -7,6 +7,7 @@
     <title>Cassandra · Game</title>
     <link rel="stylesheet" href="./dev-lab/presentation/dev-world-preview.css">
     <link rel="stylesheet" href="./cassandra/application/dev-lab-unit-inspector-ui.css">
+    <link rel="stylesheet" href="./cassandra/presentation/new-game-flow.css">
   </head>
   <body>
     <main class="application-shell">
@@ -17,7 +18,7 @@
           <p class="brand-subtitle">A world waiting to be built.</p>
         </header>
         <nav class="main-menu-list" aria-label="Main menu">
-          <button class="menu-entry" type="button" disabled><span><strong>NEW GAME</strong><small>Create a new expedition</small></span><b>COMING SOON</b></button>
+          <button class="menu-entry menu-entry-available" type="button" data-new-game-open><span><strong>NEW GAME</strong><small>Start a new sandbox game</small></span><b>OPEN</b></button>
           <a class="menu-entry menu-entry-active" href="./dev-lab.html"><span><strong>DEV LAB</strong><small>Open the standalone Engine development environment</small></span><b>OPEN</b></a>
           <button class="menu-entry menu-entry-available" type="button" data-navigate="settings"><span><strong>SETTINGS</strong><small>Controls and application information</small></span><b>OPEN</b></button>
           <button class="menu-entry" type="button" disabled><span><strong>SAVE / LOAD</strong><small>Saved game management</small></span><b>COMING SOON</b></button>
@@ -25,6 +26,73 @@
           <button class="menu-entry" type="button" disabled><span><strong>ARCHIVE</strong><small>Records and history</small></span><b>COMING SOON</b></button>
         </nav>
         <footer class="app-footer"><span>CASSANDRA / GAME APPLICATION</span><span>PHASE 2 · DEVELOPMENT BUILD</span></footer>
+      </section>
+
+      <section class="app-view new-game-view" data-view="new-game-options" hidden>
+        <header class="new-game-header">
+          <div class="new-game-heading">
+            <p class="eyebrow">CASSANDRA / NEW SESSION</p>
+            <h1>New Game Options</h1>
+            <p>Prepare for deployment.</p>
+          </div>
+        </header>
+        <div class="new-game-content">
+          <section class="new-game-reserved" aria-label="Reserved space for future game options">
+            <div class="new-game-reserved-inner">
+              <strong>DEPLOYMENT CONFIGURATION</strong>
+              <span>Additional options will be available here in a future update.</span>
+            </div>
+          </section>
+        </div>
+        <footer class="new-game-actions">
+          <button class="new-game-secondary" type="button" data-new-game-options-back>BACK</button>
+          <button class="new-game-primary" type="button" data-new-game-next>NEXT</button>
+        </footer>
+      </section>
+
+      <section class="app-view new-game-view" data-view="character-selection" hidden>
+        <header class="new-game-header">
+          <div class="new-game-heading">
+            <p class="eyebrow">CASSANDRA / PERSONNEL</p>
+            <h1>Character</h1>
+            <p>Review your Pawn and its service companion.</p>
+          </div>
+        </header>
+        <div class="new-game-content">
+          <div class="character-selection-layout">
+            <div class="character-preview-column">
+              <section class="character-player-preview" aria-label="Player Pawn visual preview placeholder">
+                <span class="character-preview-label">PLAYER PAWN</span>
+                <div class="character-silhouette" aria-hidden="true"></div>
+                <span class="character-preview-caption">VISUAL CUSTOMIZATION NOT AVAILABLE YET</span>
+              </section>
+              <section class="character-companion-preview" aria-label="Separate service robot companion placeholder">
+                <div class="companion-placeholder" aria-hidden="true">SR</div>
+                <div class="companion-copy">
+                  <strong>SERVICE ROBOT</strong>
+                  <span>A separate companion entity. Its appearance and definition will be added later.</span>
+                </div>
+              </section>
+            </div>
+            <section class="character-customization" aria-labelledby="character-customization-title">
+              <p class="eyebrow">APPEARANCE</p>
+              <h2 id="character-customization-title">Character details</h2>
+              <p class="character-customization-intro">Customization is planned for a later update. These categories reserve its future layout; they are not active controls.</p>
+              <div class="character-category-list" aria-label="Planned customization categories">
+                <div class="character-category"><strong>BODY</strong><span>COMING LATER</span></div>
+                <div class="character-category"><strong>HEAD</strong><span>COMING LATER</span></div>
+                <div class="character-category"><strong>HAIR</strong><span>COMING LATER</span></div>
+                <div class="character-category"><strong>CLOTHING</strong><span>COMING LATER</span></div>
+                <div class="character-category"><strong>COLORS</strong><span>COMING LATER</span></div>
+              </div>
+              <p class="character-customization-note">The service robot is a separate game entity, not part of the Pawn's appearance settings.</p>
+            </section>
+          </div>
+        </div>
+        <footer class="new-game-actions">
+          <button class="new-game-secondary" type="button" data-character-back>BACK</button>
+          <button class="new-game-primary" type="button" disabled aria-disabled="true" title="Starting a new game is not implemented yet">START</button>
+        </footer>
       </section>
 
       <section class="app-view database-view" data-view="database" data-mode="browse" hidden>
