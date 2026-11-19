@@ -27,6 +27,7 @@ const canvas = document.querySelector("#world-canvas");
 const worldSizeSelect = document.querySelector("#world-size");
 const gridVisible = document.querySelector("#grid-visible");
 const resetLabButton = document.querySelector("#reset-lab");
+const controlledEntitySelect = document.querySelector("#controlled-entity");
 const saveWorkspaceButton = document.querySelector("#pause-save");
 const saveWorkspaceAsButton = document.querySelector("#pause-save-as");
 const loadWorkspaceButton = document.querySelector("#pause-load");
@@ -98,6 +99,7 @@ function beginWorldPlacement(definition) {
         worldSizeSelect.disabled = !state.paused;
         viewport.setWorldPlacement(null);
         refreshWorldMarkers();
+        refreshControlledEntityOptions();
         inspectGameplayEntity(unit.id);
         simulationStatus.textContent = `SPAWNED · ${definition.name} · (${x}, ${y})`;
         return true;
@@ -197,6 +199,33 @@ function refreshWorldMarkers() {
   viewport.setWorldMarkers(unitMarkers);
 }
 
+function refreshControlledEntityOptions() {
+  if (!controlledEntitySelect) return;
+  const controlState = state.gameplayApi?.getControlState() ?? {};
+  const pawns = state.gameplayApi?.listPawns() ?? [];
+  const activeWorldId = state.worldRegistry?.activeWorldId;
+  const options = pawns.map((pawn) => {
+    const unit = state.gameplayApi.getUnit(pawn.entityId);
+    if (!unit?.placement || unit.placement.type !== "world" || unit.placement.worldId !== activeWorldId) return null;
+    const definition = getDefinition(unit.definitionId);
+    return { id: pawn.entityId, label: definition?.name ?? unit.definitionId };
+  }).filter(Boolean);
+  controlledEntitySelect.replaceChildren();
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = options.length ? "Select a Pawn…" : "No spawned Pawns";
+  controlledEntitySelect.append(placeholder);
+  for (const option of options) {
+    const element = document.createElement("option");
+    element.value = option.id;
+    element.textContent = option.label + " · " + option.id.slice(-6);
+    controlledEntitySelect.append(element);
+  }
+  controlledEntitySelect.value = options.some((option) => option.id === controlState.leaderId)
+    ? controlState.leaderId : "";
+  controlledEntitySelect.disabled = options.length === 0 || !state.paused;
+}
+
 function clearSelection() {
   state.gameplayUi?.clearSelection();
   viewport.setSelectedWorldMarker(null);
@@ -227,6 +256,7 @@ function updateSimulationUi() {
   viewportDatabaseButton.disabled = !state.paused || state.placementActive;
   resetLabButton.disabled = !state.worldRegistry;
   pointerStatus.textContent = state.paused ? "INSPECTION CURSOR" : (state.gameplayApi?.getControlModeLabel() ?? "FREE CAMERA");
+  refreshControlledEntityOptions();
   viewport.setWorldInteraction({
     paused: state.paused,
     inspectionEnabled: true,
@@ -330,12 +360,12 @@ window.addEventListener("keydown", (event) => {
     toggleSimulationPause();
     return;
   }
-  const selectedUnitId = state.gameplayUi?.getSelectedUnitId?.() ?? null;
-  const gameplayAction = state.gameplayApi?.handleKeyDown(event, selectedUnitId);
+  const gameplayAction = state.gameplayApi?.handleKeyDown(event);
   if (gameplayAction) {
     event.preventDefault();
     const { controlState, leader } = gameplayAction;
     if (controlState.drafted && controlState.leaderId) {
+      controlledEntitySelect.value = controlState.leaderId;
       inspectGameplayEntity(controlState.leaderId);
       if (leader?.placement?.type === "world"
         && leader.placement.worldId === state.worldRegistry?.activeWorldId) {
@@ -344,6 +374,7 @@ window.addEventListener("keydown", (event) => {
     } else {
       clearSelection();
     }
+    refreshControlledEntityOptions();
     updateSimulationUi();
     return;
   }
@@ -396,6 +427,24 @@ worldSizeSelect.addEventListener("change", () => {
 resetLabButton.addEventListener("click", () => {
   workspaceSession.reset();
   refreshWorldMarkers();
+  refreshControlledEntityOptions();
+});
+controlledEntitySelect.addEventListener("change", () => {
+  try {
+    const controlState = state.gameplayApi?.setControlledEntity(controlledEntitySelect.value || null);
+    if (controlState?.leaderId) {
+      inspectGameplayEntity(controlState.leaderId);
+      const unit = state.gameplayApi.getUnit(controlState.leaderId);
+      if (unit) viewport.setCameraFollowTarget(unit.id, unit.position);
+    } else {
+      clearSelection();
+    }
+    refreshControlledEntityOptions();
+    updateSimulationUi();
+  } catch (error) {
+    simulationStatus.textContent = "CONTROLLED ENTITY REJECTED · " + error.message;
+    refreshControlledEntityOptions();
+  }
 });
 saveWorkspaceButton.addEventListener("click", () => state.workspacePersistence?.save());
 saveWorkspaceAsButton.addEventListener("click", () => state.workspacePersistence?.saveAs());
@@ -474,6 +523,7 @@ function createDevLabRuntimeHost({
       onRestore() {
         workspaceSession.synchronizeRestoredWorkspace();
         refreshWorldMarkers();
+        refreshControlledEntityOptions();
       },
       onStatus({ saveStatus, simulationStatus: nextSimulationStatus }) {
         workspaceSaveStatus.textContent = saveStatus;
@@ -486,6 +536,7 @@ function createDevLabRuntimeHost({
     });
     viewport.setWorldMarkers([]);
     clearSelection();
+    refreshControlledEntityOptions();
     state.clock = services.clock;
     state.clock.pause("player");
     state.paused = true;
