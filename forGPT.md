@@ -58,3 +58,5 @@
 - Po každé větší dokončené části práce aktualizovat tento soubor: zapsat pouze nové trvalé poznatky, rozhodnutí, důležité změny stavu a otevřené návaznosti.
 - Při každém zápisu celý dokument znovu zkomprimovat: slučovat opakování, odstraňovat zastaralé informace a ponechat jen kontext potřebný pro další práci.
 - Nikdy nepřekročit 100 řádků; cílit výrazně níže. Nezapisovat průběžný šum ani kompletní historii commitů.
+
+- Dev Lab scheduler fix: `dev-lab.free-camera` captures runtime services in its host-system `initialize`; scheduler task receives only tick timing. Draft is no longer Johny-only: first Pawn becomes fallback Colony Leader, and pressing F while a Pawn is selected assigns/drafts that Pawn. Pawn `visionRange`/`visionAngle` are data only; no vision/FoW calculation or rendering exists yet.
