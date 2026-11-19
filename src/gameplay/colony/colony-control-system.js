@@ -1,5 +1,4 @@
 const SNAPSHOT_VERSION = 1;
-const MOVE_SPEED_TILES_PER_SECOND = 4;
 
 function freezeState(leaderId, drafted) {
   return Object.freeze({ leaderId, drafted: Boolean(drafted) });
@@ -8,6 +7,7 @@ function freezeState(leaderId, drafted) {
 export function createColonyControlSystem() {
   let units;
   let input;
+  let pawnRuntime;
   let worlds;
   let events;
   let state = freezeState(null, false);
@@ -53,17 +53,21 @@ export function createColonyControlSystem() {
         state = freezeState(state.leaderId, false);
         return null;
       }
-      const keys = new Set(input.getState().keys);
-      let x = Number(keys.has("KeyD")) - Number(keys.has("KeyA"));
-      let y = Number(keys.has("KeyS")) - Number(keys.has("KeyW"));
+      const actions = input.getActions();
+      const pawn = pawnRuntime.getPawn(leader.id);
+      if (!pawn) return null;
+      const movementSpeed = pawn.profile.movement.movementSpeed;
+      if (!Number.isFinite(movementSpeed) || movementSpeed < 0) return null;
+      let x = Number(actions.moveEast) - Number(actions.moveWest);
+      let y = Number(actions.moveSouth) - Number(actions.moveNorth);
       if (x === 0 && y === 0) return null;
       const length = Math.hypot(x, y);
       x /= length;
       y /= length;
       const position = leader.position;
       const moved = units.moveUnit(leader.id, {
-        x: position.x + x * MOVE_SPEED_TILES_PER_SECOND * deltaSeconds,
-        y: position.y + y * MOVE_SPEED_TILES_PER_SECOND * deltaSeconds
+        x: position.x + x * movementSpeed * deltaSeconds,
+        y: position.y + y * movementSpeed * deltaSeconds
       });
       return Object.freeze({ entityId: leader.id, position: moved.position, placement: moved.placement });
     }
@@ -110,10 +114,11 @@ export function createColonyControlSystem() {
   return Object.freeze({
     id: "game.colony-control",
     provides: ["game.colony-control-api"],
-    requires: ["game.unit-api", "engine.input-api", "core.world-registry", "core.event-bus", "core.persistence"],
+    requires: ["game.unit-api", "engine.input-api", "cassandra.pawn-runtime-api", "core.world-registry", "core.event-bus", "core.persistence"],
     initialize(context) {
       units = context.getService("game.unit-api");
       input = context.getService("engine.input-api");
+      pawnRuntime = context.getService("cassandra.pawn-runtime-api");
       worlds = context.getService("core.world-registry");
       events = context.getService("core.event-bus");
       unsubscribeUnitRemoved = events.subscribe("game.unit.removed", "game.colony-control", (event) => {
@@ -133,4 +138,3 @@ export function createColonyControlSystem() {
   });
 }
 
-export const COLONY_LEADER_MOVE_SPEED = MOVE_SPEED_TILES_PER_SECOND;
