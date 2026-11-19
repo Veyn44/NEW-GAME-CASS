@@ -56,6 +56,9 @@ function normalizeLight(raw) {
   }
   const id = assertId(raw.id, "Light ID");
   const worldId = assertId(raw.worldId, "World ID");
+  if (raw.falloff !== undefined && raw.falloff !== "quadratic") {
+    throw new LightingError("UNSUPPORTED_FALLOFF", "The lighting runtime uses quadratic attenuation only.", { falloff: raw.falloff });
+  }
   if (!LIGHT_TYPES.has(raw.type)) {
     throw new LightingError("UNSUPPORTED_LIGHT_TYPE", "The initial lighting runtime supports point lights only.", { type: raw.type });
   }
@@ -215,6 +218,8 @@ export class LightingSystem {
     for (const light of this.#lights.values()) {
       if (light.worldId !== id || !light.enabled || light.intensity === 0) continue;
       const sourceCell = worldPositionToCell(light.position);
+      try { assertCellInBounds(sourceCell, grid); }
+      catch { throw new LightingError("LIGHT_OUT_OF_BOUNDS", `Light "${light.id}" is outside its world grid.`, { lightId: light.id, worldId: id, sourceCell }); }
       const minLightX = Math.max(minX, 0, Math.floor(light.position.x - light.radius));
       const minLightY = Math.max(minY, 0, Math.floor(light.position.y - light.radius));
       const maxLightX = Math.min(maxX, grid.width, Math.ceil(light.position.x + light.radius));
