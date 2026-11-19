@@ -33,7 +33,8 @@ test("Cassandra loads Pawn base stats, family, five primary attributes and Johny
   assert.deepEqual(baseStats.attributes.noise, {
     movementNoise: 8
   });
-  assert.equal(baseStats.attributes.physical.carryCapacity, null);
+  assert.equal(baseStats.attributes.physical.carryCapacity, 50);
+  assert.equal(baseStats.attributes.physical.carryCapacityUnit, "kg");
   assert.ok(Object.isFrozen(baseStats));
   assert.ok(Object.isFrozen(baseStats.attributes));
 
