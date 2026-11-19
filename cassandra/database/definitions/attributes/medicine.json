@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "attribute.medicine",
+  "name": "Medicine",
+  "category": "Attributes",
+  "description": "Medical treatment and biological care capability.",
+  "attributes": {
+    "defaultValue": 0,
+    "minimumValue": 0,
+    "subAttributes": {
+      "unlockAt": 10,
+      "definitions": []
+    }
+  }
+}
