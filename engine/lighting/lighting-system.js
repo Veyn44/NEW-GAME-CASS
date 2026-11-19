@@ -136,7 +136,7 @@ function isOccluded({ worldId, sourceCell, targetCell, occlusionQuery }) {
   if (!occlusionQuery) return false;
   const cells = lineCells(sourceCell, targetCell);
   // The destination cell may itself be an opaque wall; it is lit, but blocks cells behind it.
-  for (let index = 0; index < cells.length - 1; index += 1) {
+  for (let index = 0; index < cells.length; index += 1) {
     const cell = cells[index];
     const blocked = occlusionQuery(Object.freeze({ worldId, cell, sourceCell, targetCell }));
     if (blocked && typeof blocked.then === "function") {
