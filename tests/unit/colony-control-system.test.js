@@ -32,7 +32,7 @@ async function setup() {
       createInputSystem({ inputController, actionController }),
       pawnRuntimeStub,
       createUnitSystem({ definitionLookup: getDefinition }),
-      createColonyControlSystem()
+      createColonyControlSystem({ getMovementSpeed: () => 4 })
     ]
   });
   const context = await runtime.start();
