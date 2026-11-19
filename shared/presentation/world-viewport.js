@@ -37,6 +37,8 @@ let selectedMarkerId = null;
 let placementArtwork = null;
 let placementImage = null;
 let placementImageReady = false;
+let onVisibleBoundsChange = null;
+let lastNotifiedVisibleBounds = null;
 function setWorldInteraction({ paused = false, inspectionEnabled = false, onSelect = null, onInspectCell = null } = {}) {
   state.paused = Boolean(paused);
   selectionEnabled = Boolean(inspectionEnabled);
@@ -97,6 +99,7 @@ function setCameraFollowTarget(entityId, position) {
     state.cameraY = position.y;
     clampCamera();
     render();
+    notifyVisibleBoundsChanged();
   }
 }
 
@@ -110,6 +113,7 @@ function resetCameraToWorld(worldWidth = state.worldSize) {
   state.zoom = 1;
   clampCamera();
   render();
+  notifyVisibleBoundsChanged();
   return true;
 }
 
@@ -119,6 +123,7 @@ function moveCameraBy(deltaX, deltaY) {
   state.cameraY += deltaY;
   clampCamera();
   render();
+  notifyVisibleBoundsChanged();
   return true;
 }
 
@@ -183,6 +188,7 @@ function resizeCanvas() {
   canvas.height = Math.round(bounds.height * pixelRatio);
   context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
   render();
+  notifyVisibleBoundsChanged();
 }
 
 function visibleDimensions() {
@@ -202,6 +208,25 @@ function getVisibleWorldBounds() {
     maxX: Math.min(state.worldSize, Math.ceil(left + view.columns)),
     maxY: Math.min(state.worldSize, Math.ceil(top + view.rows))
   });
+}
+
+function setVisibleBoundsChangeHandler(handler) {
+  if (handler !== null && typeof handler !== "function") {
+    throw new TypeError("Visible bounds change handler must be a function or null.");
+  }
+  onVisibleBoundsChange = handler;
+  lastNotifiedVisibleBounds = getVisibleWorldBounds();
+}
+
+function notifyVisibleBoundsChanged() {
+  if (!onVisibleBoundsChange) return;
+  const bounds = getVisibleWorldBounds();
+  const previous = lastNotifiedVisibleBounds;
+  if (previous
+    && previous.minX === bounds.minX && previous.minY === bounds.minY
+    && previous.maxX === bounds.maxX && previous.maxY === bounds.maxY) return;
+  lastNotifiedVisibleBounds = bounds;
+  onVisibleBoundsChange(bounds);
 }
 
 function clampCamera() {
@@ -400,6 +425,7 @@ function updateZoom(value, anchor = { x: 0.5, y: 0.5 }) {
   state.cameraY = worldAnchorY - offsetY * nextView.rows;
   clampCamera();
   render();
+  notifyVisibleBoundsChanged();
 }
 
 sizeSelect.addEventListener("change", () => {
@@ -408,6 +434,7 @@ sizeSelect.addEventListener("change", () => {
   state.cameraX = state.worldSize / 2;
   state.cameraY = state.worldSize / 2;
   render();
+  notifyVisibleBoundsChanged();
 });
 
 gridToggle.addEventListener("change", () => {
@@ -492,7 +519,10 @@ canvas.addEventListener("pointermove", (event) => {
     state.pointerY = event.clientY;
     clampCamera();
   }
-  if (state.dragging) render();
+  if (state.dragging) {
+    render();
+    notifyVisibleBoundsChanged();
+  }
 });
 canvas.addEventListener("pointerleave", () => {
   if (pointerOverlay) pointerOverlay.dataset.pointerInside = "false";
@@ -526,6 +556,7 @@ resizeCanvas();
 
   return Object.freeze({
     setWorldInteraction,
+    setVisibleBoundsChangeHandler,
     setWorldPlacement,
     cancelWorldPlacement,
     setCameraFollowTarget,
