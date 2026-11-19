@@ -77,13 +77,14 @@ function normalizeDefinition(definition) {
   if (!definition || typeof definition !== "object") throw new TypeError("A definition object is required.");
   const {
     schemaVersion = 1, id, name, category, description = "", entityType = null,
-    attributes = {}, artwork = null, spawnableAs = []
+    familyId = null, attributes = {}, artwork = null, spawnableAs = []
   } = definition;
   for (const [field, value] of Object.entries({ id, name, category })) {
     if (typeof value !== "string" || !value.trim()) throw new TypeError("Definition " + field + " must be a non-empty string.");
   }
   if (!Number.isSafeInteger(schemaVersion) || schemaVersion < 1) throw new TypeError("Definition schemaVersion must be a positive safe integer.");
   if (entityType !== null && (typeof entityType !== "string" || !entityType.trim())) throw new TypeError("Definition entityType must be a non-empty string or null.");
+  if (familyId !== null && (typeof familyId !== "string" || !familyId.trim())) throw new TypeError("Definition familyId must be a non-empty string or null.");
   if (typeof description !== "string") throw new TypeError("Definition description must be a string.");
   if (!attributes || typeof attributes !== "object" || Array.isArray(attributes)) throw new TypeError("Definition attributes must be an object.");
   if (artwork !== null && (typeof artwork !== "string" || !artwork.trim())) throw new TypeError("Definition artwork must be a non-empty path or null.");
@@ -99,6 +100,7 @@ function normalizeDefinition(definition) {
     category: category.trim(),
     description,
     entityType: entityType?.trim() ?? null,
+    familyId: familyId?.trim() ?? null,
     attributes: detachedAttributes,
     artwork,
     spawnableAs: [...new Set(detachedSpawnableAs)]
