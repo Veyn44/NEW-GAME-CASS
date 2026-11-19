@@ -39,7 +39,15 @@ export function createCassandraDevLabGameplayController({
       }
       return unit;
     } catch (error) {
-      unitApi.removeUnit(unit.id);
+      // Preserve the initialization failure. A rollback failure is secondary and
+      // must never replace the error that explains why spawning was rejected.
+      try {
+        unitApi.removeUnit(unit.id);
+      } catch (rollbackError) {
+        if (error && typeof error === "object" && Object.isExtensible(error)) {
+          error.rollbackError = rollbackError;
+        }
+      }
       throw error;
     }
   }
