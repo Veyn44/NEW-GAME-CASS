@@ -39,7 +39,14 @@ export function createCassandraDevLabGameplayController({
       }
       return unit;
     } catch (error) {
-      unitApi.removeUnit(unit.id);
+      // Preserve the original Pawn initialization failure if cleanup also fails.
+      try {
+        unitApi.removeUnit(unit.id);
+      } catch (rollbackError) {
+        if (error && typeof error === "object" && Object.isExtensible(error)) {
+          error.rollbackError = rollbackError;
+        }
+      }
       throw error;
     }
   }
