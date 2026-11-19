@@ -81,6 +81,8 @@ export function createPawnRuntimeSystem({ definitionLookup } = {}) {
       const id = assertId(entityId, "Pawn entity ID");
       const unit = units.getUnit(id);
       if (!unit) throw new PawnRuntimeError("UNKNOWN_UNIT", `Cannot initialize Pawn "${id}" because its Unit does not exist.`, { entityId: id });
+      const definition = definitionLookup(unit.definitionId);
+      if (!definition?.familyId) return null;
       const profile = getProfileForDefinition(unit.definitionId);
       const existing = pawns.get(id);
       if (existing) {
