@@ -113,7 +113,7 @@ test("Draft handles overlapping WASD combinations and independent key release", 
     assert.ok(Math.abs(moved.position.x - (20.5 - Math.SQRT1_2)) < 1e-9);
     assert.ok(Math.abs(moved.position.y - (20.5 - Math.SQRT1_2)) < 1e-9);
 
-    state.inputController.keyUp("KeyW");
+    state.actionController.keyUp("KeyW");
     moved = state.control.update(0.25);
     assert.ok(Math.abs(moved.position.x - (19.5 - Math.SQRT1_2)) < 1e-9);
     assert.ok(Math.abs(moved.position.y - (20.5 - Math.SQRT1_2)) < 1e-9);
