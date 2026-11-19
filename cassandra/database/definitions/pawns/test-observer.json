@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "pawn.test.observer",
+  "name": "Test Pawn — Observer",
+  "category": "Test Pawns",
+  "description": "Development-only Pawn fixture for validating Cassandra lighting and visibility scenarios. Lighting and visibility test fixture.",
+  "entityType": "human",
+  "familyId": "family.pawn",
+  "attributes": {
+    "species": "Human",
+    "age": 25,
+    "role": "Lighting and visibility test fixture",
+    "origin": "Test fixture",
+    "testFixture": true,
+    "testEquipment": "none"
+  },
+  "artwork": null,
+  "spawnableAs": [
+    "unit"
+  ]
+}
