@@ -22,10 +22,6 @@ async function setup({ movementSpeed = 4 } = {}) {
   });
   const inputController = createViewportInputController();
   const actionController = createActionMappingController({ bindings: DEFAULT_CASSANDRA_ACTION_BINDINGS });
-  const pawnRuntimeStub = Object.freeze({
-    id: "test.pawn-runtime", provides: ["cassandra.pawn-runtime-api"],
-    initialize() { return { "cassandra.pawn-runtime-api": Object.freeze({ getPawn: () => Object.freeze({ profile: Object.freeze({ movement: Object.freeze({ movementSpeed: 4 }) }) }) }) }; }
-  });
   const runtime = createGameRuntime({
     saveAdapter: new MemorySaveAdapter(),
     fixedStepSeconds: 1 / 60,
