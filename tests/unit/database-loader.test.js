@@ -4,16 +4,39 @@ import { clearDefinitionsForTests, getDefinition } from "../../engine/database/d
 import { loadCassandraDatabase } from "../../cassandra/database/load-cassandra-database.js";
 import { clearDefinitionPackagesForTests } from "../../engine/database/definition-package-loader.js";
 
-test("Cassandra loads the Pawn family, five primary attributes and Johny", () => {
+test("Cassandra loads Pawn base stats, family, five primary attributes and Johny", () => {
   clearDefinitionsForTests();
   clearDefinitionPackagesForTests();
 
   const definitions = loadCassandraDatabase();
   const family = getDefinition("family.pawn");
+  const baseStats = getDefinition("base-stats.pawn");
   const johny = getDefinition("pawn.johny");
 
-  assert.equal(definitions.length, 7);
+  assert.equal(definitions.length, 8);
   assert.equal(family.category, "Families");
+  assert.equal(family.attributes.baseStatsId, "base-stats.pawn");
+  assert.equal(baseStats.category, "BaseStats");
+  assert.deepEqual(baseStats.attributes.movement, {
+    movementSpeed: 4,
+    dodgeDistance: 4
+  });
+  assert.deepEqual(baseStats.attributes.perception, {
+    visionRange: 8,
+    visionAngle: 120,
+    soundDetectionRange: 8
+  });
+  assert.deepEqual(baseStats.attributes.endurance, {
+    maxHealth: 100,
+    maxStamina: 10
+  });
+  assert.deepEqual(baseStats.attributes.noise, {
+    movementNoise: 8
+  });
+  assert.equal(baseStats.attributes.physical.carryCapacity, null);
+  assert.ok(Object.isFrozen(baseStats));
+  assert.ok(Object.isFrozen(baseStats.attributes));
+
   assert.deepEqual(family.attributes.attributeIds, [
     "attribute.combat",
     "attribute.farming",
@@ -62,4 +85,6 @@ test("Cassandra definition loading is idempotent", () => {
 
   assert.equal(getDefinition("pawn.johny").familyId, "family.pawn");
   assert.equal(getDefinition("family.pawn").attributes.attributeIds.length, 5);
+  assert.equal(getDefinition("family.pawn").attributes.baseStatsId, "base-stats.pawn");
+  assert.equal(getDefinition("base-stats.pawn").attributes.endurance.maxHealth, 100);
 });
