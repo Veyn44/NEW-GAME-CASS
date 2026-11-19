@@ -403,6 +403,5 @@ test("Dev Lab flashlight follows the explicitly selected Pawn, never the Colony 
   assert.equal(lighting.includes("controlState?.leaderId"), false);
   assert.equal(shell.includes("setWorldPointerMoveHandler"), false);
   assert.equal(viewport.includes("setWorldPointerMoveHandler"), false);
-  assert.ok(gameplay.includes("function setFacing(entityId, angle)"));
-  assert.ok(shell.includes("facing: state.gameplayApi?.getFacing(unit.id) ?? 0"));
+  assert.equal(gameplay.includes("function setFacing(entityId, angle)"), false);
 });
