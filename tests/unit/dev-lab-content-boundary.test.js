@@ -383,25 +383,15 @@ test("standalone Dev Lab restores Cassandra Pawn control systems without campaig
 });
 
 
-test("Dev Lab lighting refresh safely handles absent gameplay services and updates bounded lights in place", async () => {
-  const shell = await read("../../dev-lab/application/application-shell.js");
-  assert.ok(shell.includes("const gameplayApi = state.gameplayApi"));
-  assert.ok(shell.includes('typeof gameplayApi?.getUnit === "function"'));
-  assert.ok(shell.includes("lightingApi.updateLight(flashlightId"));
-  assert.ok(shell.includes("viewport.getVisibleWorldBounds()"));
-  assert.ok(shell.includes("calculateIllumination({ worldId, bounds })"));
-  assert.equal(shell.includes("leaderId ? state.gameplayApi.getUnit(leaderId) : null"), false);
-});
-
-test("Dev Lab flashlight follows the explicitly selected Pawn, never the Colony Leader", async () => {
+test("Dev Lab maps the world pointer to drafted Pawn facing and the flashlight direction", async () => {
   const shell = await read("../../dev-lab/application/application-shell.js");
   const viewport = await read("../../shared/presentation/world-viewport.js");
   const gameplay = await read("../../cassandra/application/dev-lab-gameplay-controller.js");
-  const lighting = shell.slice(shell.indexOf("function refreshLighting"), shell.indexOf("function refreshWorldMarkers"));
-  assert.ok(lighting.includes("controlledEntitySelect?.value"));
-  assert.ok(lighting.includes("gameplayApi.getUnit(selectedPawnId)"));
-  assert.equal(lighting.includes("controlState?.leaderId"), false);
-  assert.equal(shell.includes("setWorldPointerMoveHandler"), false);
-  assert.equal(viewport.includes("setWorldPointerMoveHandler"), false);
-  assert.equal(gameplay.includes("function setFacing(entityId, angle)"), false);
+  assert.ok(shell.includes("setWorldPointerMoveHandler"));
+  assert.ok(shell.includes("Math.atan2(dy, dx)"));
+  assert.ok(shell.includes("getFacing(leaderId)"));
+  assert.ok(shell.includes("facing: state.gameplayApi?.getFacing(unit.id)"));
+  assert.ok(viewport.includes("screenPointToWorldPosition"));
+  assert.ok(viewport.includes('context.fillStyle = "#071018"'));
+  assert.ok(gameplay.includes("function setFacing(entityId, angle)"));
 });
