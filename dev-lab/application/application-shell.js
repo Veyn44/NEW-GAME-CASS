@@ -223,7 +223,7 @@ function refreshControlledEntityOptions() {
   }
   controlledEntitySelect.value = options.some((option) => option.id === controlState.leaderId)
     ? controlState.leaderId : "";
-  controlledEntitySelect.disabled = options.length === 0 || !state.paused;
+  controlledEntitySelect.disabled = options.length === 0;
 }
 
 function clearSelection() {
