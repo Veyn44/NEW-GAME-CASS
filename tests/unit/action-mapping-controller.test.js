@@ -1,9 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createActionMappingController } from "../../engine/input/action-mapping-controller.js";
+import { DEFAULT_CASSANDRA_ACTION_BINDINGS } from "../../cassandra/input/default-action-bindings.js";
 
 test("physical keys activate named actions without exposing key semantics", () => {
-  const input = createActionMappingController();
+  const input = createActionMappingController({ bindings: DEFAULT_CASSANDRA_ACTION_BINDINGS });
   assert.deepEqual(input.keyDown("KeyW"), ["moveNorth"]);
   assert.equal(input.getState().moveNorth, true);
   assert.equal(input.getState().pause, false);
