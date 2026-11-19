@@ -95,7 +95,7 @@ Use the existing square grid as the first occlusion adapter, not as a hard-coded
 - Contributions from multiple lights are accumulated into a detached illumination result.
 - Ambient contribution is applied separately from local lights.
 
-The initial grid algorithm should favor deterministic, testable shadow casting. Evaluate symmetric shadowcasting (or an equivalent deterministic grid occlusion algorithm) for tile visibility. Keep the algorithm behind a replaceable strategy boundary so a later continuous-world implementation does not change light definitions or Cassandra APIs.
+The initial grid algorithm uses a deterministic supercover line trace. When a ray crosses an exact grid corner, both side cells are checked so opaque corner-touching cells cannot leak light. This is conservative hard occlusion, not yet symmetric shadowcasting; keep the strategy replaceable and validate the visual result in Dev Lab. Evaluate symmetric shadowcasting (or an equivalent deterministic grid occlusion algorithm) for tile visibility. Keep the algorithm behind a replaceable strategy boundary so a later continuous-world implementation does not change light definitions or Cassandra APIs.
 
 ### Important separation
 
@@ -177,7 +177,7 @@ A small set of deterministic test scenes should cover: isolated point light, two
 7. Profile 128×128 and 256×256 worlds; optimize only measured bottlenecks.
 8. Integrate Cassandra light sources and then Cassandra Vision/Fog of War as separate systems.
 
-## 10. Initial implementation status\n\n- `engine/lighting/lighting-system.js` contains a world-scoped point-light registry and deterministic grid line-occlusion calculation.\n- Quadratic attenuation is the only supported falloff. `innerRadius` provides a bright near-field plateau; `radius` is the zero-intensity boundary.\n- Light instances are runtime-only and are not registered as Persistence participants. Cassandra owns restoring sources from game definitions (decision A).\n- Core Assembly exposes the service as `core.lighting`; the host injects a synchronous `lightingOcclusionQuery`.\n- Initial tests cover quadratic falloff, hard occlusion, world isolation, enable/disable, update/remove, invalid definitions, immutable snapshots and bounded queries.\n- Current implementation supports `point` only. Spot/area/ambient and Canvas rendering remain future steps.\n\n## 11. Acceptance criteria
+## 10. Initial implementation status\n\n- `engine/lighting/lighting-system.js` contains a world-scoped point-light registry and deterministic supercover grid line-occlusion calculation.\n- Quadratic attenuation is the only supported falloff. `innerRadius` provides a bright near-field plateau; `radius` is the zero-intensity boundary.\n- Light instances are runtime-only and are not registered as Persistence participants. Cassandra owns restoring sources from game definitions (decision A).\n- Core Assembly exposes the service as `core.lighting`; the host injects a synchronous `lightingOcclusionQuery`.\n- Initial tests cover quadratic falloff, hard occlusion, world isolation, enable/disable, update/remove, invalid definitions, immutable snapshots and bounded queries.\n- Current implementation supports `point` only. Spot/area/ambient and Canvas rendering remain future steps.\n\n## 11. Acceptance criteria
 
 - Engine lighting modules import no Cassandra, Dev Lab, DOM or Canvas modules.
 - The same light definitions and calculations are used in Cassandra and Dev Lab.
