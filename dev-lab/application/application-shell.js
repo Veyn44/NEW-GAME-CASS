@@ -234,7 +234,6 @@ function refreshWorldMarkers() {
       label: getDefinition(unit.definitionId)?.name ?? unit.definitionId
     }));
   viewport.setWorldMarkers(unitMarkers);
-  refreshLighting();
 }
 
 function refreshControlledEntityOptions() {
@@ -505,7 +504,6 @@ function resolveDevLabRuntimeServices(context) {
   return {
     worldRegistry: context.getService("core.world-registry"),
     lightingApi: context.getService("core.lighting"),
-    lightingApi: context.getService("core.lighting"),
     unitApi: context.getService("game.unit-api"),
     inputApi: context.getService("engine.input-api"),
     colonyControlApi: context.getService("game.colony-control-api"),
@@ -528,6 +526,7 @@ function createDevLabRuntimeHost({
     actionController,
     onUnitMoved(moved) {
       refreshWorldMarkers();
+      if (testFlashlightToggle?.checked) refreshLighting();
       viewport.setCameraFollowTarget(moved.entityId, moved.position);
     },
     updateFreeCamera: applyFreeCameraInput
