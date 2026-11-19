@@ -1,7 +1,7 @@
 import { assertCellInBounds, worldPositionToCell } from "../spatial/grid-geometry.js";
 
 const ID_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9:._-]{0,159}$/;
-const LIGHT_TYPES = new Set(["point"]);
+const LIGHT_TYPES = new Set(["point", "spot"]);
 
 export class LightingError extends Error {
   constructor(code, message, details = {}) {
@@ -71,6 +71,12 @@ function normalizeLight(raw) {
   if (innerRadius >= radius) {
     throw new LightingError("INVALID_INNER_RADIUS", "innerRadius must be smaller than radius.", { innerRadius, radius });
   }
+  const direction = raw.type === "spot" ? finite(raw.direction, "direction") : null;
+  const innerAngle = raw.type === "spot" ? finite(raw.innerAngle, "innerAngle", { min: 0, max: Math.PI * 2 }) : null;
+  const outerAngle = raw.type === "spot" ? finite(raw.outerAngle, "outerAngle", { min: 0, max: Math.PI * 2, exclusiveMin: true }) : null;
+  if (raw.type === "spot" && innerAngle > outerAngle) {
+    throw new LightingError("INVALID_CONE_ANGLES", "innerAngle must not exceed outerAngle.", { innerAngle, outerAngle });
+  }
   const color = raw.color ?? { r: 255, g: 255, b: 255 };
   if (!color || ![color.r, color.g, color.b].every((channel) => Number.isFinite(channel) && channel >= 0 && channel <= 255)) {
     throw new LightingError("INVALID_COLOR", "Light color channels r, g and b must be between 0 and 255.");
@@ -88,6 +94,7 @@ function normalizeLight(raw) {
     enabled: raw.enabled ?? true,
     intensity, color: Object.freeze({ r: color.r, g: color.g, b: color.b }),
     radius, innerRadius,
+    ...(raw.type === "spot" ? { direction, innerAngle, outerAngle } : {}),
     falloff: "quadratic",
     castsShadows: raw.castsShadows ?? true,
     shadowStrength,
@@ -145,6 +152,17 @@ function isOccluded({ worldId, sourceCell, targetCell, occlusionQuery }) {
     if (blocked === true) return true;
   }
   return false;
+}
+
+function spotAngularAttenuation(light, targetX, targetY) {
+  if (light.type !== "spot") return 1;
+  const targetAngle = Math.atan2(targetY - light.position.y, targetX - light.position.x);
+  const difference = Math.abs(Math.atan2(Math.sin(targetAngle - light.direction), Math.cos(targetAngle - light.direction)));
+  const innerHalf = light.innerAngle / 2, outerHalf = light.outerAngle / 2;
+  if (difference <= innerHalf) return 1;
+  if (difference >= outerHalf) return 0;
+  const t = (difference - innerHalf) / (outerHalf - innerHalf);
+  return 1 - (t * t * (3 - 2 * t));
 }
 
 function attenuation(distance, innerRadius, radius) {
@@ -249,10 +267,13 @@ export class LightingSystem {
       for (let y = minLightY; y < maxLightY; y += 1) {
         for (let x = minLightX; x < maxLightX; x += 1) {
           const cell = { x, y };
-          const distance = Math.hypot(x + 0.5 - light.position.x, y + 0.5 - light.position.y);
+          const targetX = x + 0.5, targetY = y + 0.5;
+          const distance = Math.hypot(targetX - light.position.x, targetY - light.position.y);
           if (distance >= light.radius) continue;
+          const angularStrength = spotAngularAttenuation(light, targetX, targetY);
+          if (angularStrength <= 0) continue;
           if (light.castsShadows && isOccluded({ worldId: id, sourceCell, targetCell: cell, occlusionQuery: this.#occlusionQuery })) continue;
-          const strength = light.intensity * attenuation(distance, light.innerRadius, light.radius);
+          const strength = light.intensity * attenuation(distance, light.innerRadius, light.radius) * angularStrength;
           if (strength <= 0) continue;
           const key = `${y},${x}`;
           const entry = accumulated.get(key) ?? { cell: Object.freeze(cell), intensity: 0, contributions: [] };
@@ -260,6 +281,7 @@ export class LightingSystem {
           entry.contributions.push(Object.freeze({
             lightId: light.id, intensity: strength,
             color: light.color,
+            angularStrength,
             shadowStrength: light.shadowStrength
           }));
           accumulated.set(key, entry);
