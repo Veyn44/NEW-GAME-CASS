@@ -11,7 +11,7 @@ import { createViewportInputController } from "../../shared/input/viewport-input
 import { createActionMappingController } from "../../engine/input/action-mapping-controller.js";
 import { DEFAULT_CASSANDRA_ACTION_BINDINGS } from "../../cassandra/input/default-action-bindings.js";
 
-async function setup({ movementSpeed = 4 } = {}) {
+async function setup({ movementSpeed = 4, withActionMapping = true } = {}) {
   clearDefinitionsForTests();
   registerDefinition({
     id: "pawn.johny",
@@ -26,7 +26,9 @@ async function setup({ movementSpeed = 4 } = {}) {
     saveAdapter: new MemorySaveAdapter(),
     fixedStepSeconds: 1 / 60,
     hostSystems: [
-      createInputSystem({ inputController, actionController }),
+      createInputSystem(withActionMapping
+        ? { inputController, actionController }
+        : { inputController }),
       createUnitSystem({ definitionLookup: getDefinition }),
       createColonyControlSystem({ getMovementSpeed: () => movementSpeed })
     ]
@@ -50,6 +52,19 @@ async function setup({ movementSpeed = 4 } = {}) {
   });
   return { runtime, context, inputController, actionController, units, control, leader };
 }
+
+test("Draft safely ignores missing action mappings instead of generating non-finite coordinates", async () => {
+  const state = await setup({ withActionMapping: false });
+  try {
+    state.control.setLeader(state.leader.id);
+    state.control.setDrafted(true);
+    assert.equal(state.control.update(1 / 60), null);
+    assert.deepEqual(state.units.getUnit(state.leader.id).position, { x: 20.5, y: 20.5 });
+  } finally {
+    await state.runtime.destroy();
+    clearDefinitionsForTests();
+  }
+});
 
 test("Draft uses the Pawn profile movement speed and targets the Colony Leader by stable Unit ID", async () => {
   const state = await setup();
