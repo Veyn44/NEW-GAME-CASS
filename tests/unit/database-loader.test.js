@@ -13,7 +13,7 @@ test("Cassandra loads Pawn base stats, family, five primary attributes and Johny
   const baseStats = getDefinition("base-stats.pawn");
   const johny = getDefinition("pawn.johny");
 
-  assert.equal(definitions.length, 8);
+  assert.equal(definitions.length, 11);
   assert.equal(family.category, "Families");
   assert.equal(family.attributes.baseStatsId, "base-stats.pawn");
   assert.equal(baseStats.category, "BaseStats");
@@ -74,6 +74,18 @@ test("Cassandra loads Pawn base stats, family, five primary attributes and Johny
   assert.deepEqual(johny.spawnableAs, ["unit"]);
   assert.ok(Object.isFrozen(johny));
   assert.ok(Object.isFrozen(johny.attributes));
+  for (const [id, equipment] of [
+    ["pawn.test.flashlight-operator", "flashlight"],
+    ["pawn.test.torch-carrier", "torch"],
+    ["pawn.test.observer", "none"]
+  ]) {
+    const fixture = getDefinition(id);
+    assert.ok(fixture, `Expected test fixture ${id} to be registered.`);
+    assert.deepEqual(fixture.spawnableAs, ["unit"]);
+    assert.equal(fixture.familyId, "family.pawn");
+    assert.equal(fixture.attributes.testFixture, true);
+    assert.equal(fixture.attributes.testEquipment, equipment);
+  }
   assert.ok(Object.isFrozen(family));
 });
 
@@ -88,4 +100,5 @@ test("Cassandra definition loading is idempotent", () => {
   assert.equal(getDefinition("family.pawn").attributes.attributeIds.length, 5);
   assert.equal(getDefinition("family.pawn").attributes.baseStatsId, "base-stats.pawn");
   assert.equal(getDefinition("base-stats.pawn").attributes.endurance.maxHealth, 100);
+  assert.equal(getDefinition("pawn.test.flashlight-operator").attributes.testEquipment, "flashlight");
 });
