@@ -28,6 +28,13 @@
 - Aktuální main CI po merge #8: Core/Host i Pages workflows úspěšné na merge commitu 267336e9e2ef28730a9a3a247b7ebe1e38a933e7; CI není důkaz kompletní browser/gameplay acceptance.
 - První výřez Phase 4 je sjednocení Dev Labu. Zachovat původní funkční gameplay (Johny spawn, automatický leader, F/Draft, WASD Pawn control, free camera, pause, camera follow, Unit inspector/profile, .dlcass). Standalone Dev Lab načítá Cassandra content definitions a používá existující Cassandra Unit/Colony gameplay adaptéry; nevytvářet placeholder Engine entity adapter ani falešné API. Nevyžádané Spatial Inspector/test entities odstranit z UI i obsluhy, Engine Spatial API zachovat. Starý workspace v `game.html` odstranit až po ověření jediného standalone Dev Labu.
 
+## Lighting — první implementační výřez (2026-11-19)
+- Schváleno: světla jsou runtime-only (varianta A); Cassandra obnovuje zdroje z vlastních herních definic. Engine je nepřidává do Persistence.
+- Jediný model útlumu: kvadratický. `innerRadius` drží blízkou oblast jasnou, mezi ním a `radius` platí `(1-t)^2`, na vnějším radius je intenzita nulová. Pro baterku je orientační počáteční innerRadius 8 polí; nejde o pevnou konstantu enginu.
+- Implementováno v `engine/lighting/lighting-system.js`: world-scoped point lights, validace, add/update/remove/list/get a výpočet osvětlení s host `occlusionQuery`; Core Assembly publikuje `core.lighting`.
+- První grid occlusion je synchronní line trace přes host callback; Engine neinterpretuje kategorie jako wall/door. Aktuálně pouze `point`; Spot/Area/Ambient, Canvas a Dev Lab inspector nejsou hotové.
+- Testy v `tests/unit/lighting-system.test.js`; nutno ověřit CI po posledním commitu a dále zlepšit/testovat chování paprsků u diagonálních rohů. Veškerá práce pouze na `phase4`, `main` beze změn.
+
 ## Pevné pracovní zásady
 - Neimplementovat další etapu ani zásadní směr bez společné dohody.
 - Nemergovat PR, neměnit main, nemazat větve ani neprovádět destruktivní Git akce bez výslovného souhlasu.
