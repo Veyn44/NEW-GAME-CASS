@@ -214,11 +214,11 @@ function refreshLighting() {
     const definition = {
       id: flashlightId, worldId, type: "spot",
       position: { x: position.x, y: position.y },
-      direction: state.gameplayApi.getFacing(leaderId), innerAngle: Math.PI / 5, outerAngle: Math.PI / 2,
+      direction: 0, innerAngle: Math.PI / 5, outerAngle: Math.PI / 2,
       intensity: 1.4, color: { r: 255, g: 222, b: 160 },
       innerRadius: 5, radius: 18, castsShadows: true
     };
-    if (flashlight) state.lightingApi.updateLight(flashlightId, { position: definition.position, direction: definition.direction });
+    if (flashlight) state.lightingApi.updateLight(flashlightId, { position: definition.position });
     else state.lightingApi.addLight(definition);
   } else if (flashlight) {
     state.lightingApi.removeLight(flashlightId);
@@ -228,24 +228,6 @@ function refreshLighting() {
   const result = state.lightingApi.calculateIllumination({ worldId, bounds });
   viewport.setIllumination(result.cells);
 }
-
-let lastFacingAngle = null;
-viewport.setWorldPointerMoveHandler((pointerPosition) => {
-  const control = state.gameplayApi?.getControlState();
-  if (!control?.drafted || !control.leaderId) return;
-  const pawn = state.gameplayApi.getUnit(control.leaderId);
-  if (!pawn?.position) return;
-  const dx = pointerPosition.x - pawn.position.x;
-  const dy = pointerPosition.y - pawn.position.y;
-  if (Math.hypot(dx, dy) < 0.05) return;
-  const angle = Math.atan2(dy, dx);
-  const previous = state.gameplayApi.getFacing(control.leaderId);
-  const difference = Math.abs(Math.atan2(Math.sin(angle - previous), Math.cos(angle - previous)));
-  if (difference < 0.035) return;
-  state.gameplayApi.setFacing(control.leaderId, angle);
-  refreshWorldMarkers();
-  if (testFlashlightToggle?.checked) refreshLighting();
-});
 
 function refreshWorldMarkers() {
   const units = state.gameplayApi?.listUnits() ?? [];
@@ -257,8 +239,7 @@ function refreshWorldMarkers() {
       id: unit.id,
       x: unit.position?.x ?? unit.placement.position.x,
       y: unit.position?.y ?? unit.placement.position.y,
-      label: getDefinition(unit.definitionId)?.name ?? unit.definitionId,
-      facing: state.gameplayApi?.getFacing(unit.id) ?? 0
+      label: getDefinition(unit.definitionId)?.name ?? unit.definitionId
     }));
   viewport.setWorldMarkers(unitMarkers);
 }
