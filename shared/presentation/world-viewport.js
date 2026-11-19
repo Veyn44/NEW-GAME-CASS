@@ -33,7 +33,6 @@ let illuminationCells = [];
 let selectionEnabled = false;
 let onMarkerSelect = null;
 let onCellInspect = null;
-let onWorldPointerMove = null;
 let selectedMarkerId = null;
 let placementArtwork = null;
 let placementImage = null;
@@ -44,10 +43,6 @@ function setWorldInteraction({ paused = false, inspectionEnabled = false, onSele
   onMarkerSelect = typeof onSelect === "function" ? onSelect : null;
   onCellInspect = typeof onInspectCell === "function" ? onInspectCell : null;
   render();
-}
-
-function setWorldPointerMoveHandler(handler = null) {
-  onWorldPointerMove = typeof handler === "function" ? handler : null;
 }
 
 function setWorldPlacement(configuration = null) {
@@ -488,10 +483,6 @@ canvas.addEventListener("pointermove", (event) => {
     }
     pointerOverlay.dataset.pointerInside = "true";
   }
-  if (onWorldPointerMove) {
-    const worldPosition = screenPointToWorldPosition(event.clientX, event.clientY);
-    if (worldPosition) onWorldPointerMove(worldPosition);
-  }
   if (state.paused && state.placement) {
     state.placement.tile = screenPointToTile(event.clientX, event.clientY);
     state.placement.valid = Boolean(state.placement.tile?.valid);
@@ -519,20 +510,6 @@ canvas.addEventListener("pointerleave", () => {
   }
 });
 
-function screenPointToWorldPosition(clientX, clientY) {
-  const bounds = canvas.getBoundingClientRect();
-  if (clientX < bounds.left || clientX >= bounds.right || clientY < bounds.top || clientY >= bounds.bottom) return null;
-  const view = visibleDimensions();
-  const cellWidth = bounds.width / view.columns;
-  const cellHeight = bounds.height / view.rows;
-  const left = state.cameraX - view.columns / 2;
-  const top = state.cameraY - view.rows / 2;
-  return {
-    x: left + (clientX - bounds.left) / cellWidth,
-    y: top + (clientY - bounds.top) / cellHeight
-  };
-}
-
 function screenPointToTile(clientX, clientY) {
   const bounds = canvas.getBoundingClientRect();
   if (clientX < bounds.left || clientX >= bounds.right || clientY < bounds.top || clientY >= bounds.bottom) return null;
@@ -556,7 +533,6 @@ resizeCanvas();
 
   return Object.freeze({
     setWorldInteraction,
-    setWorldPointerMoveHandler,
     setWorldPlacement,
     cancelWorldPlacement,
     setCameraFollowTarget,
