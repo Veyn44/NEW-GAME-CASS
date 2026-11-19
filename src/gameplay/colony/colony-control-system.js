@@ -52,11 +52,12 @@ export function createColonyControlSystem({ getMovementSpeed = () => null } = {}
         state = freezeState(state.leaderId, false);
         return null;
       }
-      const actions = input.getActions();
+      const actions = input.getActions() ?? {};
       const movementSpeed = getMovementSpeed(leader.id);
       if (!Number.isFinite(movementSpeed) || movementSpeed < 0) return null;
-      let x = Number(actions.moveEast) - Number(actions.moveWest);
-      let y = Number(actions.moveSouth) - Number(actions.moveNorth);
+      // Missing/unmapped actions are inactive, never numeric NaN values.
+      let x = Number(actions.moveEast === true) - Number(actions.moveWest === true);
+      let y = Number(actions.moveSouth === true) - Number(actions.moveNorth === true);
       if (x === 0 && y === 0) return null;
       const length = Math.hypot(x, y);
       x /= length;
