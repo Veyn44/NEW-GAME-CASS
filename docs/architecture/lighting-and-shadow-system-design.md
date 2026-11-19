@@ -95,6 +95,8 @@ Use the existing square grid as the first occlusion adapter, not as a hard-coded
 - Contributions from multiple lights are accumulated into a detached illumination result.
 - Ambient contribution is applied separately from local lights.
 
+Ambient lights now produce a uniform world-scoped contribution over the requested calculation bounds and do not cast point-source shadows. The shared Canvas viewport consumes detached per-cell light contributions and renders colorized illumination beneath entity markers. Dev Lab exposes ambient and selected-Pawn spot test toggles using the same Engine API.
+
 The initial grid algorithm uses a deterministic supercover line trace. When a ray crosses an exact grid corner, both side cells are checked so opaque corner-touching cells cannot leak light. This is conservative hard occlusion, not yet symmetric shadowcasting; keep the strategy replaceable and validate the visual result in Dev Lab. Evaluate symmetric shadowcasting (or an equivalent deterministic grid occlusion algorithm) for tile visibility. Keep the algorithm behind a replaceable strategy boundary so a later continuous-world implementation does not change light definitions or Cassandra APIs.
 
 ### Important separation
