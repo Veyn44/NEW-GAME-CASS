@@ -91,7 +91,7 @@ Use the existing square grid as the first occlusion adapter, not as a hard-coded
 - A host-supplied occlusion query reports whether a cell/segment blocks light and, if needed later, a transmission value.
 - Engine calculates which cells/positions are reached by each local source and the geometric shadow/occlusion result.
 - Distance attenuation is calculated independently of the renderer and uses one quadratic curve only. Between `innerRadius` and `radius`, attenuation is `(1 - t)²`, where `t = (distance - innerRadius) / (radius - innerRadius)`. Inside `innerRadius` strength remains unchanged; at or beyond `radius` it is zero.
-- Spot lights additionally filter by direction and cone angles.
+- Spot lights additionally filter by direction and full cone angles (`innerAngle`, `outerAngle`, radians). The cone edge uses a smooth angular mask; radial attenuation remains the same quadratic model.
 - Contributions from multiple lights are accumulated into a detached illumination result.
 - Ambient contribution is applied separately from local lights.
 
@@ -177,11 +177,11 @@ A small set of deterministic test scenes should cover: isolated point light, two
 7. Profile 128×128 and 256×256 worlds; optimize only measured bottlenecks.
 8. Integrate Cassandra light sources and then Cassandra Vision/Fog of War as separate systems.
 
-## 10. Initial implementation status\n\n- `engine/lighting/lighting-system.js` contains a world-scoped point-light registry and deterministic supercover grid line-occlusion calculation.\n- Quadratic attenuation is the only supported falloff. `innerRadius` provides a bright near-field plateau; `radius` is the zero-intensity boundary.\n- Light instances are runtime-only and are not registered as Persistence participants. Cassandra owns restoring sources from game definitions (decision A).\n- Core Assembly exposes the service as `core.lighting`; the host injects a synchronous `lightingOcclusionQuery`.\n- Initial tests cover quadratic falloff, hard occlusion, world isolation, enable/disable, update/remove, invalid definitions, immutable snapshots and bounded queries.\n- Current implementation supports `point` only. Spot/area/ambient and Canvas rendering remain future steps.\n\n## 11. Acceptance criteria
+## 10. Initial implementation status\n\n- `engine/lighting/lighting-system.js` contains a world-scoped point-light registry and deterministic supercover grid line-occlusion calculation.\n- Quadratic attenuation is the only supported falloff. `innerRadius` provides a bright near-field plateau; `radius` is the zero-intensity boundary.\n- Light instances are runtime-only and are not registered as Persistence participants. Cassandra owns restoring sources from game definitions (decision A).\n- Core Assembly exposes the service as `core.lighting`; the host injects a synchronous `lightingOcclusionQuery`.\n- Initial tests cover quadratic falloff, hard occlusion, world isolation, enable/disable, update/remove, invalid definitions, immutable snapshots and bounded queries.\n- Current implementation supports `point` and `spot`; spot direction and cone angles are runtime configuration. Area/ambient and Canvas rendering remain future steps.\n\n## 11. Acceptance criteria
 
 - Engine lighting modules import no Cassandra, Dev Lab, DOM or Canvas modules.
 - The same light definitions and calculations are used in Cassandra and Dev Lab.
-- A point light illuminates cells within its range and attenuates deterministically with distance.
+- Point and spot lights illuminate cells within their range; spot lights additionally respect their oriented cone and attenuate deterministically.
 - A blocking wall prevents direct illumination behind it; removing/opening the blocker updates the result.
 - Multiple light contributions combine predictably.
 - Disabled/removed lights stop contributing immediately.
