@@ -1,4 +1,5 @@
 import pawnFamily from "./families/pawn.json" with { type: "json" };
+import pawnBaseStats from "./base-stats/pawn.json" with { type: "json" };
 import combatAttribute from "./definitions/attributes/combat.json" with { type: "json" };
 import farmingAttribute from "./definitions/attributes/farming.json" with { type: "json" };
 import engineeringAttribute from "./definitions/attributes/engineering.json" with { type: "json" };
@@ -9,6 +10,7 @@ import { loadDefinitionPackage } from "../../engine/database/definition-package-
 
 const CASSANDRA_DEFINITIONS = Object.freeze([
   pawnFamily,
+  pawnBaseStats,
   combatAttribute,
   farmingAttribute,
   engineeringAttribute,
@@ -17,7 +19,7 @@ const CASSANDRA_DEFINITIONS = Object.freeze([
   johnyDefinition
 ]);
 
-/** Loads Cassandra-owned families, attributes and entity definitions. */
+/** Loads Cassandra-owned base stats, families, attributes and entity definitions. */
 export function loadCassandraDatabase() {
   return loadDefinitionPackage({
     id: "cassandra.base-content",
