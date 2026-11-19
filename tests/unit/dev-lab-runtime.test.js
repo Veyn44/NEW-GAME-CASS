@@ -35,3 +35,21 @@ test("standalone Dev Lab runtime starts with real Pawn gameplay systems and adva
     await runtime.destroy();
   }
 });
+
+
+test("standalone Dev Lab scheduler task uses services captured during initialization", async () => {
+  const runtime = createDevLabRuntime({
+    saveAdapter: new MemorySaveAdapter(),
+    inputController: {
+      getState: () => Object.freeze({ keys: [], buttons: [], pointerDelta: { x: 0, y: 0 } }),
+      consumeFrameInput: () => Object.freeze({ keys: [], buttons: [], pointerDelta: { x: 0, y: 0 } })
+    }
+  });
+  try {
+    await runtime.start();
+    assert.doesNotThrow(() => runtime.advance(1 / 60));
+    assert.doesNotThrow(() => runtime.advance(1 / 60));
+  } finally {
+    await runtime.destroy();
+  }
+});
