@@ -4,7 +4,7 @@ import { createActionMappingController } from "../../engine/input/action-mapping
 
 test("physical keys activate named actions without exposing key semantics", () => {
   const input = createActionMappingController();
-  assert.deepEqual(input.keyDown("KeyW"), []);
+  assert.deepEqual(input.keyDown("KeyW"), ["moveNorth"]);
   assert.equal(input.getState().moveNorth, true);
   assert.equal(input.getState().pause, false);
   input.keyUp("KeyW");
