@@ -193,31 +193,39 @@ pauseMenuController = createPauseMenuController({
 function refreshLighting() {
   if (!state.lightingApi || !state.worldRegistry) return;
   const worldId = state.worldRegistry.activeWorldId;
-  const existing = state.lightingApi.listLights({ worldId });
-  for (const light of existing) {
-    if (light.id === "dev-lab:ambient-test" || light.id === "dev-lab:flashlight-test") {
-      state.lightingApi.removeLight(light.id);
-    }
-  }
-  if (ambientLightToggle?.checked) {
+  const ambientId = "dev-lab:ambient-test";
+  const flashlightId = "dev-lab:flashlight-test";
+  const ambient = state.lightingApi.getLight(ambientId);
+  const flashlight = state.lightingApi.getLight(flashlightId);
+
+  if (ambientLightToggle?.checked && !ambient) {
     state.lightingApi.addLight({
-      id: "dev-lab:ambient-test", worldId, type: "ambient",
+      id: ambientId, worldId, type: "ambient",
       intensity: 0.18, color: { r: 112, g: 132, b: 166 }, enabled: true
     });
+  } else if (!ambientLightToggle?.checked && ambient) {
+    state.lightingApi.removeLight(ambientId);
   }
-  if (testFlashlightToggle?.checked) {
-    const leaderId = state.gameplayApi?.getControlState()?.leaderId;
-    const pawn = leaderId ? state.gameplayApi.getUnit(leaderId) : null;
-    const position = pawn?.position;
-    if (position) state.lightingApi.addLight({
-      id: "dev-lab:flashlight-test", worldId, type: "spot",
+
+  const leaderId = state.gameplayApi?.getControlState()?.leaderId;
+  const pawn = leaderId ? state.gameplayApi.getUnit(leaderId) : null;
+  const position = pawn?.position;
+  if (testFlashlightToggle?.checked && position) {
+    const definition = {
+      id: flashlightId, worldId, type: "spot",
       position: { x: position.x, y: position.y },
       direction: 0, innerAngle: Math.PI / 5, outerAngle: Math.PI / 2,
       intensity: 1.4, color: { r: 255, g: 222, b: 160 },
       innerRadius: 5, radius: 18, castsShadows: true
-    });
+    };
+    if (flashlight) state.lightingApi.updateLight(flashlightId, { position: definition.position });
+    else state.lightingApi.addLight(definition);
+  } else if (flashlight) {
+    state.lightingApi.removeLight(flashlightId);
   }
-  const result = state.lightingApi.calculateIllumination({ worldId });
+
+  const bounds = viewport.getVisibleWorldBounds();
+  const result = state.lightingApi.calculateIllumination({ worldId, bounds });
   viewport.setIllumination(result.cells);
 }
 
