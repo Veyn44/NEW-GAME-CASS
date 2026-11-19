@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import { createCassandraDevLabGameplayController } from "../../cassandra/application/dev-lab-gameplay-controller.js";
 
-function setup({ failPawnInitialization = false } = {}) {
+function setup({ failPawnInitialization = false, failRollback = false } = {}) {
   let drafted = false;
   let leaderId = null;
   let nextId = 0;
@@ -18,7 +18,7 @@ function setup({ failPawnInitialization = false } = {}) {
     },
     getUnit(id) { return units.get(id) ?? null; },
     listUnits() { return [...units.values()]; },
-    removeUnit(id) { return units.delete(id); }
+    removeUnit(id) { if (failRollback) throw new Error("event bus publish unavailable"); return units.delete(id); }
   };
   const pawnRuntimeApi = {
     initializePawn(id) {
@@ -67,6 +67,19 @@ test("failed Pawn profile initialization removes the just-created Unit", () => {
   }), /invalid pawn profile/);
   assert.equal(state.controller.listUnits().length, 0);
   assert.equal(state.leaderId, null);
+});
+
+test("Pawn initialization error is preserved when Unit rollback also fails", () => {
+  const state = setup({ failPawnInitialization: true, failRollback: true });
+  assert.throws(() => state.controller.createUnit({
+    definitionId: "pawn.johny",
+    worldId: "test-world",
+    position: { x: 1, y: 2 }
+  }), (error) => {
+    assert.match(error.message, /invalid pawn profile/);
+    assert.match(error.rollbackError?.message ?? "", /event bus publish unavailable/);
+    return true;
+  });
 });
 
 test("F toggles Draft through the Cassandra adapter and ignores key repeat", () => {
