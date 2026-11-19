@@ -5,6 +5,7 @@
   "category": "Families",
   "description": "Shared data contract for Cassandra Pawn characters.",
   "attributes": {
+    "baseStatsId": "base-stats.pawn",
     "progression": {
       "startingLevel": 1,
       "xpCurve": "quadratic",
