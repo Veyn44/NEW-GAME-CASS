@@ -1,7 +1,7 @@
 import { assertCellInBounds, worldPositionToCell } from "../spatial/grid-geometry.js";
 
 const ID_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9:._-]{0,159}$/;
-const LIGHT_TYPES = new Set(["point", "spot"]);
+const LIGHT_TYPES = new Set(["point", "spot", "ambient"]);
 
 export class LightingError extends Error {
   constructor(code, message, details = {}) {
@@ -62,13 +62,14 @@ function normalizeLight(raw) {
   if (!LIGHT_TYPES.has(raw.type)) {
     throw new LightingError("UNSUPPORTED_LIGHT_TYPE", "The initial lighting runtime supports point lights only.", { type: raw.type });
   }
-  if (!raw.position || !Number.isFinite(raw.position.x) || !Number.isFinite(raw.position.y)) {
-    throw new LightingError("INVALID_POSITION", "Light position requires finite world-space x and y coordinates.");
+  const isAmbient = raw.type === "ambient";
+  if (!isAmbient && (!raw.position || !Number.isFinite(raw.position.x) || !Number.isFinite(raw.position.y))) {
+    throw new LightingError("INVALID_POSITION", "Local light position requires finite world-space x and y coordinates.");
   }
   const intensity = finite(raw.intensity, "intensity", { min: 0 });
-  const radius = finite(raw.radius, "radius", { min: 0, exclusiveMin: true });
-  const innerRadius = finite(raw.innerRadius ?? 0, "innerRadius", { min: 0 });
-  if (innerRadius >= radius) {
+  const radius = isAmbient ? null : finite(raw.radius, "radius", { min: 0, exclusiveMin: true });
+  const innerRadius = isAmbient ? 0 : finite(raw.innerRadius ?? 0, "innerRadius", { min: 0 });
+  if (!isAmbient && innerRadius >= radius) {
     throw new LightingError("INVALID_INNER_RADIUS", "innerRadius must be smaller than radius.", { innerRadius, radius });
   }
   const direction = raw.type === "spot" ? finite(raw.direction, "direction") : null;
@@ -90,13 +91,13 @@ function normalizeLight(raw) {
   const shadowStrength = finite(raw.shadowStrength ?? 1, "shadowStrength", { min: 0, max: 1 });
   return Object.freeze({
     id, worldId, type: raw.type,
-    position: Object.freeze({ x: raw.position.x, y: raw.position.y }),
+    ...(isAmbient ? {} : { position: Object.freeze({ x: raw.position.x, y: raw.position.y }) }),
     enabled: raw.enabled ?? true,
     intensity, color: Object.freeze({ r: color.r, g: color.g, b: color.b }),
     radius, innerRadius,
     ...(raw.type === "spot" ? { direction, innerAngle, outerAngle } : {}),
     falloff: "quadratic",
-    castsShadows: raw.castsShadows ?? true,
+    castsShadows: isAmbient ? false : (raw.castsShadows ?? true),
     shadowStrength,
     metadata: cloneMetadata(raw.metadata ?? {})
   });
@@ -255,8 +256,27 @@ export class LightingSystem {
     }
 
     const accumulated = new Map();
+    const ambientLights = [...this.#lights.values()].filter((light) =>
+      light.worldId === id && light.type === "ambient" && light.enabled && light.intensity > 0
+    );
+    if (ambientLights.length) {
+      for (let y = minY; y < maxY; y += 1) {
+        for (let x = minX; x < maxX; x += 1) {
+          const cell = Object.freeze({ x, y });
+          const entry = { cell, intensity: 0, contributions: [] };
+          for (const light of ambientLights) {
+            entry.intensity += light.intensity;
+            entry.contributions.push(Object.freeze({
+              lightId: light.id, intensity: light.intensity, color: light.color,
+              angularStrength: 1, shadowStrength: 0
+            }));
+          }
+          accumulated.set(`${y},${x}`, entry);
+        }
+      }
+    }
     for (const light of this.#lights.values()) {
-      if (light.worldId !== id || !light.enabled || light.intensity === 0) continue;
+      if (light.worldId !== id || !light.enabled || light.intensity === 0 || light.type === "ambient") continue;
       const sourceCell = worldPositionToCell(light.position);
       try { assertCellInBounds(sourceCell, grid); }
       catch { throw new LightingError("LIGHT_OUT_OF_BOUNDS", `Light "${light.id}" is outside its world grid.`, { lightId: light.id, worldId: id, sourceCell }); }
