@@ -90,3 +90,10 @@ test("movement updates only while Draft is active", () => {
   assert.equal(moved.entityId, null);
   assert.equal(state.updates, 1);
 });
+
+test("only definitions explicitly marked as world Units can be spawned from the database", () => {
+  const state = setup();
+  assert.equal(state.controller.canPlaceDefinition({ id: "pawn.johny", spawnableAs: ["unit"] }), true);
+  assert.equal(state.controller.canPlaceDefinition({ id: "attribute.medicine", spawnableAs: [] }), false);
+  assert.equal(state.controller.canPlaceDefinition({ id: "attribute.medicine" }), false);
+});
