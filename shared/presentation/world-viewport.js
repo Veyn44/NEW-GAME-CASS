@@ -33,6 +33,7 @@ let illuminationCells = [];
 let selectionEnabled = false;
 let onMarkerSelect = null;
 let onCellInspect = null;
+let onWorldPointerMove = null;
 let selectedMarkerId = null;
 let placementArtwork = null;
 let placementImage = null;
@@ -43,6 +44,10 @@ function setWorldInteraction({ paused = false, inspectionEnabled = false, onSele
   onMarkerSelect = typeof onSelect === "function" ? onSelect : null;
   onCellInspect = typeof onInspectCell === "function" ? onInspectCell : null;
   render();
+}
+
+function setWorldPointerMoveHandler(handler = null) {
+  onWorldPointerMove = typeof handler === "function" ? handler : null;
 }
 
 function setWorldPlacement(configuration = null) {
@@ -333,6 +338,13 @@ function render() {
     context.arc(markerX, markerY, cellWidth * UNIT_MARKER_RADIUS_TILES, 0, Math.PI * 2);
     context.fill();
     context.stroke();
+    const facing = Number.isFinite(marker.facing) ? marker.facing : 0;
+    const eyeX = markerX + Math.cos(facing) * cellWidth * UNIT_MARKER_RADIUS_TILES * 0.72;
+    const eyeY = markerY + Math.sin(facing) * cellHeight * UNIT_MARKER_RADIUS_TILES * 0.72;
+    context.beginPath();
+    context.fillStyle = "#071018";
+    context.arc(eyeX, eyeY, Math.max(1.8, cellWidth * 0.075), 0, Math.PI * 2);
+    context.fill();
     if (marker.id === selectedMarkerId) {
       context.beginPath();
       context.strokeStyle = "rgba(243, 201, 105, 0.8)";
@@ -476,6 +488,10 @@ canvas.addEventListener("pointermove", (event) => {
     }
     pointerOverlay.dataset.pointerInside = "true";
   }
+  if (onWorldPointerMove) {
+    const worldPosition = screenPointToWorldPosition(event.clientX, event.clientY);
+    if (worldPosition) onWorldPointerMove(worldPosition);
+  }
   if (state.paused && state.placement) {
     state.placement.tile = screenPointToTile(event.clientX, event.clientY);
     state.placement.valid = Boolean(state.placement.tile?.valid);
@@ -503,6 +519,20 @@ canvas.addEventListener("pointerleave", () => {
   }
 });
 
+function screenPointToWorldPosition(clientX, clientY) {
+  const bounds = canvas.getBoundingClientRect();
+  if (clientX < bounds.left || clientX >= bounds.right || clientY < bounds.top || clientY >= bounds.bottom) return null;
+  const view = visibleDimensions();
+  const cellWidth = bounds.width / view.columns;
+  const cellHeight = bounds.height / view.rows;
+  const left = state.cameraX - view.columns / 2;
+  const top = state.cameraY - view.rows / 2;
+  return {
+    x: left + (clientX - bounds.left) / cellWidth,
+    y: top + (clientY - bounds.top) / cellHeight
+  };
+}
+
 function screenPointToTile(clientX, clientY) {
   const bounds = canvas.getBoundingClientRect();
   if (clientX < bounds.left || clientX >= bounds.right || clientY < bounds.top || clientY >= bounds.bottom) return null;
@@ -526,6 +556,7 @@ resizeCanvas();
 
   return Object.freeze({
     setWorldInteraction,
+    setWorldPointerMoveHandler,
     setWorldPlacement,
     cancelWorldPlacement,
     setCameraFollowTarget,
