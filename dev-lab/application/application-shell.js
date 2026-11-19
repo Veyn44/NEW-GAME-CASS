@@ -8,6 +8,8 @@ import { createPauseMenuController } from "../../shared/application/pause-menu-c
 import { createDevLabWorkspaceSessionController } from "./workspace-session-controller.js";
 import { getDefinition, listDefinitionIndex, getCategories, loadDefinitionDetail } from "../../engine/database/definition-registry.js";
 import { createViewportInputController } from "../../shared/input/viewport-input-controller.js";
+import { createActionMappingController } from "../../engine/input/action-mapping-controller.js";
+import { DEFAULT_CASSANDRA_ACTION_BINDINGS } from "../../cassandra/input/default-action-bindings.js";
 import { createApplicationRuntimeHost } from "../../shared/application/runtime-host.js";
 import { createCassandraDevLabGameplayController } from "../../cassandra/application/dev-lab-gameplay-controller.js";
 import { createCassandraDevLabUnitInspectorUi } from "../../cassandra/application/dev-lab-unit-inspector-ui.js";
@@ -60,6 +62,7 @@ const definitionCatalog = createDefinitionCatalogController({
   allowBrowseSelection: true
 });
 const inputController = createViewportInputController();
+const actionController = createActionMappingController({ bindings: DEFAULT_CASSANDRA_ACTION_BINDINGS });
 const heldMovementKeys = new Set();
 
 const state = {
@@ -347,6 +350,7 @@ window.addEventListener("keydown", (event) => {
   if (/^Key[WASD]$/.test(event.code)) {
     heldMovementKeys.add(event.code);
     inputController.keyDown(event.code);
+    actionController.keyDown(event.code);
     event.preventDefault();
     if (state.paused) {
       event.preventDefault();
@@ -380,6 +384,7 @@ window.addEventListener("keydown", (event) => {
   }
   if (!state.paused && !/^Key[WASD]$/.test(event.code)) {
     inputController.keyDown(event.code);
+    actionController.keyDown(event.code);
     if (/^(Key[A-Z]|Digit[0-9]|Arrow(Up|Down|Left|Right))$/.test(event.code)) event.preventDefault();
   }
 });
@@ -387,6 +392,7 @@ window.addEventListener("keydown", (event) => {
 window.addEventListener("keyup", (event) => {
   heldMovementKeys.delete(event.code);
   inputController.keyUp(event.code);
+  actionController.keyUp(event.code);
 });
 
 canvas.addEventListener("pointerdown", (event) => {
@@ -411,6 +417,7 @@ function handleFocusLoss() {
     state.paused = true;
   }
   inputController.clearForFocusLoss();
+  actionController.clearHeld();
   updateSimulationUi();
 }
 
@@ -477,6 +484,7 @@ function createDevLabRuntimeHost({
   resolveRuntimeServices,
   runtimeOptions: {
     inputController,
+    actionController,
     onUnitMoved(moved) {
       refreshWorldMarkers();
       viewport.setCameraFollowTarget(moved.entityId, moved.position);
