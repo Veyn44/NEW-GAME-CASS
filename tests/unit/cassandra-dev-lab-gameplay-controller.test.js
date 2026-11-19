@@ -127,3 +127,16 @@ test("controlled entity selector rejects non-Pawns and clears Draft when reset",
   assert.equal(cleared.leaderId, null);
   assert.equal(cleared.drafted, false);
 });
+
+
+test("Pawn facing is normalized, independent per Pawn, and rejects non-Pawn or invalid angles", () => {
+  const state = setup();
+  const first = state.controller.createUnit({ definitionId: "pawn.johny", worldId: "test-world", position: { x: 1, y: 2 } });
+  const second = state.controller.createUnit({ definitionId: "pawn.johny", worldId: "test-world", position: { x: 2, y: 3 } });
+  assert.equal(state.controller.getFacing(first.id), 0);
+  assert.equal(state.controller.setFacing(first.id, Math.PI * 3), true);
+  assert.ok(Math.abs(state.controller.getFacing(first.id) - Math.PI) < 1e-10);
+  assert.equal(state.controller.getFacing(second.id), 0);
+  assert.equal(state.controller.setFacing("missing-pawn", 1), false);
+  assert.equal(state.controller.setFacing(first.id, Number.NaN), false);
+});
