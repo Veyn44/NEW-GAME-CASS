@@ -2,15 +2,16 @@
  * Cassandra's Dev Lab gameplay adapter.
  *
  * The Dev Lab shell talks to this application-owned contract rather than
- * depending on Unit and Colony Control service shapes or Cassandra bindings.
+ * depending on Unit, Pawn Runtime and Colony Control service shapes.
  */
 export function createCassandraDevLabGameplayController({
   unitApi,
+  pawnRuntimeApi,
   colonyControlApi,
   worldRegistry
 } = {}) {
-  if (!unitApi || !colonyControlApi || !worldRegistry) {
-    throw new TypeError("Cassandra gameplay controller requires Unit, Colony Control and World services.");
+  if (!unitApi || !pawnRuntimeApi || !colonyControlApi || !worldRegistry) {
+    throw new TypeError("Cassandra gameplay controller requires Unit, Pawn Runtime, Colony Control and World services.");
   }
 
   function getControlState() {
@@ -19,10 +20,16 @@ export function createCassandraDevLabGameplayController({
 
   function createUnit(options) {
     const unit = unitApi.createUnit(options);
-    if (options?.definitionId === "pawn.johny" && !getControlState().leaderId) {
-      colonyControlApi.setLeader(unit.id);
+    try {
+      const pawn = pawnRuntimeApi.initializePawn(unit.id);
+      if (pawn && unit.definitionId === "pawn.johny" && !getControlState().leaderId) {
+        colonyControlApi.setLeader(unit.id);
+      }
+      return unit;
+    } catch (error) {
+      unitApi.removeUnit(unit.id);
+      throw error;
     }
-    return unit;
   }
 
   function handleKeyDown(event) {
@@ -54,8 +61,14 @@ export function createCassandraDevLabGameplayController({
     getUnit(id) {
       return unitApi.getUnit(id);
     },
+    getPawn(id) {
+      return pawnRuntimeApi.getPawn(id);
+    },
     listUnits() {
       return unitApi.listUnits();
+    },
+    listPawns() {
+      return pawnRuntimeApi.listPawns();
     },
     createUnit,
     removeUnit(id) {
