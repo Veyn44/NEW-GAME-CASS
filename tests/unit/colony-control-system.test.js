@@ -10,7 +10,7 @@ import { createColonyControlSystem } from "../../src/gameplay/colony/colony-cont
 import { createViewportInputController } from "../../shared/input/viewport-input-controller.js";
 import { createActionMappingController } from "../../engine/input/action-mapping-controller.js";
 
-async function setup() {
+async function setup({ movementSpeed = 4 } = {}) {
   clearDefinitionsForTests();
   registerDefinition({
     id: "pawn.johny",
@@ -32,7 +32,7 @@ async function setup() {
       createInputSystem({ inputController, actionController }),
       pawnRuntimeStub,
       createUnitSystem({ definitionLookup: getDefinition }),
-      createColonyControlSystem({ getMovementSpeed: () => 4 })
+      createColonyControlSystem({ getMovementSpeed: () => movementSpeed })
     ]
   });
   const context = await runtime.start();
@@ -247,6 +247,20 @@ test("Removing a non-leader Unit does not clear or disengage the Colony Leader",
     assert.equal(state.units.removeUnit(other.id), true);
     assert.deepEqual(state.control.getState(), { leaderId: state.leader.id, drafted: true });
     assert.ok(state.units.getUnit(state.leader.id));
+  } finally {
+    await state.runtime.destroy();
+    clearDefinitionsForTests();
+  }
+});
+
+test("Colony Leader movement speed follows the supplied Pawn profile value", async () => {
+  const state = await setup({ movementSpeed: 6 });
+  try {
+    state.control.setLeader(state.leader.id);
+    state.control.setDrafted(true);
+    state.actionController.keyDown("KeyD");
+    const moved = state.control.update(0.25);
+    assert.deepEqual(moved.position, { x: 21.5, y: 20.5 });
   } finally {
     await state.runtime.destroy();
     clearDefinitionsForTests();
