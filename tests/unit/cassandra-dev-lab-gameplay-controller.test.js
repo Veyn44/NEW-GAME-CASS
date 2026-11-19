@@ -99,13 +99,28 @@ test("only definitions explicitly marked as world Units can be spawned from the 
 });
 
 
-test("F drafts a selected Pawn definition instead of being restricted to Johny", () => {
+test("controlled entity selector locks Draft to a spawned Pawn", () => {
   const state = setup();
   const johny = state.controller.createUnit({ definitionId: "pawn.johny", worldId: "test-world", position: { x: 1, y: 2 } });
   const observer = state.controller.createUnit({ definitionId: "pawn.test.observer", worldId: "test-world", position: { x: 4, y: 5 } });
-  const action = state.controller.handleKeyDown({ code: "KeyF", repeat: false }, observer.id);
+  const selected = state.controller.setControlledEntity(observer.id);
+  assert.equal(selected.leaderId, observer.id);
+  assert.equal(selected.drafted, false);
+  const action = state.controller.handleKeyDown({ code: "KeyF", repeat: false });
   assert.equal(action.controlState.leaderId, observer.id);
   assert.equal(action.controlState.drafted, true);
   assert.equal(action.leader.id, observer.id);
   assert.notEqual(action.leader.id, johny.id);
+});
+
+test("controlled entity selector rejects non-Pawns and clears Draft when reset", () => {
+  const state = setup();
+  const pawn = state.controller.createUnit({ definitionId: "pawn.johny", worldId: "test-world", position: { x: 1, y: 2 } });
+  const notPawn = state.controller.createUnit({ definitionId: "unit.crate", worldId: "test-world", position: { x: 2, y: 3 } });
+  assert.throws(() => state.controller.setControlledEntity(notPawn.id), /must be a spawned Pawn/);
+  state.controller.setControlledEntity(pawn.id);
+  state.controller.setDrafted(true);
+  const cleared = state.controller.setControlledEntity(null);
+  assert.equal(cleared.leaderId, null);
+  assert.equal(cleared.drafted, false);
 });
