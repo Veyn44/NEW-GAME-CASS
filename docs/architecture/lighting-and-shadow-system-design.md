@@ -65,7 +65,8 @@ Common fields (initial proposal):
 - `intensity`: non-negative normalized/scalar strength (exact scale to be finalized with renderer calibration).
 - `color`: RGB color data.
 - `radius`: finite range for local lights; not used by global ambient.
-- `falloff`: named attenuation profile, initially `linear` and `quadratic`.
+- `falloff`: fixed to `quadratic`; no linear mode is implemented or planned in the current design.
+- `innerRadius`: optional unattenuated near-field radius, smaller than `radius`. This supports sources such as a flashlight that remain bright nearby before fading toward their outer range.
 - `castsShadows`: boolean.
 - `shadowStrength`: 0..1.
 - `metadata`: optional detached application-neutral JSON-like extension data; never interpreted by Engine.
@@ -89,7 +90,7 @@ Use the existing square grid as the first occlusion adapter, not as a hard-coded
 
 - A host-supplied occlusion query reports whether a cell/segment blocks light and, if needed later, a transmission value.
 - Engine calculates which cells/positions are reached by each local source and the geometric shadow/occlusion result.
-- Distance attenuation is calculated independently of the renderer.
+- Distance attenuation is calculated independently of the renderer and uses one quadratic curve only. Between `innerRadius` and `radius`, attenuation is `(1 - t)²`, where `t = (distance - innerRadius) / (radius - innerRadius)`. Inside `innerRadius` strength remains unchanged; at or beyond `radius` it is zero.
 - Spot lights additionally filter by direction and cone angles.
 - Contributions from multiple lights are accumulated into a detached illumination result.
 - Ambient contribution is applied separately from local lights.
@@ -129,7 +130,7 @@ Keep the API small and data-oriented. Candidate surface:
 - `calculateIllumination({ worldId, bounds })`
 - `invalidateRegion({ worldId, bounds, reason })`
 
-Exact names and whether the service is registered through Core Assembly or composed as a host system are open until the implementation audit. The API must not expose mutable internal maps/arrays. Reads return detached data.
+The initial implementation is registered as `core.lighting` through Core Assembly. It exposes `addLight`, `updateLight`, `removeLight`, `getLight`, `listLights` and `calculateIllumination`. Reads return immutable detached data. `occlusionQuery` is supplied by the host and must be synchronous.
 
 Light instances are world-scoped. A light in one world must never affect another world, including temporary encounter worlds. Moving a light, changing an occluder, changing its configuration or changing world geometry invalidates only the affected calculation region where practical.
 
@@ -176,7 +177,7 @@ A small set of deterministic test scenes should cover: isolated point light, two
 7. Profile 128×128 and 256×256 worlds; optimize only measured bottlenecks.
 8. Integrate Cassandra light sources and then Cassandra Vision/Fog of War as separate systems.
 
-## 10. Acceptance criteria
+## 10. Initial implementation status\n\n- `engine/lighting/lighting-system.js` contains a world-scoped point-light registry and deterministic grid line-occlusion calculation.\n- Quadratic attenuation is the only supported falloff. `innerRadius` provides a bright near-field plateau; `radius` is the zero-intensity boundary.\n- Light instances are runtime-only and are not registered as Persistence participants. Cassandra owns restoring sources from game definitions (decision A).\n- Core Assembly exposes the service as `core.lighting`; the host injects a synchronous `lightingOcclusionQuery`.\n- Initial tests cover quadratic falloff, hard occlusion, world isolation, enable/disable, update/remove, invalid definitions, immutable snapshots and bounded queries.\n- Current implementation supports `point` only. Spot/area/ambient and Canvas rendering remain future steps.\n\n## 11. Acceptance criteria
 
 - Engine lighting modules import no Cassandra, Dev Lab, DOM or Canvas modules.
 - The same light definitions and calculations are used in Cassandra and Dev Lab.
