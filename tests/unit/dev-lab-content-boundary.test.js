@@ -381,3 +381,17 @@ test("standalone Dev Lab restores Cassandra Pawn control systems without campaig
   assert.equal(runtime.includes("createCassandraWorldSessionSystem"), false);
   assert.equal(runtime.includes("createCassandraExpeditionProjectionSystem"), false);
 });
+
+
+test("Dev Lab maps the world pointer to drafted Pawn facing and the flashlight direction", async () => {
+  const shell = await read("../../dev-lab/application/application-shell.js");
+  const viewport = await read("../../shared/presentation/world-viewport.js");
+  const gameplay = await read("../../cassandra/application/dev-lab-gameplay-controller.js");
+  assert.ok(shell.includes("setWorldPointerMoveHandler"));
+  assert.ok(shell.includes("Math.atan2(dy, dx)"));
+  assert.ok(shell.includes("getFacing(leaderId)"));
+  assert.ok(shell.includes("facing: state.gameplayApi?.getFacing(unit.id)"));
+  assert.ok(viewport.includes("screenPointToWorldPosition"));
+  assert.ok(viewport.includes('context.fillStyle = "#071018"'));
+  assert.ok(gameplay.includes("function setFacing(entityId, angle)"));
+});
