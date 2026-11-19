@@ -22,7 +22,7 @@ export function createCassandraDevLabGameplayController({
     const unit = unitApi.createUnit(options);
     try {
       const pawn = pawnRuntimeApi.initializePawn(unit.id);
-      if (pawn && unit.definitionId === "pawn.johny" && !getControlState().leaderId) {
+      if (pawn && !getControlState().leaderId) {
         colonyControlApi.setLeader(unit.id);
       }
       return unit;
@@ -32,8 +32,11 @@ export function createCassandraDevLabGameplayController({
     }
   }
 
-  function handleKeyDown(event) {
+  function handleKeyDown(event, selectedUnitId = null) {
     if (event?.code !== "KeyF" || event.repeat) return null;
+    if (!getControlState().drafted && selectedUnitId && pawnRuntimeApi.getPawn(selectedUnitId)) {
+      colonyControlApi.setLeader(selectedUnitId);
+    }
     const controlState = colonyControlApi.toggleDraft();
     const leader = controlState.leaderId ? unitApi.getUnit(controlState.leaderId) : null;
     return Object.freeze({ controlState, leader });
